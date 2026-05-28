@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.zestcc</groupId>
+        <artifactId>zestflow</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>zestflow-executor</artifactId>
+    <version>${zestflow-executor.version}</version>
+    <packaging>jar</packaging>
+
+    <name>ZestFlow :: Executor</name>
+    <description>执行器 — 链端，被业务项目引入，执行链条、发射事件、心跳上报</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.zestcc</groupId>
+            <artifactId>zestflow-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
