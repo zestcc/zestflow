@@ -71,7 +71,7 @@
           <el-button text type="primary" size="small" @click="openAssignModules(row)">
             {{ $t('settings.assignModules') }}
           </el-button>
-          <el-button text type="primary" size="small" @click="openResetPassword(row)">
+          <el-button text type="primary" size="small" @click="handleResetPassword(row)">
             {{ $t('settings.resetPassword') }}
           </el-button>
           <el-button text type="danger" size="small" @click="handleDelete(row)">
@@ -104,9 +104,6 @@
         <el-form-item :label="$t('common.email')" prop="email">
           <el-input v-model="userForm.email" maxlength="100" autocomplete="off" />
         </el-form-item>
-        <el-form-item v-if="!isEditingUser" :label="$t('common.password')" prop="password">
-          <el-input v-model="userForm.password" type="password" show-password maxlength="100" autocomplete="new-password" />
-        </el-form-item>
         <el-form-item :label="$t('settings.isSuperAdmin')">
           <el-switch v-model="userForm.isSuperAdmin" :active-value="1" :inactive-value="0" />
         </el-form-item>
@@ -122,6 +119,60 @@
       </template>
     </el-dialog>
 
+    <!-- 创建成功弹窗（显示账号密码） -->
+    <el-dialog
+      v-model="resultDialogVisible"
+      title="创建成功"
+      width="400px"
+      :close-on-click-modal="false"
+    >
+      <div class="result-box">
+        <div class="result-row">
+          <span class="result-label">用户名</span>
+          <span class="result-value">{{ resultAccount }}</span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">密码</span>
+          <span class="result-value result-password">{{ resultPassword }}</span>
+        </div>
+        <el-alert
+          title="请妥善保存账号密码，关闭后将无法再次查看密码"
+          type="warning"
+          :closable="false"
+          show-icon
+          style="margin-top:16px"
+        />
+      </div>
+      <template #footer>
+        <el-button type="primary" @click="resultDialogVisible = false">我已保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 重置密码成功弹窗 -->
+    <el-dialog
+      v-model="resetResultVisible"
+      title="密码已重置"
+      width="400px"
+      :close-on-click-modal="false"
+    >
+      <div class="result-box">
+        <div class="result-row">
+          <span class="result-label">新密码</span>
+          <span class="result-value result-password">{{ resetResultPassword }}</span>
+        </div>
+        <el-alert
+          title="请妥善保管新密码，关闭后将无法再次查看"
+          type="warning"
+          :closable="false"
+          show-icon
+          style="margin-top:16px"
+        />
+      </div>
+      <template #footer>
+        <el-button type="primary" @click="resetResultVisible = false">我已保存</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 分配模块角色弹窗 -->
     <el-dialog
       v-model="assignDialogVisible"
@@ -131,7 +182,7 @@
     >
       <div v-if="assignTargetUser" class="assign-info">
         <strong>{{ assignTargetUser.username }}</strong>
-        <el-tag size="small" class="assign-info-tag">
+        <el-tag v-if="assignTargetUser.email" size="small" class="assign-info-tag">
           {{ assignTargetUser.email }}
         </el-tag>
       </div>
@@ -146,9 +197,6 @@
           </template>
         </el-table-column>
       </el-table>
-      <div v-if="assignModules.length === 0" class="empty-hint">
-        {{ $t('settings.noAssignments') }}
-      </div>
       <template #footer>
         <el-button type="primary" @click="openAddAssignment">
           {{ $t('settings.addAssignment') }}
@@ -193,26 +241,6 @@
         </el-button>
       </template>
     </el-dialog>
-
-    <!-- 重置密码弹窗 -->
-    <el-dialog
-      v-model="resetPwdDialogVisible"
-      :title="$t('settings.resetPassword')"
-      width="400px"
-      :close-on-click-modal="false"
-    >
-      <el-form ref="resetPwdFormRef" :model="resetPwdForm" :rules="resetPwdRules" label-width="100px">
-        <el-form-item :label="$t('settings.newPasswordFor')" prop="newPassword">
-          <el-input v-model="resetPwdForm.newPassword" type="password" show-password maxlength="100" autocomplete="new-password" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="resetPwdDialogVisible = false">{{ $t('common.cancel') }}</el-button>
-        <el-button type="primary" :loading="resetPwdSubmitting" @click="handleResetPassword">
-          {{ $t('common.confirm') }}
-        </el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -222,7 +250,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { userManageApi, roleApi } from '@/api/user-manage'
 import { moduleApi } from '@/api/module'
-import type { UserManageVO, UserCreateDTO, UserUpdateDTO, RoleVO, AssignModuleRoleDTO } from '@/api/user-manage'
+import type { UserManageVO, UserUpdateDTO, RoleVO, AssignModuleRoleDTO } from '@/api/user-manage'
 import type { ModuleVO } from '@/api/module'
 
 const { t } = useI18n()
@@ -272,10 +300,9 @@ const userSubmitting = ref(false)
 const isEditingUser = ref(false)
 const editingUserId = ref<number | null>(null)
 const userFormRef = ref<any>(null)
-const userForm = ref<UserCreateDTO & { status?: number }>({
+const userForm = ref<any>({
   username: '',
   email: '',
-  password: '',
   isSuperAdmin: 0,
 })
 const userRules = {
@@ -286,11 +313,16 @@ const userRules = {
     { required: true, message: () => t('register.emailRequired'), trigger: 'blur' },
     { type: 'email', message: () => t('validation.emailFormat'), trigger: 'blur' },
   ],
-  password: [
-    { required: true, message: () => t('register.passwordRequired'), trigger: 'blur' },
-    { min: 6, message: () => t('validation.passwordMin'), trigger: 'blur' },
-  ],
 }
+
+// 创建成功结果弹窗
+const resultDialogVisible = ref(false)
+const resultAccount = ref('')
+const resultPassword = ref('')
+
+// 重置密码结果弹窗
+const resetResultVisible = ref(false)
+const resetResultPassword = ref('')
 
 // 分配模块角色
 const assignDialogVisible = ref(false)
@@ -311,19 +343,6 @@ const assignRules = {
 // 未分配的模块选项（过滤掉已分配的）
 const availableModuleOptions = ref<ModuleVO[]>([])
 
-// 重置密码
-const resetPwdDialogVisible = ref(false)
-const resetPwdTargetId = ref<number | null>(null)
-const resetPwdSubmitting = ref(false)
-const resetPwdFormRef = ref<any>(null)
-const resetPwdForm = ref({ newPassword: '' })
-const resetPwdRules = {
-  newPassword: [
-    { required: true, message: () => t('profile.newPasswordRequired'), trigger: 'blur' },
-    { min: 6, message: () => t('validation.passwordMin'), trigger: 'blur' },
-  ],
-}
-
 async function fetchList() {
   loading.value = true
   try {
@@ -336,7 +355,7 @@ async function fetchList() {
 function openCreate() {
   isEditingUser.value = false
   editingUserId.value = null
-  userForm.value = { username: '', email: '', password: '', isSuperAdmin: 0 }
+  userForm.value = { username: '', email: '', isSuperAdmin: 0 }
   userDialogVisible.value = true
 }
 
@@ -367,8 +386,14 @@ async function handleUserSubmit() {
       await userManageApi.update(editingUserId.value, dto)
       ElMessage.success(t('common.edit') + '成功')
     } else {
-      await userManageApi.create(userForm.value as UserCreateDTO)
-      ElMessage.success(t('settings.createUser') + '成功')
+      const res = await userManageApi.create({
+        username: userForm.value.username,
+        email: userForm.value.email,
+        isSuperAdmin: userForm.value.isSuperAdmin,
+      })
+      resultAccount.value = res.username
+      resultPassword.value = res.generatedPassword || ''
+      resultDialogVisible.value = true
     }
     userDialogVisible.value = false
     await fetchList()
@@ -490,23 +515,18 @@ async function handleRemoveAssignment(index: number) {
   } catch {}
 }
 
-function openResetPassword(row: UserManageVO) {
-  resetPwdTargetId.value = row.id
-  resetPwdForm.value = { newPassword: '' }
-  resetPwdDialogVisible.value = true
-}
-
-async function handleResetPassword() {
-  const valid = await resetPwdFormRef.value?.validate().catch(() => false)
-  if (!valid) return
-  if (!resetPwdTargetId.value) return
-  resetPwdSubmitting.value = true
+async function handleResetPassword(row: UserManageVO) {
   try {
-    await userManageApi.resetPassword(resetPwdTargetId.value, resetPwdForm.value.newPassword)
-    ElMessage.success(t('settings.passwordResetSuccess'))
-    resetPwdDialogVisible.value = false
-  } finally {
-    resetPwdSubmitting.value = false
+    await ElMessageBox.confirm(
+      `确定要重置用户「${row.username}」的密码吗？重置后系统将自动生成新密码。`,
+      '确认重置密码',
+      { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' },
+    )
+    const res = await userManageApi.resetPassword(row.id)
+    resetResultPassword.value = res.generatedPassword
+    resetResultVisible.value = true
+  } catch {
+    // 取消操作不做处理
   }
 }
 
@@ -544,6 +564,31 @@ onMounted(fetchList)
   color: #909399;
   padding: 24px 0;
   font-size: 14px;
+}
+
+.result-box {
+  padding: 8px 0;
+}
+.result-row {
+  display: flex;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.result-label {
+  width: 80px;
+  font-size: 14px;
+  color: #606266;
+}
+.result-value {
+  font-size: 16px;
+  color: #303133;
+  font-weight: 600;
+}
+.result-password {
+  font-family: 'Courier New', monospace;
+  color: #e6a23c;
+  letter-spacing: 1px;
 }
 
 /* autofill 背景色防护 */

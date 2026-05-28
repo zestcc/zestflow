@@ -19,6 +19,8 @@ public class UserManageVO {
     private String avatar;
     private Integer status;
     private Integer isSuperAdmin;
+    private Integer mustChangePassword;
+    private String generatedPassword;
     private List<ModuleRoleAssignmentVO> moduleRoles;
 
     @Data

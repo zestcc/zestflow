@@ -22,6 +22,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -38,6 +39,10 @@ public class UserManageServiceImpl implements UserManageService {
     private final RoleMapper roleMapper;
     private final UserModuleRoleMapper userModuleRoleMapper;
     private final PasswordEncoder passwordEncoder;
+
+    private static final String PASSWORD_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+    private static final int PASSWORD_LENGTH = 12;
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     @Override
     public List<UserManageVO> listAll() {
@@ -101,18 +106,23 @@ public class UserManageServiceImpl implements UserManageService {
             throw new BizException(ErrorCode.EMAIL_EXISTS);
         }
 
+        String rawPassword = generateRandomPassword();
+
         UserPO user = new UserPO();
         user.setUsername(dto.getUsername());
         user.setEmail(dto.getEmail());
-        user.setPassword(passwordEncoder.encode(dto.getPassword()));
+        user.setPassword(passwordEncoder.encode(rawPassword));
         user.setStatus(1);
         user.setIsSuperAdmin(dto.getIsSuperAdmin() != null ? dto.getIsSuperAdmin() : 0);
+        user.setMustChangePassword(1);
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.insert(user);
 
         log.info("用户创建成功 userId={} username={} isSuperAdmin={}", user.getId(), user.getUsername(), user.getIsSuperAdmin());
-        return getById(user.getId());
+        UserManageVO vo = getById(user.getId());
+        vo.setGeneratedPassword(rawPassword);
+        return vo;
     }
 
     @Override
@@ -170,15 +180,18 @@ public class UserManageServiceImpl implements UserManageService {
     }
 
     @Override
-    public void resetPassword(Long id, String newPassword) {
+    public String resetPassword(Long id) {
         UserPO user = userMapper.selectById(id);
         if (user == null) {
             throw new BizException(ErrorCode.USER_NOT_FOUND);
         }
-        user.setPassword(passwordEncoder.encode(newPassword));
+        String rawPassword = generateRandomPassword();
+        user.setPassword(passwordEncoder.encode(rawPassword));
+        user.setMustChangePassword(1);
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.updateById(user);
         log.info("用户密码重置成功 userId={}", id);
+        return rawPassword;
     }
 
     @Override
@@ -229,6 +242,14 @@ public class UserManageServiceImpl implements UserManageService {
         log.info("用户模块角色移除 userId={} moduleId={}", userId, moduleId);
     }
 
+    private String generateRandomPassword() {
+        StringBuilder sb = new StringBuilder(PASSWORD_LENGTH);
+        for (int i = 0; i < PASSWORD_LENGTH; i++) {
+            sb.append(PASSWORD_CHARS.charAt(RANDOM.nextInt(PASSWORD_CHARS.length())));
+        }
+        return sb.toString();
+    }
+
     private UserManageVO toManageVO(UserPO user, List<UserModuleRolePO> assignments,
                                      Map<Long, ModulePO> moduleMap, Map<Long, RolePO> roleMap) {
         List<UserManageVO.ModuleRoleAssignmentVO> roleVOs = assignments.stream()
@@ -254,6 +275,7 @@ public class UserManageServiceImpl implements UserManageService {
                 .status(user.getStatus())
                 .isSuperAdmin(user.getIsSuperAdmin())
                 .moduleRoles(roleVOs)
+                .mustChangePassword(user.getMustChangePassword())
                 .build();
     }
 }

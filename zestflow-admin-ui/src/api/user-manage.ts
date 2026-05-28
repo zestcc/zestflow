@@ -16,13 +16,14 @@ export interface UserManageVO {
   avatar?: string
   status: number
   isSuperAdmin: number
+  mustChangePassword?: number
+  generatedPassword?: string
   moduleRoles: ModuleRoleAssignment[]
 }
 
 export interface UserCreateDTO {
   username: string
   email: string
-  password: string
   isSuperAdmin?: number
 }
 
@@ -62,8 +63,8 @@ export const userManageApi = {
   delete(id: number) {
     return http.delete<void>(`/users/${id}`)
   },
-  resetPassword(id: number, newPassword: string) {
-    return http.put<void>(`/users/${id}/reset-password`, { newPassword })
+  resetPassword(id: number) {
+    return http.put<{ generatedPassword: string }>(`/users/${id}/reset-password`)
   },
   assignModuleRole(data: AssignModuleRoleDTO) {
     return http.post<void>(`/users/${data.userId}/module-roles`, data)

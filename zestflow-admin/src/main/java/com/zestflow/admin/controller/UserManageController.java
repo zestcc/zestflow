@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -47,9 +48,9 @@ public class UserManageController {
     }
 
     @PutMapping("/{id}/reset-password")
-    public Result<Void> resetPassword(@PathVariable Long id, @RequestBody Map<String, String> body) {
-        userManageService.resetPassword(id, body.get("newPassword"));
-        return Result.success();
+    public Result<Map<String, String>> resetPassword(@PathVariable Long id) {
+        String generatedPassword = userManageService.resetPassword(id);
+        return Result.success(Collections.singletonMap("generatedPassword", generatedPassword));
     }
 
     @PostMapping("/{id}/module-roles")

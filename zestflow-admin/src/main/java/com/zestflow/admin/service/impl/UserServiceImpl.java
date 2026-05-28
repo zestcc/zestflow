@@ -158,10 +158,27 @@ public class UserServiceImpl implements UserService {
         }
 
         user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
+        user.setMustChangePassword(0);
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.updateById(user);
 
         log.info("密码修改成功 userId={}", userId);
+    }
+
+    @Override
+    public void forcePassword(Long userId, String newPassword) {
+        UserPO user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BizException(ErrorCode.USER_NOT_FOUND);
+        }
+        if (passwordEncoder.matches(newPassword, user.getPassword())) {
+            throw new BizException(ErrorCode.PASSWORD_SAME_AS_OLD, "新密码不能与当前密码相同");
+        }
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setMustChangePassword(0);
+        user.setUpdatedAt(LocalDateTime.now());
+        userMapper.updateById(user);
+        log.info("强制密码修改成功 userId={}", userId);
     }
 
     @Override
@@ -217,6 +234,7 @@ public class UserServiceImpl implements UserService {
                 .email(user.getEmail())
                 .avatar(user.getAvatar())
                 .isSuperAdmin(user.getIsSuperAdmin())
+                .mustChangePassword(user.getMustChangePassword())
                 .build();
     }
 }

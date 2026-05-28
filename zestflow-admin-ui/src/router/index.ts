@@ -26,6 +26,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: false },
   },
   {
+    path: '/force-password',
+    name: 'ForcePassword',
+    component: () => import('@/views/login/ForceChangePassword.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/',
     component: () => import('@/layout/AppLayout.vue'),
     meta: { requiresAuth: true },
@@ -113,6 +119,9 @@ router.beforeEach((to, _from, next) => {
   } else if (!isLoggedIn) {
     // 需要登录但未登录，跳转登录页
     next({ name: 'Login', query: { redirect: to.fullPath } })
+  } else if (userStore.mustChangePassword && to.name !== 'ForcePassword') {
+    // 需要强制改密，跳转到改密页
+    next({ name: 'ForcePassword' })
   } else {
     next()
   }

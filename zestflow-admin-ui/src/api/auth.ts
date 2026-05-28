@@ -17,6 +17,7 @@ export interface UserVO {
   email: string
   avatar?: string
   isSuperAdmin?: number
+  mustChangePassword?: number
 }
 
 export interface UpdateProfileDTO {
@@ -60,6 +61,10 @@ export const authApi = {
 
   updatePassword(data: UpdatePasswordDTO) {
     return http.put<void>('/auth/password', data)
+  },
+
+  forceChangePassword(newPassword: string) {
+    return http.put<void>('/auth/force-password', { newPassword })
   },
 
   uploadAvatar(file: File) {

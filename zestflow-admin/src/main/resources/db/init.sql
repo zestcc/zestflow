@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS `user` (
     `avatar`        VARCHAR(500) DEFAULT NULL             COMMENT '头像URL',
     `status`        TINYINT      DEFAULT 1                COMMENT '状态：1-正常 0-禁用',
     `is_super_admin` TINYINT     DEFAULT 0                COMMENT '是否超级管理员：1-是 0-否',
+    `must_change_password` TINYINT DEFAULT 0              COMMENT '需要强制修改密码：1-是 0-否',
     `reset_token`   VARCHAR(64)  DEFAULT NULL             COMMENT '密码重置Token',
     `reset_token_expiry` DATETIME DEFAULT NULL            COMMENT '重置Token过期时间',
     `created_at`    DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',

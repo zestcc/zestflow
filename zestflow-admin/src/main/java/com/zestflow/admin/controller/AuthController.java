@@ -1,12 +1,15 @@
 package com.zestflow.admin.controller;
 
+import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.model.dto.*;
 import com.zestflow.admin.model.vo.LoginVO;
 import com.zestflow.admin.model.vo.UserVO;
 import com.zestflow.admin.service.UserService;
 import com.zestflow.admin.util.SecurityUtils;
+import com.zestflow.common.exception.BizException;
 import com.zestflow.common.model.Result;
 import jakarta.validation.Valid;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -62,6 +65,17 @@ public class AuthController {
     public Result<Void> updatePassword(@Valid @RequestBody UpdatePasswordDTO dto, Authentication authentication) {
         Long userId = SecurityUtils.getUserId(authentication);
         userService.updatePassword(userId, dto);
+        return Result.success();
+    }
+
+    @PutMapping("/force-password")
+    public Result<Void> forcePassword(@RequestBody Map<String, String> body, Authentication authentication) {
+        Long userId = SecurityUtils.getUserId(authentication);
+        String newPassword = body.get("newPassword");
+        if (newPassword == null || newPassword.length() < 6) {
+            throw new BizException(ErrorCode.VALIDATION_ERROR, "密码至少6位");
+        }
+        userService.forcePassword(userId, newPassword);
         return Result.success();
     }
 

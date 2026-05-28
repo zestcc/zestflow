@@ -19,5 +19,7 @@ public interface UserService {
 
     void updatePassword(Long userId, UpdatePasswordDTO dto);
 
+    void forcePassword(Long userId, String newPassword);
+
     String uploadAvatar(Long userId, MultipartFile file);
 }

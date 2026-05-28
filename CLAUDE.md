@@ -522,6 +522,27 @@ log.error("链执行失败 chainId={} nodeId={}", chainId, nodeId, e);
 1. **DDL 脚本 + 实时库同步** — 修改 `init.sql` 后，必须直接在数据库上执行对应的 `ALTER TABLE` 语句，保证实时库和脚本一致。仅改 SQL 文件会导致运行时报 `Unknown column` 错误。
 2. **默认值双重保障** — 新增字段的默认值同时在 DDL（`DEFAULT xxx`）和 Service 层代码中设置，避免空指针。
 
+## 已实现功能
+
+### 强制改密流程（2026-05）
+
+**需求：** 管理员创建/重置用户时自动生成密码，用户首次登录须强制修改密码后重新登录。自注册用户无需强制改密。
+
+**实现要点：**
+- 后端：`UserPO.mustChangePassword` 字段（0/1），`init.sql` 中 `DEFAULT 1`
+- 密码生成：`SecureRandom` 12位（去歧义字符集 `ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789`），BCrypt 加密落库
+- 新建用户 / 重置密码 → 自动生成密码 → `mustChangePassword=1` → 弹窗展示明文密码（关闭后不可再次查看）
+- 登录时检测 `mustChangePassword=1` → 跳转 `/force-password` → 修改成功后清除标记 → 跳回登录页（用户名回显，密码清空）
+- 新密码不能与当前密码相同（`passwordEncoder.matches()` 校验）
+- 前台路由 `/force-password` + 导航守卫拦截
+
+### 用户管理页约定
+
+- 列表页顶部统计，筛选栏（用户名/邮箱/状态/超管），分页
+- 已分配模块列：`{{ row.moduleRoles?.length || 0 }}`
+- 分配模块弹窗：用户名 + 邮箱标签（`v-if` 邮箱为空时不展示），模块角色表格
+- 创建/重置成功弹窗显示明文密码，仅一次机会查看
+
 ## 工作原则
 
 1. 给出方案前先讲清楚**为什么**、**对标了哪个项目**

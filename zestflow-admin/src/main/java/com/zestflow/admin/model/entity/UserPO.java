@@ -24,6 +24,8 @@ public class UserPO {
 
     private Integer isSuperAdmin;
 
+    private Integer mustChangePassword;
+
     private String resetToken;
 
     private LocalDateTime resetTokenExpiry;

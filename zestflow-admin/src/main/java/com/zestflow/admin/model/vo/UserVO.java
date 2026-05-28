@@ -16,4 +16,5 @@ public class UserVO {
     private String email;
     private String avatar;
     private Integer isSuperAdmin;
+    private Integer mustChangePassword;
 }

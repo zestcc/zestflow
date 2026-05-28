@@ -1,10 +1,8 @@
 <template>
-  <div class="login-page">
-    <!-- 背景装饰 -->
+  <div class="force-pwd-page">
     <div class="bg-decor">
       <div class="bg-grid"></div>
       <div class="bg-glow"></div>
-      <!-- 编排节点 — 散布全屏 -->
       <div class="bg-flow tl">
         <svg viewBox="0 0 120 80" class="flow-svg">
           <g stroke="rgba(255,255,255,0.08)" stroke-width="1" fill="none">
@@ -95,153 +93,108 @@
       </div>
     </div>
 
-    <!-- 语言切换 -->
-    <div class="lang-bar">
-      <el-dropdown trigger="click" @command="switchLang">
-        <span class="lang-btn">{{ locale === 'zh-CN' ? '中文' : 'EN' }}</span>
-        <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item :disabled="locale === 'zh-CN'" command="zh-CN">简体中文</el-dropdown-item>
-            <el-dropdown-item :disabled="locale === 'en'" command="en">English</el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
-    </div>
-
-    <!-- 登录卡片 -->
-    <div class="login-card">
+    <div class="force-card">
       <div class="card-logo">
         <img src="/favicon.svg" alt="Z" />
       </div>
-      <h2 class="card-title">ZestFlow Admin</h2>
-      <p class="card-subtitle">{{ $t('login.subtitle') }}</p>
+      <h2 class="card-title">{{ $t('forcePassword.title') }}</h2>
+      <p class="card-subtitle">{{ $t('forcePassword.subtitle') }}</p>
+      <div class="username-display">
+        <el-icon :size="16"><User /></el-icon>
+        <span>{{ userStore.user?.username }}</span>
+      </div>
       <el-form
         ref="formRef"
         :model="form"
         :rules="rules"
         label-width="0"
         size="large"
-        @keyup.enter="handleLogin"
+        @keyup.enter="handleSubmit"
       >
-        <el-form-item prop="username">
+        <el-form-item prop="newPassword">
           <el-input
-            v-model="form.username"
-            :placeholder="$t('common.username')"
-            :prefix-icon="User"
-          />
-        </el-form-item>
-        <el-form-item prop="password">
-          <el-input
-            v-model="form.password"
+            v-model="form.newPassword"
             type="password"
-            :placeholder="$t('common.password')"
+            :placeholder="$t('forcePassword.newPasswordPlaceholder')"
             show-password
+            autocomplete="new-password"
             :prefix-icon="Lock"
           />
         </el-form-item>
-        <el-form-item prop="captcha">
-          <div class="captcha-row">
-            <el-input
-              v-model="form.captcha"
-              :placeholder="$t('login.captchaPlaceholder')"
-              maxlength="4"
-              class="captcha-input"
-            />
-            <Captcha ref="captchaRef" @update:code="captchaCode = $event" />
-          </div>
+        <el-form-item prop="confirmPassword">
+          <el-input
+            v-model="form.confirmPassword"
+            type="password"
+            :placeholder="$t('forcePassword.confirmPlaceholder')"
+            show-password
+            autocomplete="new-password"
+            :prefix-icon="Lock"
+          />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :loading="loading" class="btn-login" @click="handleLogin">
-            {{ loading ? $t('login.logging') : $t('login.loginBtn') }}
+          <el-button type="primary" :loading="loading" class="btn-submit" @click="handleSubmit">
+            {{ loading ? $t('forcePassword.submitting') : $t('forcePassword.submit') }}
           </el-button>
         </el-form-item>
       </el-form>
-      <div class="links">
-        <router-link to="/register">{{ $t('login.registerLink') }}</router-link>
-        <router-link to="/forgot">{{ $t('login.forgotLink') }}</router-link>
-      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { ref, reactive } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { User, Lock } from '@element-plus/icons-vue'
+import { Lock, User } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { useLocale } from '@/i18n/useLocale'
+import { authApi } from '@/api/auth'
 import { useUserStore } from '@/stores/user'
-import Captcha from '@/components/Captcha.vue'
 
 const { t } = useI18n()
-const { locale, setLocale } = useLocale()
-
-function switchLang(lang: string) {
-  setLocale(lang)
-}
-
 const router = useRouter()
-const route = useRoute()
 const userStore = useUserStore()
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
-const captchaRef = ref<InstanceType<typeof Captcha>>()
-const captchaCode = ref('')
+const form = reactive({ newPassword: '', confirmPassword: '' })
 
-const form = reactive({
-  username: (route.query.username as string) || '',
-  password: '',
-  captcha: '',
-})
-
-watch(() => route.query, (query) => {
-  if (query.username) form.username = query.username as string
-  if (query.t) form.password = '' // 强制改密跳转回来时清空密码
-})
+const validateConfirm = (_rule: any, value: string, callback: any) => {
+  if (value !== form.newPassword) {
+    callback(new Error(t('validation.passwordMismatch')))
+  } else {
+    callback()
+  }
+}
 
 const rules: FormRules = {
-  username: [{ required: true, message: () => t('login.usernameRequired'), trigger: 'blur' }],
-  password: [{ required: true, message: () => t('login.passwordRequired'), trigger: 'blur' }],
-  captcha: [
-    { required: true, message: () => t('login.captchaRequired'), trigger: 'blur' },
-    { len: 4, message: () => t('login.captchaLength'), trigger: 'blur' },
-    {
-      validator: (_rule: any, value: string, callback: any) => {
-        if (value && value.toLowerCase() !== captchaCode.value.toLowerCase()) {
-          callback(new Error(t('login.captchaError')))
-        } else {
-          callback()
-        }
-      },
-      trigger: 'blur',
-    },
+  newPassword: [
+    { required: true, message: () => t('forcePassword.newPasswordRequired'), trigger: 'blur' },
+    { min: 6, message: () => t('validation.passwordMin'), trigger: 'blur' },
+  ],
+  confirmPassword: [
+    { required: true, message: () => t('forcePassword.confirmRequired'), trigger: 'blur' },
+    { validator: validateConfirm, trigger: 'blur' },
   ],
 }
 
-async function handleLogin() {
+async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
 
-  if (form.captcha.toLowerCase() !== captchaCode.value.toLowerCase()) {
-    ElMessage.error(t('login.captchaError'))
-    captchaRef.value?.refresh()
-    return
-  }
-
   loading.value = true
   try {
-    await userStore.login(form)
-    if (userStore.mustChangePassword) {
-      ElMessage.warning('首次登录或密码已被重置，请修改密码')
-      router.push({ name: 'ForcePassword' })
-      return
-    }
-    ElMessage.success(t('login.loginSuccess'))
-    const redirect = (route.query.redirect as string) || '/dashboard'
-    router.push(redirect)
+    await authApi.forceChangePassword(form.newPassword)
+    ElMessage.success(t('forcePassword.success'))
+    const savedUsername = userStore.user?.username || ''
+    userStore.clearMustChangePassword()
+    userStore.token = ''
+    userStore.user = null
+    userStore.mustChangePassword = false
+    localStorage.removeItem('token')
+    router.replace({ name: 'Login', query: { username: savedUsername, t: Date.now().toString() } })
+  } catch {
+    // 错误已由 API 拦截器统一处理
   } finally {
     loading.value = false
   }
@@ -249,7 +202,7 @@ async function handleLogin() {
 </script>
 
 <style scoped>
-.login-page {
+.force-pwd-page {
   height: 100vh;
   display: flex;
   align-items: center;
@@ -259,33 +212,21 @@ async function handleLogin() {
   overflow: hidden;
 }
 
-/* ===== 背景装饰层 ===== */
-.bg-decor {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
+.bg-decor { position: absolute; inset: 0; pointer-events: none; }
 .bg-grid {
-  position: absolute;
-  inset: 0;
+  position: absolute; inset: 0;
   background-image:
     linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
   background-size: 40px 40px;
 }
-
 .bg-glow {
   position: absolute;
-  top: -20%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 700px;
-  height: 700px;
+  top: -20%; left: 50%; transform: translateX(-50%);
+  width: 700px; height: 700px;
   background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
   border-radius: 50%;
 }
-
 .bg-flow { position: absolute; }
 .bg-flow.tl { top: 40px; left: 50px; width: 100px; }
 .bg-flow.tr { top: 130px; right: 70px; width: 85px; }
@@ -293,38 +234,9 @@ async function handleLogin() {
 .bg-flow.mr { top: 52%; right: 50px; width: 75px; }
 .bg-flow.bl { bottom: 60px; left: 40px; width: 110px; }
 .bg-flow.br { bottom: 30px; right: 80px; width: 130px; }
+.flow-svg { width: 100%; height: auto; }
 
-.flow-svg {
-  width: 100%;
-  height: auto;
-}
-
-/* ===== 语言切换 ===== */
-.lang-bar {
-  position: absolute;
-  top: 24px;
-  right: 32px;
-  z-index: 10;
-}
-
-.lang-btn {
-  cursor: pointer;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 14px;
-  padding: 4px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.08);
-  transition: all 0.2s;
-}
-
-.lang-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.4);
-}
-
-/* ===== 登录卡片 ===== */
-.login-card {
+.force-card {
   width: 400px;
   padding: 40px 40px 32px;
   background: #fff;
@@ -333,88 +245,42 @@ async function handleLogin() {
   position: relative;
   z-index: 1;
 }
-
-.card-logo {
-  text-align: center;
-  margin-bottom: 16px;
-}
-
-.card-logo img {
-  width: 48px;
-  height: 48px;
-}
-
+.card-logo { text-align: center; margin-bottom: 16px; }
+.card-logo img { width: 48px; height: 48px; }
 .card-title {
-  text-align: center;
-  margin: 0 0 4px;
-  font-size: 22px;
-  color: #1d2129;
-  font-weight: 600;
+  text-align: center; margin: 0 0 4px;
+  font-size: 22px; color: #1d2129; font-weight: 600;
 }
-
 .card-subtitle {
-  text-align: center;
-  margin: 0 0 28px;
-  font-size: 14px;
-  color: #86909c;
+  text-align: center; margin: 0 0 28px;
+  font-size: 14px; color: #86909c;
+}
+.username-display {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  margin-bottom: 20px; font-size: 15px; color: #303133; font-weight: 500;
 }
 
-.login-card :deep(.el-input__wrapper) {
+.force-card :deep(.el-input__wrapper) {
   box-shadow: 0 0 0 1px #d9dde3, inset 0 0 0 1000px #fff !important;
   border-radius: 8px;
 }
-
-.login-card :deep(.el-input__wrapper.is-focus) {
+.force-card :deep(.el-input__wrapper.is-focus) {
   box-shadow: 0 0 0 1px #667eea, inset 0 0 0 1000px #fff !important;
 }
-
-.login-card :deep(.el-input__inner) {
-  caret-color: #333;
-}
-
-/* 覆盖 Chrome 自动填充默认黄底 */
-.login-card :deep(.el-input__inner:-webkit-autofill),
-.login-card :deep(.el-input__inner:-webkit-autofill:hover),
-.login-card :deep(.el-input__inner:-webkit-autofill:focus) {
+.force-card :deep(.el-input__inner) { caret-color: #333; }
+.force-card :deep(.el-input__inner:-webkit-autofill),
+.force-card :deep(.el-input__inner:-webkit-autofill:hover),
+.force-card :deep(.el-input__inner:-webkit-autofill:focus) {
   -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
   box-shadow: 0 0 0 1000px #fff inset !important;
   -webkit-text-fill-color: #333 !important;
 }
+.force-card :deep(.el-input__prefix-inner .el-icon) { color: #c9cdd4; }
 
-.login-card :deep(.el-input__prefix-inner .el-icon) {
-  color: #c9cdd4;
-}
-
-.captcha-row {
-  display: flex;
-  gap: 10px;
-  width: 100%;
-}
-
-.captcha-input {
-  flex: 1;
-}
-
-.btn-login {
+.btn-submit {
   width: 100%;
   height: 44px;
   font-size: 16px;
   border-radius: 8px;
-}
-
-.links {
-  display: flex;
-  justify-content: space-between;
-  font-size: 14px;
-  margin-top: 16px;
-}
-
-.links a {
-  color: #667eea;
-  text-decoration: none;
-}
-
-.links a:hover {
-  color: #5a6fd6;
 }
 </style>

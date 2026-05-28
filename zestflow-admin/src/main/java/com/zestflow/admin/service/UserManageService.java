@@ -19,7 +19,7 @@ public interface UserManageService {
 
     void delete(Long id);
 
-    void resetPassword(Long id, String newPassword);
+    String resetPassword(Long id);
 
     void assignModuleRole(AssignModuleRoleDTO dto);
 
