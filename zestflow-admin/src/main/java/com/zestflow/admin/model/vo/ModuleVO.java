@@ -20,8 +20,6 @@ public class ModuleVO {
     private Integer status;
     private String owner;
     private Integer sortOrder;
-    private Integer retryCount;
-    private Integer retryInterval;
     private Integer executorTotal;
     private Integer executorHealthy;
     private Integer executorError;

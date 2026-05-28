@@ -18,10 +18,10 @@ public class ExecutorRegistryVO {
     private String moduleCode;
     private String moduleName;
     private String executorId;
+    private String appName;
     private String executorHost;
     private Integer executorPort;
     private Integer status;
-    private Integer retryCount;
     private LocalDateTime lastHeartbeat;
     private LocalDateTime createdAt;
 }

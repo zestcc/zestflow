@@ -87,8 +87,6 @@ public class ModuleServiceImpl implements ModuleService {
             );
             po.setSortOrder(maxSort != null ? maxSort.getSortOrder() + 1 : 1);
         }
-        po.setRetryCount(dto.getRetryCount() != null ? dto.getRetryCount() : 5);
-        po.setRetryInterval(dto.getRetryInterval() != null ? dto.getRetryInterval() : 60);
         po.setCreatedAt(LocalDateTime.now());
         po.setUpdatedAt(LocalDateTime.now());
         moduleMapper.insert(po);
@@ -109,8 +107,6 @@ public class ModuleServiceImpl implements ModuleService {
         if (dto.getStatus() != null) po.setStatus(dto.getStatus());
         if (dto.getOwner() != null) po.setOwner(dto.getOwner());
         if (dto.getSortOrder() != null) po.setSortOrder(dto.getSortOrder());
-        if (dto.getRetryCount() != null) po.setRetryCount(dto.getRetryCount());
-        if (dto.getRetryInterval() != null) po.setRetryInterval(dto.getRetryInterval());
         po.setUpdatedAt(LocalDateTime.now());
         moduleMapper.updateById(po);
 
@@ -161,8 +157,6 @@ public class ModuleServiceImpl implements ModuleService {
                 .status(po.getStatus())
                 .owner(po.getOwner())
                 .sortOrder(po.getSortOrder())
-                .retryCount(po.getRetryCount())
-                .retryInterval(po.getRetryInterval())
                 .executorTotal(total)
                 .executorHealthy(healthy)
                 .executorError(error)

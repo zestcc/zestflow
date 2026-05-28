@@ -29,4 +29,5 @@ public interface ErrorCode {
 
     // Executor
     String EXECUTOR_NOT_FOUND = "EXECUTOR_NOT_FOUND";
+    String EXECUTOR_OFFLINE = "EXECUTOR_OFFLINE";
 }

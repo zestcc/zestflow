@@ -9,8 +9,6 @@ export interface ModuleVO {
   status: number
   owner?: string
   sortOrder: number
-  retryCount: number
-  retryInterval: number
   executorTotal: number
   executorHealthy: number
   executorError: number
@@ -24,8 +22,6 @@ export interface ModuleCreateDTO {
   status?: number
   owner?: string
   sortOrder?: number
-  retryCount?: number
-  retryInterval?: number
 }
 
 export interface ModuleUpdateDTO {
@@ -34,8 +30,6 @@ export interface ModuleUpdateDTO {
   status?: number
   owner?: string
   sortOrder?: number
-  retryCount?: number
-  retryInterval?: number
 }
 
 export const moduleApi = {
@@ -71,7 +65,6 @@ export interface ExecutorRegistryVO {
   executorHost: string
   executorPort: number
   status: number
-  retryCount: number
   lastHeartbeat: string | null
   createdAt: string
 }

@@ -543,6 +543,53 @@ log.error("链执行失败 chainId={} nodeId={}", chainId, nodeId, e);
 - 分配模块弹窗：用户名 + 邮箱标签（`v-if` 邮箱为空时不展示），模块角色表格
 - 创建/重置成功弹窗显示明文密码，仅一次机会查看
 
+### 执行器自动注册 + 心跳检测（2026-05）
+
+**需求：** Executor 启动时自动注册到 Admin，定时发送心跳，Admin 检测离线执行器。对标 xxl-job 注册模型 + Nacos 退避策略。
+
+**协议层（`zestflow-common`）：**
+- `common.model.dto.RegisterDTO` — 注册请求（executorId, host, port, moduleCode, moduleName）
+- `common.model.dto.HeartbeatDTO` — 心跳请求（executorId）
+- `common.constant.RegistryConstants` — 默认心跳间隔 30s，死亡超时倍数 3x
+- `zestflow-common` 零第三方框架依赖，仅 Lombok + Slf4j
+
+**Admin 端（`zestflow-admin`）：**
+- `RegistryController` — `POST /registry/register`、`POST /registry/heartbeat`、`DELETE /registry/{executorId}`
+- `RegistryService` — 注册（upsert 模式，moduleCode 不存在则自动创建模块）、心跳（更新 lastHeartbeat）、注销
+- 模块自动创建（线程安全）：利用 `uk_code` 唯一约束 + `DuplicateKeyException` 兜底并发冲突
+- `OfflineMonitor` — `@Scheduled` 每 30s 扫描 `status=1 && lastHeartbeat < now-90s` 的执行器标记为 `ABNORMAL(2)`
+- 三态模型：`ONLINE=1`（在线）、`OFFLINE=0`（主动下线）、`ABNORMAL=2`（异常离线）
+- 安全：`/registry/**` 放行（无需 JWT）
+- DDL：`executor_registry` 表加 `app_name` 字段，`module_id` 改为可空，**无 `retry_count` 字段**
+
+**Executor 端（`zestflow-executor`）：**
+- Spring Boot AutoConfiguration（`ExecutorAutoConfig`），业务项目引入自动生效
+- `ExecutorProperties` — `zestflow.executor.*` 配置前缀（moduleCode, moduleName, adminAddresses, heartbeatInterval, host, port）
+- `AdminClient` — HTTP 客户端，xxl-job 风格 first-success 注册策略，支持多 Admin 地址逗号分隔
+- `ExecutorRegistrar` — `ApplicationRunner` 启动注册 + 指数退避重试 + `@PreDestroy` 主动注销
+- **重试策略**：注册失败按 1s→2s→4s→8s→16s→30s（上限）指数退避，无限重试，前 5 次 WARN 日志，之后每 10 次 ERROR 防日志洪刷
+- **Host 自动探测**：遍历 `NetworkInterface` 跳过回环地址，取第一个 IPv4 内网地址（可配置覆盖）
+- **moduleCode 取值**：配置 > `spring.application.name` > `"default"`（可配置覆盖）
+- 心跳失败自动降级为重试注册模式，网络恢复后自动连上
+
+**变更文件：**
+- 新增：`zestflow-common/.../model/dto/RegisterDTO.java`
+- 新增：`zestflow-common/.../model/dto/HeartbeatDTO.java`
+- 新增：`zestflow-common/.../constant/RegistryConstants.java`
+- 新增：`zestflow-admin/.../controller/RegistryController.java`
+- 新增：`zestflow-admin/.../service/RegistryService.java`
+- 新增：`zestflow-admin/.../service/impl/RegistryServiceImpl.java`
+- 新增：`zestflow-admin/.../config/OfflineMonitor.java`
+- 新增：`zestflow-executor/**`（全部文件，之前为空的骨架模块）
+- 修改：`init.sql`，`ExecutorRegistryPO`，`ExecutorRegistryVO`，`SecurityConfig`，`AdminApplication`
+
+### 清理记录
+
+| 时间 | 内容 |
+|------|------|
+| 2026-05 | 移除 `module` 表 `retry_count`、`retry_interval` 字段（无实际用途） |
+| 2026-05 | 移除 `executor_registry` 表 `retry_count` 字段（重试改为客户端指数退避，服务端无需记录） |
+
 ## 工作原则
 
 1. 给出方案前先讲清楚**为什么**、**对标了哪个项目**

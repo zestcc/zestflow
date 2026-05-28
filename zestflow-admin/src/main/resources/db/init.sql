@@ -28,8 +28,6 @@ CREATE TABLE IF NOT EXISTS `module` (
     `status`      TINYINT      DEFAULT 1                COMMENT '状态：1-正常 0-禁用',
     `owner`       VARCHAR(50)  DEFAULT NULL             COMMENT '负责人',
     `sort_order`  INT          DEFAULT 0                COMMENT '排序序号',
-    `retry_count` INT          DEFAULT 5                COMMENT '异常重试次数',
-    `retry_interval` INT       DEFAULT 60               COMMENT '重试间隔（分钟）',
     `created_at`  DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at`  DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
@@ -70,11 +68,12 @@ CREATE TABLE IF NOT EXISTS `user_module_role` (
 -- 执行器注册表
 CREATE TABLE IF NOT EXISTS `executor_registry` (
     `id`              BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
-    `module_id`       BIGINT       NOT NULL                 COMMENT '所属模块ID',
+    `module_id`       BIGINT       DEFAULT NULL             COMMENT '所属模块ID',
     `executor_id`     VARCHAR(100) NOT NULL                 COMMENT '执行器唯一标识',
+    `app_name`        VARCHAR(100) DEFAULT NULL             COMMENT '应用名（分组标识）',
     `executor_host`   VARCHAR(255) NOT NULL                 COMMENT '执行器Host',
     `executor_port`   INT          NOT NULL                 COMMENT '执行器Port',
-    `status`          TINYINT      DEFAULT 1                COMMENT '状态：1-在线 0-离线',
+    `status`          TINYINT      DEFAULT 1                COMMENT '状态：1-在线 0-离线 2-异常离线',
     `last_heartbeat`  DATETIME     DEFAULT NULL             COMMENT '最后心跳时间',
     `created_at`      DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '注册时间',
     `updated_at`      DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',

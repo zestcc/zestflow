@@ -16,6 +16,8 @@ public class ExecutorRegistryPO {
 
     private String executorId;
 
+    private String appName;
+
     private String executorHost;
 
     private Integer executorPort;
@@ -23,8 +25,6 @@ public class ExecutorRegistryPO {
     private Integer status;
 
     private LocalDateTime lastHeartbeat;
-
-    private Integer retryCount;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;

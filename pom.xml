@@ -18,6 +18,7 @@
         <module>zestflow-collector</module>
         <module>zestflow-starter</module>
         <module>zestflow-admin</module>
+        <module>zestflow-executor-test</module>
     </modules>
 
     <properties>
@@ -107,6 +108,7 @@
                 <groupId>com.zestflow</groupId>
                 <artifactId>zestflow-starter</artifactId>
                 <version>${zestflow-starter.version}</version>
+                <type>pom</type>
             </dependency>
             <dependency>
                 <groupId>com.zestflow</groupId>

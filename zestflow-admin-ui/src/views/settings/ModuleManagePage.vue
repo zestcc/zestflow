@@ -139,12 +139,6 @@
             <el-tag v-else type="info" size="small" effect="dark">离线</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="retryCount" label="重试" align="center">
-          <template #default="{ row }">
-            <el-tag v-if="row.retryCount > 0" type="danger" size="small" effect="plain">{{ row.retryCount }}</el-tag>
-            <span v-else style="color:#c0c4cc">0</span>
-          </template>
-        </el-table-column>
         <el-table-column label="最后心跳" show-overflow-tooltip>
           <template #default="{ row }">
             {{ formatTime(row.lastHeartbeat) }}
@@ -217,14 +211,6 @@
         </el-form-item>
         <el-form-item :label="$t('settings.sortOrder')" prop="sortOrder">
           <el-input-number v-model="form.sortOrder" :min="0" :step="1" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="重试次数" prop="retryCount">
-          <el-input-number v-model="form.retryCount" :min="0" :max="99" :step="1" style="width: 100%" />
-          <span style="font-size:12px;color:#909399;margin-left:8px">执行器异常后最大重试次数</span>
-        </el-form-item>
-        <el-form-item label="重试间隔" prop="retryInterval">
-          <el-input-number v-model="form.retryInterval" :min="1" :max="1440" :step="1" style="width: 100%" />
-          <span style="font-size:12px;color:#909399;margin-left:8px">分钟</span>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -324,8 +310,6 @@ const form = ref<ModuleCreateDTO>({
   status: 1,
   owner: '',
   sortOrder: undefined,
-  retryCount: 5,
-  retryInterval: 60,
 })
 
 const rules = {
@@ -356,7 +340,7 @@ async function fetchList() {
 function openCreate() {
   isEditing.value = false
   editingId.value = null
-  form.value = { code: '', name: '', description: '', status: 1, owner: '', sortOrder: undefined, retryCount: 5, retryInterval: 60 }
+  form.value = { code: '', name: '', description: '', status: 1, owner: '', sortOrder: undefined }
   dialogVisible.value = true
 }
 
@@ -370,8 +354,6 @@ function openEdit(row: ModuleVO) {
     status: row.status,
     owner: row.owner,
     sortOrder: row.sortOrder,
-    retryCount: row.retryCount ?? 5,
-    retryInterval: row.retryInterval ?? 60,
   }
   dialogVisible.value = true
 }

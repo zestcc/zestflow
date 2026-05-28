@@ -1,0 +1,11 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: test-executor
+
+zestflow:
+  executor:
+    admin-addresses: http://localhost:8080
+    heartbeat-interval: 30

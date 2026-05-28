@@ -14,8 +14,4 @@ public class ModuleUpdateDTO {
     private String owner;
 
     private Integer sortOrder;
-
-    private Integer retryCount;
-
-    private Integer retryInterval;
 }

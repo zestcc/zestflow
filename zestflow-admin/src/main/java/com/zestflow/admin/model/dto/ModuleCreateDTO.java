@@ -23,14 +23,4 @@ public class ModuleCreateDTO {
     private String owner;
 
     private Integer sortOrder;
-
-    /**
-     * 异常重试次数，默认5
-     */
-    private Integer retryCount;
-
-    /**
-     * 重试间隔（分钟），默认60
-     */
-    private Integer retryInterval;
 }

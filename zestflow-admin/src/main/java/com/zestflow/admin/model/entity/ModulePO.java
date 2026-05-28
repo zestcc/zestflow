@@ -25,12 +25,6 @@ public class ModulePO {
     @TableField("sort_order")
     private Integer sortOrder;
 
-    @TableField("retry_count")
-    private Integer retryCount;
-
-    @TableField("retry_interval")
-    private Integer retryInterval;
-
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 
