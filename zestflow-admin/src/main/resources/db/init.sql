@@ -82,3 +82,9 @@ CREATE TABLE IF NOT EXISTS `executor_registry` (
     UNIQUE KEY `uk_executor_id` (`executor_id`),
     KEY `idx_module_id` (`module_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='执行器注册表';
+
+
+-- 插入默认账号密码，zestflow/zestflow
+INSERT INTO `zestflow`.`user` ( `username`, `email`, `password`, `avatar`, `status`, `is_super_admin`, `reset_token`, `reset_token_expiry`, `must_change_password` )
+VALUES
+    ( 'zestflow', 'your@126.com', '$2b$10$bXlrQxPw8tp.R72sBz2xN.g8Is4w2rW..ikJpkl8AqbYNQvU3Rg0e', NULL, 1, 1, NULL, NULL, 1 );
