@@ -516,6 +516,7 @@ log.error("链执行失败 chainId={} nodeId={}", chainId, nodeId, e);
 ### 开发环境规范
 
 1. **端口管理** — 重启开发服务器时，必须先杀掉旧进程再在原端口启动，不得自动换端口。Windows Git Bash 下需用 `//F` 而非 `/F` 避免 MSYS 路径转换（`/F` 会被转为 `F:/`）。
+2. **默认端口一览** — Admin（8080）、Executor Netty 回调（9999，`zestflow.executor.port` 可配）、Executor 测试应用（8081）
 
 ### 数据库变更规范（强制）
 
@@ -550,38 +551,63 @@ log.error("链执行失败 chainId={} nodeId={}", chainId, nodeId, e);
 **协议层（`zestflow-common`）：**
 - `common.model.dto.RegisterDTO` — 注册请求（executorId, host, port, moduleCode, moduleName）
 - `common.model.dto.HeartbeatDTO` — 心跳请求（executorId）
-- `common.constant.RegistryConstants` — 默认心跳间隔 30s，死亡超时倍数 3x
+- `common.constant.RegistryConstants` — 默认心跳间隔 30s，死亡超时倍数 3x，常量 `STATUS_ONLINE=1`/`STATUS_OFFLINE=0`/`STATUS_ABNORMAL=2`
 - `zestflow-common` 零第三方框架依赖，仅 Lombok + Slf4j
 
 **Admin 端（`zestflow-admin`）：**
+- `AdminApplication` 加 `@EnableScheduling` 启用 OfflineMonitor
+- `SecurityConfig` 放行 `POST/DELETE /registry/**`（无需 JWT）
+- `ErrorCode` 新增 `EXECUTOR_NOT_FOUND`、`EXECUTOR_OFFLINE`
 - `RegistryController` — `POST /registry/register`、`POST /registry/heartbeat`、`DELETE /registry/{executorId}`
-- `RegistryService` — 注册（upsert 模式，moduleCode 不存在则自动创建模块）、心跳（更新 lastHeartbeat）、注销
-- 模块自动创建（线程安全）：利用 `uk_code` 唯一约束 + `DuplicateKeyException` 兜底并发冲突
+- `RegistryServiceImpl` — 注册（upsert 模式，moduleCode 不存在则自动创建模块）、心跳（更新 lastHeartbeat）、注销
+- 模块自动创建（Nacos 风格线程安全）：利用 `uk_code` 唯一约束 + `DuplicateKeyException` 兜底并发冲突
 - `OfflineMonitor` — `@Scheduled` 每 30s 扫描 `status=1 && lastHeartbeat < now-90s` 的执行器标记为 `ABNORMAL(2)`
 - 三态模型：`ONLINE=1`（在线）、`OFFLINE=0`（主动下线）、`ABNORMAL=2`（异常离线）
-- 安全：`/registry/**` 放行（无需 JWT）
-- DDL：`executor_registry` 表加 `app_name` 字段，`module_id` 改为可空，**无 `retry_count` 字段**
+- `ExecutorRegistryServiceImpl.updateStatus()` — 手动上下线 API（`PUT /modules/executors/{id}/status`）
+- DDL：`executor_registry` 表无 `retry_count` 字段，`module_id` 可空，`app_name` 做分组标识
 
 **Executor 端（`zestflow-executor`）：**
 - Spring Boot AutoConfiguration（`ExecutorAutoConfig`），业务项目引入自动生效
-- `ExecutorProperties` — `zestflow.executor.*` 配置前缀（moduleCode, moduleName, adminAddresses, heartbeatInterval, host, port）
+- `ExecutorProperties` — `zestflow.executor.*` 配置前缀（moduleCode, moduleName, adminAddresses, host, port）
+  - `moduleCode`：未配置时自动取 `spring.application.name` → `"default"`（可覆盖）
+  - `adminAddresses`：默认 `http://localhost:8080`，逗号分隔支持多地址高可用
+  - `accessToken`：可选，Admin 身份校验
+  - `heartbeatInterval`：默认 `30`（秒）
+  - `host`：未配置时自动探测内网 IPv4（遍历 `NetworkInterface` 跳过回环）（可覆盖）
+  - `port`：默认 `9999`（Netty 服务端端口，非业务 Tomcat 端口）
+  - `timeoutMs`：默认 `5000`（毫秒）
 - `AdminClient` — HTTP 客户端，xxl-job 风格 first-success 注册策略，支持多 Admin 地址逗号分隔
 - `ExecutorRegistrar` — `ApplicationRunner` 启动注册 + 指数退避重试 + `@PreDestroy` 主动注销
-- **重试策略**：注册失败按 1s→2s→4s→8s→16s→30s（上限）指数退避，无限重试，前 5 次 WARN 日志，之后每 10 次 ERROR 防日志洪刷
-- **Host 自动探测**：遍历 `NetworkInterface` 跳过回环地址，取第一个 IPv4 内网地址（可配置覆盖）
-- **moduleCode 取值**：配置 > `spring.application.name` > `"default"`（可配置覆盖）
-- 心跳失败自动降级为重试注册模式，网络恢复后自动连上
+  - **重试策略**：注册失败按 1s→2s→4s→8s→16s→30s（上限）指数退避，无限重试
+  - **日志渐变**：前 5 次 WARN，之后每 10 次 ERROR（防日志洪刷）
+  - **心跳失败**：`registered=false` → 下次 tick 恢复重试注册，网络恢复后自动连上
+- `ExecutorServer` — 基于 Netty 的嵌入式 HTTP 服务（独立于业务 Tomcat），接收 Admin 回调
+  - 提供 `/health`（健康检查）和 `/execute`（链路执行入口，TODO）端点
+  - IdleStateHandler 超时自动关闭空闲连接
+  - `@Bean(initMethod = "start", destroyMethod = "stop")` 生命周期管理
+
+**测试模块（`zestflow-executor-test`）：**
+- 独立 Spring Boot 应用，模拟业务方引入 executor
+- 端口 8081，自动注册到 Admin（`spring.application.name=test-executor` 作为 moduleCode）
+- `application.yml` 极简配置：仅 `admin-addresses` + `heartbeat-interval`
 
 **变更文件：**
-- 新增：`zestflow-common/.../model/dto/RegisterDTO.java`
+- 新增：`zestflow-common/.../model/dto/RegisterDTO.java`（含 moduleCode + moduleName）
 - 新增：`zestflow-common/.../model/dto/HeartbeatDTO.java`
-- 新增：`zestflow-common/.../constant/RegistryConstants.java`
+- 新增：`zestflow-common/.../constant/RegistryConstants.java`（含三态常量）
 - 新增：`zestflow-admin/.../controller/RegistryController.java`
 - 新增：`zestflow-admin/.../service/RegistryService.java`
-- 新增：`zestflow-admin/.../service/impl/RegistryServiceImpl.java`
+- 新增：`zestflow-admin/.../service/impl/RegistryServiceImpl.java`（含模块自动创建）
 - 新增：`zestflow-admin/.../config/OfflineMonitor.java`
-- 新增：`zestflow-executor/**`（全部文件，之前为空的骨架模块）
-- 修改：`init.sql`，`ExecutorRegistryPO`，`ExecutorRegistryVO`，`SecurityConfig`，`AdminApplication`
+- 新增：`zestflow-executor/**`（执行器全部文件）
+  - `registry/AdminClient.java`、`ExecutorAutoConfig.java`、`ExecutorProperties.java`、`ExecutorRegistrar.java`
+  - `server/ExecutorServer.java`（Netty）、`ServerHandler.java`
+  - `META-INF/spring/...AutoConfiguration.imports`
+- 新增：`zestflow-executor-test/**`（测试项目）
+- 修改：`init.sql`（三态注释，去 `retry_count`）、`AdminApplication`（@EnableScheduling）、`SecurityConfig`（放行 registry）
+- 修改：`ExecutorRegistryPO/VO`（去 `retryCount`）、`ModulePO/VO/DTO`（去 `retryCount/retryInterval`）
+- 修改：各 Service 层、前端类型定义和 UI
+- 修复：`zestflow-admin/pom.xml` spring-boot-maven-plugin 加 `<execution>` 确保 repackage 触发
 
 ### 清理记录
 
