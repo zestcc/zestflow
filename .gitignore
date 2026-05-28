@@ -79,6 +79,9 @@ dist-ssr/
 .env.*
 !.env.example
 
+# ====== 上传文件 ======
+uploads/
+
 # ====== 临时文件 ======
 *.tmp
 *.bak
