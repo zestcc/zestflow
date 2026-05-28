@@ -1,0 +1,85 @@
+# ====== Java / Maven ======
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+replay_pid*
+
+# ====== IDE ======
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# NetBeans
+nbproject/
+nbbuild/
+dist/
+nbdist/
+
+# ====== OS ======
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.swp
+*.swo
+*~
+
+# ====== Logs ======
+logs/
+*.log
+
+# ====== Node.js（前端 admin 模块预留） ======
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+dist/
+dist-ssr/
+.env.local
+.env.*.local
+*.tsbuildinfo
+.next/
+.nuxt/
+.vite/
+.cache/
+
+# ====== 环境变量 ======
+.env
+.env.*
+!.env.example
+
+# ====== 临时文件 ======
+*.tmp
+*.bak
+*.orig
