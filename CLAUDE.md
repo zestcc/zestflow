@@ -70,25 +70,25 @@ zestflow-admin                ──▶ zestflow-common
 ```xml
 <!-- 全量引入（推荐） -->
 <dependency>
-    <groupId>com.zestcc</groupId>
+    <groupId>com.zestflow</groupId>
     <artifactId>zestflow-starter</artifactId>
 </dependency>
 
 <!-- 只要执行器 -->
 <dependency>
-    <groupId>com.zestcc</groupId>
+    <groupId>com.zestflow</groupId>
     <artifactId>zestflow-executor</artifactId>
 </dependency>
 
 <!-- 只要采集，自定义实现 -->
 <dependency>
-    <groupId>com.zestcc</groupId>
+    <groupId>com.zestflow</groupId>
     <artifactId>collector-core</artifactId>
 </dependency>
 
 <!-- 使用 JDBC 采集 -->
 <dependency>
-    <groupId>com.zestcc</groupId>
+    <groupId>com.zestflow</groupId>
     <artifactId>collector-jdbc</artifactId>
 </dependency>
 ```
@@ -99,6 +99,82 @@ zestflow-admin                ──▶ zestflow-common
 - `collector-jdbc/kafka/rabbitmq` 提供默认实现
 - 业务项目可实现 `EventCollector` 接口自定义采集逻辑
 - 对标 Spring Boot AutoConfiguration 的 SPI 机制
+
+## POM 规范（强制）
+
+以下为本项目 Maven 项目结构和版本管理的约定规则。
+
+### 组织与模块
+
+| 项目 | 值 |
+|------|------|
+| groupId | `com.zestflow` |
+| 父 POM | `com.zestflow:zestflow:1.0.0-SNAPSHOT` |
+| 前端项目 | `zestflow-admin-ui` 无 pom.xml，独立 npm 构建 |
+
+### 模块版本管理
+
+**每个模块拥有独立版本属性**，统一在父 POM 的 `<properties>` 中声明：
+
+```xml
+<properties>
+    <zestflow-common.version>1.0.0-SNAPSHOT</zestflow-common.version>
+    <zestflow-executor.version>1.0.0-SNAPSHOT</zestflow-executor.version>
+    <collector-core.version>1.0.0-SNAPSHOT</collector-core.version>
+    <collector-jdbc.version>1.0.0-SNAPSHOT</collector-jdbc.version>
+    <collector-kafka.version>1.0.0-SNAPSHOT</collector-kafka.version>
+    <collector-rabbitmq.version>1.0.0-SNAPSHOT</collector-rabbitmq.version>
+    <zestflow-starter.version>1.0.0-SNAPSHOT</zestflow-starter.version>
+    <zestflow-admin.version>1.0.0-SNAPSHOT</zestflow-admin.version>
+</properties>
+```
+
+**子模块引用规则：**
+
+| 模块层级 | 版本写法 | 示例 |
+|---------|---------|------|
+| 叶子模块（有代码产出） | 表达式 `${xxx.version}` | `<version>${zestflow-common.version}</version>` |
+| 中间聚合 POM | 字面量（继承父版本） | `<version>1.0.0-SNAPSHOT</version>` |
+
+- 中间聚合 POM（如 `zestflow-collector`）不独立发版，用字面量避免 Maven 孙模块解析失败
+- 发版时只需改父 POM 中对应属性，不影响其他模块
+
+### 依赖管理
+
+**父 POM 职责：**
+
+```xml
+<!-- dependencyManagement：只定义版本，不引入依赖 -->
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>com.zestflow</groupId>
+            <artifactId>zestflow-common</artifactId>
+            <version>${zestflow-common.version}</version>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+
+<!-- dependencies：推给所有子模块的基础依赖 -->
+<dependencies>
+    <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>           <!-- provided 作用域，编译期无运行时耦合 -->
+    </dependency>
+    <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>        <!-- 纯接口，不绑定实现 -->
+    </dependency>
+</dependencies>
+```
+
+**子模块职责：** 显式声明自己的业务依赖和 JUnit（不继承 root 的 JUnit），Lombok 和 Slf4j 由父 POM 统一提供。
+
+### 构建规范
+
+- **不使用** `flatten-maven-plugin`（不产生 `.flattened-pom.xml`）
+- Maven 编译时 `version contains an expression` 警告属于正常，不影响构建
+- `zestflow-common` 零第三方框架依赖，仅 Lombok + Slf4j
 
 ## 核心名词
 
@@ -128,11 +204,122 @@ zestflow-admin                ──▶ zestflow-common
 - 数据库：MySQL（默认），预留 PostgreSQL 扩展
 - 通信：Admin ↔ Executor/Collector 通过 HTTP 协议
 
-### 前端（后续）
-- Node.js / TypeScript，Vue 3 或 React
-- 可视化流程编排（DAG 面板，对标 DolphinScheduler）
-- 流程图渲染（G6 / X6 / React Flow）
-- Websocket 实时状态展示
+### 前端
+- **技术栈**：Vue 3 (Composition API + `<script setup>`) + Element Plus + Vite + TypeScript + vue-i18n
+- **状态管理**：Pinia
+- **路由**：Vue Router 4.x（导航守卫控制登录态）
+- **HTTP 客户端**：Axios（拦截器统一处理 JWT token / 异常）
+- **构建**：Vite 5.x，ESLint + Prettier
+- **可视化（后续）**：Vue Flow / X6 实现 DAG 流程编排面板
+- **实时（后续）**：WebSocket 展示执行状态
+
+### 前端开发环境要求
+
+| 依赖 | 版本要求 | 用途 |
+|------|---------|------|
+| Node.js | 18.x 或 20.x LTS | 运行时 |
+| npm / pnpm | 9+ / 8+ | 包管理 |
+| 浏览器 | Chrome / Edge 最新版 | 开发调试 |
+
+推荐使用 pnpm 作为包管理器（速度快、节省磁盘）。
+
+### 前端项目规范
+
+```
+zestflow-admin-ui/
+├── package.json
+├── vite.config.ts
+├── tsconfig.json
+├── index.html
+└── src/
+    ├── main.ts                 # 入口
+    ├── App.vue                 # 根组件
+    ├── api/                    # API 防腐层（Axios 实例 + 模块化 API）
+    ├── router/                 # 路由配置 + 导航守卫
+    ├── stores/                 # Pinia 状态管理
+    │   ├── user.ts             #   用户登录态
+    │   └── app.ts              #   布局状态
+    ├── views/                  # 页面
+    │   ├── login/              #   登录
+    │   ├── register/           #   注册
+    │   ├── forgot/             #   找回密码
+    │   ├── dashboard/          #   仪表盘
+    │   ├── chains/             #   链管理
+    │   ├── schedules/          #   调度中心
+    │   ├── logs/               #   日志查询
+    │   └── settings/           #   系统设置
+    ├── layout/                 # 布局组件
+    │   └── AppLayout.vue       #   侧边栏 + 顶栏 + 内容区
+    └── components/             # 通用组件
+```
+
+### 认证流程
+
+1. 用户登录 → 后端返回 JWT token
+2. 前端存 token 到 `localStorage` + Pinia
+3. Axios 拦截器自动在请求头携带 `Authorization: Bearer <token>`
+4. 服务端返回 401 → 清除 token → 跳转登录页
+5. 页面刷新 → 从 `localStorage` 恢复 token 到 Pinia
+
+### 国际化规范（强制）
+
+**所有前端 UI 文本必须通过 vue-i18n 翻译，禁止硬编码。**
+
+技术选型：
+
+| 层 | 技术 |
+|------|------|
+| 框架 | vue-i18n 9.x (Composition API 模式) |
+| 默认语言 | zh-CN |
+| 备用语言 | en |
+| Element Plus 联动 | 通过 `el-config-provider` 动态切换 locale |
+
+目录结构：
+
+```
+src/i18n/
+├── index.ts              # createI18n 实例（legacy: false）
+├── useLocale.ts          # 语言切换 composable（同步 vue-i18n + Element Plus locale）
+└── locales/
+    ├── zh-CN.ts          # 简体中文
+    └── en.ts             # English
+```
+
+使用规范：
+
+| 场景 | 方式 | 示例 |
+|------|------|------|
+| 模板中 | `$t('key')` | `{{ $t('login.title') }}` |
+| 脚本中 | `t()` from `useI18n()` | `const { t } = useI18n()` |
+| 非组件文件 | `i18n.global.t()` | `import i18n from '@/i18n'` |
+| 表单验证消息 | 函数形式（响应式） | `message: () => t('login.usernameRequired')` |
+| Element Plus 错误消息 | 写入 i18n locale | `ElMessage.error(t('common.networkError'))` |
+
+翻译 key 命名规范：
+- 按页面/模块命名空间组织：`login.xxx`, `register.xxx`, `dashboard.xxx`
+- 通用词汇放在 `common.xxx` 下复用
+- 验证消息放在 `validation.xxx` 下
+- 布局相关放在 `layout.xxx` 下
+
+语言切换：
+- `AppHeader.vue` 中提供中/英文切换按钮
+- 用户选择保存在 `localStorage`（key: `locale`），刷新后保持
+- 切换时同步更新 Element Plus 组件语言
+
+### V1.0 前端页面清单
+
+| 路径 | 页面 | 访问限制 |
+|------|------|---------|
+| `/login` | 登录 | 未登录 |
+| `/register` | 注册 | 未登录 |
+| `/forgot` | 找回密码 | 未登录 |
+| `/dashboard` | 仪表盘 | 需登录 |
+| `/chains` | 链列表 | 需登录 |
+| `/chains/create` | 新建链 | 需登录 |
+| `/chains/:id` | 链详情/节点编排 | 需登录 |
+| `/schedules` | 调度列表 | 需登录 |
+| `/logs` | 日志查询 | 需登录 |
+| `/settings` | 系统设置 | 需登录 |
 
 ## AI 角色定义
 
@@ -239,17 +426,17 @@ public class KafkaMessagePublisher implements MessagePublisher {
 ### 包命名规范
 
 ```
-com.zestcc.{模块}.{分层}
+com.zestflow.{模块}.{分层}
 
 示例：
-com.zestcc.common.model        # 公共模型
-com.zestcc.common.protocol     # 通信协议
-com.zestcc.admin.controller    # Admin 接口层
-com.zestcc.admin.service       # Admin 业务层
-com.zestcc.executor.engine     # 执行引擎
-com.zestcc.executor.register   # 注册模块
-com.zestcc.collector.provider     # 采集器 SPI 接口（collector-core 模块）
-com.zestcc.collector.jdbc        # JDBC 实现
+com.zestflow.common.model        # 公共模型
+com.zestflow.common.protocol     # 通信协议
+com.zestflow.admin.controller    # Admin 接口层
+com.zestflow.admin.service       # Admin 业务层
+com.zestflow.executor.engine     # 执行引擎
+com.zestflow.executor.register   # 注册模块
+com.zestflow.collector.provider     # 采集器 SPI 接口（collector-core 模块）
+com.zestflow.collector.jdbc        # JDBC 实现
 ```
 
 ### 类命名规范
@@ -313,6 +500,28 @@ log.error("链执行失败 chainId={} nodeId={}", chainId, nodeId, e);
 | 硬编码 | 禁止魔法数字，提取常量 |
 | Lombok | 统一使用（@Data、@Slf4j、@Builder、@AllArgsConstructor） |
 
+### 前端 UI 规范（强制）
+
+1. **禁止自定义 CSS 修饰表格和表单** — 能用 Element Plus 属性/参数实现的，一律不写自定义 CSS
+2. **表格统一表头样式** — 所有 `el-table` 统一使用 `:header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"`
+3. **列宽适配** — 不写固定 px 列宽，让 Element Plus 自动分配，操作列可单独设 `width` 防止按钮溢出
+4. **表格分页** — 所有列表页必须加分页组件 `el-pagination`
+5. **筛选条件** — 列表页顶部加筛选栏，查询/重置按钮
+6. **输入框样式** — 不改动 Element Plus 输入框默认样式，登录/注册/找回密码页的反自动填充 CSS（`inset box-shadow`）是系统级防护不可删除
+7. **内容溢出** — 可能超长的列加 `show-overflow-tooltip`，气泡展示完整内容
+8. **弹窗尺寸** — 弹窗宽度要充足（如 1200px），确保内容不挤占；表格列宽分配均匀，避免某列过长或过短
+9. **统计信息** — 列表页顶部展示分类统计（全部/正常/异常/离线），用不同颜色区分
+10. **禁止交互元素文本选中** — 按钮、菜单、标签等交互元素设置 `user-select: none`，写在 `index.html` 的全局 `<style>` 中确保生效
+
+### 开发环境规范
+
+1. **端口管理** — 重启开发服务器时，必须先杀掉旧进程再在原端口启动，不得自动换端口。Windows Git Bash 下需用 `//F` 而非 `/F` 避免 MSYS 路径转换（`/F` 会被转为 `F:/`）。
+
+### 数据库变更规范（强制）
+
+1. **DDL 脚本 + 实时库同步** — 修改 `init.sql` 后，必须直接在数据库上执行对应的 `ALTER TABLE` 语句，保证实时库和脚本一致。仅改 SQL 文件会导致运行时报 `Unknown column` 错误。
+2. **默认值双重保障** — 新增字段的默认值同时在 DDL（`DEFAULT xxx`）和 Service 层代码中设置，避免空指针。
+
 ## 工作原则
 
 1. 给出方案前先讲清楚**为什么**、**对标了哪个项目**
@@ -320,4 +529,6 @@ log.error("链执行失败 chainId={} nodeId={}", chainId, nodeId, e);
 3. 核心编排引擎不依赖 Spring Boot，可独立使用（zestflow-common 零框架依赖）
 4. 架构上预留 SPI 扩展点，先收敛再扩展（V1.0 只做必要模块）
 5. **改动已有代码前先读文件**，不要基于猜测直接改
-6. **优先考虑防腐层**，外部依赖不能侵入业务代码
+6. **确认修改范围** — 改动前先和用户确认影响范围，不碰用户没要求的代码，特别是已有稳定功能的页面。**回滚时要精确确认哪些是本次改的、哪些是之前遗留的系统级防护**，不可连带回滚。
+7. **优先考虑防腐层**，外部依赖不能侵入业务代码
+8. **推送前必须先问用户确认**，不得擅自 `git push`

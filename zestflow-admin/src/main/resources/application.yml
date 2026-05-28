@@ -1,0 +1,58 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: zestflow-admin
+  messages:
+    basename: messages
+    encoding: UTF-8
+    fallback-to-system-locale: false
+  mvc:
+    locale-resolver: accept-header
+  datasource:
+    url: jdbc:mysql://localhost:3306/zestflow?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    username: root
+    password: It10241024xw
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 30000
+      connection-timeout: 10000
+  mail:
+    host: smtp.example.com
+    port: 587
+    username:
+    password:
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 10MB
+
+zestflow:
+  jwt:
+    secret: ZestFlow_admin_2024_JWT_Secret_Key_Must_Be_At_Least_256_Bits_Long_!!_
+    expiration: 86400000
+  upload:
+    avatar-dir: uploads/avatars
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.zestflow.admin.model.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+logging:
+  level:
+    com.zestflow: debug

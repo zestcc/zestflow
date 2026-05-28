@@ -1,0 +1,67 @@
+package com.zestflow.admin.controller;
+
+import com.zestflow.admin.model.dto.AssignModuleRoleDTO;
+import com.zestflow.admin.model.dto.UserCreateDTO;
+import com.zestflow.admin.model.dto.UserUpdateDTO;
+import com.zestflow.admin.model.vo.UserManageVO;
+import com.zestflow.admin.service.UserManageService;
+import com.zestflow.common.model.Result;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/users")
+@RequiredArgsConstructor
+public class UserManageController {
+
+    private final UserManageService userManageService;
+
+    @GetMapping
+    public Result<List<UserManageVO>> listAll() {
+        return Result.success(userManageService.listAll());
+    }
+
+    @GetMapping("/{id}")
+    public Result<UserManageVO> getById(@PathVariable Long id) {
+        return Result.success(userManageService.getById(id));
+    }
+
+    @PostMapping
+    public Result<UserManageVO> create(@Valid @RequestBody UserCreateDTO dto) {
+        return Result.success(userManageService.create(dto));
+    }
+
+    @PutMapping("/{id}")
+    public Result<UserManageVO> update(@PathVariable Long id, @Valid @RequestBody UserUpdateDTO dto) {
+        return Result.success(userManageService.update(id, dto));
+    }
+
+    @DeleteMapping("/{id}")
+    public Result<Void> delete(@PathVariable Long id) {
+        userManageService.delete(id);
+        return Result.success();
+    }
+
+    @PutMapping("/{id}/reset-password")
+    public Result<Void> resetPassword(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        userManageService.resetPassword(id, body.get("newPassword"));
+        return Result.success();
+    }
+
+    @PostMapping("/{id}/module-roles")
+    public Result<Void> assignModuleRole(@PathVariable Long id, @Valid @RequestBody AssignModuleRoleDTO dto) {
+        dto.setUserId(id);
+        userManageService.assignModuleRole(dto);
+        return Result.success();
+    }
+
+    @DeleteMapping("/{id}/module-roles/{moduleId}")
+    public Result<Void> removeModuleRole(@PathVariable Long id, @PathVariable Long moduleId) {
+        userManageService.removeModuleRole(id, moduleId);
+        return Result.success();
+    }
+}

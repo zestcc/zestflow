@@ -1,0 +1,31 @@
+package com.zestflow.admin.constant;
+
+public interface ErrorCode {
+
+    // Auth
+    String INVALID_CREDENTIALS = "AUTH_INVALID_CREDENTIALS";
+    String USER_DISABLED = "AUTH_USER_DISABLED";
+    String USERNAME_EXISTS = "AUTH_USERNAME_EXISTS";
+    String EMAIL_EXISTS = "AUTH_EMAIL_EXISTS";
+    String USER_NOT_FOUND = "AUTH_USER_NOT_FOUND";
+    String UNAUTHORIZED = "AUTH_UNAUTHORIZED";
+    String PASSWORD_INCORRECT = "AUTH_PASSWORD_INCORRECT";
+
+    // Common
+    String VALIDATION_ERROR = "VALIDATION_ERROR";
+    String SERVER_ERROR = "SERVER_ERROR";
+
+    // Module
+    String MODULE_CODE_EXISTS = "MODULE_CODE_EXISTS";
+    String MODULE_NOT_FOUND = "MODULE_NOT_FOUND";
+
+    // Permission
+    String PERMISSION_DENIED = "PERMISSION_DENIED";
+    String SUPER_ADMIN_REQUIRED = "SUPER_ADMIN_REQUIRED";
+
+    // Role
+    String ROLE_NOT_FOUND = "ROLE_NOT_FOUND";
+
+    // Executor
+    String EXECUTOR_NOT_FOUND = "EXECUTOR_NOT_FOUND";
+}
