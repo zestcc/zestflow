@@ -836,6 +836,13 @@ CREATE TABLE IF NOT EXISTS `chain_event` (
 |------|------|
 | 2026-05 | 移除 `module` 表 `retry_count`、`retry_interval` 字段（无实际用途） |
 | 2026-05 | 移除 `executor_registry` 表 `retry_count` 字段（重试改为客户端指数退避，服务端无需记录） |
+| 2026-05 | 设计编辑器工具栏增强：手型拖拽模式、对齐/分布、图层置顶置底、网格吸附、全屏、清空画布 |
+| 2026-05 | 线型选择器从三按钮改为下拉菜单，默认折线 |
+| 2026-05 | 修复缩放函数改为相对增量（graph.zoom(±0.05)）|
+| 2026-05 | 安装 `@antv/x6-plugin-export` 插件 |
+| 2026-05 | PNG 导出改为 cloneNode + XMLSerializer 纯内存序列化 + 离屏 Canvas，去掉 ElMessage 避免闪 |
+| 2026-05 | 连线自动吸附最近端口（edge:connected 事件纠正目标到最近端口）|
+| 2026-05 | 节点类型名称精简（"任务节点"→"任务"，"条件节点"→"条件"）|
 
 ## 工作原则
 

@@ -44,6 +44,66 @@
         <el-tooltip content="导出为 PNG">
           <el-button text @click="handleExport"><el-icon><Picture /></el-icon></el-button>
         </el-tooltip>
+        <span class="toolbar-divider" />
+        <el-select v-model="defaultEdgeStyle" size="small" style="width:100px" @change="onDefaultEdgeStyleChange">
+          <el-option label="直线" value="straight" />
+          <el-option label="折线" value="polyline" />
+          <el-option label="曲线" value="curve" />
+        </el-select>
+        <span class="toolbar-divider" />
+        <!-- 对齐 -->
+        <el-dropdown trigger="click" :disabled="selectedCount < 2" @command="onAlign">
+          <el-button text size="small">对齐<el-icon><ArrowDown /></el-icon></el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="left"><el-icon><ArrowLeft /></el-icon> 左对齐</el-dropdown-item>
+              <el-dropdown-item command="center">垂直居中</el-dropdown-item>
+              <el-dropdown-item command="right"><el-icon><ArrowRight /></el-icon> 右对齐</el-dropdown-item>
+              <el-dropdown-item command="top" divided>顶部对齐</el-dropdown-item>
+              <el-dropdown-item command="middle">水平居中</el-dropdown-item>
+              <el-dropdown-item command="bottom"><el-icon><ArrowDown /></el-icon> 底部对齐</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+        <!-- 均匀分布 -->
+        <el-dropdown trigger="click" :disabled="selectedCount < 3" @command="onDistribute">
+          <el-button text size="small">分布<el-icon><ArrowDown /></el-icon></el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="horizontal"><el-icon><Sort /></el-icon> 水平分布</el-dropdown-item>
+              <el-dropdown-item command="vertical"><el-icon><Sort /></el-icon> 垂直分布</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+        <span class="toolbar-divider" />
+        <!-- 图层 -->
+        <el-tooltip content="置顶">
+          <el-button text :disabled="selectedCount < 1" @click="toFront"><el-icon><Top /></el-icon></el-button>
+        </el-tooltip>
+        <el-tooltip content="置底">
+          <el-button text :disabled="selectedCount < 1" @click="toBack"><el-icon><Bottom /></el-icon></el-button>
+        </el-tooltip>
+        <span class="toolbar-divider" />
+        <!-- 网格吸附 -->
+        <el-tooltip :content="gridSnapEnabled ? '关闭吸附' : '开启吸附'">
+          <el-button text @click="toggleSnap">
+            <el-icon :style="gridSnapEnabled ? { color: '#3b82f6' } : {}"><Pointer /></el-icon>
+          </el-button>
+        </el-tooltip>
+        <!-- 全屏 -->
+        <el-tooltip content="全屏">
+          <el-button text @click="toggleFullscreen"><el-icon><FullScreen /></el-icon></el-button>
+        </el-tooltip>
+        <!-- 清空 -->
+        <el-tooltip content="清空画布">
+          <el-button text @click="clearCanvas"><el-icon><Delete /></el-icon></el-button>
+        </el-tooltip>
+        <!-- 拖拽模式 -->
+        <el-tooltip :content="panModeEnabled ? '退出拖拽模式' : '拖拽画布'">
+          <el-button text @click="togglePanMode">
+            <el-icon :style="panModeEnabled ? { color: '#3b82f6' } : {}"><Rank /></el-icon>
+          </el-button>
+        </el-tooltip>
       </div>
       <div class="toolbar-right">
         <el-tag v-if="selectedCount > 0" type="info" size="small" style="margin-right:8px">
@@ -172,7 +232,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, nextTick, reactive, computed } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Graph, Node, Edge } from '@antv/x6'
@@ -182,12 +242,14 @@ import { MiniMap } from '@antv/x6-plugin-minimap'
 import { Selection } from '@antv/x6-plugin-selection'
 import { Keyboard } from '@antv/x6-plugin-keyboard'
 import { Clipboard } from '@antv/x6-plugin-clipboard'
+import { Export } from '@antv/x6-plugin-export'
 import { designApi } from '@/api/design'
 import {
   ArrowLeft, Check, Pointer, Back, Right,
   CopyDocument, DocumentAdd,
   ZoomIn, ZoomOut, FullScreen, ScaleToOriginal,
   Delete, Select, Edit, Picture,
+  ArrowRight, ArrowDown, Top, Bottom, Sort, Rank,
 } from '@element-plus/icons-vue'
 
 const { t } = useI18n()
@@ -208,6 +270,9 @@ const canPaste = ref(false)
 const nodeCount = ref(0)
 const edgeCount = ref(0)
 const selectedEdgeStyle = ref<'straight' | 'polyline' | 'curve'>('straight')
+const defaultEdgeStyle = ref<'straight' | 'polyline' | 'curve'>('polyline')
+const gridSnapEnabled = ref(false)
+const panModeEnabled = ref(false)
 const endpointHandles = ref<{ side: 'source' | 'target'; x: number; y: number }[]>([])
 let draggingEp: { side: 'source' | 'target' } | null = null
 
@@ -503,22 +568,22 @@ function initGraph() {
     panning: { enabled: true, eventTypes: ['rightMouseDown'] },
     mousewheel: { enabled: true, zoomAtMousePosition: true },
     connecting: {
-      router: { name: 'normal' },
-      connector: { name: 'smooth' },
+      router: { name: 'manhattan', args: { padding: { top: 15, bottom: 15, left: 15, right: 15 }, step: 10 } },
+      connector: { name: 'rounded' },
       snap: { radius: 40 },
       allowBlank: false,
       allowNode: true,
       highlight: false,
-      sourceAnchor: { name: 'center' },
       targetAnchor: { name: 'orth' },
-      connectionPoint: { name: 'boundary' },
+      connectionPoint: { name: 'anchor' },
       validateConnection({ sourceCell, targetCell }) {
         if (sourceCell.id === targetCell.id) return false
         return true
       },
     },
     defaultEdge: {
-      connector: { name: 'smooth' },
+      router: { name: 'manhattan', args: { padding: { top: 15, bottom: 15, left: 15, right: 15 }, step: 10 } },
+      connector: { name: 'rounded' },
       attrs: {
         line: { stroke: '#94a3b8', strokeWidth: 2, targetMarker: { name: 'classic', size: 8 } },
       },
@@ -543,6 +608,7 @@ function initGraph() {
   graph.use(new History({ enabled: true }))
   graph.use(new Keyboard({ enabled: true }))
   graph.use(new Clipboard())
+  graph.use(new Export())
 
   // 键盘快捷键
   graph.bindKey('backspace', () => removeSelected())
@@ -580,7 +646,7 @@ function initGraph() {
         selectedEdgeData.value = { label: ls?.[0]?.attrs?.label?.text || '' }
         const router = cell.getRouter()
         const connector = cell.getConnector()
-        if (router?.name === 'orth' && connector?.name === 'rounded') selectedEdgeStyle.value = 'polyline'
+        if ((router?.name === 'orth' || router?.name === 'manhattan') && connector?.name === 'rounded') selectedEdgeStyle.value = 'polyline'
         else if (router?.name === 'normal' && connector?.name === 'smooth') selectedEdgeStyle.value = 'curve'
         else selectedEdgeStyle.value = 'straight'
       }
@@ -610,6 +676,14 @@ function initGraph() {
     hideEndpointHandles()
   })
 
+  // 网格吸附
+  graph.on('node:moving', ({ node }) => {
+    if (!gridSnapEnabled.value) return
+    const p = node.position()
+    const gs = 20
+    node.position(Math.round(p.x / gs) * gs, Math.round(p.y / gs) * gs)
+  })
+
   // 节点 data 变化 → 更新视觉
   graph.on('node:change:data', ({ node }) => {
     if (node.isNode()) updateNodeVisual(node as Node)
@@ -623,6 +697,28 @@ function initGraph() {
       selectedCell = null
       hideEndpointHandles()
     }
+  })
+
+  // 连线落到节点内部时，自动吸附到最近端口
+  graph.on('edge:connected', ({ edge }: { edge: Edge }) => {
+    if (edge.getTargetPortId()) return
+    const node = edge.getTargetCell()
+    if (!node || !node.isNode()) return
+    const ports = node.getPorts()
+    if (!ports || ports.length === 0) return
+    const pt = edge.getTargetPoint()
+    const bbox = (node as Node).getBBox()
+    let min = Infinity, best: string | null = null
+    ports.forEach(p => {
+      const id = p.id!
+      const a = (node as Node).getPortProp(id, 'args') as any
+      if (!a) return
+      const px = bbox.x + bbox.width * (parseFloat(String(a.x).replace('%', '')) / 100)
+      const py = bbox.y + bbox.height * (parseFloat(String(a.y).replace('%', '')) / 100)
+      const d = Math.sqrt((pt.x - px) ** 2 + (pt.y - py) ** 2)
+      if (d < min) { min = d; best = id }
+    })
+    if (best) edge.setTarget({ cell: node.id, port: best })
   })
 
   // 画布自适应
@@ -703,19 +799,109 @@ function onEdgeLabelChange() {
 function onEdgeStyleChange(style: 'straight' | 'polyline' | 'curve') {
   if (!selectedCell || !selectedCell.isEdge()) return
   const edge = selectedCell as Edge
-  switch (style) {
-    case 'straight':
-      edge.setRouter('normal')
-      edge.setConnector('normal')
-      break
-    case 'polyline':
-      edge.setRouter('orth')
-      edge.setConnector('rounded')
-      break
-    case 'curve':
-      edge.setRouter('normal')
-      edge.setConnector('smooth')
-      break
+  const isPolyline = style === 'polyline'
+  edge.setRouter(isPolyline ? { name: 'manhattan', args: { padding: { top: 15, bottom: 15, left: 15, right: 15 }, step: 10 } } : { name: 'normal' })
+  edge.setConnector(style === 'straight' ? 'normal' : isPolyline ? 'rounded' : 'smooth')
+}
+
+function onDefaultEdgeStyleChange(style: 'straight' | 'polyline' | 'curve') {
+  if (!graph) return
+  const isPolyline = style === 'polyline'
+  const router = isPolyline ? { name: 'manhattan', args: { padding: { top: 15, bottom: 15, left: 15, right: 15 }, step: 10 } } : { name: 'normal' }
+  const connector = { name: style === 'straight' ? 'normal' : isPolyline ? 'rounded' : 'smooth' }
+  graph.options.connecting.router = router
+  graph.options.connecting.connector = connector
+  graph.options.defaultEdge.router = router as any
+  graph.options.defaultEdge.connector = connector as any
+  // manhattan 路由器自带方向计算，无需额外 sourceAnchor
+  // 曲线/直线从端口位置出发，也不需要 sourceAnchor
+  ;(graph.options.connecting as any).sourceAnchor = undefined
+  if (selectedCell?.isEdge()) {
+    onEdgeStyleChange(style)
+    selectedEdgeStyle.value = style
+  }
+}
+
+/** 获取画布中选中的节点列表 */
+function selectedNodes(): Node[] {
+  return graph?.getSelectedCells().filter(c => c.isNode()) as Node[] || []
+}
+
+/** 对齐 */
+function onAlign(dir: string) {
+  graph?.alignCells(selectedNodes(), dir as any)
+}
+
+/** 均匀分布 */
+function onDistribute(dir: string) {
+  const nodes = selectedNodes()
+  if (nodes.length < 3) return
+  const sorted = dir === 'horizontal'
+    ? [...nodes].sort((a, b) => a.position().x - b.position().x)
+    : [...nodes].sort((a, b) => a.position().y - b.position().y)
+  const first = sorted[0].position()
+  const last = sorted[sorted.length - 1].position()
+  const span = dir === 'horizontal' ? last.x - first.x : last.y - first.y
+  const gap = span / (sorted.length - 1)
+  sorted.forEach((n, i) => {
+    const pos = n.position()
+    if (dir === 'horizontal') n.position(first.x + gap * i, pos.y)
+    else n.position(pos.x, first.y + gap * i)
+  })
+}
+
+/** 置顶 */
+function toFront() {
+  selectedNodes().forEach(n => n.toFront())
+}
+
+/** 置底 */
+function toBack() {
+  selectedNodes().forEach(n => n.toBack())
+}
+
+/** 网格吸附开关 */
+function toggleSnap() {
+  gridSnapEnabled.value = !gridSnapEnabled.value
+  if (!graph) return
+  if (gridSnapEnabled.value) {
+    graph.setGrid({ visible: true, size: 20, type: 'doubleMesh', args: [{ color: '#e2e8f0', thickness: 1 }, { color: '#cbd5e1', thickness: 1 }] })
+  } else {
+    graph.setGrid({ visible: true, size: 20, type: 'dot', args: [{ color: '#e2e8f0', thickness: 1 }] })
+  }
+}
+
+/** 全屏 */
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen()
+  } else {
+    document.exitFullscreen()
+  }
+}
+
+/** 清空画布 */
+function clearCanvas() {
+  if (!graph) return
+  ElMessageBox.confirm('确定要清空画布吗？此操作不可撤销。', '确认清空', { confirmButtonText: '清空', cancelButtonText: '取消', type: 'warning' }).then(() => {
+    graph?.clearCells()
+  }).catch(() => {})
+}
+
+/** 手型拖拽模式切换 */
+function togglePanMode() {
+  if (!graph) return
+  panModeEnabled.value = !panModeEnabled.value
+  if (panModeEnabled.value) {
+    // 左键拖拽平移画布，禁用选择
+    graph.options.panning.eventTypes = ['leftMouseDown']
+    graph.disableSelection()
+    graph.getSelectedCells().forEach(c => graph?.unselect(c.id))
+    if (canvasContainerRef.value) canvasContainerRef.value.classList.add('pan-mode')
+  } else {
+    graph.options.panning.eventTypes = ['rightMouseDown']
+    graph.enableSelection()
+    if (canvasContainerRef.value) canvasContainerRef.value.classList.remove('pan-mode')
   }
 }
 
@@ -786,23 +972,52 @@ function handleCut() {
 }
 
 // ====== 缩放 ======
-function zoomIn() { if (graph) { const s = graph.zoom(); graph.zoom(s + 0.1, { minScale: 0.2, maxScale: 3 }) } }
-function zoomOut() { if (graph) { const s = graph.zoom(); graph.zoom(s - 0.1, { minScale: 0.2, maxScale: 3 }) } }
+function zoomIn() { graph?.zoom(0.05) }
+function zoomOut() { graph?.zoom(-0.05) }
 function zoomToFit() { graph?.zoomToFit({ padding: 40, maxScale: 1 }) }
-function zoomReset() { graph?.zoom(1) }
+function zoomReset() { graph?.zoom(1, { absolute: true }) }
 
 // ====== 导出 PNG ======
 function handleExport() {
   if (!graph) return
-  graph.toPNG(
-    (dataUri: string) => {
-      const link = document.createElement('a')
-      link.download = `${design.value?.name || 'flow'}.png`
-      link.href = dataUri
-      link.click()
-    },
-    { padding: 20, backgroundColor: '#ffffff' }
-  )
+  const name = design.value?.name || 'flow'
+  const rect = graph.getContentBBox()
+  if (!rect || rect.width === 0) return
+  const svgEl = graphContainerRef.value?.querySelector<SVGSVGElement>('.x6-graph-svg')
+  if (!svgEl) return
+  // 克隆 → 加边距 + 白色背景 → 序列化 → 同时下载 SVG 和尝试转 PNG
+  const clone = svgEl.cloneNode(true) as SVGSVGElement
+  const pad = 40
+  const w = Math.ceil(rect.width + pad * 2)
+  const h = Math.ceil(rect.height + pad * 2)
+  clone.setAttribute('width', String(w))
+  clone.setAttribute('height', String(h))
+  clone.setAttribute('viewBox', `${rect.x - pad} ${rect.y - pad} ${w} ${h}`)
+  const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+  bg.setAttribute('width', '100%'); bg.setAttribute('height', '100%'); bg.setAttribute('fill', '#ffffff')
+  clone.insertBefore(bg, clone.firstChild)
+  const svgStr = new XMLSerializer().serializeToString(clone)
+  // 先下载 SVG 保证用户有内容，同时异步尝试转 PNG
+  const svgUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr)
+  const img = new Image()
+  img.onload = () => {
+    const canvas = document.createElement('canvas')
+    canvas.width = w; canvas.height = h
+    const ctx = canvas.getContext('2d')!
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.drawImage(img, 0, 0)
+    downloadURI(canvas.toDataURL('image/png'), `${name}.png`)
+  }
+  img.onerror = () => { downloadURI(svgUri, `${name}.svg`) }
+  img.src = svgUri
+}
+
+function downloadURI(uri: string, filename: string) {
+  const link = document.createElement('a')
+  link.download = filename
+  link.href = uri
+  link.click()
 }
 
 // ====== 加载设计 ======
@@ -830,6 +1045,15 @@ async function loadDesign() {
           // 序列化可能丢失端口 group 定义，重新注入完整端口配置
           const nodeType = n.getData()?.nodeType || 'task'
           n.setProp('ports', { groups: { handle: handleGroup }, items: getPorts(nodeType) })
+        })
+        // 旧数据迁移：所有折线连线使用 manhattan 路由获得更优路径
+        graph.getEdges().forEach(e => {
+          const r = e.getRouter()
+          const c = e.getConnector()
+          if (r?.name === 'orth' || c?.name === 'rounded') {
+            e.setRouter({ name: 'manhattan', args: { padding: { top: 15, bottom: 15, left: 15, right: 15 }, step: 10 } })
+            e.setConnector('rounded')
+          }
         })
         graph.zoomToFit({ padding: 60, maxScale: 1 })
         return
@@ -941,6 +1165,8 @@ onBeforeUnmount(() => {
 .palette-label { font-size: 12px; color: #0f172a; font-weight: 500; }
 
 .canvas-area { flex: 1; position: relative; overflow: hidden; background: #fafbfc; }
+.canvas-area.pan-mode { cursor: grab; }
+.canvas-area.pan-mode:active { cursor: grabbing; }
 .graph-container { width: 100%; height: 100%; }
 
 .minimap-container {
