@@ -3,6 +3,7 @@ package com.zestflow.collector.jdbc.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.zestflow.collector.jdbc.entity.ChainEventPO;
 import org.apache.ibatis.annotations.Insert;
+import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
@@ -10,6 +11,7 @@ import java.util.List;
 /**
  * 链执行事件 Mapper
  */
+@Mapper
 public interface ChainEventMapper extends BaseMapper<ChainEventPO> {
 
     /**
