@@ -44,6 +44,9 @@ zestflow:
       username: admin
       password: admin123
       email: admin@zestflow.com
+  collector:
+    api-url: http://localhost:8081
+    access-token: ''
 
 mybatis-plus:
   mapper-locations: classpath:mapper/*.xml

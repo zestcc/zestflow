@@ -54,7 +54,7 @@ zestflow/
 ### 依赖关系
 
 ```
-zestflow-executor            ──▶ zestflow-common
+zestflow-executor            ──▶ zestflow-common, collector-core（调用 EventCollector SPI 发射事件）
 zestflow-collector/           ──▶ zestflow-common（聚合父 POM 不做依赖）
   collector-core              ──▶ zestflow-common
   collector-jdbc              ──▶ collector-core
@@ -435,7 +435,7 @@ com.zestflow.admin.controller    # Admin 接口层
 com.zestflow.admin.service       # Admin 业务层
 com.zestflow.executor.engine     # 执行引擎
 com.zestflow.executor.register   # 注册模块
-com.zestflow.collector.provider     # 采集器 SPI 接口（collector-core 模块）
+com.zestflow.collector.spi          # 采集器 SPI 接口（collector-core 模块）
 com.zestflow.collector.jdbc        # JDBC 实现
 ```
 
@@ -610,6 +610,108 @@ log.error("链执行失败 chainId={} nodeId={}", chainId, nodeId, e);
 - 修改：`ExecutorRegistryPO/VO`（去 `retryCount`）、`ModulePO/VO/DTO`（去 `retryCount/retryInterval`）
 - 修改：各 Service 层、前端类型定义和 UI
 - 修复：`zestflow-admin/pom.xml` spring-boot-maven-plugin 加 `<execution>` 确保 repackage 触发
+
+### 采集器模块 — EventCollector SPI + 三级异步流水线（2026-05）
+
+**需求：** Executor 发射链执行事件，Collector 异步采集落地，Admin 通过 HTTP 只读查询。对标 Sentinel 的异步链路 + xxl-job 的日志采集模型。
+
+**核心原则：** 日志采集绝不能影响正常业务（最高优先级）。
+
+**Event 模型（`zestflow-common`）：**
+- `common.model.dto.ChainEvent` — 事件数据单元，15 个字段
+- 7 种事件类型枚举：`CHAIN_STARTED / NODE_STARTED / NODE_COMPLETED / NODE_FAILED / CHAIN_COMPLETED / CHAIN_FAILED / CHAIN_TIMEOUT`
+- UUID 作为 eventId（分布式无中心依赖）
+- `zestflow-common` 零第三方框架依赖，仅 Lombok + Slf4j
+
+**SPI 层（`collector-core`）：**
+- `collector.spi.EventCollector` — 采集器接口：`collect()` + `collectBatch()`，实现方保证幂等
+- `collector.spi.EventQueryService` — 只读查询接口：`queryEvents()` / `countEvents()` / `getById()` / `queryStats()`
+- `collector.model.dto.EventQuery` / `EventStats` / `EventStatsQuery` — 查询 DTO
+
+**JDBC 实现（`collector-jdbc`，默认实现）：**
+- 三级异步流水线：`AsyncEventPublisher`（executor 端）→ `JdbcEventCollector` → `ChainEventMapper` 批量 INSERT IGNORE
+- 幂等保障：`uk_event_id` 唯一约束 + `INSERT IGNORE`
+- REST 控制器（只读）：`POST /collector/events/query`、`GET /collector/events/{eventId}`、`POST /collector/events/stats`
+- Token 认证：`X-Collector-Token` 请求头，未配置时不校验
+- 条件装配：`@ConditionalOnClass` 确保无 web 环境不加载 Controller
+- MyBatis-Plus 分页 + 自动填充
+
+**Kafka 实现（`collector-kafka`）：**
+- `KafkaEventCollector` — 通过 `KafkaTemplate<String,String>` JSON 序列化发送到指定 Topic
+- 配置：`zestflow.collector.kafka.topic`（默认 `zestflow-events`）
+- `@ConditionalOnProperty` — 配置 topic 后才创建 Bean
+
+**RabbitMQ 实现（`collector-rabbitmq`）：**
+- `RabbitEventCollector` — 通过 `RabbitTemplate` JSON 序列化发送到指定 Exchange
+- 配置：`zestflow.collector.rabbitmq.exchange`（默认 `zestflow.events`）、`routingKey`（默认 `zestflow.event.#`）
+- 自动声明 `TopicExchange` Bean
+
+**Executor 端事件发布（`zestflow-executor`）：**
+- `executor.event.EventPublisher` — 发布接口，约定 `publish()` 在 ≤1ms 内返回
+- `executor.event.AsyncEventPublisher` — 异步实现：
+  - **三级流水线**：有界内存队列 → 批量 drain 线程 → EventCollector.collectBatch()
+  - **有界队列**：`LinkedBlockingQueue` 默认容量 8192，`offer()` 超时 ≤1ms
+  - **批量代理**：独立 drain 线程，200 条 / 500ms 阈值批量提交
+  - **熔断器**：连续 10 次失败 → 开启熔断 30s 冷却，冷却后自动半开重试
+  - **磁盘降级**（可选）：队列满或熔断开启时写本地文件 `./collector-fallback/events-{yyyyMMdd}.log`
+  - **优雅关闭**：`destroy()` 等待 drain 线程消费完毕，超时 5s
+  - **条件装配**：`@ConditionalOnBean(EventCollector.class)` — 无 Collector 时不创建
+- `ExecutorServer` / `ServerHandler` — 注入 `EventPublisher`，`/execute` 入口发射 `CHAIN_STARTED` 事件
+- 配置前缀 `zestflow.executor.event.*`：`queue-capacity`、`batch-size`、`batch-max-wait-ms`、`circuit-breaker-threshold`、`circuit-breaker-cooldown-ms`、`disk-fallback-enabled`、`disk-fallback-dir`
+
+**Admin 日志查询（`zestflow-admin` + `zestflow-admin-ui`）：**
+- `admin.client.CollectorClient` — HTTP 防腐层客户端，封装与 Collector 的通信
+- `admin.client.CollectorConfig` — 配置 `zestflow.collector.api-url` / `access-token`
+- `admin.service.LogService` / `impl.LogServiceImpl` — 委托 CollectorClient 查询
+- `admin.controller.LogController` — `POST /api/logs/events/query` 为前端提供接口
+- 前端 `LogsPage.vue` — 筛选栏（事件类型多选 / 状态 / 时间范围 / 关键字）+ 表格 + 分页 + 详情弹窗
+- i18n 中英文完整覆盖
+
+**部署模式：**
+- **嵌入式**（通过 `zestflow-starter`）：executor + collector-jdbc 集成在业务应用内，共享 web 容器
+- **独立 Collector 服务**：单独部署 collector-jdbc（或 kafka/rabbitmq），业务应用仅引入 executor
+
+**chain_event 表 DDL：**
+```sql
+CREATE TABLE IF NOT EXISTS `chain_event` (
+    `id`            BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '自增主键',
+    `event_id`      VARCHAR(64)  NOT NULL                 COMMENT '事件全局唯一 ID（UUID）',
+    `event_type`    VARCHAR(32)  NOT NULL                 COMMENT '事件类型',
+    `chain_id`      VARCHAR(64)  DEFAULT NULL             COMMENT '链实例 ID',
+    `chain_name`    VARCHAR(128) DEFAULT NULL             COMMENT '链名称',
+    `node_id`       VARCHAR(64)  DEFAULT NULL             COMMENT '节点实例 ID',
+    `node_name`     VARCHAR(128) DEFAULT NULL             COMMENT '节点名称',
+    `executor_id`   VARCHAR(128) DEFAULT NULL             COMMENT '执行器 ID',
+    `app_name`      VARCHAR(64)  DEFAULT NULL             COMMENT '应用名',
+    `params`        TEXT         DEFAULT NULL             COMMENT '执行入参 JSON',
+    `result`        TEXT         DEFAULT NULL             COMMENT '执行结果 JSON',
+    `error_message` TEXT         DEFAULT NULL             COMMENT '错误消息',
+    `cost_ms`       BIGINT       DEFAULT NULL             COMMENT '执行耗时（毫秒）',
+    `status`        TINYINT      DEFAULT NULL             COMMENT '节点状态：0-失败 1-成功',
+    `timestamp`     BIGINT       NOT NULL                 COMMENT '事件发生时间戳（毫秒）',
+    `metadata`      TEXT         DEFAULT NULL             COMMENT '扩展元数据 JSON',
+    `create_time`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '记录创建时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_event_id` (`event_id`),
+    KEY `idx_chain_id` (`chain_id`),
+    KEY `idx_executor_id` (`executor_id`),
+    KEY `idx_timestamp` (`timestamp`),
+    KEY `idx_app_event` (`app_name`, `event_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='链执行事件表';
+```
+
+**新增文件清单：**
+- `zestflow-common/.../model/dto/ChainEvent.java`
+- `collector-core/**`（SPI 接口 + 查询 DTO 共 5 文件）
+- `collector-jdbc/**`（采集器 + 查询服务 + Controller + 配置 + Mapper + PO 共 10 文件）
+- `collector-kafka/**`（KafkaEventCollector + AutoConfig 共 3 文件）
+- `collector-rabbitmq/**`（RabbitEventCollector + AutoConfig 共 3 文件）
+- `zestflow-executor/.../event/**`（EventPublisher + AsyncEventPublisher 共 2 文件）
+- `zestflow-admin/.../client/**`（CollectorClient + Config + DTO 共 4 文件）
+- `zestflow-admin/.../controller/LogController.java`
+- `zestflow-admin/.../service/LogService.java` + `impl/LogServiceImpl.java`
+- `zestflow-admin-ui/.../api/logs.ts`
+- `zestflow-admin-ui/.../views/logs/LogsPage.vue`
 
 ### 清理记录
 

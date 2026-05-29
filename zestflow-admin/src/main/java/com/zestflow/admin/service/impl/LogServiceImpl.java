@@ -1,0 +1,23 @@
+package com.zestflow.admin.service.impl;
+
+import com.zestflow.admin.client.CollectorClient;
+import com.zestflow.admin.client.dto.EventQueryDTO;
+import com.zestflow.admin.client.dto.EventQueryResult;
+import com.zestflow.admin.service.LogService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+/**
+ * 日志查询服务实现 — 委托 CollectorClient 从 Collector 查询
+ */
+@Service
+@RequiredArgsConstructor
+public class LogServiceImpl implements LogService {
+
+    private final CollectorClient collectorClient;
+
+    @Override
+    public EventQueryResult queryEvents(EventQueryDTO query) {
+        return collectorClient.queryEvents(query);
+    }
+}

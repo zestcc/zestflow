@@ -22,6 +22,10 @@
             <groupId>com.zestflow</groupId>
             <artifactId>zestflow-common</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.zestflow</groupId>
+            <artifactId>collector-core</artifactId>
+        </dependency>
 
         <!-- Spring Boot 自动装配支持 -->
         <dependency>

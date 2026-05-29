@@ -1,5 +1,7 @@
 package com.zestflow.executor.server;
 
+import com.zestflow.common.model.dto.ChainEvent;
+import com.zestflow.executor.event.EventPublisher;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler;
@@ -8,11 +10,16 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.util.CharsetUtil;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
+@Setter
 @ChannelHandler.Sharable
 public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
+
+    /** 事件发布器（可选，未配置 Collector 时为 null） */
+    private EventPublisher eventPublisher;
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) {
@@ -40,8 +47,16 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
     }
 
     private void handleExecute(ChannelHandlerContext ctx, String body) {
-        // TODO: 执行链路的入口，后续实现
         log.info("收到执行请求 body={}", body);
+        // 发射 CHAIN_STARTED 事件
+        if (eventPublisher != null) {
+            eventPublisher.publish(ChainEvent.builder()
+                    .eventId(java.util.UUID.randomUUID().toString())
+                    .eventType(ChainEvent.EventType.CHAIN_STARTED)
+                    .timestamp(System.currentTimeMillis())
+                    .params(body)
+                    .build());
+        }
         writeResponse(ctx, HttpResponseStatus.OK, "{\"code\":200,\"message\":\"received\"}");
     }
 

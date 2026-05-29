@@ -1,6 +1,7 @@
 package com.zestflow.executor.server;
 
 import com.zestflow.common.constant.RegistryConstants;
+import com.zestflow.executor.event.EventPublisher;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
@@ -11,20 +12,31 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.HttpRequestDecoder;
 import io.netty.handler.codec.http.HttpResponseEncoder;
 import io.netty.handler.timeout.IdleStateHandler;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
-@RequiredArgsConstructor
 public class ExecutorServer {
 
     private final int port;
+    private final EventPublisher eventPublisher;
+    private final ServerHandler serverHandler;
 
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
     private Channel channel;
+
+    public ExecutorServer(int port) {
+        this(port, null);
+    }
+
+    public ExecutorServer(int port, EventPublisher eventPublisher) {
+        this.port = port;
+        this.eventPublisher = eventPublisher;
+        this.serverHandler = new ServerHandler();
+        this.serverHandler.setEventPublisher(eventPublisher);
+    }
 
     public void start() throws InterruptedException {
         bossGroup = new NioEventLoopGroup(1, r -> {
@@ -55,7 +67,7 @@ public class ExecutorServer {
                                 .addLast(new HttpResponseEncoder())
                                 .addLast(new IdleStateHandler(
                                         0, 0, RegistryConstants.DEFAULT_HEARTBEAT_INTERVAL_SECONDS * 2))
-                                .addLast(new ServerHandler());
+                                .addLast(serverHandler);
                     }
                 });
 
