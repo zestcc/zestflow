@@ -10,23 +10,21 @@
         <el-tag v-if="design" :type="design.status === 1 ? 'success' : 'danger'" size="small">
           {{ design.status === 1 ? $t('design.enabled') : $t('design.disabled') }}
         </el-tag>
+        <span class="stat-badge">{{ nodeCount }} 节点 · {{ edgeCount }} 连线</span>
       </div>
       <div class="toolbar-center">
-        <el-tooltip content="撤销">
+        <el-tooltip content="撤销 (Ctrl+Z)">
           <el-button text :disabled="!canUndo" @click="handleUndo"><el-icon><Back /></el-icon></el-button>
         </el-tooltip>
-        <el-tooltip content="重做">
+        <el-tooltip content="重做 (Ctrl+Y)">
           <el-button text :disabled="!canRedo" @click="handleRedo"><el-icon><Right /></el-icon></el-button>
         </el-tooltip>
         <span class="toolbar-divider" />
-        <el-tooltip content="复制">
+        <el-tooltip content="复制 (Ctrl+C)">
           <el-button text :disabled="selectedCount !== 1" @click="handleCopy"><el-icon><CopyDocument /></el-icon></el-button>
         </el-tooltip>
-        <el-tooltip content="粘贴">
+        <el-tooltip content="粘贴 (Ctrl+V)">
           <el-button text :disabled="!canPaste" @click="handlePaste"><el-icon><DocumentAdd /></el-icon></el-button>
-        </el-tooltip>
-        <el-tooltip content="剪切">
-          <el-button text :disabled="selectedCount < 1" @click="handleCut"><el-icon><Scissor /></el-icon></el-button>
         </el-tooltip>
         <span class="toolbar-divider" />
         <el-tooltip content="缩小">
@@ -42,10 +40,14 @@
         <el-tooltip content="实际大小">
           <el-button text @click="zoomReset"><el-icon><ScaleToOriginal /></el-icon></el-button>
         </el-tooltip>
+        <span class="toolbar-divider" />
+        <el-tooltip content="导出为 PNG">
+          <el-button text @click="handleExport"><el-icon><Picture /></el-icon></el-button>
+        </el-tooltip>
       </div>
       <div class="toolbar-right">
         <el-tag v-if="selectedCount > 0" type="info" size="small" style="margin-right:8px">
-          {{ selectedCount }} selected
+          已选 {{ selectedCount }}
         </el-tag>
         <el-button type="primary" :loading="saving" @click="handleSave">
           <el-icon><Check /></el-icon> {{ $t('design.saveGraph') }}
@@ -63,11 +65,10 @@
             v-for="nt in nodeTypes"
             :key="nt.type"
             class="palette-item"
-            :style="{ borderLeftColor: nt.color }"
             draggable="true"
             @dragstart="onDragStart($event, nt)"
           >
-            <div class="palette-icon" :style="{ background: nt.gradient }" v-html="nt.icon" />
+            <div class="palette-icon" :style="{ background: nt.color }" v-html="nt.icon" />
             <div class="palette-label">{{ nt.label }}</div>
           </div>
         </div>
@@ -77,23 +78,46 @@
       <div class="canvas-area" ref="canvasContainerRef" @dragover.prevent="onDragOver" @drop.prevent="onDrop">
         <div ref="graphContainerRef" class="graph-container" />
         <div ref="minimapContainerRef" class="minimap-container" />
+        <!-- 连线端点拖拽手柄 -->
+        <div
+          v-for="ep in endpointHandles" :key="ep.side"
+          class="ep-handle"
+          :style="{ left: ep.x + 'px', top: ep.y + 'px' }"
+          @mousedown.prevent="onEpDragStart($event, ep.side)"
+        />
       </div>
 
       <!-- 右侧属性面板 -->
       <div class="property-panel">
-        <div class="panel-header">{{ $t('design.properties') }}</div>
+        <div class="panel-header">
+          {{ selectedEdgeData ? '连线属性' : selectedNodeData ? '节点属性' : $t('design.properties') }}
+          <el-tag v-if="selectedNodeData" size="small" :color="nodeColor(selectedNodeData.nodeType)" style="color:#fff;border:none;margin-left:6px">
+            {{ typeLabel(selectedNodeData.nodeType) }}
+          </el-tag>
+        </div>
+        <!-- 节点属性 -->
         <div v-if="selectedNodeData" class="panel-body">
           <el-form size="small" label-position="top">
-            <el-form-item :label="$t('design.nodeName')">
+            <el-form-item label="名称">
               <el-input v-model="selectedNodeData.label" @input="onDataChange" />
             </el-form-item>
-            <el-form-item :label="$t('design.nodeType')">
-              <el-tag :color="nodeColor(selectedNodeData.nodeType)" style="color:#fff;border:none">
-                {{ typeLabel(selectedNodeData.nodeType) }}
-              </el-tag>
+            <el-form-item v-if="hasDescription(selectedNodeData.nodeType)" label="描述">
+              <el-input v-model="selectedNodeData.description" type="textarea" :rows="3" @input="onDataChange" />
             </el-form-item>
-            <el-form-item v-if="hasDescription(selectedNodeData.nodeType)" :label="$t('design.nodeDesc')">
-              <el-input v-model="selectedNodeData.description" type="textarea" :rows="4" @input="onDataChange" />
+          </el-form>
+        </div>
+        <!-- 连线属性 -->
+        <div v-else-if="selectedEdgeData" class="panel-body">
+          <el-form size="small" label-position="top">
+            <el-form-item label="标签文字">
+              <el-input v-model="selectedEdgeData.label" placeholder="双击连线也可编辑" @input="onEdgeLabelChange" />
+            </el-form-item>
+            <el-form-item label="线型">
+              <el-radio-group v-model="selectedEdgeStyle" size="small" @change="onEdgeStyleChange">
+                <el-radio-button value="straight">直线</el-radio-button>
+                <el-radio-button value="polyline">折线</el-radio-button>
+                <el-radio-button value="curve">曲线</el-radio-button>
+              </el-radio-group>
             </el-form-item>
           </el-form>
         </div>
@@ -113,42 +137,57 @@
         <div v-if="contextMenu.isNode" class="context-item" @click="contextCopyNode">
           <el-icon><CopyDocument /></el-icon> 复制节点
         </div>
-        <div v-if="contextMenu.isNode" class="context-item" @click="contextCutNode">
-          <el-icon><Scissor /></el-icon> 剪切节点
+        <div v-if="contextMenu.isEdge" class="context-item danger" @click="contextDeleteEdge">
+          <el-icon><Delete /></el-icon> 删除连线
         </div>
-        <div v-if="contextMenu.isNode" class="context-separator" />
+        <div v-if="contextMenu.isEdge" class="context-item" @click="contextEditEdgeLabel">
+          <el-icon><Edit /></el-icon> 编辑标签
+        </div>
+        <div v-if="contextMenu.isNode || contextMenu.isEdge" class="context-separator" />
         <div class="context-item" @click="contextSelectAll">
           <el-icon><Select /></el-icon> 全选
         </div>
-        <div v-if="!contextMenu.isNode" class="context-item" @click="contextPaste">
+        <div v-if="!contextMenu.isNode && !contextMenu.isEdge" class="context-item" @click="contextPaste">
           <el-icon><DocumentAdd /></el-icon> 粘贴
         </div>
+      </div>
+    </teleport>
+
+    <!-- 行内编辑输入框 -->
+    <teleport to="body">
+      <div v-if="inlineEditor.show" class="inline-editor-overlay" :style="{ left: inlineEditor.x + 'px', top: inlineEditor.y + 'px' }">
+        <el-input
+          ref="inlineInputRef"
+          v-model="inlineEditor.value"
+          size="small"
+          placeholder="输入标签..."
+          @keydown.enter.prevent="inlineEditorConfirm"
+          @keydown.escape.prevent="inlineEditorCancel"
+          @blur="inlineEditorConfirm"
+        />
       </div>
     </teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, nextTick, reactive } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick, reactive, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Graph } from '@antv/x6'
+import { Graph, Node, Edge } from '@antv/x6'
 import { History } from '@antv/x6-plugin-history'
 import { Snapline } from '@antv/x6-plugin-snapline'
 import { MiniMap } from '@antv/x6-plugin-minimap'
 import { Selection } from '@antv/x6-plugin-selection'
 import { Keyboard } from '@antv/x6-plugin-keyboard'
 import { Clipboard } from '@antv/x6-plugin-clipboard'
-import { Transform } from '@antv/x6-plugin-transform'
-import { register } from '@antv/x6-vue-shape'
-import FlowNodeX6 from './FlowNodeX6.vue'
 import { designApi } from '@/api/design'
 import {
   ArrowLeft, Check, Pointer, Back, Right,
-  CopyDocument, DocumentAdd, Scissor,
+  CopyDocument, DocumentAdd,
   ZoomIn, ZoomOut, FullScreen, ScaleToOriginal,
-  Delete, Select,
+  Delete, Select, Edit, Picture,
 } from '@element-plus/icons-vue'
 
 const { t } = useI18n()
@@ -156,158 +195,111 @@ const route = useRoute()
 const router = useRouter()
 const designId = Number(route.params.id)
 
+// ====== 响应式状态 ======
 const design = ref<any>(null)
 const saving = ref(false)
 const selectedCount = ref(0)
 const canUndo = ref(false)
 const canRedo = ref(false)
 const selectedNodeData = ref<any>(null)
+const selectedEdgeData = ref<any>(null)
 const zoomLevel = ref(1)
 const canPaste = ref(false)
+const nodeCount = ref(0)
+const edgeCount = ref(0)
+const selectedEdgeStyle = ref<'straight' | 'polyline' | 'curve'>('straight')
+const endpointHandles = ref<{ side: 'source' | 'target'; x: number; y: number }[]>([])
+let draggingEp: { side: 'source' | 'target' } | null = null
 
 const graphContainerRef = ref<HTMLDivElement | null>(null)
 const canvasContainerRef = ref<HTMLDivElement | null>(null)
 const minimapContainerRef = ref<HTMLDivElement | null>(null)
+const inlineInputRef = ref<any>(null)
 
 let graph: Graph | null = null
 let resizeObserver: ResizeObserver | null = null
 let selectedCell: any = null
 
-// 右键菜单
-const contextMenu = reactive({ visible: false, x: 0, y: 0, isNode: false, node: null as any })
+// ====== 行内编辑器 ======
+const inlineEditor = reactive({
+  show: false,
+  x: 0,
+  y: 0,
+  value: '',
+  target: null as any,
+  isEdge: false,
+})
+
+function showInlineEditor(x: number, y: number, value: string, target: any, isEdge: boolean) {
+  inlineEditor.show = true
+  inlineEditor.x = x
+  inlineEditor.y = y
+  inlineEditor.value = value
+  inlineEditor.target = target
+  inlineEditor.isEdge = isEdge
+  nextTick(() => inlineInputRef.value?.focus())
+}
+
+function inlineEditorConfirm() {
+  if (!inlineEditor.target) return
+  if (inlineEditor.isEdge) {
+    const text = inlineEditor.value || ''
+    inlineEditor.target.setLabels(text ? [{ attrs: { label: { text } } }] : [])
+    if (selectedEdgeData.value) selectedEdgeData.value.label = text
+  } else {
+    const data = { ...inlineEditor.target.getData(), label: inlineEditor.value || inlineEditor.target.id }
+    inlineEditor.target.setData(data)
+  }
+  inlineEditor.show = false
+  inlineEditor.target = null
+}
+
+function inlineEditorCancel() {
+  inlineEditor.show = false
+  inlineEditor.target = null
+}
+
+// ====== 右键菜单 ======
+const contextMenu = reactive({ visible: false, x: 0, y: 0, isNode: false, isEdge: false, cell: null as any })
 let contextMenuCloseHandler: (() => void) | null = null
 
-// 节点类型定义
-const nodeTypes = [
-  { type: 'start', label: t('design.startNode'), color: '#67c23a', gradient: 'linear-gradient(135deg, #67c23a, #85ce61)', icon: '<svg viewBox="0 0 16 16" width="14" height="14"><circle cx="8" cy="8" r="6" fill="#fff"/></svg>' },
-  { type: 'task', label: t('design.taskNode'), color: '#409eff', gradient: 'linear-gradient(135deg, #409eff, #6ab0ff)', icon: '<svg viewBox="0 0 16 16" width="14" height="14"><rect x="2" y="1" width="12" height="14" rx="2" fill="#fff"/></svg>' },
-  { type: 'condition', label: t('design.conditionNode'), color: '#e6a23c', gradient: 'linear-gradient(135deg, #e6a23c, #f0b75e)', icon: '<svg viewBox="0 0 16 16" width="14" height="14"><polygon points="8,1 15,8 8,15 1,8" fill="#fff"/></svg>' },
-  { type: 'end', label: t('design.endNode'), color: '#909399', gradient: 'linear-gradient(135deg, #909399, #a8abb0)', icon: '<svg viewBox="0 0 16 16" width="14" height="14"><circle cx="8" cy="8" r="5" fill="none" stroke="#fff" stroke-width="2"/><circle cx="8" cy="8" r="2" fill="#fff"/></svg>' },
-]
-
-const nodeColorMap: Record<string, string> = {
-  start: '#67c23a',
-  task: '#409eff',
-  condition: '#e6a23c',
-  end: '#909399',
-}
-
-function nodeColor(type: string) { return nodeColorMap[type] || '#409eff' }
-
-function typeLabel(type: string) {
-  return nodeTypes.find(nt => nt.type === type)?.label || type
-}
-
-function hasDescription(type: string) {
-  return type === 'task' || type === 'condition'
-}
-
-// 获取指定节点类型的端口配置
-function getPorts(nodeType: string) {
-  const items: any[] = []
-  if (nodeType !== 'start') {
-    items.push({ id: 'in', group: 'in' })
-  }
-  if (nodeType === 'condition') {
-    items.push({ id: 'out-yes', group: 'out-yes' })
-    items.push({ id: 'out-no', group: 'out-no' })
-  } else if (nodeType !== 'end') {
-    items.push({ id: 'out', group: 'out' })
-  }
-  return items
-}
-
-// 注册 X6 节点类型
-function registerNodes() {
-  register({
-    shape: 'flow-node',
-    width: 160,
-    height: 50,
-    component: FlowNodeX6,
-    ports: {
-      groups: {
-        in: {
-          position: { name: 'top' },
-          attrs: { circle: { r: 5, magnet: true, stroke: '#666', fill: '#fff', strokeWidth: 2 } },
-        },
-        out: {
-          position: { name: 'bottom' },
-          attrs: { circle: { r: 5, magnet: true, stroke: '#666', fill: '#fff', strokeWidth: 2 } },
-        },
-        'out-yes': {
-          position: { name: 'absolute', args: { x: '25%', y: '100%' } },
-          attrs: {
-            circle: { r: 5, magnet: true, stroke: '#67c23a', fill: '#67c23a', strokeWidth: 2 },
-            text: { text: 'Y', fill: '#67c23a', fontSize: 11, fontWeight: 'bold' },
-          },
-        },
-        'out-no': {
-          position: { name: 'absolute', args: { x: '75%', y: '100%' } },
-          attrs: {
-            circle: { r: 5, magnet: true, stroke: '#f56c6c', fill: '#f56c6c', strokeWidth: 2 },
-            text: { text: 'N', fill: '#f56c6c', fontSize: 11, fontWeight: 'bold' },
-          },
-        },
-      },
-      items: [],
-    },
-  })
-}
-
-// 关闭右键菜单
 function closeContextMenu() {
   contextMenu.visible = false
-  contextMenu.node = null
+  contextMenu.cell = null
+  contextMenu.isNode = false
+  contextMenu.isEdge = false
   if (contextMenuCloseHandler) {
     document.removeEventListener('click', contextMenuCloseHandler)
     contextMenuCloseHandler = null
   }
 }
 
-// 画布右键菜单
 function onCanvasContextMenu(e: MouseEvent) {
   if (!graph) return
-  const target = e.target as HTMLElement
   const cell = graph.getCellFromPoint(e.clientX, e.clientY)
   contextMenu.isNode = !!cell && cell.isNode()
-  contextMenu.node = cell && cell.isNode() ? cell : null
+  contextMenu.isEdge = !!cell && cell.isEdge()
+  contextMenu.cell = cell
   contextMenu.x = e.clientX
   contextMenu.y = e.clientY
   contextMenu.visible = true
   closeContextMenu()
-  // 点击其他地方关闭
   contextMenuCloseHandler = () => { closeContextMenu() }
   setTimeout(() => document.addEventListener('click', contextMenuCloseHandler!), 0)
 }
 
 function contextDeleteNode() {
-  if (contextMenu.node) {
-    graph?.removeCells([contextMenu.node])
-    if (selectedCell === contextMenu.node) {
-      selectedCell = null
-      selectedNodeData.value = null
-    }
-  }
+  if (contextMenu.cell) { graph?.removeCells([contextMenu.cell]); clearSelectionIfNeeded(contextMenu.cell) }
+  closeContextMenu()
+}
+
+function contextDeleteEdge() {
+  if (contextMenu.cell) { graph?.removeCells([contextMenu.cell]); clearSelectionIfNeeded(contextMenu.cell) }
   closeContextMenu()
 }
 
 function contextCopyNode() {
-  if (contextMenu.node && graph) {
-    graph.copy([contextMenu.node])
-    canPaste.value = true
-  }
-  closeContextMenu()
-}
-
-function contextCutNode() {
-  if (contextMenu.node && graph) {
-    graph.cut([contextMenu.node])
-    canPaste.value = true
-    if (selectedCell === contextMenu.node) {
-      selectedCell = null
-      selectedNodeData.value = null
-    }
-  }
+  if (contextMenu.cell && graph) { graph.copy([contextMenu.cell]); canPaste.value = true }
   closeContextMenu()
 }
 
@@ -316,12 +308,192 @@ function contextSelectAll() {
   closeContextMenu()
 }
 
-function contextPaste() {
-  handlePaste()
-  closeContextMenu()
+function contextPaste() { handlePaste(); closeContextMenu() }
+
+function contextEditEdgeLabel() {
+  if (contextMenu.cell && contextMenu.cell.isEdge()) {
+    closeContextMenu()
+    triggerEdgeLabelEdit(contextMenu.cell)
+  }
 }
 
-// 初始化 X6 Graph
+function clearSelectionIfNeeded(cell: any) {
+  if (selectedCell === cell) { selectedCell = null; selectedNodeData.value = null; selectedEdgeData.value = null }
+}
+
+// ====== 节点类型定义 ======
+const nodeColors: Record<string, string> = {
+  start: '#22c55e',
+  task: '#3b82f6',
+  condition: '#f59e0b',
+  multicondition: '#8b5cf6',
+  end: '#6b7280',
+}
+
+const nodeTypes = [
+  { type: 'start', label: '开始', color: '#22c55e', icon: '<svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="currentColor"/></svg>' },
+  { type: 'task', label: '任务', color: '#3b82f6', icon: '<svg viewBox="0 0 14 14"><rect x="2" y="1" width="10" height="12" rx="2" fill="currentColor"/></svg>' },
+  { type: 'condition', label: '条件', color: '#f59e0b', icon: '<svg viewBox="0 0 14 14"><polygon points="7,0 14,7 7,14 0,7" fill="currentColor"/></svg>' },
+  { type: 'multicondition', label: '多条件', color: '#8b5cf6', icon: '<svg viewBox="0 0 14 14"><polygon points="10,0 14,7 10,14 4,14 0,7 4,0" fill="currentColor"/></svg>' },
+  { type: 'end', label: '结束', color: '#6b7280', icon: '<svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="7" cy="7" r="2" fill="currentColor"/></svg>' },
+]
+
+function nodeColor(type: string) { return nodeColors[type] || '#3b82f6' }
+
+function typeLabel(type: string) {
+  return nodeTypes.find(nt => nt.type === type)?.label || type
+}
+
+function hasDescription(type: string) { return type === 'task' || type === 'condition' || type === 'multicondition' }
+
+// ====== 连接手柄端口 ======
+const handleGroup = {
+  position: { name: 'absolute' },
+  attrs: {
+    circle: { r: 7, magnet: true, stroke: '#fff', fill: '#fff', strokeWidth: 2.5, cursor: 'crosshair',
+              'stroke-opacity': 0, 'fill-opacity': 0 },
+  },
+  zIndex: 10,
+}
+
+function getPorts(type: string) {
+  // 矩形类（开始/结束/任务）：每条边 2 个端口，共 8 个
+  if (type === 'start' || type === 'end' || type === 'task') {
+    return [
+      { id: 't',  group: 'handle', args: { x: '50%', y: '0%' } },
+      { id: 'tr', group: 'handle', args: { x: '100%', y: '15%' } },
+      { id: 'r',  group: 'handle', args: { x: '100%', y: '50%' } },
+      { id: 'br', group: 'handle', args: { x: '100%', y: '85%' } },
+      { id: 'b',  group: 'handle', args: { x: '50%', y: '100%' } },
+      { id: 'bl', group: 'handle', args: { x: '0%', y: '85%' } },
+      { id: 'l',  group: 'handle', args: { x: '0%', y: '50%' } },
+      { id: 'tl', group: 'handle', args: { x: '0%', y: '15%' } },
+    ]
+  }
+  // 菱形（条件）：4 个顶点
+  if (type === 'condition') {
+    return [
+      { id: 't', group: 'handle', args: { x: '50%', y: '0%' } },
+      { id: 'r', group: 'handle', args: { x: '100%', y: '50%' } },
+      { id: 'b', group: 'handle', args: { x: '50%', y: '100%' } },
+      { id: 'l', group: 'handle', args: { x: '0%', y: '50%' } },
+    ]
+  }
+  // 六边形（多条件）：6 个顶点
+  if (type === 'multicondition') {
+    return [
+      { id: 'tr', group: 'handle', args: { x: '71%', y: '0%' } },
+      { id: 'r',  group: 'handle', args: { x: '100%', y: '50%' } },
+      { id: 'br', group: 'handle', args: { x: '71%', y: '100%' } },
+      { id: 'bl', group: 'handle', args: { x: '29%', y: '100%' } },
+      { id: 'l',  group: 'handle', args: { x: '0%', y: '50%' } },
+      { id: 'tl', group: 'handle', args: { x: '29%', y: '0%' } },
+    ]
+  }
+  return []
+}
+
+// 手柄可见性切换
+function showPorts(node: Node) {
+  const nodeType = node.getData()?.nodeType || 'task'
+  const color = nodeColors[nodeType] || '#3b82f6'
+  node.getPorts().forEach(p => {
+    node.setPortProp((p as any).id, 'attrs/circle/stroke-opacity', 1)
+    node.setPortProp((p as any).id, 'attrs/circle/fill-opacity', 0.3)
+    node.setPortProp((p as any).id, 'attrs/circle/stroke', color)
+    node.setPortProp((p as any).id, 'attrs/circle/fill', '#fff')
+  })
+}
+function hidePorts(node: Node) {
+  node.getPorts().forEach(p => node.setPortProp((p as any).id, 'attrs/circle/stroke-opacity', 0))
+  node.getPorts().forEach(p => node.setPortProp((p as any).id, 'attrs/circle/fill-opacity', 0))
+}
+
+// ====== 注册 X6 原生形状 ======
+function registerShapes() {
+  function reg(name: string, def: any) {
+    try { Graph.registerNode(name, def) } catch { /* ignore duplicate HMR */ }
+  }
+
+  // --- 开始节点（绿色圆角矩形） ---
+  reg('flow-start', {
+    inherit: 'rect',
+    attrs: {
+      body: { rx: 20, ry: 20, fill: nodeColors.start, stroke: 'none' },
+      label: { text: '开始', fill: '#fff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
+    },
+    ports: { groups: { handle: handleGroup }, items: getPorts('start') },
+  })
+
+  // --- 结束节点（灰色圆角矩形） ---
+  reg('flow-end', {
+    inherit: 'rect',
+    width: 148,
+    height: 40,
+    markup: [{ tagName: 'rect', selector: 'body' }, { tagName: 'text', selector: 'label' }],
+    attrs: {
+      body: { rx: 20, ry: 20, fill: nodeColors.end, stroke: 'none' },
+      label: { text: '结束', fill: '#fff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
+    },
+    ports: { groups: { handle: handleGroup }, items: getPorts('end') },
+  })
+
+  // --- 任务节点（蓝底白字） ---
+  reg('flow-task', {
+    inherit: 'rect',
+    width: 160,
+    height: 46,
+    markup: [{ tagName: 'rect', selector: 'body' }, { tagName: 'text', selector: 'label' }],
+    attrs: {
+      body: { rx: 8, ry: 8, fill: nodeColors.task, stroke: 'none' },
+      label: { text: '任务', fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
+    },
+    ports: { groups: { handle: handleGroup }, items: getPorts('task') },
+  })
+
+  // --- 条件节点（橘色菱形） ---
+  reg('flow-condition', {
+    inherit: 'polygon',
+    width: 100,
+    height: 80,
+    markup: [{ tagName: 'polygon', selector: 'body' }, { tagName: 'text', selector: 'label' }],
+    attrs: {
+      body: { refPoints: '50,0 100,40 50,80 0,40', fill: nodeColors.condition, stroke: 'none' },
+      label: { text: '条件', fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
+    },
+    ports: { groups: { handle: handleGroup }, items: getPorts('condition') },
+  })
+
+  // --- 多条件节点（紫色六边形） ---
+  reg('flow-multicondition', {
+    inherit: 'polygon',
+    width: 120,
+    height: 80,
+    markup: [{ tagName: 'polygon', selector: 'body' }, { tagName: 'text', selector: 'label' }],
+    attrs: {
+      body: { refPoints: '85,0 120,40 85,80 35,80 0,40 35,0', fill: nodeColors.multicondition, stroke: 'none' },
+      label: { text: '多条件', fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
+    },
+    ports: { groups: { handle: handleGroup }, items: getPorts('multicondition') },
+  })
+}
+
+// ====== 更新节点视觉 ======
+function updateNodeVisual(node: Node) {
+  const data = node.getData() || {}
+  const nt = data.nodeType || 'task'
+  node.attr('label/text', data.label || typeLabel(nt))
+}
+
+// ====== 获取形状名 ======
+function getShapeForType(nodeType: string): string {
+  return {
+    start: 'flow-start', task: 'flow-task', condition: 'flow-condition',
+    multicondition: 'flow-multicondition', end: 'flow-end',
+  }[nodeType] || 'flow-task'
+}
+
+// ====== 初始化 Graph ======
 function initGraph() {
   if (!graphContainerRef.value) return
 
@@ -330,117 +502,122 @@ function initGraph() {
     grid: { visible: true, size: 20, type: 'dot' },
     panning: { enabled: true, eventTypes: ['rightMouseDown'] },
     mousewheel: { enabled: true, zoomAtMousePosition: true },
-    highlighting: {
-      nodeAvailable: { name: 'stroke', args: { padding: 4, attrs: { stroke: '#409eff', strokeWidth: 2 } } },
-      magnetAvailable: { name: 'stroke', args: { attrs: { stroke: '#409eff', fill: '#409eff' } } },
-    },
     connecting: {
-      router: { name: 'orth' },
-      connector: { name: 'rounded' },
-      snap: { radius: 20 },
+      router: { name: 'normal' },
+      connector: { name: 'smooth' },
+      snap: { radius: 40 },
       allowBlank: false,
-      allowLoop: false,
       allowNode: true,
-      highlight: true,
-      validateConnection({ sourceCell, targetCell, sourcePort, targetPort }) {
-        if (!sourcePort || !targetPort) return false
+      highlight: false,
+      sourceAnchor: { name: 'center' },
+      targetAnchor: { name: 'orth' },
+      connectionPoint: { name: 'boundary' },
+      validateConnection({ sourceCell, targetCell }) {
         if (sourceCell.id === targetCell.id) return false
-        const srcData = sourceCell.getData()
-        const tgtData = targetCell.getData()
-        if (!srcData || !tgtData) return false
-        if (tgtData.nodeType === 'start') return false
-        if (srcData.nodeType === 'end') return false
-        if (sourcePort === 'in') return false
-        if (targetPort !== 'in') return false
         return true
       },
     },
     defaultEdge: {
+      connector: { name: 'smooth' },
       attrs: {
-        line: {
-          stroke: '#409eff',
-          strokeWidth: 2,
-          strokeDasharray: '0',
-          targetMarker: { name: 'classic', size: 8 },
-        },
+        line: { stroke: '#94a3b8', strokeWidth: 2, targetMarker: { name: 'classic', size: 8 } },
       },
       label: {
+        markup: [{ tagName: 'rect', selector: 'labelBg' }, { tagName: 'text', selector: 'label' }],
         attrs: {
-          text: { fill: '#606266', fontSize: 11 },
-          rect: { fill: '#fff', rx: 3, stroke: '#e8e8e8', strokeWidth: 1 },
+          labelBg: { fill: '#fff', rx: 4, ry: 4, stroke: '#e2e8f0', strokeWidth: 1 },
+          label: { text: '', fill: '#475569', fontSize: 12, textAnchor: 'middle', textVerticalAnchor: 'middle', refX: '50%' },
         },
+        position: { distance: 0.5 },
       },
     },
+    sorting: 'approx',
   })
 
   // 插件
   graph.use(new Snapline({ enabled: true, sharp: true }))
   graph.use(new Selection({
-    enabled: true,
-    multiple: true,
-    rubberEdge: true,
-    rubberNode: true,
-    rubberband: true,
-    showNodeSelectionBox: true,
+    enabled: true, multiple: true, rubberEdge: true, rubberNode: true, rubberband: true, showNodeSelectionBox: true,
   }))
-  graph.use(new MiniMap({
-    container: minimapContainerRef.value!,
-    width: 200,
-    height: 140,
-    minVisible: 0.1,
-  }))
+  graph.use(new MiniMap({ container: minimapContainerRef.value!, width: 200, height: 140, minVisible: 0.1 }))
   graph.use(new History({ enabled: true }))
-  // 键盘快捷键插件
   graph.use(new Keyboard({ enabled: true }))
-  // 剪贴板插件
   graph.use(new Clipboard())
-  // 节点变换（调整大小）
-  graph.use(new Transform({ resizing: true, rotating: false }))
 
   // 键盘快捷键
   graph.bindKey('backspace', () => removeSelected())
   graph.bindKey('del', () => removeSelected())
   graph.bindKey('ctrl+z', () => graph?.undo())
   graph.bindKey('ctrl+y', () => graph?.redo())
-  graph.bindKey('ctrl+c', () => { if (graph) { const cells = graph.getSelectedCells(); if (cells.length > 0) { graph.copy(cells); canPaste.value = true } } })
+  graph.bindKey('ctrl+c', () => { if (graph) { const c = graph.getSelectedCells(); if (c.length > 0) { graph.copy(c); canPaste.value = true } } })
   graph.bindKey('ctrl+v', () => handlePaste())
-  graph.bindKey('ctrl+x', () => { if (graph) { const cells = graph.getSelectedCells(); if (cells.length > 0) { graph.cut(cells); canPaste.value = true; selectedCell = null; selectedNodeData.value = null } } })
-  graph.bindKey('ctrl+a', () => { graph?.getAllCells().filter(c => c.isNode()).forEach(c => graph?.select(c.id)) })
+  graph.bindKey('ctrl+a', () => graph?.getAllCells().filter(c => c.isNode()).forEach(c => graph?.select(c.id)))
 
-  // 缩放监听
+  // 事件
   graph.on('scale', ({ sx }) => { zoomLevel.value = sx })
+  graph.on('history:change', () => { canUndo.value = graph?.canUndo() ?? false; canRedo.value = graph?.canRedo() ?? false })
 
-  // 事件监听
+  // 悬停显示连接手柄
+  graph.on('node:mouseenter', ({ node }) => showPorts(node))
+  graph.on('node:mouseleave', ({ node }) => hidePorts(node))
+
   graph.on('selection:changed', () => {
     if (!graph) return
     const cells = graph.getSelectedCells()
     selectedCount.value = cells.length
-    if (cells.length === 1 && cells[0].isNode()) {
-      selectedCell = cells[0]
-      selectedNodeData.value = { ...cells[0].getData() }
-    } else {
-      selectedCell = null
-      selectedNodeData.value = null
+    selectedEdgeData.value = null
+    selectedNodeData.value = null
+    selectedCell = null
+    if (cells.length !== 1 || !cells[0].isEdge()) {
+      hideEndpointHandles()
+    }
+    if (cells.length === 1) {
+      const cell = cells[0]
+      if (cell.isNode()) { selectedCell = cell; selectedNodeData.value = { ...cell.getData() } }
+      else if (cell.isEdge()) {
+        selectedCell = cell
+        const ls = cell.getLabels()
+        selectedEdgeData.value = { label: ls?.[0]?.attrs?.label?.text || '' }
+        const router = cell.getRouter()
+        const connector = cell.getConnector()
+        if (router?.name === 'orth' && connector?.name === 'rounded') selectedEdgeStyle.value = 'polyline'
+        else if (router?.name === 'normal' && connector?.name === 'smooth') selectedEdgeStyle.value = 'curve'
+        else selectedEdgeStyle.value = 'straight'
+      }
     }
   })
 
   graph.on('node:click', ({ node }) => {
-    graph?.cleanSelection()
-    graph?.select(node.id)
-    selectedCell = node
-    selectedNodeData.value = { ...node.getData() }
+    graph?.cleanSelection(); graph?.select(node.id)
+  })
+
+  graph.on('node:dblclick', ({ node, e }) => {
+    const pos = graph!.localToClient(node.getPosition())
+    showInlineEditor(pos.x + 50, pos.y - 8, node.getData()?.label || '', node, false)
+  })
+
+  graph.on('edge:click', ({ edge }) => {
+    graph?.cleanSelection(); graph?.select(edge.id)
+    updateEndpointHandles(edge)
+  })
+
+  graph.on('edge:dblclick', ({ edge, e }) => {
+    triggerEdgeLabelEdit(edge)
   })
 
   graph.on('blank:click', () => {
-    graph?.cleanSelection()
-    selectedCell = null
-    selectedNodeData.value = null
+    graph?.cleanSelection(); selectedCell = null; selectedNodeData.value = null; selectedEdgeData.value = null
+    hideEndpointHandles()
   })
 
-  graph.on('history:change', () => {
-    canUndo.value = graph?.canUndo() ?? false
-    canRedo.value = graph?.canRedo() ?? false
+  // 节点 data 变化 → 更新视觉
+  graph.on('node:change:data', ({ node }) => {
+    if (node.isNode()) updateNodeVisual(node as Node)
   })
+
+  // 统计节点/连线数
+  graph.on('cell:added', updateStats)
+  graph.on('cell:removed', updateStats)
 
   // 画布自适应
   const container = canvasContainerRef.value
@@ -455,7 +632,23 @@ function initGraph() {
   }
 }
 
-// HTML5 拖拽：左侧面板 → 画布
+function triggerEdgeLabelEdit(edge: Edge) {
+  const view = graph!.findViewByCell(edge)
+  if (view) {
+    const bbox = view.getBBox()
+    const center = graph!.localToClient({ x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 })
+    const labelText = edge.getLabels()?.[0]?.attrs?.label?.text || ''
+    showInlineEditor(center.x - 60, center.y - 26, labelText, edge, true)
+  }
+}
+
+function updateStats() {
+  if (!graph) return
+  nodeCount.value = graph.getNodes().length
+  edgeCount.value = graph.getEdges().length
+}
+
+// ====== 拖拽 ======
 function onDragStart(event: DragEvent, nt: typeof nodeTypes[0]) {
   if (event.dataTransfer) {
     event.dataTransfer.setData('text/plain', JSON.stringify({ type: nt.type, label: nt.label }))
@@ -472,123 +665,170 @@ function onDrop(event: DragEvent) {
   const raw = event.dataTransfer?.getData('text/plain')
   if (!raw) return
   const { type, label } = JSON.parse(raw)
-
+  const shape = getShapeForType(type)
   const pos = graph.clientToLocal(event.clientX, event.clientY)
-  graph.addNode({
-    shape: 'flow-node',
-    x: pos.x - 80,
-    y: pos.y - 25,
-    width: 160,
-    height: 50,
+  const sizes: Record<string, [number, number]> = { start: [148, 40], task: [160, 46], condition: [100, 80], multicondition: [120, 80], end: [148, 40] }
+  const [w, h] = sizes[type] || [160, 46]
+  const node = graph.addNode({
+    shape,
+    x: pos.x - w / 2,
+    y: pos.y - h / 2,
+    width: w,
+    height: h,
     data: { label, nodeType: type, description: '' },
-    ports: { items: getPorts(type) },
   })
+  updateNodeVisual(node)
 }
 
-// 属性变更
+// ====== 数据变更 ======
 function onDataChange() {
   if (selectedCell && selectedNodeData.value) {
     selectedCell.setData({ ...selectedNodeData.value })
   }
 }
 
-// 删除选中
-function removeSelected() {
-  if (!graph) return
-  const cells = graph.getSelectedCells()
-  if (cells.length > 0) {
-    graph.removeCells(cells)
-    selectedCell = null
-    selectedNodeData.value = null
+function onEdgeLabelChange() {
+  if (selectedCell && selectedEdgeData.value) {
+    const text = selectedEdgeData.value.label || ''
+    selectedCell.setLabels(text ? [{ attrs: { label: { text } } }] : [])
   }
 }
 
-// 撤销/重做
+function onEdgeStyleChange(style: 'straight' | 'polyline' | 'curve') {
+  if (!selectedCell || !selectedCell.isEdge()) return
+  const edge = selectedCell as Edge
+  switch (style) {
+    case 'straight':
+      edge.setRouter('normal')
+      edge.setConnector('normal')
+      break
+    case 'polyline':
+      edge.setRouter('orth')
+      edge.setConnector('rounded')
+      break
+    case 'curve':
+      edge.setRouter('normal')
+      edge.setConnector('smooth')
+      break
+  }
+}
+
+// ====== 连线端点拖拽 ======
+function updateEndpointHandles(edge: Edge) {
+  if (!graph || !canvasContainerRef.value) return
+  const box = canvasContainerRef.value.getBoundingClientRect()
+  const src = graph.localToClient(edge.getSourcePoint())
+  const tgt = graph.localToClient(edge.getTargetPoint())
+  endpointHandles.value = [
+    { side: 'source', x: src.x - box.left - 8, y: src.y - box.top - 8 },
+    { side: 'target', x: tgt.x - box.left - 8, y: tgt.y - box.top - 8 },
+  ]
+}
+function hideEndpointHandles() { endpointHandles.value = [] }
+
+function onEpDragStart(e: MouseEvent, side: 'source' | 'target') {
+  if (!selectedCell || !selectedCell.isEdge()) return
+  draggingEp = { side }
+  const handler = (ev: MouseEvent) => onEpDragMove(ev, selectedCell as Edge)
+  const cleanup = () => { document.removeEventListener('mousemove', handler); document.removeEventListener('mouseup', cleanup); draggingEp = null }
+  document.addEventListener('mousemove', handler)
+  document.addEventListener('mouseup', cleanup)
+}
+
+function onEpDragMove(e: MouseEvent, edge: Edge) {
+  if (!graph || !draggingEp || !canvasContainerRef.value) return
+  const box = canvasContainerRef.value.getBoundingClientRect()
+  const clientPt = { x: e.clientX, y: e.clientY }
+  const localPt = graph.clientToLocal(clientPt)
+  const cell = draggingEp.side === 'source' ? edge.getSourceCell() : edge.getTargetCell()
+  if (!cell) return
+  const center = cell.getBBox().center()
+  const angle = Math.atan2(localPt.y - center.y, localPt.x - center.x) * (180 / Math.PI)
+  if (draggingEp.side === 'source') {
+    edge.setSource({ ...edge.getSource(), connectionPoint: { name: 'boundary', args: { angle } } })
+  } else {
+    edge.setTarget({ ...edge.getTarget(), connectionPoint: { name: 'boundary', args: { angle } } })
+  }
+  updateEndpointHandles(edge)
+}
+
+function removeSelected() {
+  if (!graph) return
+  const cells = graph.getSelectedCells()
+  if (cells.length > 0) { graph.removeCells(cells); selectedCell = null; selectedNodeData.value = null; selectedEdgeData.value = null }
+}
+
 function handleUndo() { graph?.undo() }
 function handleRedo() { graph?.redo() }
 
-// 复制/粘贴/剪切
 function handleCopy() {
   if (!graph) return
   const cells = graph.getSelectedCells()
-  if (cells.length > 0) {
-    graph.copy(cells)
-    canPaste.value = true
-    ElMessage.success('已复制')
-  }
+  if (cells.length > 0) { graph.copy(cells); canPaste.value = true }
 }
 
 function handlePaste() {
   if (!graph || !canPaste.value) return
-  const cells = graph.paste()
-  if (cells && cells.length > 0) {
-    graph.cleanSelection()
-    cells.forEach(c => graph?.select(c.id))
-    ElMessage.success('已粘贴')
-  }
+  const cells = graph.paste({ offset: 32 })
+  if (cells && cells.length > 0) { graph.cleanSelection(); cells.forEach(c => graph?.select(c.id)) }
 }
 
 function handleCut() {
   if (!graph) return
   const cells = graph.getSelectedCells()
-  if (cells.length > 0) {
-    graph.cut(cells)
-    canPaste.value = true
-    selectedCell = null
-    selectedNodeData.value = null
-    ElMessage.success('已剪切')
-  }
+  if (cells.length > 0) { graph.cut(cells); canPaste.value = true; selectedCell = null; selectedNodeData.value = null; selectedEdgeData.value = null }
 }
 
-// 缩放控制
-function zoomIn() {
+// ====== 缩放 ======
+function zoomIn() { if (graph) { const s = graph.zoom(); graph.zoom(s + 0.1, { minScale: 0.2, maxScale: 3 }) } }
+function zoomOut() { if (graph) { const s = graph.zoom(); graph.zoom(s - 0.1, { minScale: 0.2, maxScale: 3 }) } }
+function zoomToFit() { graph?.zoomToFit({ padding: 40, maxScale: 1 }) }
+function zoomReset() { graph?.zoom(1) }
+
+// ====== 导出 PNG ======
+function handleExport() {
   if (!graph) return
-  const s = graph.zoom()
-  graph.zoom(s + 0.1, { minScale: 0.2, maxScale: 3 })
+  graph.toPNG(
+    (dataUri: string) => {
+      const link = document.createElement('a')
+      link.download = `${design.value?.name || 'flow'}.png`
+      link.href = dataUri
+      link.click()
+    },
+    { padding: 20, backgroundColor: '#ffffff' }
+  )
 }
 
-function zoomOut() {
-  if (!graph) return
-  const s = graph.zoom()
-  graph.zoom(s - 0.1, { minScale: 0.2, maxScale: 3 })
-}
-
-function zoomToFit() {
-  graph?.zoomToFit({ padding: 40, maxScale: 1 })
-}
-
-function zoomReset() {
-  graph?.zoom(1)
-}
-
-// 加载设计数据
+// ====== 加载设计 ======
 async function loadDesign() {
   try {
     design.value = await designApi.getById(designId)
     if (!graph) return
     if (design.value.graphData) {
-      const data = JSON.parse(design.value.graphData)
-      if (data && data.cells && data.cells.length > 0) {
+      // graphData 可能是字符串或已解析对象
+      let data = design.value.graphData
+      if (typeof data === 'string') data = JSON.parse(data)
+      if (data?.cells?.length > 0) {
+        // 兼容旧版 flow-node shape → 新版专用形状
+        data.cells.forEach((cell: any) => {
+          if (cell.shape === 'flow-node' && cell.data?.nodeType) {
+            cell.shape = getShapeForType(cell.data.nodeType)
+          }
+          // 清除旧的 vue-shape-view 引用
+          if (cell.view === 'vue-shape-view') delete cell.view
+        })
         graph.fromJSON(data)
+        // 确保所有节点视觉正确
+        graph.getNodes().forEach(n => updateNodeVisual(n))
         graph.zoomToFit({ padding: 60, maxScale: 1 })
         return
       }
     }
-    // 空设计：添加默认开始/结束节点
-    graph.addNode({
-      shape: 'flow-node',
-      x: 250, y: 40,
-      width: 160, height: 50,
-      data: { label: t('design.startNode'), nodeType: 'start' },
-      ports: { items: getPorts('start') },
-    })
-    graph.addNode({
-      shape: 'flow-node',
-      x: 250, y: 400,
-      width: 160, height: 50,
-      data: { label: t('design.endNode'), nodeType: 'end' },
-      ports: { items: getPorts('end') },
-    })
+    // 空设计
+    const start = graph.addNode({ shape: 'flow-start', x: 250, y: 40, width: 148, height: 40, data: { label: '开始', nodeType: 'start' } })
+    const end = graph.addNode({ shape: 'flow-end', x: 250, y: 380, width: 148, height: 40, data: { label: '结束', nodeType: 'end' } })
+    updateNodeVisual(start)
+    updateNodeVisual(end)
     graph.centerContent()
   } catch (e) {
     console.error(e)
@@ -597,7 +837,7 @@ async function loadDesign() {
   }
 }
 
-// 保存
+// ====== 保存 ======
 async function handleSave() {
   if (!graph) return
   saving.value = true
@@ -605,19 +845,15 @@ async function handleSave() {
     const json = graph.toJSON()
     await designApi.saveGraph(designId, JSON.stringify(json))
     ElMessage.success(t('design.saveGraphSuccess'))
-  } catch {
-    ElMessage.error('保存失败')
-  } finally {
-    saving.value = false
-  }
+  } catch { ElMessage.error('保存失败') }
+  finally { saving.value = false }
 }
 
-function goBack() {
-  router.push('/design')
-}
+function goBack() { router.push('/design') }
 
+// ====== 生命周期 ======
 onMounted(async () => {
-  registerNodes()
+  registerShapes()
   await nextTick()
   initGraph()
   await loadDesign()
@@ -625,6 +861,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   closeContextMenu()
+  inlineEditor.show = false
   resizeObserver?.disconnect()
   graph?.dispose()
   graph = null
@@ -646,224 +883,95 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   padding: 6px 16px;
-  border-bottom: 1px solid #ebeef5;
-  background: #fafafa;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
   flex-shrink: 0;
 }
 
-.toolbar-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.toolbar-left { display: flex; align-items: center; gap: 12px; }
+.toolbar-title { font-weight: 600; font-size: 15px; color: #0f172a; }
+.toolbar-center { display: flex; align-items: center; gap: 2px; }
+.toolbar-right { display: flex; align-items: center; gap: 4px; }
+.toolbar-divider { width: 1px; height: 20px; background: #cbd5e1; margin: 0 6px; }
+.zoom-label { font-size: 12px; color: #475569; min-width: 36px; text-align: center; font-variant-numeric: tabular-nums; }
+
+.stat-badge {
+  font-size: 11px;
+  color: #94a3b8;
+  background: #f1f5f9;
+  padding: 2px 10px;
+  border-radius: 10px;
+  white-space: nowrap;
 }
 
-.toolbar-title {
-  font-weight: 600;
-  font-size: 15px;
-  color: #303133;
-}
+.editor-body { display: flex; flex: 1; overflow: hidden; position: relative; }
 
-.toolbar-center {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.toolbar-divider {
-  width: 1px;
-  height: 20px;
-  background: #dcdfe6;
-  margin: 0 6px;
-}
-
-.zoom-label {
-  font-size: 12px;
-  color: #606266;
-  min-width: 36px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-
-.toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.editor-body {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-  position: relative;
-}
-
-.node-palette {
-  width: 180px;
-  border-right: 1px solid #ebeef5;
-  background: #fafafa;
-  flex-shrink: 0;
-  overflow-y: auto;
-}
-
-.palette-header {
-  padding: 12px 16px;
-  font-weight: 600;
-  font-size: 13px;
-  color: #606266;
-  border-bottom: 1px solid #ebeef5;
-}
-
-.palette-list {
-  padding: 8px;
-}
+.node-palette { width: 180px; border-right: 1px solid #e2e8f0; background: #f8fafc; flex-shrink: 0; overflow-y: auto; }
+.palette-header { padding: 12px 16px; font-weight: 600; font-size: 13px; color: #475569; border-bottom: 1px solid #e2e8f0; }
+.palette-list { padding: 8px; }
 
 .palette-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: #fff;
-  border-radius: 6px;
-  margin-bottom: 6px;
-  cursor: grab;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-  transition: box-shadow 0.2s, transform 0.15s;
-  border-left: 3px solid transparent;
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  background: #fff; border-radius: 6px; margin-bottom: 6px; cursor: grab;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04); transition: box-shadow 0.15s, transform 0.12s;
   user-select: none;
 }
-
-.palette-item:hover {
-  box-shadow: 0 3px 12px rgba(0,0,0,0.1);
-  transform: translateY(-1px);
-}
-
-.palette-item:active {
-  cursor: grabbing;
-  transform: translateY(0);
-}
+.palette-item:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); transform: translateY(-1px); }
+.palette-item:active { cursor: grabbing; transform: translateY(0); }
 
 .palette-icon {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 12px;
-  flex-shrink: 0;
+  width: 24px; height: 24px; border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; flex-shrink: 0;
 }
+.palette-icon :deep(svg) { width: 14px; height: 14px; display: block; }
+.palette-label { font-size: 12px; color: #0f172a; font-weight: 500; }
 
-.palette-icon :deep(svg) {
-  display: block;
-}
-
-.palette-label {
-  font-size: 12px;
-  color: #303133;
-  font-weight: 500;
-}
-
-.canvas-area {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-  background: #f9fafb;
-}
-
-.graph-container {
-  width: 100%;
-  height: 100%;
-}
+.canvas-area { flex: 1; position: relative; overflow: hidden; background: #fafbfc; }
+.graph-container { width: 100%; height: 100%; }
 
 .minimap-container {
-  position: absolute;
-  bottom: 12px;
-  right: 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  background: #fff;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-  z-index: 10;
-  overflow: hidden;
+  position: absolute; bottom: 12px; right: 12px;
+  border: 1px solid #e2e8f0; border-radius: 6px; background: #fff;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08); z-index: 10; overflow: hidden;
 }
 
-.property-panel {
-  width: 260px;
-  border-left: 1px solid #ebeef5;
-  background: #fafafa;
-  flex-shrink: 0;
-  overflow-y: auto;
-}
-
-.panel-header {
-  padding: 12px 16px;
-  font-weight: 600;
-  font-size: 13px;
-  color: #606266;
-  border-bottom: 1px solid #ebeef5;
-}
-
-.panel-body {
-  padding: 16px;
-}
-
-.panel-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 48px 16px;
-  color: #909399;
-  font-size: 13px;
-}
+.property-panel { width: 260px; border-left: 1px solid #e2e8f0; background: #f8fafc; flex-shrink: 0; overflow-y: auto; }
+.panel-header { padding: 12px 16px; font-weight: 600; font-size: 13px; color: #475569; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; }
+.panel-body { padding: 16px; }
+.panel-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 16px; color: #94a3b8; font-size: 13px; }
 </style>
 
-<!-- 全局右键菜单样式 -->
 <style>
+/* 右键菜单 */
 .x6-context-menu {
-  position: fixed;
-  z-index: 9999;
-  min-width: 150px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 6px 24px rgba(0,0,0,0.15);
-  padding: 4px;
-  border: 1px solid #ebeef5;
-  user-select: none;
+  position: fixed; z-index: 9999; min-width: 150px;
+  background: #fff; border-radius: 8px; box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+  padding: 4px; border: 1px solid #e2e8f0; user-select: none;
 }
-
 .x6-context-menu .context-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  font-size: 13px;
-  color: #303133;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background 0.15s;
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  font-size: 13px; color: #0f172a; border-radius: 4px; cursor: pointer; transition: background 0.1s;
 }
+.x6-context-menu .context-item:hover { background: #f1f5f9; }
+.x6-context-menu .context-item.danger { color: #ef4444; }
+.x6-context-menu .context-item.danger:hover { background: #fef2f2; }
+.x6-context-menu .context-item .el-icon { font-size: 15px; }
+.x6-context-menu .context-separator { height: 1px; background: #e2e8f0; margin: 4px 8px; }
 
-.x6-context-menu .context-item:hover {
-  background: #f0f5ff;
+/* 行内编辑器 */
+.inline-editor-overlay {
+  position: fixed; z-index: 10000; width: 180px;
 }
+.inline-editor-overlay .el-input__wrapper { background: #fff; box-shadow: 0 4px 16px rgba(0,0,0,0.15); border: 2px solid #3b82f6; border-radius: 6px; }
+.inline-editor-overlay .el-input__inner { font-size: 13px; }
 
-.x6-context-menu .context-item.danger {
-  color: #f56c6c;
+/* 连线端点拖拽手柄 */
+.ep-handle {
+  position: absolute; width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; border: 2px solid #3b82f6; cursor: grab;
+  z-index: 100; box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  pointer-events: all;
 }
-
-.x6-context-menu .context-item.danger:hover {
-  background: #fef0f0;
-}
-
-.x6-context-menu .context-item .el-icon {
-  font-size: 15px;
-}
-
-.x6-context-menu .context-separator {
-  height: 1px;
-  background: #ebeef5;
-  margin: 4px 8px;
-}
+.ep-handle:active { cursor: grabbing; }
 </style>
