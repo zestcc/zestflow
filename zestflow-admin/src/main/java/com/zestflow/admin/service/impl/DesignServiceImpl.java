@@ -21,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.zestflow.common.util.CodeGenerator;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -75,15 +76,8 @@ public class DesignServiceImpl implements DesignService {
 
     @Override
     public DesignVO create(DesignCreateDTO dto) {
-        Long count = designMapper.selectCount(
-                new LambdaQueryWrapper<DesignPO>().eq(DesignPO::getCode, dto.getCode())
-        );
-        if (count > 0) {
-            throw new BizException(ErrorCode.DESIGN_CODE_EXISTS);
-        }
-
         DesignPO po = new DesignPO();
-        po.setCode(dto.getCode());
+        po.setCode(generateDesignCode());
         po.setName(dto.getName());
         po.setModuleId(dto.getModuleId());
         po.setDescription(dto.getDescription());
@@ -93,8 +87,15 @@ public class DesignServiceImpl implements DesignService {
         po.setUpdatedAt(LocalDateTime.now());
         designMapper.insert(po);
 
-        log.info("设计创建成功 designId={} code={} name={} moduleId={}", po.getId(), dto.getCode(), dto.getName(), dto.getModuleId());
+        log.info("设计创建成功 designId={} code={} name={} moduleId={}", po.getId(), po.getCode(), dto.getName(), dto.getModuleId());
         return toVO(po, "", null);
+    }
+
+    /**
+     * 生成设计编码，格式：DSN_YYYYMMDD_XXX（每日顺序递增）
+     */
+    private String generateDesignCode() {
+        return CodeGenerator.generate("DSN");
     }
 
     @Override

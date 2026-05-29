@@ -142,8 +142,10 @@
     <!-- 创建弹窗 -->
     <el-dialog v-model="createDialogVisible" :title="$t('design.createDesign')" width="600px" :close-on-click-modal="false">
       <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="100px">
-        <el-form-item :label="$t('design.code')" prop="code">
-          <el-input v-model="createForm.code" maxlength="50" autocomplete="off" />
+        <el-form-item :label="$t('design.module')" prop="moduleId">
+          <el-select v-model="createForm.moduleId" filterable style="width:100%" :placeholder="$t('design.selectModule')">
+            <el-option v-for="m in modules" :key="m.id" :label="m.name" :value="m.id" />
+          </el-select>
         </el-form-item>
         <el-form-item :label="$t('design.name')" prop="name">
           <el-input v-model="createForm.name" maxlength="100" autocomplete="off" />
@@ -164,8 +166,8 @@
     <!-- 编辑弹窗 -->
     <el-dialog v-model="editDialogVisible" :title="$t('design.editDesign')" width="600px" :close-on-click-modal="false">
       <el-form ref="editFormRef" :model="editForm" :rules="editRules" label-width="100px">
-        <el-form-item :label="$t('design.code')" prop="code">
-          <el-input v-model="editForm.code" maxlength="50" autocomplete="off" />
+        <el-form-item :label="$t('design.code')">
+          <el-input :model-value="editForm.code" disabled autocomplete="off" />
         </el-form-item>
         <el-form-item :label="$t('design.name')" prop="name">
           <el-input v-model="editForm.name" maxlength="100" autocomplete="off" />
@@ -299,17 +301,14 @@ function handleReset() { filter.value = { keyword: '', status: undefined }; page
 const createDialogVisible = ref(false)
 const createSubmitting = ref(false)
 const createFormRef = ref<any>(null)
-const createForm = ref({ code: '', name: '', description: '', designer: '' })
+const createForm = ref({ name: '', description: '', designer: '', moduleId: undefined as number | undefined })
 const createRules = {
-  code: [
-    { required: true, message: () => t('validation.required', { field: t('design.code') }), trigger: 'blur' },
-    { min: 2, max: 50, message: () => t('validation.passwordMin'), trigger: 'blur' },
-  ],
   name: [{ required: true, message: () => t('validation.required', { field: t('design.name') }), trigger: 'blur' }],
+  moduleId: [{ required: true, message: () => t('design.selectModule'), trigger: 'change' }],
 }
 
 function openCreate() {
-  createForm.value = { code: '', name: '', description: '', designer: '' }
+  createForm.value = { name: '', description: '', designer: '', moduleId: currentModuleId.value }
   createDialogVisible.value = true
 }
 
@@ -318,15 +317,13 @@ async function handleCreate() {
   if (!valid) return
   createSubmitting.value = true
   try {
-    const dto: DesignCreateDTO = {
-      code: createForm.value.code,
+    const res = await designApi.create({
       name: createForm.value.name,
       description: createForm.value.description || undefined,
       designer: createForm.value.designer || undefined,
-      moduleId: currentModuleId.value!,
-    }
-    await designApi.create(dto)
-    ElMessage.success(t('design.createDesign') + '成功')
+      moduleId: createForm.value.moduleId!,
+    } as DesignCreateDTO)
+    ElMessage.success(t('design.createDesign') + '成功，' + t('design.code') + '：' + res.code)
     createDialogVisible.value = false
     await fetchList()
   } finally { createSubmitting.value = false }
@@ -339,7 +336,6 @@ const editFormRef = ref<any>(null)
 const editingId = ref<number | null>(null)
 const editForm = ref({ code: '', name: '', description: '', designer: '' })
 const editRules = {
-  code: [{ required: true, message: () => t('validation.required', { field: t('design.code') }), trigger: 'blur' }],
   name: [{ required: true, message: () => t('validation.required', { field: t('design.name') }), trigger: 'blur' }],
 }
 
@@ -360,7 +356,6 @@ async function handleEdit() {
   editSubmitting.value = true
   try {
     await designApi.update(editingId.value, {
-      code: editForm.value.code,
       name: editForm.value.name,
       description: editForm.value.description || undefined,
       designer: editForm.value.designer || undefined,

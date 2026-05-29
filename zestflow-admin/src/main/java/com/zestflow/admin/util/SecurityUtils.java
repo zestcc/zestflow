@@ -3,8 +3,17 @@ package com.zestflow.admin.util;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.common.exception.BizException;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 public class SecurityUtils {
+
+    public static String getCurrentUsername() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new BizException(ErrorCode.UNAUTHORIZED);
+        }
+        return authentication.getPrincipal() instanceof String s ? s : null;
+    }
 
     public static Long getUserId(Authentication authentication) {
         if (authentication == null || authentication.getDetails() == null) {

@@ -489,6 +489,24 @@ log.error("链执行失败 chainId={} nodeId={}", chainId, nodeId, e);
 - Controller 层有集成测试
 - 核心路径（注册 → 心跳 → 调度 → 执行 → 回调）必须有端到端测试
 
+### 编码规范（所有编号自动生成，禁止手填）
+
+所有实体编码（设计编码、链编码等）**必须通过 `CodeGenerator` 自动生成**，不允许用户在创建时手动输入。
+
+**`CodeGenerator`（`zestflow-common` 模块 `com.zestflow.common.util.CodeGenerator`）：**
+
+| 实体 | 前缀 | 格式 | 示例 |
+|------|------|------|------|
+| 设计 (Design) | `DSN` | `{PREFIX}{yyyyMMdd}{6位序号}` | `DSN20260529000001` |
+| 链 (Chain) | `CHN` | `{PREFIX}{yyyyMMdd}{6位序号}` | `CHN20260529000001` |
+
+- 纯内存实现，`ConcurrentHashMap` + `AtomicInteger`，线程安全
+- 按前缀独立维护序号，每日自动重置
+- JVM 启动时从随机偏移开始（0~899），防重启碰撞
+- 每秒可生成 16 万+，不查数据库，零外部依赖
+- 新实体接入：`CodeGenerator.generate("前缀")`
+- 创建 API 返回的 VO 中 `code` 字段即为自动生成的编码，前端必须在成功消息中**回显**给用户
+
 ### 代码风格
 
 | 规则 | 说明 |
@@ -520,9 +538,9 @@ log.error("链执行失败 chainId={} nodeId={}", chainId, nodeId, e);
 
 ### 数据库变更规范（强制）
 
-1. **所有数据库改动必须入 init.sql** — 任何 DDL（新增表、新增字段、修改字段、索引变更等）都必须在 `init.sql` 中体现，禁止只在数据库上执行而不同步脚本。
+1. **所有数据库改动必须入 Flyway 迁移脚本** — 任何 DDL（新增表、新增字段、修改字段、索引变更等）都必须在 `db/migration/` 下创建新的版本化迁移脚本（如 `V2__xxx.sql`），禁止直接在已有脚本上修改。
 2. **注释带时间戳** — 所有 DDL 修改的注释上方必须加上当前日期标记，格式为 `-- YYYY-MM-DD：修改内容说明`，方便追溯变更历史。
-3. **DDL 脚本 + 实时库同步** — 修改 `init.sql` 后，必须直接在数据库上执行对应的 `ALTER TABLE` 语句，保证实时库和脚本一致。仅改 SQL 文件会导致运行时报 `Unknown column` 错误。
+3. **DDL 脚本 + 实时库同步** — 新建迁移脚本后，必须直接在数据库上执行对应的 `ALTER TABLE` 语句，保证实时库和脚本一致（本地开发可直接重启应用由 Flyway 自动执行）。仅改 SQL 文件会导致运行时报 `Unknown column` 错误。
 4. **默认值双重保障** — 新增字段的默认值同时在 DDL（`DEFAULT xxx`）和 Service 层代码中设置，避免空指针。
 
 ## 已实现功能

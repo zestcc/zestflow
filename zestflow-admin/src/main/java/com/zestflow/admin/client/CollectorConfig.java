@@ -15,6 +15,11 @@ import org.springframework.web.client.RestTemplate;
 public class CollectorConfig {
 
     @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
+    }
+
+    @Bean
     public CollectorClient collectorClient(RestTemplate restTemplate,
                                             CollectorClientProperties properties) {
         return new CollectorClient(restTemplate, properties.getApiUrl(), properties.getAccessToken());

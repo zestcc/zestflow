@@ -24,10 +24,32 @@
             <artifactId>zestflow-executor</artifactId>
         </dependency>
 
+        <!-- Collector JDBC（事件落库 + 查询 API） -->
+        <dependency>
+            <groupId>com.zestflow</groupId>
+            <artifactId>collector-jdbc</artifactId>
+        </dependency>
+
+        <!-- MyBatis-Plus（collector-jdbc 中标记为 optional，需显式引入） -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+        </dependency>
+
         <!-- Spring Boot Web（内嵌 Tomcat，模拟真实环境） -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Flyway 日志数据库迁移 -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-mysql</artifactId>
         </dependency>
 
         <dependency>

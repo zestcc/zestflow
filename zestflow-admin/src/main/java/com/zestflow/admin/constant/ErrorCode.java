@@ -38,4 +38,10 @@ public interface ErrorCode {
     // Design
     String DESIGN_CODE_EXISTS = "DESIGN_CODE_EXISTS";
     String DESIGN_NOT_FOUND = "DESIGN_NOT_FOUND";
+
+    // Schedule
+    String SCHEDULE_NOT_FOUND = "SCHEDULE_NOT_FOUND";
+
+    // Security
+    String LOGIN_RATE_LIMITED = "LOGIN_RATE_LIMITED";
 }

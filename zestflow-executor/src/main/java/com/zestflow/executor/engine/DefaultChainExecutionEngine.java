@@ -89,6 +89,8 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
             ChainStateMachine stateMachine = instance.getStateMachine();
             List<NodeResultDTO> allNodeResults = new ArrayList<>();
 
+            stateMachine.transit(ChainConstants.CHAIN_LOADING);
+            stateMachine.transit(ChainConstants.CHAIN_READY);
             stateMachine.transit(ChainConstants.CHAIN_RUNNING);
             publishChainEvent(ChainEvent.EventType.CHAIN_STARTED, chainCode, instance);
 

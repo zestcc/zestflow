@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import com.zestflow.common.util.CodeGenerator;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -62,15 +63,8 @@ public class ChainServiceImpl implements ChainService {
 
     @Override
     public ChainVO create(ChainCreateDTO dto) {
-        Long count = chainMapper.selectCount(
-                new LambdaQueryWrapper<ChainPO>().eq(ChainPO::getCode, dto.getCode())
-        );
-        if (count > 0) {
-            throw new BizException(ErrorCode.CHAIN_CODE_EXISTS);
-        }
-
         ChainPO po = new ChainPO();
-        po.setCode(dto.getCode());
+        po.setCode(generateChainCode());
         po.setName(dto.getName());
         po.setModuleId(dto.getModuleId());
         po.setDescription(dto.getDescription());
@@ -79,8 +73,15 @@ public class ChainServiceImpl implements ChainService {
         po.setUpdatedAt(LocalDateTime.now());
         chainMapper.insert(po);
 
-        log.info("链创建成功 chainId={} code={} name={} moduleId={}", po.getId(), dto.getCode(), dto.getName(), dto.getModuleId());
+        log.info("链创建成功 chainId={} code={} name={} moduleId={}", po.getId(), po.getCode(), dto.getName(), dto.getModuleId());
         return toVO(po);
+    }
+
+    /**
+     * 生成链编码，格式：CHN_YYYYMMDD_XXX（每日顺序递增）
+     */
+    private String generateChainCode() {
+        return CodeGenerator.generate("CHN");
     }
 
     @Override

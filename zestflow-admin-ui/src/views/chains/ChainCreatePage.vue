@@ -5,9 +5,6 @@
     </div>
     <div class="form-wrapper">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="120px" style="max-width:600px" @submit.prevent>
-        <el-form-item :label="$t('chains.code')" prop="code">
-          <el-input v-model="form.code" maxlength="50" autocomplete="off" />
-        </el-form-item>
         <el-form-item :label="$t('chains.name')" prop="name">
           <el-input v-model="form.name" maxlength="100" autocomplete="off" />
         </el-form-item>
@@ -42,9 +39,8 @@ const router = useRouter()
 const modules = ref<ModuleVO[]>([])
 const formRef = ref<any>(null)
 const submitting = ref(false)
-const form = ref({ code: '', name: '', moduleId: undefined as number | undefined, description: '' })
+const form = ref({ name: '', moduleId: undefined as number | undefined, description: '' })
 const rules = {
-  code: [{ required: true, message: () => t('validation.required', { field: t('chains.code') }), trigger: 'blur' }],
   name: [{ required: true, message: () => t('validation.required', { field: t('chains.name') }), trigger: 'blur' }],
   moduleId: [{ required: true, message: () => t('chains.selectModule'), trigger: 'change' }],
 }
@@ -60,14 +56,12 @@ async function handleSubmit() {
   if (!valid || !form.value.moduleId) return
   submitting.value = true
   try {
-    const dto: ChainCreateDTO = {
-      code: form.value.code,
+    const res = await chainApi.create({
       name: form.value.name,
       moduleId: form.value.moduleId,
       description: form.value.description || undefined,
-    }
-    await chainApi.create(dto)
-    ElMessage.success(t('chains.createChain') + '成功')
+    } as ChainCreateDTO)
+    ElMessage.success(t('chains.createChain') + '成功，' + t('chains.code') + '：' + res.code)
     router.push('/chains')
   } finally { submitting.value = false }
 }

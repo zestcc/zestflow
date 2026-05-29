@@ -9,10 +9,6 @@ import lombok.Data;
 public class ChainCreateDTO {
 
     @NotBlank
-    @Size(min = 2, max = 50)
-    private String code;
-
-    @NotBlank
     @Size(min = 2, max = 100)
     private String name;
 

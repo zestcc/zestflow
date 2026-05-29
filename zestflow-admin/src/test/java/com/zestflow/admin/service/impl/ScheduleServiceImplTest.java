@@ -1,0 +1,227 @@
+package com.zestflow.admin.service.impl;
+
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.zestflow.admin.constant.ErrorCode;
+import com.zestflow.admin.model.dto.ScheduleCreateDTO;
+import com.zestflow.admin.model.dto.ScheduleUpdateDTO;
+import com.zestflow.admin.model.entity.ChainPO;
+import com.zestflow.admin.model.entity.ExecutorRegistryPO;
+import com.zestflow.admin.model.entity.ScheduleLogPO;
+import com.zestflow.admin.model.entity.SchedulePO;
+import com.zestflow.admin.model.vo.ScheduleLogVO;
+import com.zestflow.admin.model.vo.ScheduleVO;
+import com.zestflow.admin.repository.ChainMapper;
+import com.zestflow.admin.repository.ExecutorRegistryMapper;
+import com.zestflow.admin.repository.ScheduleLogMapper;
+import com.zestflow.admin.repository.ScheduleMapper;
+import com.zestflow.admin.schedule.ExecutorClient;
+import com.zestflow.admin.schedule.RouteStrategy;
+import com.zestflow.common.constant.RegistryConstants;
+import com.zestflow.common.exception.BizException;
+import com.zestflow.common.model.dto.ChainExecuteResultDTO;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
+class ScheduleServiceImplTest {
+
+    @Mock private ScheduleMapper scheduleMapper;
+    @Mock private ScheduleLogMapper scheduleLogMapper;
+    @Mock private ChainMapper chainMapper;
+    @Mock private ExecutorRegistryMapper executorRegistryMapper;
+    @Mock private ExecutorClient executorClient;
+    @Mock private RouteStrategy routeStrategy;
+
+    private ScheduleServiceImpl scheduleService;
+
+    @BeforeEach
+    void setUp() {
+        when(routeStrategy.name()).thenReturn("round_robin");
+        scheduleService = new ScheduleServiceImpl(
+                scheduleMapper, scheduleLogMapper, chainMapper,
+                executorRegistryMapper, executorClient, List.of(routeStrategy)
+        );
+    }
+
+    @Test
+    void createSchedule() {
+        ChainPO chain = new ChainPO();
+        chain.setId(1L);
+        chain.setCode("chain-test");
+        chain.setName("测试链");
+        chain.setModuleId(10L);
+        when(chainMapper.selectById(1L)).thenReturn(chain);
+
+        ScheduleCreateDTO dto = new ScheduleCreateDTO();
+        dto.setChainId(1L);
+        dto.setCron("0 */5 * * * ?");
+        dto.setRouteStrategy("round_robin");
+        dto.setRemark("测试调度");
+
+        ScheduleVO vo = scheduleService.create(dto, "admin");
+
+        assertThat(vo.getChainCode()).isEqualTo("chain-test");
+        assertThat(vo.getCron()).isEqualTo("0 */5 * * * ?");
+        assertThat(vo.getCreatedBy()).isEqualTo("admin");
+        verify(scheduleMapper).insert(any(SchedulePO.class));
+    }
+
+    @Test
+    void createSchedule_chainNotFound() {
+        when(chainMapper.selectById(anyLong())).thenReturn(null);
+        ScheduleCreateDTO dto = new ScheduleCreateDTO();
+        dto.setChainId(999L);
+
+        assertThatThrownBy(() -> scheduleService.create(dto, "admin"))
+                .isInstanceOf(BizException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHAIN_NOT_FOUND);
+    }
+
+    @Test
+    void getById() {
+        SchedulePO po = new SchedulePO();
+        po.setId(1L);
+        po.setChainCode("chain-test");
+        po.setCron("0 */5 * * * ?");
+        po.setStatus(1);
+        when(scheduleMapper.selectById(1L)).thenReturn(po);
+
+        ScheduleVO vo = scheduleService.getById(1L);
+
+        assertThat(vo.getId()).isEqualTo(1L);
+        assertThat(vo.getChainCode()).isEqualTo("chain-test");
+    }
+
+    @Test
+    void getById_notFound() {
+        when(scheduleMapper.selectById(anyLong())).thenReturn(null);
+
+        assertThatThrownBy(() -> scheduleService.getById(999L))
+                .isInstanceOf(BizException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.SCHEDULE_NOT_FOUND);
+    }
+
+    @Test
+    void updateSchedule() {
+        SchedulePO po = new SchedulePO();
+        po.setId(1L);
+        po.setCron("0 */5 * * * ?");
+        po.setRouteStrategy("round_robin");
+        when(scheduleMapper.selectById(1L)).thenReturn(po);
+
+        ScheduleUpdateDTO dto = new ScheduleUpdateDTO();
+        dto.setCron("0 */10 * * * ?");
+        dto.setRemark("更新备注");
+
+        ScheduleVO vo = scheduleService.update(1L, dto);
+
+        assertThat(vo.getCron()).isEqualTo("0 */10 * * * ?");
+        verify(scheduleMapper).updateById(argThat((SchedulePO sp) ->
+                sp.getCron().equals("0 */10 * * * ?") && sp.getRemark().equals("更新备注")));
+    }
+
+    @Test
+    void deleteSchedule() {
+        SchedulePO po = new SchedulePO();
+        po.setId(1L);
+        po.setChainCode("chain-test");
+        when(scheduleMapper.selectById(1L)).thenReturn(po);
+
+        scheduleService.delete(1L);
+
+        verify(scheduleMapper).deleteById(1L);
+    }
+
+    @Test
+    void toggleStatus() {
+        SchedulePO po = new SchedulePO();
+        po.setId(1L);
+        po.setStatus(1);
+        when(scheduleMapper.selectById(1L)).thenReturn(po);
+
+        scheduleService.toggleStatus(1L);
+
+        assertThat(po.getStatus()).isZero(); // 1 → 0
+        verify(scheduleMapper).updateById(po);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void listSchedules() {
+        when(scheduleMapper.selectPage(any(), any(Wrapper.class)))
+                .thenAnswer(invocation -> {
+                    IPage<SchedulePO> page = mock(IPage.class);
+                    when(page.getRecords()).thenReturn(List.of());
+                    when(page.getCurrent()).thenReturn(1L);
+                    when(page.getSize()).thenReturn(10L);
+                    when(page.getTotal()).thenReturn(0L);
+                    return page;
+                });
+
+        IPage<ScheduleVO> result = scheduleService.list(null, null, null, 1, 10);
+
+        assertThat(result).isNotNull();
+    }
+
+    @Test
+    void triggerSuccess() {
+        SchedulePO schedule = new SchedulePO();
+        schedule.setId(1L);
+        schedule.setModuleId(10L);
+        schedule.setChainCode("chain-test");
+        schedule.setRouteStrategy("round_robin");
+        when(scheduleMapper.selectById(1L)).thenReturn(schedule);
+
+        ExecutorRegistryPO executor = new ExecutorRegistryPO();
+        executor.setExecutorId("e1");
+        executor.setExecutorHost("192.168.1.1");
+        executor.setExecutorPort(9999);
+        when(executorRegistryMapper.selectList(any())).thenReturn(List.of(executor));
+        when(routeStrategy.select(anyList(), anyString())).thenReturn(executor);
+
+        ChainExecuteResultDTO execResult = ChainExecuteResultDTO.builder()
+                .instanceId("inst-1")
+                .chainCode("chain-test")
+                .status(3) // CHAIN_SUCCESS
+                .costMs(100L)
+                .build();
+        when(executorClient.execute(anyString(), anyInt(), anyString(), anyMap()))
+                .thenReturn(execResult);
+
+        ScheduleLogVO logVO = scheduleService.trigger(1L);
+
+        assertThat(logVO).isNotNull();
+        assertThat(logVO.getExecutorId()).isEqualTo("e1");
+        verify(scheduleLogMapper).insert(any(ScheduleLogPO.class));
+    }
+
+    @Test
+    void trigger_noOnlineExecutor() {
+        SchedulePO schedule = new SchedulePO();
+        schedule.setId(1L);
+        schedule.setChainCode("chain-test");
+        schedule.setModuleId(10L);
+        when(scheduleMapper.selectById(1L)).thenReturn(schedule);
+        when(executorRegistryMapper.selectList(any())).thenReturn(List.of());
+
+        ScheduleLogVO logVO = scheduleService.trigger(1L);
+
+        assertThat(logVO.getStatus()).isEqualTo(2); // failed
+        assertThat(logVO.getErrorMessage()).contains("无可用在线执行器");
+    }
+}

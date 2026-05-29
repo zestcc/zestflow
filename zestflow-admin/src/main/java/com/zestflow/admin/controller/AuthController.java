@@ -1,6 +1,7 @@
 package com.zestflow.admin.controller;
 
 import com.zestflow.admin.constant.ErrorCode;
+import com.zestflow.admin.config.LoginRateLimiter;
 import com.zestflow.admin.model.dto.*;
 import com.zestflow.admin.model.vo.LoginVO;
 import com.zestflow.admin.model.vo.UserVO;
@@ -8,6 +9,7 @@ import com.zestflow.admin.service.UserService;
 import com.zestflow.admin.util.SecurityUtils;
 import com.zestflow.common.exception.BizException;
 import com.zestflow.common.model.Result;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -23,11 +25,28 @@ import org.springframework.web.multipart.MultipartFile;
 public class AuthController {
 
     private final UserService userService;
+    private final LoginRateLimiter loginRateLimiter;
 
     @PostMapping("/login")
-    public Result<LoginVO> login(@Valid @RequestBody LoginDTO dto) {
-        LoginVO vo = userService.login(dto);
-        return Result.success(vo);
+    public Result<LoginVO> login(@Valid @RequestBody LoginDTO dto, HttpServletRequest request) {
+        String ip = getClientIp(request);
+        loginRateLimiter.check(ip);
+        try {
+            LoginVO vo = userService.login(dto);
+            loginRateLimiter.reset(ip);
+            return Result.success(vo);
+        } catch (Exception e) {
+            loginRateLimiter.recordFailure(ip);
+            throw e;
+        }
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String xf = request.getHeader("X-Forwarded-For");
+        if (xf != null && !xf.isBlank()) return xf.split(",")[0].trim();
+        String xr = request.getHeader("X-Real-IP");
+        if (xr != null && !xr.isBlank()) return xr;
+        return request.getRemoteAddr();
     }
 
     @PostMapping("/register")

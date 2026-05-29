@@ -80,8 +80,10 @@
     <!-- 新建链弹窗 -->
     <el-dialog v-model="createDialogVisible" :title="$t('chains.createChain')" width="500px" :close-on-click-modal="false">
       <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="100px" @submit.prevent>
-        <el-form-item :label="$t('chains.code')" prop="code">
-          <el-input v-model="createForm.code" maxlength="50" autocomplete="off" />
+        <el-form-item :label="$t('chains.module')" prop="moduleId">
+          <el-select v-model="createForm.moduleId" filterable style="width:100%" :placeholder="$t('chains.selectModule')">
+            <el-option v-for="m in modules" :key="m.id" :label="m.name" :value="m.id" />
+          </el-select>
         </el-form-item>
         <el-form-item :label="$t('chains.name')" prop="name">
           <el-input v-model="createForm.name" maxlength="100" autocomplete="off" />
@@ -174,14 +176,14 @@ function handleReset() { filter.value = { keyword: '', status: undefined }; page
 const createDialogVisible = ref(false)
 const createSubmitting = ref(false)
 const createFormRef = ref<any>(null)
-const createForm = ref({ code: '', name: '', description: '' })
+const createForm = ref({ name: '', description: '', moduleId: undefined as number | undefined })
 const createRules = {
-  code: [{ required: true, message: () => t('validation.required', { field: t('chains.code') }), trigger: 'blur' }],
   name: [{ required: true, message: () => t('validation.required', { field: t('chains.name') }), trigger: 'blur' }],
+  moduleId: [{ required: true, message: () => t('chains.selectModule'), trigger: 'change' }],
 }
 
 function openCreate() {
-  createForm.value = { code: '', name: '', description: '' }
+  createForm.value = { name: '', description: '', moduleId: currentModuleId.value }
   createDialogVisible.value = true
 }
 
@@ -190,9 +192,12 @@ async function handleCreate() {
   if (!valid) return
   createSubmitting.value = true
   try {
-    const dto: ChainCreateDTO = { code: createForm.value.code, name: createForm.value.name, description: createForm.value.description || undefined, moduleId: currentModuleId.value! }
-    await chainApi.create(dto)
-    ElMessage.success(t('chains.createChain') + '成功')
+    const res = await chainApi.create({
+      name: createForm.value.name,
+      description: createForm.value.description || undefined,
+      moduleId: createForm.value.moduleId!,
+    } as ChainCreateDTO)
+    ElMessage.success(t('chains.createChain') + '成功，' + t('chains.code') + '：' + res.code)
     createDialogVisible.value = false
     await fetchList()
   } finally { createSubmitting.value = false }

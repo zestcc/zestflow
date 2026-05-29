@@ -17,7 +17,6 @@ export interface DesignVO {
 }
 
 export interface DesignCreateDTO {
-  code: string
   name: string
   moduleId: number
   description?: string

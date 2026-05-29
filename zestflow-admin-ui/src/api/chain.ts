@@ -12,7 +12,6 @@ export interface ChainVO {
 }
 
 export interface ChainCreateDTO {
-  code: string
   name: string
   moduleId: number
   description?: string
