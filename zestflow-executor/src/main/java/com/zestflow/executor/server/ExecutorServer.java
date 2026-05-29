@@ -1,6 +1,7 @@
 package com.zestflow.executor.server;
 
 import com.zestflow.common.constant.RegistryConstants;
+import com.zestflow.executor.engine.ChainExecutionEngine;
 import com.zestflow.executor.event.EventPublisher;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
@@ -20,22 +21,22 @@ import java.util.concurrent.TimeUnit;
 public class ExecutorServer {
 
     private final int port;
-    private final EventPublisher eventPublisher;
     private final ServerHandler serverHandler;
 
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
     private Channel channel;
 
-    public ExecutorServer(int port) {
-        this(port, null);
+    public ExecutorServer(int port, EventPublisher eventPublisher) {
+        this(port, null, eventPublisher);
     }
 
-    public ExecutorServer(int port, EventPublisher eventPublisher) {
+    public ExecutorServer(int port, ChainExecutionEngine engine, EventPublisher eventPublisher) {
         this.port = port;
-        this.eventPublisher = eventPublisher;
-        this.serverHandler = new ServerHandler();
-        this.serverHandler.setEventPublisher(eventPublisher);
+        this.serverHandler = new ServerHandler(engine);
+        if (eventPublisher != null) {
+            this.serverHandler.setEventPublisher(eventPublisher);
+        }
     }
 
     public void start() throws InterruptedException {

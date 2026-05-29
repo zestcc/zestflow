@@ -54,4 +54,30 @@ public class ExecutorProperties {
 
     /** 磁盘降级目录 */
     private String eventDiskFallbackDir = "./collector-fallback";
+
+    // ========== 链执行配置（zestflow.executor.chain.*） ==========
+
+    /** 链加载重试次数 */
+    private int chainLoadRetryTimes = 3;
+
+    /** 链加载重试间隔（毫秒） */
+    private long chainLoadRetryIntervalMs = 5000;
+
+    /** 是否启用自动热更新 */
+    private boolean chainAutoReload = true;
+
+    /** 热更新检查间隔（毫秒） */
+    private long chainReloadCheckIntervalMs = 60000;
+
+    /** 同层并行节点数上限 */
+    private int chainParallelThreshold = 3;
+
+    /** 链默认超时（毫秒） */
+    private long chainDefaultTimeoutMs = 60000;
+
+    /** 节点默认重试次数 */
+    private int nodeDefaultRetryCount = 0;
+
+    /** 节点默认重试间隔（毫秒） */
+    private long nodeDefaultRetryIntervalMs = 1000;
 }

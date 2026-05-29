@@ -2,6 +2,8 @@ package com.zestflow.executor.registry;
 
 import com.zestflow.common.constant.RegistryConstants;
 import com.zestflow.common.model.Result;
+import com.zestflow.common.model.dto.ChainDefinitionDTO;
+import com.zestflow.common.model.dto.ChainSyncDTO;
 import com.zestflow.common.model.dto.HeartbeatDTO;
 import com.zestflow.common.model.dto.RegisterDTO;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.Collections;
 import java.util.List;
 
 @Slf4j
@@ -26,9 +29,14 @@ public class AdminClient {
     private static final ParameterizedTypeReference<Result<Void>> RESULT_VOID_TYPE =
             new ParameterizedTypeReference<Result<Void>>() {};
 
-    /**
-     * 注册执行器到 Admin
-     */
+    private static final ParameterizedTypeReference<Result<List<String>>> RESULT_LIST_STRING_TYPE =
+            new ParameterizedTypeReference<Result<List<String>>>() {};
+
+    private static final ParameterizedTypeReference<Result<ChainDefinitionDTO>> RESULT_CHAIN_DEF_TYPE =
+            new ParameterizedTypeReference<Result<ChainDefinitionDTO>>() {};
+
+    // ==================== 注册/心跳 ====================
+
     public boolean register(RegisterDTO dto) {
         List<String> adminList = parseAddresses();
         for (String adminUrl : adminList) {
@@ -49,9 +57,6 @@ public class AdminClient {
         return false;
     }
 
-    /**
-     * 发送心跳
-     */
     public boolean heartbeat(HeartbeatDTO dto) {
         List<String> adminList = parseAddresses();
         for (String adminUrl : adminList) {
@@ -70,9 +75,6 @@ public class AdminClient {
         return false;
     }
 
-    /**
-     * 注销执行器
-     */
     public boolean deregister(String executorId) {
         List<String> adminList = parseAddresses();
         boolean allSuccess = true;
@@ -92,6 +94,69 @@ public class AdminClient {
         }
         return allSuccess;
     }
+
+    // ==================== 链 API ====================
+
+    /**
+     * 获取模块下所有活跃链的 code 列表
+     */
+    public List<String> fetchActiveChainCodes(String moduleCode) {
+        List<String> adminList = parseAddresses();
+        for (String adminUrl : adminList) {
+            try {
+                String url = adminUrl + "/api/chains/active-codes?moduleCode=" + moduleCode;
+                HttpEntity<Void> entity = new HttpEntity<>(buildHeaders());
+                ResponseEntity<Result<List<String>>> resp = restTemplate.exchange(
+                        url, HttpMethod.GET, entity, RESULT_LIST_STRING_TYPE);
+                if (resp.getBody() != null && resp.getBody().getCode() == 200 && resp.getBody().getData() != null) {
+                    return resp.getBody().getData();
+                }
+            } catch (Exception e) {
+                log.warn("获取活跃链列表失败 adminUrl={} error={}", adminUrl, e.getMessage());
+            }
+        }
+        return Collections.emptyList();
+    }
+
+    /**
+     * 获取单个链完整定义
+     */
+    public ChainDefinitionDTO fetchChainDefinition(String code) {
+        List<String> adminList = parseAddresses();
+        for (String adminUrl : adminList) {
+            try {
+                String url = adminUrl + "/api/chains/code/" + code;
+                HttpEntity<Void> entity = new HttpEntity<>(buildHeaders());
+                ResponseEntity<Result<ChainDefinitionDTO>> resp = restTemplate.exchange(
+                        url, HttpMethod.GET, entity, RESULT_CHAIN_DEF_TYPE);
+                if (resp.getBody() != null && resp.getBody().getCode() == 200) {
+                    return resp.getBody().getData();
+                }
+            } catch (Exception e) {
+                log.warn("获取链定义失败 code={} adminUrl={} error={}", code, adminUrl, e.getMessage());
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 通知 Admin 链加载状态
+     */
+    public void notifyChainSync(ChainSyncDTO sync) {
+        List<String> adminList = parseAddresses();
+        for (String adminUrl : adminList) {
+            try {
+                String url = adminUrl + "/api/chains/sync";
+                HttpEntity<ChainSyncDTO> entity = new HttpEntity<>(sync, buildHeaders());
+                restTemplate.exchange(url, HttpMethod.POST, entity, RESULT_VOID_TYPE);
+                return; // 一个成功即可
+            } catch (Exception e) {
+                log.warn("通知链同步失败 adminUrl={} error={}", adminUrl, e.getMessage());
+            }
+        }
+    }
+
+    // ==================== 内部方法 ====================
 
     private HttpHeaders buildHeaders() {
         HttpHeaders headers = new HttpHeaders();

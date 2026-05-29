@@ -1,6 +1,10 @@
 package com.zestflow.executor.server;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zestflow.common.model.dto.ChainEvent;
+import com.zestflow.common.model.dto.ChainExecuteRequestDTO;
+import com.zestflow.common.model.dto.ChainExecuteResultDTO;
+import com.zestflow.executor.engine.ChainExecutionEngine;
 import com.zestflow.executor.event.EventPublisher;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -13,17 +17,26 @@ import io.netty.util.CharsetUtil;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Map;
+
 @Slf4j
 @Setter
 @ChannelHandler.Sharable
 public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    private final ChainExecutionEngine chainExecutionEngine;
+
     /** 事件发布器（可选，未配置 Collector 时为 null） */
     private EventPublisher eventPublisher;
 
+    public ServerHandler(ChainExecutionEngine chainExecutionEngine) {
+        this.chainExecutionEngine = chainExecutionEngine;
+    }
+
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) {
-        // 只允许 POST 和 GET
         if (request.method() != HttpMethod.POST && request.method() != HttpMethod.GET) {
             writeResponse(ctx, HttpResponseStatus.METHOD_NOT_ALLOWED, "Method not allowed");
             return;
@@ -43,21 +56,54 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
     }
 
     private void handleHealth(ChannelHandlerContext ctx) {
-        writeResponse(ctx, HttpResponseStatus.OK, "{\"status\":\"UP\",\"timestamp\":" + System.currentTimeMillis() + "}");
+        writeResponse(ctx, HttpResponseStatus.OK,
+                "{\"status\":\"UP\",\"timestamp\":" + System.currentTimeMillis() + "}");
     }
 
+    @SuppressWarnings("unchecked")
     private void handleExecute(ChannelHandlerContext ctx, String body) {
-        log.info("收到执行请求 body={}", body);
-        // 发射 CHAIN_STARTED 事件
+        try {
+            log.info("收到执行请求 body={}", body);
+
+            // 解析请求
+            ChainExecuteRequestDTO request = MAPPER.readValue(body, ChainExecuteRequestDTO.class);
+
+            // 发布链启动事件
+            publishEvent(ChainEvent.EventType.CHAIN_STARTED, request.getChainCode(), body, null);
+
+            // 执行链
+            ChainExecuteResultDTO result = chainExecutionEngine.execute(
+                    request.getChainCode(), request.getParams());
+
+            // 发布完成事件
+            ChainEvent.EventType resultType = result.getStatus() != null && result.getStatus() == 3
+                    ? ChainEvent.EventType.CHAIN_COMPLETED
+                    : ChainEvent.EventType.CHAIN_FAILED;
+            publishEvent(resultType, request.getChainCode(), null, result.getErrorMessage());
+
+            // 返回结果
+            String json = MAPPER.writeValueAsString(result);
+            writeResponse(ctx, HttpResponseStatus.OK, json);
+
+        } catch (Exception e) {
+            log.error("执行请求处理失败", e);
+            writeResponse(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                    "{\"code\":500,\"message\":\"" + e.getMessage() + "\"}");
+        }
+    }
+
+    private void publishEvent(ChainEvent.EventType eventType, String chainCode,
+                               String params, String errorMessage) {
         if (eventPublisher != null) {
             eventPublisher.publish(ChainEvent.builder()
                     .eventId(java.util.UUID.randomUUID().toString())
-                    .eventType(ChainEvent.EventType.CHAIN_STARTED)
+                    .eventType(eventType)
+                    .chainId(chainCode)
                     .timestamp(System.currentTimeMillis())
-                    .params(body)
+                    .params(params)
+                    .errorMessage(errorMessage)
                     .build());
         }
-        writeResponse(ctx, HttpResponseStatus.OK, "{\"code\":200,\"message\":\"received\"}");
     }
 
     private void writeResponse(ChannelHandlerContext ctx, HttpResponseStatus status, String body) {
