@@ -151,23 +151,21 @@ public class NodeRunner {
     }
 
     private Object executeScript(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
-        log.warn("脚本节点暂未实现 nodeId={}", nodeDef.getId());
-        return null;
+        throw new UnsupportedOperationException("脚本节点暂未实现 nodeId=" + nodeDef.getId());
     }
 
     private Object executeSubChain(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
-        log.warn("子链节点暂未实现 nodeId={} subChainCode={}", nodeDef.getId(), nodeDef.getSubChainCode());
-        return null;
+        throw new UnsupportedOperationException("子链节点暂未实现 nodeId=" + nodeDef.getId()
+                + " subChainCode=" + nodeDef.getSubChainCode());
     }
 
     private Object executeIterator(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
-        log.warn("迭代器节点暂未实现 nodeId={}", nodeDef.getId());
-        return null;
+        throw new UnsupportedOperationException("迭代器节点暂未实现 nodeId=" + nodeDef.getId());
     }
 
     private NodeResultDTO handleRetry(NodeDefinition nodeDef, ChainContext context,
                                        NodeStateMachine stateMachine, long startTime) {
-        publishNodeEvent(ChainEvent.EventType.NODE_STARTED, nodeDef.getId(), context);
+        publishNodeEvent(ChainEvent.EventType.NODE_RETRYING, nodeDef.getId(), context);
 
         boolean retried = retryExecutor.executeWithRetry(
                 nodeDef, context,
@@ -177,6 +175,8 @@ public class NodeRunner {
 
         if (retried) {
             stateMachine.transit(ChainConstants.NODE_SUCCESS);
+            // retry 成功后不会回到 try 块的成功路径，此处补发完成事件
+            publishNodeEvent(ChainEvent.EventType.NODE_COMPLETED, nodeDef.getId(), context);
 
             if (nodeDef.isCircuitBreakerEnabled()) {
                 SimpleCircuitBreaker cb = circuitBreakers.get(nodeDef.getId());
@@ -202,11 +202,13 @@ public class NodeRunner {
 
     private NodeResultDTO handleFallback(NodeDefinition nodeDef, ChainContext context,
                                           NodeStateMachine stateMachine, long startTime, Throwable cause) {
-        publishNodeEvent(ChainEvent.EventType.NODE_STARTED, nodeDef.getId(), context);
+        publishNodeEvent(ChainEvent.EventType.NODE_FALLBACKING, nodeDef.getId(), context);
 
         try {
             lifecycleExecutor.executeFallback(nodeDef, context, cause);
             long costMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
+            // 降级成功后不会回到 try 块的成功路径，此处补发完成事件
+            publishNodeEvent(ChainEvent.EventType.NODE_COMPLETED, nodeDef.getId(), context);
             return NodeResultDTO.builder()
                     .nodeId(nodeDef.getId())
                     .status(ChainConstants.NODE_SUCCESS)
@@ -215,6 +217,7 @@ public class NodeRunner {
         } catch (Exception fallbackError) {
             log.error("降级执行失败 nodeId={}", nodeDef.getId(), fallbackError);
             stateMachine.transit(ChainConstants.NODE_FAILED);
+            publishNodeEvent(ChainEvent.EventType.NODE_FAILED, nodeDef.getId(), context);
             return NodeResultDTO.builder()
                     .nodeId(nodeDef.getId())
                     .status(ChainConstants.NODE_FAILED)

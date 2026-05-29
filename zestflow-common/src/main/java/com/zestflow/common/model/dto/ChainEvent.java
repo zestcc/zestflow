@@ -25,12 +25,14 @@ public class ChainEvent implements Serializable {
     /** 事件类型 */
     public enum EventType {
         CHAIN_STARTED,
+        CHAIN_COMPLETED,
+        CHAIN_FAILED,
+        CHAIN_TIMEOUT,
         NODE_STARTED,
         NODE_COMPLETED,
         NODE_FAILED,
-        CHAIN_COMPLETED,
-        CHAIN_FAILED,
-        CHAIN_TIMEOUT
+        NODE_RETRYING,
+        NODE_FALLBACKING
     }
 
     /** 事件全局唯一 ID（UUID，避免分布式 ID 中心依赖） */
