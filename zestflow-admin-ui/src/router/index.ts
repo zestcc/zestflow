@@ -61,6 +61,18 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '链详情' },
       },
       {
+        path: 'design',
+        name: 'DesignList',
+        component: () => import('@/views/design/DesignListPage.vue'),
+        meta: { title: '设计列表' },
+      },
+      {
+        path: 'design/:id',
+        name: 'DesignEditor',
+        component: () => import('@/views/design/DesignEditorPage.vue'),
+        meta: { title: '设计编辑器' },
+      },
+      {
         path: 'schedules',
         name: 'Schedules',
         component: () => import('@/views/schedules/SchedulesPage.vue'),

@@ -30,4 +30,12 @@ public interface ErrorCode {
     // Executor
     String EXECUTOR_NOT_FOUND = "EXECUTOR_NOT_FOUND";
     String EXECUTOR_OFFLINE = "EXECUTOR_OFFLINE";
+
+    // Chain
+    String CHAIN_CODE_EXISTS = "CHAIN_CODE_EXISTS";
+    String CHAIN_NOT_FOUND = "CHAIN_NOT_FOUND";
+
+    // Design
+    String DESIGN_CODE_EXISTS = "DESIGN_CODE_EXISTS";
+    String DESIGN_NOT_FOUND = "DESIGN_NOT_FOUND";
 }

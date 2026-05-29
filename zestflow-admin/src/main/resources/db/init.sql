@@ -82,6 +82,49 @@ CREATE TABLE IF NOT EXISTS `executor_registry` (
     KEY `idx_module_id` (`module_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='执行器注册表';
 
+-- 2026-05-29：新增链路表
+CREATE TABLE IF NOT EXISTS `chain` (
+    `id`           BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
+    `code`         VARCHAR(50)  NOT NULL                 COMMENT '链编码',
+    `name`         VARCHAR(100) NOT NULL                 COMMENT '链名称',
+    `module_id`    BIGINT       NOT NULL                 COMMENT '所属模块ID',
+    `status`       TINYINT      DEFAULT 1                COMMENT '状态：1-启用 0-停用',
+    `description`  VARCHAR(500) DEFAULT NULL             COMMENT '描述',
+    `created_at`   DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at`   DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_code` (`code`),
+    KEY `idx_module_id` (`module_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='链路表';
+
+-- 2026-05-29：新增流程设计表
+CREATE TABLE IF NOT EXISTS `design` (
+    `id`           BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
+    `code`         VARCHAR(50)  NOT NULL                 COMMENT '设计编码',
+    `name`         VARCHAR(100) NOT NULL                 COMMENT '设计名称',
+    `module_id`    BIGINT       NOT NULL                 COMMENT '所属模块ID',
+    `status`       TINYINT      DEFAULT 1                COMMENT '状态：1-启用 0-停用',
+    `description`  VARCHAR(500) DEFAULT NULL             COMMENT '描述',
+    `designer`     VARCHAR(50)  DEFAULT NULL             COMMENT '设计人',
+    `graph_data`   JSON         DEFAULT NULL             COMMENT '流程图数据（节点+连线的JSON）',
+    `created_at`   DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at`   DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_code` (`code`),
+    KEY `idx_module_id` (`module_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='流程设计表';
+
+-- 2026-05-29：新增设计绑定表（设计 → 链）
+CREATE TABLE IF NOT EXISTS `design_binding` (
+    `id`         BIGINT   NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
+    `design_id`  BIGINT   NOT NULL                 COMMENT '设计ID',
+    `chain_id`   BIGINT   NOT NULL                 COMMENT '链ID',
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_design_chain` (`design_id`, `chain_id`),
+    KEY `idx_design_id` (`design_id`),
+    KEY `idx_chain_id` (`chain_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='设计绑定关联表';
 
 -- 插入默认账号密码，zestflow/zestflow
 INSERT INTO `zestflow`.`user` ( `username`, `email`, `password`, `avatar`, `status`, `is_super_admin`, `reset_token`, `reset_token_expiry`, `must_change_password` )

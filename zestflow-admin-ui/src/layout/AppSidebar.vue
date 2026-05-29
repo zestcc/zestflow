@@ -20,6 +20,10 @@
         <el-icon><Connection /></el-icon>
         <span>{{ $t('layout.chains') }}</span>
       </el-menu-item>
+      <el-menu-item index="/design">
+        <el-icon><EditPen /></el-icon>
+        <span>{{ $t('layout.design') }}</span>
+      </el-menu-item>
       <el-menu-item index="/schedules">
         <el-icon><Timer /></el-icon>
         <span>{{ $t('layout.schedules') }}</span>
@@ -51,7 +55,7 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
 import {
-  Odometer, Connection, Timer, Document, User, Tools,
+  Odometer, Connection, EditPen, Timer, Document, User, Tools,
 } from '@element-plus/icons-vue'
 
 defineProps<{ collapsed: boolean }>()
