@@ -713,6 +713,76 @@ CREATE TABLE IF NOT EXISTS `chain_event` (
 - `zestflow-admin-ui/.../api/logs.ts`
 - `zestflow-admin-ui/.../views/logs/LogsPage.vue`
 
+### 可视化设计编辑器（2026-05）
+
+**需求：** 对标 draw.io 的流程图体验，基于 AntV X6 构建 DAG 可视化编排器，支持拖拽建链、连线、多节点类型、撤销重做。
+
+**单文件实现：** `zestflow-admin-ui/src/views/design/DesignEditorPage.vue`（~940 行，集成所有功能，无子组件）
+
+**节点类型与视觉定义（`registerShapes`）：**
+| 类型 | shape 名 | 几何 | 颜色 | 端口数 |
+|------|---------|------|------|--------|
+| 开始 | `flow-start` | 圆角矩形（rx=20） | 绿色 `#22c55e` | 8（边中点+近角位） |
+| 结束 | `flow-end` | 圆角矩形（rx=20） | 灰色 `#6b7280` | 8 |
+| 任务 | `flow-task` | 圆角矩形（rx=8） | 蓝色 `#3b82f6` | 8 |
+| 条件 | `flow-condition` | 菱形（polygon） | 橙色 `#f59e0b` | 4（4 顶点） |
+| 多条件 | `flow-multicondition` | 六边形（polygon） | 紫色 `#8b5cf6` | 6（6 顶点） |
+
+**节点面板：** 左侧调色板，拖拽到画布创建节点，拖拽时复制类型数据到 `dataTransfer`。
+
+**连接系统（对标 draw.io）：**
+- 端口（ports）4/6/8 个位于自然的边缘/顶点位置
+- `node:mouseenter` → `showPorts()` 显示彩色端口白底环（`r: 7`）
+- `node:mouseleave` → `hidePorts()` 隐藏端口
+- 端口 `magnet: true`，节点 body 无 magnet（只有端口可连线）
+- `targetAnchor: { name: 'orth' }` — 松手吸附目标最近边缘
+- `connectionPoint: { name: 'boundary' }` — 端点渲染在边界
+- `sourceAnchor: { name: 'center' }` — 从源节点中心引出
+- `snap: { radius: 40 }` — 40px 吸附半径
+- 仅禁止自连（`validateConnection`），不限制节点类型组合
+
+**端点拖拽：**
+- 选中连线 → `updateEndpointHandles(edge)` 在端点渲染两个 `.ep-handle` 拖拽圈
+- 拖拽时计算鼠标相对节点中心的角度（`Math.atan2`）→ `connectionPoint.args.angle`
+- 端点沿节点边界滑动，实时更新
+- `selection:changed` 切换到节点/空白时自动隐藏
+
+**画布交互：**
+| 操作 | 行为 |
+|------|------|
+| 滚轮 | 缩放（以鼠标为中心） |
+| 右键拖拽 | 平移画布 |
+| 单击节点 | 选中 + 属性面板 |
+| 双击节点 | 行内编辑名称 |
+| 双击连线 | 行内编辑标签文字 |
+| 右键菜单 | 删除/复制/全选/粘贴 |
+| Ctrl+Z/Y | 撤销/重做（History 插件） |
+| Ctrl+C/V | 复制/粘贴（Clipboard 插件） |
+| Delete/Backspace | 删除选中 |
+| 属性面板 | 名称、描述、连线标签、线型（直线/折线/曲线）|
+
+**连线线型：** 属性面板支持三种线型切换（`onEdgeStyleChange`）
+- 直线：`router: normal` + `connector: normal`
+- 折线：`router: orth` + `connector: rounded`
+- 曲线：`router: normal` + `connector: smooth`
+
+**插件：** Snapline（吸附对齐）、Selection（框选+橡皮筋）、MiniMap（缩略图右下角）、History（撤销栈）、Keyboard（快捷键）、Clipboard（剪贴板）
+
+**右键菜单：** 自定义 teleport 浮层，节点/连线/空白三种上下文，含全选/粘贴功能。
+
+**数据持久化：**
+- 保存：`graph.toJSON()` → `designApi.saveGraph()`
+- 加载：`graph.fromJSON()` 加载，兼容旧版 `flow-node` shape 迁移
+- 空设计：自动创建 开始→结束 初始节点
+- 导出 PNG：`graph.toPNG()` 带 padding
+
+**清理记录：**
+| 时间 | 内容 |
+|------|------|
+| 2026-05 | 移除 `FlowNodeX6.vue` 子组件（功能合并入 DesignEditorPage.vue） |
+| 2026-05 | 移除节点 body `magnet: true`（改为仅端口 magnet，避免全节点十字光标） |
+| 2026-05 | 移除 `highlighting` 配置 + `highlight: true`（避免拖线时所有节点变蓝） |
+
 ### 清理记录
 
 | 时间 | 内容 |

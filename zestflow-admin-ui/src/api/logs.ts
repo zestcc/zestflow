@@ -14,5 +14,5 @@ export interface EventQueryParams {
 }
 
 export function queryEvents(params: EventQueryParams) {
-  return request.post('/api/logs/events/query', params)
+  return request.post('/logs/events/query', params)
 }

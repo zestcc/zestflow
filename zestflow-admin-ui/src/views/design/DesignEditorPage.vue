@@ -617,7 +617,13 @@ function initGraph() {
 
   // 统计节点/连线数
   graph.on('cell:added', updateStats)
-  graph.on('cell:removed', updateStats)
+  graph.on('cell:removed', ({ cell }) => {
+    updateStats()
+    if (selectedCell === cell) {
+      selectedCell = null
+      hideEndpointHandles()
+    }
+  })
 
   // 画布自适应
   const container = canvasContainerRef.value
@@ -755,7 +761,7 @@ function onEpDragMove(e: MouseEvent, edge: Edge) {
 function removeSelected() {
   if (!graph) return
   const cells = graph.getSelectedCells()
-  if (cells.length > 0) { graph.removeCells(cells); selectedCell = null; selectedNodeData.value = null; selectedEdgeData.value = null }
+  if (cells.length > 0) { graph.removeCells(cells); selectedCell = null; selectedNodeData.value = null; selectedEdgeData.value = null; hideEndpointHandles() }
 }
 
 function handleUndo() { graph?.undo() }
@@ -818,8 +824,13 @@ async function loadDesign() {
           if (cell.view === 'vue-shape-view') delete cell.view
         })
         graph.fromJSON(data)
-        // 确保所有节点视觉正确
-        graph.getNodes().forEach(n => updateNodeVisual(n))
+        // 确保所有节点视觉和端口正确
+        graph.getNodes().forEach(n => {
+          updateNodeVisual(n)
+          // 序列化可能丢失端口 group 定义，重新注入完整端口配置
+          const nodeType = n.getData()?.nodeType || 'task'
+          n.setProp('ports', { groups: { handle: handleGroup }, items: getPorts(nodeType) })
+        })
         graph.zoomToFit({ padding: 60, maxScale: 1 })
         return
       }
@@ -865,6 +876,8 @@ onBeforeUnmount(() => {
   resizeObserver?.disconnect()
   graph?.dispose()
   graph = null
+  // 清理拖拽监听器
+  draggingEp = null
 })
 </script>
 
