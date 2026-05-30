@@ -180,20 +180,22 @@
                 <el-option label="忽略异常" value="IGNORE_EXCEPTION" />
               </el-select>
             </el-form-item>
-            <!-- 参数绑定器 -->
-            <div v-if="canBindComponent(selectedNodeData.nodeType)" style="padding:0 0 4px 0;width:100%">
+            <!-- 参数解析器链 -->
+            <div v-if="canBindComponent(selectedNodeData.nodeType)" style="padding:0 0 8px 0;width:100%">
               <div style="font-size:12px;color:#606266;margin-bottom:4px">{{ $t('components.typeParamBinder') }}</div>
-              <el-tag v-if="selectedNodeData.paramBinderName" type="info" size="small" closable style="margin-bottom:4px" @close="clearSingleBind('paramBinder')">
-                {{ selectedNodeData.paramBinderName }}
-              </el-tag>
-              <el-button size="small" type="primary" plain @click="openBindDialog('binder')" style="width:100%">
-                {{ selectedNodeData.paramBinderId ? '重新绑定' : '+ 绑定' }}
-              </el-button>
+              <div v-for="(item, idx) in (selectedNodeData.paramResolvers || [])" :key="idx" style="display:flex;align-items:center;gap:2px;margin-bottom:3px">
+                <el-tag type="info" size="small" closable style="flex:1;overflow:hidden;text-align:left;justify-content:flex-start" @close="removeParamResolver(idx)">
+                  <span style="opacity:0.6;margin-right:2px">{{ idx + 1 }}.</span>{{ item.componentName }}
+                </el-tag>
+                <el-button text size="small" :disabled="idx === 0" @click="moveParamResolver(idx, -1)" style="padding:0 2px">↑</el-button>
+                <el-button text size="small" :disabled="idx === (selectedNodeData.paramResolvers || []).length - 1" @click="moveParamResolver(idx, 1)" style="padding:0 2px">↓</el-button>
+              </div>
+              <el-button size="small" type="primary" plain @click="openBindDialog('resolver')" style="width:100%">+ 添加解析器</el-button>
             </div>
             <!-- 参数校验器 -->
             <div v-if="canBindComponent(selectedNodeData.nodeType)" style="padding:0 0 4px 0;width:100%">
               <div style="font-size:12px;color:#606266;margin-bottom:4px">{{ $t('components.typeParamValidator') }}</div>
-              <el-tag v-if="selectedNodeData.paramValidatorName" type="info" size="small" closable style="margin-bottom:4px" @close="clearSingleBind('paramValidator')">
+              <el-tag v-if="selectedNodeData.paramValidatorName" type="info" size="small" closable style="margin-bottom:4px" @close="clearValidator()">
                 {{ selectedNodeData.paramValidatorName }}
               </el-tag>
               <el-button size="small" type="primary" plain @click="openBindDialog('validator')" style="width:100%">
@@ -784,7 +786,7 @@ function bindTypeTargetLabel(target: string): string {
   const map: Record<string, string> = {
     pre: '前置处理器',
     post: '后置处理器',
-    binder: '参数绑定器',
+    resolver: '参数解析器',
     validator: '参数校验器',
   }
   return map[target] || ''
@@ -821,11 +823,11 @@ async function openBindDialog(target: string = 'main') {
     bindDialog.typeLabel = '后置器'
     bindDialog.selectedId = ''
     bindDialog.selectedIds = (selectedNodeData.value.postComponents || []).map((p: any) => p.componentId)
-  } else if (target === 'binder') {
+  } else if (target === 'resolver') {
     ct = 'PARAM_BINDER'
-    bindDialog.typeLabel = '参数绑定器'
-    bindDialog.selectedId = selectedNodeData.value.paramBinderId || ''
-    bindDialog.selectedIds = bindDialog.selectedId ? [bindDialog.selectedId] : []
+    bindDialog.typeLabel = '参数解析器'
+    bindDialog.selectedId = ''
+    bindDialog.selectedIds = (selectedNodeData.value.paramResolvers || []).map((p: any) => p.componentId)
   } else if (target === 'validator') {
     ct = 'PARAM_VALIDATOR'
     bindDialog.typeLabel = '参数校验器'
@@ -874,6 +876,7 @@ function onBindSelect(row: any) {
   const existing = (() => {
     if (bindDialog.target === 'pre') return (selectedNodeData.value?.preComponents || []).map((p: any) => p.componentId)
     if (bindDialog.target === 'post') return (selectedNodeData.value?.postComponents || []).map((p: any) => p.componentId)
+    if (bindDialog.target === 'resolver') return (selectedNodeData.value?.paramResolvers || []).map((p: any) => p.componentId)
     return []
   })()
   bindDialog.selectedIds = [...existing]
@@ -883,26 +886,24 @@ function onBindSelect(row: any) {
 function confirmBind() {
   bindDialog.visible = false
   if (!selectedCell || !selectedNodeData.value) return
-  if (bindDialog.target === 'pre' || bindDialog.target === 'post') {
-    // 前置/后置处理器：追加到数组
+  if (bindDialog.target === 'pre' || bindDialog.target === 'post' || bindDialog.target === 'resolver') {
+    // 前置/后置/解析器：追加到数组
     if (!bindDialog.selectedId) return
     const found = bindDialog.list.find((c: any) => c.componentId === bindDialog.selectedId)
     if (!found) return
-    const key = bindDialog.target === 'pre' ? 'preComponents' : 'postComponents'
+    const key = bindDialog.target === 'pre' ? 'preComponents' : bindDialog.target === 'post' ? 'postComponents' : 'paramResolvers'
     if (!selectedNodeData.value[key]) selectedNodeData.value[key] = []
     selectedNodeData.value[key].push({ componentId: found.componentId, componentName: found.componentName })
     selectedCell.setData({ ...selectedNodeData.value })
     return
   }
-  // 参数绑定器/校验器：单槽绑定
-  if (bindDialog.target === 'binder' || bindDialog.target === 'validator') {
+  // 参数校验器：单槽绑定
+  if (bindDialog.target === 'validator') {
     if (!bindDialog.selectedId) return
     const found = bindDialog.list.find((c: any) => c.componentId === bindDialog.selectedId)
     if (!found) return
-    const idKey = bindDialog.target === 'binder' ? 'paramBinderId' : 'paramValidatorId'
-    const nameKey = bindDialog.target === 'binder' ? 'paramBinderName' : 'paramValidatorName'
-    selectedNodeData.value[idKey] = found.componentId
-    selectedNodeData.value[nameKey] = found.componentName
+    selectedNodeData.value.paramValidatorId = found.componentId
+    selectedNodeData.value.paramValidatorName = found.componentName
     selectedCell.setData({ ...selectedNodeData.value })
     return
   }
@@ -955,15 +956,31 @@ function unbindComponent() {
   selectedCell.setLabels(selectedNodeData.value.label ? [{ attrs: { label: { text: selectedNodeData.value.label } } }] : [])
 }
 
-function clearSingleBind(target: 'paramBinder' | 'paramValidator') {
+function clearValidator() {
   if (!selectedCell || !selectedNodeData.value) return
-  if (target === 'paramBinder') {
-    delete selectedNodeData.value.paramBinderId
-    delete selectedNodeData.value.paramBinderName
-  } else {
-    delete selectedNodeData.value.paramValidatorId
-    delete selectedNodeData.value.paramValidatorName
+  delete selectedNodeData.value.paramValidatorId
+  delete selectedNodeData.value.paramValidatorName
+  selectedCell.setData({ ...selectedNodeData.value })
+}
+
+function removeParamResolver(idx: number) {
+  if (!selectedCell || !selectedNodeData.value) return
+  const arr = selectedNodeData.value.paramResolvers
+  if (arr) {
+    arr.splice(idx, 1)
+    selectedCell.setData({ ...selectedNodeData.value })
   }
+}
+
+function moveParamResolver(idx: number, direction: number) {
+  if (!selectedCell || !selectedNodeData.value) return
+  const arr = selectedNodeData.value.paramResolvers
+  if (!arr) return
+  const newIdx = idx + direction
+  if (newIdx < 0 || newIdx >= arr.length) return
+  const tmp = arr[newIdx]
+  arr[newIdx] = arr[idx]
+  arr[idx] = tmp
   selectedCell.setData({ ...selectedNodeData.value })
 }
 
@@ -1386,7 +1403,7 @@ function onDrop(event: DragEvent) {
     y: pos.y - h / 2,
     width: w,
     height: h,
-    data: { label, nodeType: type, description: '', preComponents: [], postComponents: [], paramBinderId: '', paramBinderName: '', paramValidatorId: '', paramValidatorName: '', executeStrategy: 'NORMAL' },
+    data: { label, nodeType: type, description: '', preComponents: [], postComponents: [], paramResolvers: [], paramValidatorId: '', paramValidatorName: '', executeStrategy: 'NORMAL' },
   })
   updateNodeVisual(node)
 }
@@ -1661,7 +1678,6 @@ function translateGraphToChain(): any {
   const root: Record<string, any> = {}
   if (design.value?.name) root.name = design.value.name
   if (designCode) root.code = designCode
-  if (moduleId) root.moduleId = moduleId
 
   // 只翻译业务节点（跳过 start/end）
   root.nodes = graph.getNodes()
@@ -1697,9 +1713,12 @@ function translateGraphToChain(): any {
         // 执行策略配置
         if (Object.keys(config).length > 0) node.config = config
 
-        // 参数绑定器
-        if (data.paramBinderId) {
-          node.paramBinder = { componentId: data.paramBinderId, componentName: data.paramBinderName || '' }
+        // 参数解析器链
+        if (data.paramResolvers?.length) {
+          node.paramResolvers = data.paramResolvers.map((p: any) => ({
+            componentId: p.componentId,
+            componentName: p.componentName || '',
+          }))
         }
 
         // 参数校验器

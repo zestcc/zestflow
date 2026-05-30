@@ -9,8 +9,11 @@ import com.zestflow.executor.event.EventPublisher;
 import com.zestflow.executor.fallback.FallbackStrategy;
 import com.zestflow.executor.fallback.DefaultFallbackStrategy;
 import com.zestflow.executor.interceptor.*;
-import com.zestflow.executor.lifecycle.LifecycleExecutor;
+import com.zestflow.executor.lifecycle.*;
 import com.zestflow.executor.param.ParamConverterRegistry;
+import com.zestflow.executor.param.resolver.ContextTypeResolver;
+import com.zestflow.executor.param.resolver.ParameterResolver;
+import com.zestflow.executor.param.resolver.ZestParamResolver;
 import com.zestflow.executor.retry.RetryExecutor;
 import com.zestflow.executor.scanner.ComponentScanner;
 import com.zestflow.executor.chain.ChainRepository;
@@ -136,9 +139,23 @@ public class ExecutorAutoConfig {
                                    ChainValidator chainValidator,
                                    ChainDefinitionBuilder chainDefinitionBuilder,
                                    ChainRepository chainRepo,
-                                   DesignRepository designRepo) {
+                                   DesignRepository designRepo,
+                                   NodeRunner nodeRunner,
+                                   AdminClient adminClient) {
         return new ChainLoader(chainManager, componentScanner,
-                chainValidator, chainDefinitionBuilder, chainRepo, designRepo);
+                chainValidator, chainDefinitionBuilder, chainRepo, designRepo, nodeRunner, adminClient);
+    }
+
+    // ==================== 参数解析器 ====================
+
+    @Bean
+    public ZestParamResolver zestParamResolver(ParamConverterRegistry registry) {
+        return new ZestParamResolver(registry);
+    }
+
+    @Bean
+    public ContextTypeResolver contextTypeResolver() {
+        return new ContextTypeResolver();
     }
 
     // ==================== 执行引擎 ====================
@@ -160,8 +177,13 @@ public class ExecutorAutoConfig {
 
     @Bean
     public LifecycleExecutor lifecycleExecutor(ComponentScanner componentScanner,
-                                               ParamConverterRegistry paramConverterRegistry) {
-        return new LifecycleExecutor(componentScanner, paramConverterRegistry);
+                                               List<ParameterResolver> resolvers) {
+        return new LifecycleExecutor(componentScanner, resolvers);
+    }
+
+    @Bean
+    public ParamValidator paramValidator(org.springframework.beans.factory.ObjectProvider<jakarta.validation.Validator> validatorProvider) {
+        return new ParamValidator(validatorProvider.getIfAvailable());
     }
 
     @Bean

@@ -232,6 +232,78 @@ class ComponentScannerTest {
                         .isEqualTo(ComponentType.PARSER));
     }
 
+    // ==================== 刷新 & 注册 ====================
+
+    @Test
+    void refreshClearsAndRescans() {
+        ApplicationContext ctx = mock(ApplicationContext.class);
+        when(ctx.getBeansWithAnnotation(ZestComponent.class))
+                .thenReturn(Map.of("testHandler", new TestHandler()));
+        scanner.scan(ctx);
+        assertThat(scanner.componentCount()).isEqualTo(2);
+
+        // Refresh with a different set of beans
+        ApplicationContext ctx2 = mock(ApplicationContext.class);
+        when(ctx2.getBeansWithAnnotation(ZestComponent.class))
+                .thenReturn(Map.of("defaultHandler", new DefaultIdHandler()));
+        scanner.setApplicationContext(ctx2); // use setter to inject new context
+        int count = scanner.refresh();
+
+        assertThat(count).isEqualTo(1);
+        assertThat(scanner.getComponentIds()).contains("DefaultIdHandler.execute");
+    }
+
+    @Test
+    void refreshWithoutApplicationContextReturnsCurrentSize() {
+        int count = scanner.refresh();
+        assertThat(count).isEqualTo(0);
+    }
+
+    @Test
+    void registerAddsNewComponent() {
+        ComponentScanner.ComponentMeta meta = new ComponentScanner.ComponentMeta();
+        meta.setExecuteId("dynamicComp");
+        meta.setComponentType(ComponentType.EXECUTOR);
+
+        boolean isNew = scanner.register("dynamicComp", meta);
+
+        assertThat(isNew).isTrue();
+        assertThat(scanner.componentCount()).isEqualTo(1);
+        assertThat(scanner.getComponent("dynamicComp")).isEqualTo(meta);
+    }
+
+    @Test
+    void registerOverwritesExisting() {
+        ComponentScanner.ComponentMeta meta1 = new ComponentScanner.ComponentMeta();
+        meta1.setExecuteId("dupKey");
+        scanner.register("dupKey", meta1);
+        assertThat(scanner.componentCount()).isEqualTo(1);
+
+        ComponentScanner.ComponentMeta meta2 = new ComponentScanner.ComponentMeta();
+        meta2.setExecuteId("dupKey");
+        meta2.setComponentType(ComponentType.PREDICATE);
+
+        boolean isNew = scanner.register("dupKey", meta2);
+
+        assertThat(isNew).isFalse();
+        assertThat(scanner.componentCount()).isEqualTo(1);
+        assertThat(scanner.getComponent("dupKey").getComponentType()).isEqualTo(ComponentType.PREDICATE);
+    }
+
+    @Test
+    void registerWithEmptyExecuteIdThrows() {
+        ComponentScanner.ComponentMeta meta = new ComponentScanner.ComponentMeta();
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> scanner.register("", meta));
+    }
+
+    @Test
+    void registerWithNullExecuteIdThrows() {
+        ComponentScanner.ComponentMeta meta = new ComponentScanner.ComponentMeta();
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> scanner.register(null, meta));
+    }
+
     // ==================== 测试用组件类 ====================
 
     @ZestComponent("test")

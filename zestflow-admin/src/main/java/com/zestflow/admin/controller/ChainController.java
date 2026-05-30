@@ -86,6 +86,81 @@ public class ChainController {
         node.put("totalExecutors", totalExecutors);
     }
 
+    @GetMapping("/active-codes")
+    public String fetchActiveCodes(@RequestParam Long moduleId) {
+        return proxyService.getArrayFromExecutor(moduleId, "/api/chains/active-codes", null);
+    }
+
+    /**
+     * 获取链的完整定义（含设计数据），供 Executor 拉取热加载
+     */
+    @GetMapping("/code/{code}")
+    public String fetchChainDefinition(@PathVariable String code, @RequestParam Long moduleId) {
+        ObjectNode defNode = MAPPER.createObjectNode();
+        try {
+            String chainJson = proxyService.getFromExecutor(moduleId, "/api/chains/" + code, null);
+            if (chainJson == null || chainJson.contains("\"code\":404")) {
+                return "{\"code\":404,\"message\":\"链不存在\"}";
+            }
+            JsonNode chainNode = MAPPER.readTree(chainJson);
+            defNode.put("code", code);
+            String designCode = chainNode.has("designCode") ? chainNode.get("designCode").asText() : "";
+            defNode.put("designCode", designCode);
+            if (!designCode.isEmpty()) {
+                String designJson = proxyService.getFromExecutor(moduleId, "/api/designs/" + designCode, null);
+                if (designJson != null) {
+                    JsonNode designNode = MAPPER.readTree(designJson);
+                    if (designNode.has("graphData")) {
+                        defNode.put("graphData", designNode.get("graphData").asText());
+                    }
+                    if (designNode.has("chainData") && !designNode.get("chainData").asText().isEmpty()) {
+                        defNode.put("chainData", designNode.get("chainData").asText());
+                    }
+                }
+            }
+            return MAPPER.writeValueAsString(defNode);
+        } catch (Exception e) {
+            log.warn("获取链定义失败 code={}", code, e);
+            return "{\"code\":500,\"message\":\"" + e.getMessage() + "\"}";
+        }
+    }
+
+    /** 链同步状态内存缓存：executorId → ChainSyncDTO */
+    private static final ConcurrentHashMap<String, com.zestflow.common.model.dto.ChainSyncDTO> CHAIN_SYNC_STATUS = new ConcurrentHashMap<>();
+
+    /**
+     * 接收 Executor 上报的链同步状态
+     */
+    @PostMapping("/sync")
+    public String receiveChainSync(@RequestBody String syncJson) {
+        try {
+            com.zestflow.common.model.dto.ChainSyncDTO sync = MAPPER.readValue(syncJson, com.zestflow.common.model.dto.ChainSyncDTO.class);
+            CHAIN_SYNC_STATUS.put(sync.getExecutorId(), sync);
+            log.info("收到链同步通知 executorId={} status={} loaded={}", sync.getExecutorId(), sync.getStatus(),
+                    sync.getLoadedChains() != null ? sync.getLoadedChains().size() : 0);
+        } catch (Exception e) {
+            log.warn("解析链同步通知失败", e);
+            return "{\"code\":400,\"message\":\"解析失败\"}";
+        }
+        return "{\"code\":200,\"message\":\"接收成功\"}";
+    }
+
+    @GetMapping("/sync/status")
+    public String getSyncStatus(@RequestParam(required = false) String executorId) {
+        try {
+            if (executorId != null && !executorId.isEmpty()) {
+                com.zestflow.common.model.dto.ChainSyncDTO sync = CHAIN_SYNC_STATUS.get(executorId);
+                if (sync == null) {
+                    return "{\"code\":404,\"message\":\"未找到同步记录\"}";
+                }
+                return MAPPER.writeValueAsString(sync);
+            }
+            return MAPPER.writeValueAsString(CHAIN_SYNC_STATUS);
+        } catch (Exception e) {
+            return "{\"code\":500,\"message\":\"" + e.getMessage() + "\"}";
+        }
+    }
+
     @GetMapping("/{code}")
     public String getByCode(@PathVariable String code, @RequestParam Long moduleId) {
         return proxyService.getFromExecutor(moduleId, "/api/chains/" + code, null);
@@ -197,6 +272,19 @@ public class ChainController {
         } catch (Exception e) {
             return "{\"code\":500,\"message\":\"" + e.getMessage() + "\"}";
         }
+    }
+
+    @GetMapping("/{code}/versions")
+    public String listVersions(@PathVariable String code, @RequestParam Long moduleId) {
+        return proxyService.getFromExecutor(moduleId, "/api/chains/" + code + "/versions", null);
+    }
+
+    @PostMapping("/{code}/rollback/{version}")
+    public String rollback(@PathVariable String code, @PathVariable Integer version,
+                            @RequestBody String bodyJson) {
+        String enriched = injectUpdatedBy(bodyJson);
+        return proxyService.executeOnExecutor(extractModuleId(bodyJson), "POST",
+                "/api/chains/" + code + "/rollback/" + version, enriched);
     }
 
     private Long extractModuleId(String bodyJson) {

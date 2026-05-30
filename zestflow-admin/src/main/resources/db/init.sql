@@ -162,6 +162,7 @@ CREATE TABLE `zf_chain` (
     `description` VARCHAR(500) DEFAULT NULL,
     `status`      TINYINT      NOT NULL DEFAULT 1   COMMENT '0-停用 1-未设计 2-未发布 3-发布中 4-已发布',
     `design_code` VARCHAR(64)  DEFAULT NULL,
+    `version`     INT          NOT NULL DEFAULT 1   COMMENT '当前发布版本号',
     `created_by`  VARCHAR(64)  DEFAULT NULL         COMMENT '创建人',
     `updated_by`  VARCHAR(64)  DEFAULT NULL         COMMENT '最后修改人',
     `is_deleted`  TINYINT      DEFAULT 0            COMMENT '删除标记（0-未删 1-已删）',
@@ -189,6 +190,18 @@ CREATE TABLE `zf_design_binding` (
     `chain_code`  VARCHAR(64) NOT NULL,
     PRIMARY KEY (`design_code`, `chain_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='设计与链绑定关系';
+
+CREATE TABLE `zf_chain_version` (
+    `id`          BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `chain_code`  VARCHAR(64)  NOT NULL                COMMENT '链编码',
+    `version`     INT          NOT NULL                COMMENT '版本号',
+    `design_code` VARCHAR(64)  DEFAULT NULL            COMMENT '关联设计编码',
+    `graph_data`  MEDIUMTEXT   DEFAULT NULL            COMMENT '图数据 JSON 快照',
+    `chain_data`  MEDIUMTEXT   DEFAULT NULL            COMMENT '链定义 JSON 快照',
+    `created_by`  VARCHAR(64)  DEFAULT NULL            COMMENT '创建人',
+    `created_at`  VARCHAR(32)  NOT NULL                COMMENT '创建时间',
+    INDEX `idx_chain_version` (`chain_code`, `version`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='链版本快照表';
 
 -- ==================== 日志库（zestflow_test_log） ====================
 

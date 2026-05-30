@@ -60,6 +60,13 @@
             <artifactId>jackson-datatype-jsr310</artifactId>
         </dependency>
 
+        <!-- Jakarta Bean Validation（可选，不引入时校验器自动降级） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <!-- JDBC 数据访问 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

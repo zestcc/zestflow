@@ -8,6 +8,8 @@ import com.zestflow.common.model.dto.ChainEvent;
 import com.zestflow.common.model.dto.ChainExecuteRequestDTO;
 import com.zestflow.common.model.dto.ChainExecuteResultDTO;
 import com.zestflow.common.model.event.PublishEventDTO;
+import com.zestflow.common.model.ComponentType;
+import com.zestflow.executor.scanner.ComponentScanner.ComponentMeta;
 import com.zestflow.executor.chain.ChainLoader;
 import com.zestflow.executor.chain.ChainPO;
 import com.zestflow.executor.chain.ChainRepository;
@@ -107,6 +109,18 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
             return true;
         }
 
+        // 元件刷新（运行时重新扫描 @ZestComponent）
+        if ("/api/components/refresh".equals(uri) && method == HttpMethod.POST) {
+            handleRefreshComponents(ctx);
+            return true;
+        }
+
+        // 元件动态注册
+        if ("/api/components/register".equals(uri) && method == HttpMethod.POST) {
+            handleRegisterComponent(ctx, body);
+            return true;
+        }
+
         // 链 CRUD
         if (uri.startsWith("/api/chains")) {
             return dispatchChainRoutes(ctx, method, uri, body);
@@ -137,6 +151,10 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
             }
         }
 
+        if (parts.length == 4 && "active-codes".equals(parts[3]) && method == HttpMethod.GET) {
+            return handleActiveCodes(ctx);
+        }
+
         if (parts.length == 4) {
             String code = stripQuery(parts[3]);
             if (method == HttpMethod.GET) {
@@ -154,8 +172,18 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
             return handleToggleChainStatus(ctx, stripQuery(parts[3]), body);
         }
 
+        // GET /api/chains/{code}/versions
+        if (parts.length == 5 && "versions".equals(parts[4]) && method == HttpMethod.GET) {
+            return handleListVersions(ctx, stripQuery(parts[3]));
+        }
+
         if (parts.length == 5 && "reload".equals(parts[4]) && method == HttpMethod.PUT) {
             return handleReloadChain(ctx, stripQuery(parts[3]), body);
+        }
+
+        // POST /api/chains/{code}/rollback/{version}
+        if (parts.length == 6 && "rollback".equals(parts[4]) && method == HttpMethod.POST) {
+            return handleRollbackChain(ctx, stripQuery(parts[3]), stripQuery(parts[5]), body);
         }
 
         return false;
@@ -416,6 +444,8 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
                     "{\"code\":404,\"message\":\"设计不存在: " + code + "\"}");
             return true;
         }
+        // 2026-05-31：重置已发布链的发布状态（设计修改后需重新发布）
+        chainRepo.resetBoundChainStatus(code, updatedBy);
         log.info("保存设计图谱 code={} updatedBy={}", code, updatedBy);
         writeResponse(ctx, HttpResponseStatus.OK, "{\"code\":200,\"message\":\"保存成功\"}");
         return true;
@@ -557,6 +587,149 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
 
         writeResponse(ctx, result.isSuccess() ? HttpResponseStatus.OK : HttpResponseStatus.INTERNAL_SERVER_ERROR,
                 MAPPER.writeValueAsString(event));
+        return true;
+    }
+
+    // ==================== 链定义查询 ====================
+
+    /**
+     * 获取所有已发布链的编码列表（供 Admin 查询跨模块链定义）
+     */
+    private boolean handleActiveCodes(ChannelHandlerContext ctx) throws Exception {
+        List<ChainPO> allChains = chainRepo.list(null, null);
+        List<String> activeCodes = allChains.stream()
+                .filter(c -> c.getStatus() != null && c.getStatus() >= 3)
+                .map(ChainPO::getCode)
+                .collect(java.util.stream.Collectors.toList());
+        log.info("查询活跃链编码 total={}", activeCodes.size());
+        String json = MAPPER.writeValueAsString(activeCodes);
+        writeResponse(ctx, HttpResponseStatus.OK, json);
+        return true;
+    }
+
+    // ==================== 版本管理 ====================
+
+    /**
+     * 查询链的所有版本快照
+     * GET /api/chains/{code}/versions
+     */
+    private boolean handleListVersions(ChannelHandlerContext ctx, String code) throws Exception {
+        List<com.zestflow.executor.chain.ChainVersionPO> versions = chainRepo.listVersionSnapshots(code);
+        log.info("查询链版本列表 code={} count={}", code, versions.size());
+        ArrayNode arr = MAPPER.createArrayNode();
+        for (com.zestflow.executor.chain.ChainVersionPO v : versions) {
+            ObjectNode node = MAPPER.createObjectNode();
+            node.put("id", v.getId());
+            node.put("version", v.getVersion());
+            node.put("designCode", v.getDesignCode() != null ? v.getDesignCode() : "");
+            node.put("createdBy", v.getCreatedBy() != null ? v.getCreatedBy() : "");
+            node.put("createdAt", v.getCreatedAt() != null ? v.getCreatedAt() : "");
+            arr.add(node);
+        }
+        ObjectNode root = MAPPER.createObjectNode();
+        root.put("total", versions.size());
+        root.set("records", arr);
+        writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(root));
+        return true;
+    }
+
+    // ==================== 版本回滚 ====================
+
+    /**
+     * 回滚到链的指定版本
+     * POST /api/chains/{code}/rollback/{version}
+     */
+    private boolean handleRollbackChain(ChannelHandlerContext ctx, String code, String versionStr, String body) throws Exception {
+        int targetVersion;
+        try {
+            targetVersion = Integer.parseInt(versionStr);
+        } catch (NumberFormatException e) {
+            writeResponse(ctx, HttpResponseStatus.BAD_REQUEST,
+                    "{\"code\":400,\"message\":\"无效的版本号: " + versionStr + "\"}");
+            return true;
+        }
+
+        String updatedBy = extractUpdatedBy(body);
+        ChainPO rolledBack = chainRepo.rollbackToVersion(code, targetVersion, updatedBy);
+        if (rolledBack == null) {
+            writeResponse(ctx, HttpResponseStatus.NOT_FOUND,
+                    "{\"code\":404,\"message\":\"链或版本快照不存在 code=" + code + " version=" + targetVersion + "\"}");
+            return true;
+        }
+
+        // 回滚后尝试热加载旧版本设计
+        if (chainLoader != null && rolledBack.getDesignCode() != null && !rolledBack.getDesignCode().isEmpty()) {
+            try {
+                // 从设计表读取回滚后的 design 数据
+                DesignPO design = designRepo.get(rolledBack.getDesignCode());
+                if (design != null) {
+                    chainLoader.reloadChainLocal(code, design.getGraphData(), design.getChainData());
+                    log.info("回滚后热加载完成 code={} version={} designCode={}", code, targetVersion, rolledBack.getDesignCode());
+                }
+            } catch (Exception e) {
+                log.warn("回滚后热加载失败 code={}", code, e);
+            }
+        }
+
+        log.info("链回滚完成 code={} targetVersion={} updatedBy={}", code, targetVersion, updatedBy);
+        writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(chainToJson(rolledBack)));
+        return true;
+    }
+
+    // ==================== 元件热管理 ====================
+
+    /**
+     * 运行时刷新元件注册表（重新扫描所有 @ZestComponent Bean）
+     */
+    private boolean handleRefreshComponents(ChannelHandlerContext ctx) throws Exception {
+        if (componentScanner == null) {
+            writeResponse(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                    "{\"code\":500,\"message\":\"ComponentScanner 不可用\"}");
+            return true;
+        }
+        int count = componentScanner.refresh();
+        log.info("元件注册表刷新完成 count={}", count);
+        writeResponse(ctx, HttpResponseStatus.OK,
+                "{\"code\":200,\"message\":\"刷新成功\",\"count\":" + count + "}");
+        return true;
+    }
+
+    /**
+     * 运行时注册单个元件（不依赖 Spring Bean）
+     */
+    private boolean handleRegisterComponent(ChannelHandlerContext ctx, String body) throws Exception {
+        if (componentScanner == null) {
+            writeResponse(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                    "{\"code\":500,\"message\":\"ComponentScanner 不可用\"}");
+            return true;
+        }
+        JsonNode json = MAPPER.readTree(body);
+        String executeId = json.has("executeId") ? json.get("executeId").asText() : "";
+        if (executeId.isEmpty()) {
+            writeResponse(ctx, HttpResponseStatus.BAD_REQUEST,
+                    "{\"code\":400,\"message\":\"executeId 不能为空\"}");
+            return true;
+        }
+
+        ComponentMeta meta = new ComponentMeta();
+        meta.setExecuteId(executeId);
+        meta.setGroupName(json.has("groupName") ? json.get("groupName").asText() : "");
+        meta.setName(json.has("name") ? json.get("name").asText() : "");
+        meta.setDescription(json.has("description") ? json.get("description").asText() : "");
+        meta.setTimeout(json.has("timeout") ? json.get("timeout").asLong() : -1);
+        meta.setAsync(json.has("async") && json.get("async").asBoolean());
+        if (json.has("componentType")) {
+            try {
+                meta.setComponentType(ComponentType.valueOf(json.get("componentType").asText()));
+            } catch (Exception e) {
+                meta.setComponentType(ComponentType.EXECUTOR);
+            }
+        }
+
+        boolean isNew = componentScanner.register(executeId, meta);
+        log.info("动态注册元件 executeId={} type={} isNew={}", executeId, meta.getComponentType(), isNew);
+        writeResponse(ctx, isNew ? HttpResponseStatus.CREATED : HttpResponseStatus.OK,
+                "{\"code\":200,\"message\":\"注册成功\",\"isNew\":" + isNew + "}");
         return true;
     }
 
@@ -724,6 +897,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
         node.put("description", c.getDescription() != null ? c.getDescription() : "");
         node.put("status", c.getStatus() != null ? c.getStatus() : 0);
         node.put("designCode", c.getDesignCode() != null ? c.getDesignCode() : "");
+        node.put("version", c.getVersion() != null ? c.getVersion() : 1);
         node.put("createdBy", c.getCreatedBy() != null ? c.getCreatedBy() : "");
         node.put("updatedBy", c.getUpdatedBy() != null ? c.getUpdatedBy() : "");
         node.put("createdAt", c.getCreatedAt() != null ? c.getCreatedAt() : "");

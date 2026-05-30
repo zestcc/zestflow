@@ -103,6 +103,7 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
             // 5. 逐层执行
             for (int layerIndex = 0; layerIndex < layers.size(); layerIndex++) {
                 List<String> layerNodeIds = layers.get(layerIndex);
+                log.debug("链执行第 {} 层 chainCode={} nodes={}", layerIndex + 1, chainCode, layerNodeIds);
 
                 if (instance.isStopped()) {
                     log.warn("链执行被终止 chainCode={} instanceId={}", chainCode, instance.getInstanceId());

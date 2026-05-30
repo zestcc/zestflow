@@ -3,6 +3,9 @@ package com.zestflow.executor.chain;
 import com.zestflow.common.constant.ChainConstants;
 import com.zestflow.executor.design.DesignPO;
 import com.zestflow.executor.design.DesignRepository;
+import com.zestflow.common.model.dto.ChainSyncDTO;
+import com.zestflow.executor.engine.NodeRunner;
+import com.zestflow.executor.registry.AdminClient;
 import com.zestflow.executor.scanner.ComponentScanner;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -32,6 +35,8 @@ public class ChainLoader implements ApplicationRunner, Ordered {
     private final ChainDefinitionBuilder chainDefinitionBuilder;
     private final ChainRepository chainRepo;
     private final DesignRepository designRepo;
+    private final NodeRunner nodeRunner;
+    private final AdminClient adminClient;
 
     @Data
     @AllArgsConstructor
@@ -114,6 +119,9 @@ public class ChainLoader implements ApplicationRunner, Ordered {
             // 5. 加载到 ChainManager
             chainManager.reload(definitions);
 
+            // 6. 通知 Admin 同步状态
+            notifyAdminSync(definitions, "READY", null);
+
             log.info("链加载完成 loaded={}/{}", definitions.size(), activeChains.size());
             return true;
 
@@ -178,16 +186,55 @@ public class ChainLoader implements ApplicationRunner, Ordered {
                 return new ChainReloadResult(false, "校验失败: " + String.join("; ", errors), 0);
             }
 
+            // 6.5 版本化：递增版本号并保存快照（失败不影响加载）
+            int newVersion = 1;
+            try {
+                newVersion = chainRepo.incrementVersion(chainCode);
+                chainRepo.saveVersionSnapshot(chainCode, newVersion, designCode,
+                        actualGraphData, actualChainData, null);
+                log.info("版本快照已保存 code={} version={}", chainCode, newVersion);
+            } catch (Exception e) {
+                log.warn("保存版本快照失败（不影响热加载）code={}", chainCode, e);
+            }
+
             // 7. 加载到 ChainManager
+            // 清理旧链的熔断器状态
+            ChainDefinition oldDef = chainManager.get(chainCode);
             chainManager.load(definition);
+            if (oldDef != null) {
+                nodeRunner.clearCircuitBreakers(oldDef.getNodes().keySet());
+            }
             log.info("链热加载成功 code={} nodes={} layers={}",
                     chainCode, definition.nodeCount(), definition.layerCount());
+
+            // 通知 Admin 同步状态
+            notifyAdminSync(List.of(definition), "READY", null);
 
             return new ChainReloadResult(true, null, definition.nodeCount());
 
         } catch (Exception e) {
             log.error("链热加载异常 code={}", chainCode, e);
             return new ChainReloadResult(false, "加载异常: " + e.getMessage(), 0);
+        }
+    }
+
+    /**
+     * 通知 Admin 链加载状态（忽略失败，不做重试）
+     */
+    private void notifyAdminSync(List<ChainDefinition> definitions, String status, String errorMessage) {
+        if (adminClient == null) return;
+        try {
+            List<String> loadedCodes = definitions.stream()
+                    .map(ChainDefinition::getCode)
+                    .collect(java.util.stream.Collectors.toList());
+            ChainSyncDTO sync = ChainSyncDTO.builder()
+                    .loadedChains(loadedCodes)
+                    .status(status)
+                    .errorMessage(errorMessage)
+                    .build();
+            adminClient.notifyChainSync(sync);
+        } catch (Exception e) {
+            log.debug("通知 Admin 链同步失败（忽略）: {}", e.getMessage());
         }
     }
 }

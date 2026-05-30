@@ -5,20 +5,20 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * 链版本快照 PO
+ */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ChainPO {
-    private String code;
-    private String name;
-    private String description;
-    private Integer status;
-    private String designCode;
+public class ChainVersionPO {
+    private Long id;
+    private String chainCode;
     private Integer version;
+    private String designCode;
+    private String graphData;
+    private String chainData;
     private String createdBy;
-    private String updatedBy;
     private String createdAt;
-    private String updatedAt;
-    private Integer isDeleted;
 }

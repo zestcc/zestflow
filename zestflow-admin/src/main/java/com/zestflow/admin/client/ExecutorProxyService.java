@@ -18,6 +18,8 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -310,10 +312,10 @@ public class ExecutorProxyService {
     }
 
     /**
-     * 向模块下所有在线执行器广播请求，收集每个执行器的响应结果。
+     * 向模块下所有在线执行器广播请求，并行调用，单执行器超时 30s，不阻塞其他执行器。
      * <p>
-     * 顺序调用（非并行），每次调用为一次完整的 HTTP 请求-响应周期。
-     * 后续可升级为 CompletableFuture 超时并发。
+     * 使用 CompletableFuture.supplyAsync 发起并行请求，每个任务独立超时，
+     * 所有请求完成后汇总结果。一个执行器超时或失败不影响其他执行器。
      */
     public BroadcastResult broadcastToExecutors(Long moduleId, String method, String path, String body) {
         List<String> urls = resolveAllExecutorUrls(moduleId);
@@ -323,42 +325,57 @@ public class ExecutorProxyService {
         }
 
         int total = urls.size();
-        List<ExecutorResult> results = new ArrayList<>();
+        List<CompletableFuture<ExecutorResult>> futures = new ArrayList<>();
 
         for (String baseUrl : urls) {
-            try {
-                String fullUrl = baseUrl + path;
-                log.info("广播请求 {} {} {}", method, fullUrl, body != null ? body : "");
-                String json;
-                switch (method.toUpperCase()) {
-                    case "PUT":
-                        json = restTemplate.exchange(
-                                org.springframework.http.RequestEntity
-                                        .put(new java.net.URI(fullUrl))
-                                        .body(body != null ? body : "{}"),
-                                String.class).getBody();
-                        break;
-                    case "POST":
-                        json = restTemplate.postForObject(fullUrl, body != null ? body : "{}", String.class);
-                        break;
-                    default:
-                        results.add(new ExecutorResult(baseUrl, false, "不支持的方法: " + method));
-                        continue;
+            CompletableFuture<ExecutorResult> future = CompletableFuture.supplyAsync(() -> {
+                try {
+                    String fullUrl = baseUrl + path;
+                    log.info("广播请求 {} {} {}", method, fullUrl, body != null ? body : "");
+                    String json;
+                    switch (method.toUpperCase()) {
+                        case "PUT":
+                            json = restTemplate.exchange(
+                                    org.springframework.http.RequestEntity
+                                            .put(new java.net.URI(fullUrl))
+                                            .body(body != null ? body : "{}"),
+                                    String.class).getBody();
+                            break;
+                        case "POST":
+                            json = restTemplate.postForObject(fullUrl, body != null ? body : "{}", String.class);
+                            break;
+                        default:
+                            return new ExecutorResult(baseUrl, false, "不支持的方法: " + method);
+                    }
+                    if (json == null) {
+                        return new ExecutorResult(baseUrl, false, "响应为空");
+                    }
+                    JsonNode node = MAPPER.readTree(json);
+                    boolean ok = (node.has("code") && node.get("code").asInt() == 200)
+                            || (node.has("success") && node.get("success").asBoolean());
+                    return new ExecutorResult(baseUrl, ok,
+                            node.has("message") ? node.get("message").asText() : (ok ? "OK" : "FAIL"));
+                } catch (ResourceAccessException e) {
+                    log.warn("广播执行器不可达 url={}", baseUrl);
+                    return new ExecutorResult(baseUrl, false, "执行器不可达");
+                } catch (Exception e) {
+                    log.error("广播请求失败 url={}", baseUrl, e);
+                    return new ExecutorResult(baseUrl, false, e.getMessage());
                 }
-                JsonNode node = MAPPER.readTree(json);
-                // 兼容两种响应格式：{"code":200,...} 或 PublishEventDTO {"success":true,...}
-                boolean ok = (node.has("code") && node.get("code").asInt() == 200)
-                        || (node.has("success") && node.get("success").asBoolean());
-                results.add(new ExecutorResult(baseUrl, ok,
-                        node.has("message") ? node.get("message").asText() : (ok ? "OK" : "FAIL")));
-            } catch (ResourceAccessException e) {
-                log.warn("广播执行器不可达 url={}", baseUrl);
-                results.add(new ExecutorResult(baseUrl, false, "执行器不可达"));
-            } catch (Exception e) {
-                log.error("广播请求失败 url={}", baseUrl, e);
-                results.add(new ExecutorResult(baseUrl, false, e.getMessage()));
-            }
+            }).orTimeout(30, TimeUnit.SECONDS)
+              .exceptionally(e -> {
+                  log.warn("广播执行器超时或异常 url={} err={}", baseUrl, e.getMessage());
+                  return new ExecutorResult(baseUrl, false, "超时或异常: " + e.getMessage());
+              });
+            futures.add(future);
         }
+
+        // 等待所有并行任务完成（每个任务自身已有 30s 超时，整体不用额外超时）
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+        List<ExecutorResult> results = futures.stream()
+                .map(f -> f.getNow(null))
+                .collect(Collectors.toList());
 
         long successCount = results.stream().filter(ExecutorResult::isOk).count();
         log.info("广播完成 total={} success={}", total, successCount);

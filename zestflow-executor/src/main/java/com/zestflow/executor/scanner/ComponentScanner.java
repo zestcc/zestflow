@@ -11,6 +11,8 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.util.ReflectionUtils;
 
+import java.util.HashMap;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.*;
@@ -36,8 +38,12 @@ public class ComponentScanner implements ApplicationContextAware {
     @Getter
     private final Map<String, ComponentMeta> registry = new ConcurrentHashMap<>();
 
+    /** ApplicationContext 引用，用于运行时刷新 */
+    private ApplicationContext applicationContext;
+
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+        this.applicationContext = applicationContext;
         scan(applicationContext);
     }
 
@@ -104,6 +110,36 @@ public class ComponentScanner implements ApplicationContextAware {
      */
     public int componentCount() {
         return registry.size();
+    }
+
+    /**
+     * 运行时刷新元件注册表（重新扫描所有 @ZestComponent Bean）
+     * 适用于热加载场景，不会中断正在执行的请求
+     */
+    public synchronized int refresh() {
+        if (applicationContext == null) {
+            log.warn("ApplicationContext 未初始化，无法刷新");
+            return registry.size();
+        }
+        Map<String, ComponentMeta> oldRegistry = new HashMap<>(registry);
+        registry.clear();
+        scan(applicationContext);
+        log.info("元件注册表刷新完成 old={} new={}", oldRegistry.size(), registry.size());
+        return registry.size();
+    }
+
+    /**
+     * 动态注册单个元件（不依赖 Spring Bean，用于热加载）
+     *
+     * @return true 表示新增，false 表示覆盖已有
+     */
+    public boolean register(String executeId, ComponentMeta meta) {
+        if (executeId == null || executeId.isEmpty()) {
+            throw new IllegalArgumentException("executeId 不能为空");
+        }
+        ComponentMeta old = registry.put(executeId, meta);
+        log.info("动态注册元件 executeId={} type={} replaced={}", executeId, meta.getComponentType(), old != null);
+        return old == null;
     }
 
     // ==================== 私有方法 ====================

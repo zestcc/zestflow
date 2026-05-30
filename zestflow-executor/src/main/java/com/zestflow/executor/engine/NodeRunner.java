@@ -2,6 +2,7 @@ package com.zestflow.executor.engine;
 
 import com.zestflow.common.constant.ChainConstants;
 import com.zestflow.common.model.dto.ChainEvent;
+import com.zestflow.common.model.dto.ComponentRef;
 import com.zestflow.common.model.dto.NodeResultDTO;
 import com.zestflow.executor.circuit.SimpleCircuitBreaker;
 import com.zestflow.executor.chain.NodeDefinition;
@@ -14,7 +15,9 @@ import com.zestflow.executor.retry.RetryExecutor;
 import com.zestflow.executor.scanner.ComponentScanner;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Collection;
 import java.util.UUID;
+import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -36,6 +39,26 @@ public class NodeRunner {
 
     /** 熔断器缓存：nodeId → CircuitBreaker */
     private final ConcurrentHashMap<String, SimpleCircuitBreaker> circuitBreakers = new ConcurrentHashMap<>();
+
+    /**
+     * 清除指定节点的熔断器状态（链热加载时调用，防止旧熔断状态污染新链）
+     */
+    public void clearCircuitBreakers(Collection<String> nodeIds) {
+        if (nodeIds == null || nodeIds.isEmpty()) return;
+        for (String nodeId : nodeIds) {
+            SimpleCircuitBreaker removed = circuitBreakers.remove(nodeId);
+            if (removed != null) {
+                log.debug("熔断器已清除 nodeId={}", nodeId);
+            }
+        }
+    }
+
+    /** 清除所有熔断器状态 */
+    public void clearAllCircuitBreakers() {
+        int size = circuitBreakers.size();
+        circuitBreakers.clear();
+        log.debug("熔断器已全部清除 count={}", size);
+    }
 
     public NodeRunner(ComponentScanner componentScanner, EventPublisher eventPublisher,
                       InterceptorChain interceptorChain, LifecycleExecutor lifecycleExecutor,
@@ -135,7 +158,26 @@ public class NodeRunner {
     }
 
     private Object executeNormal(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
-        return lifecycleExecutor.execute(nodeDef, context);
+        executePreProcessors(nodeDef, context);
+        Object result = lifecycleExecutor.execute(nodeDef, context);
+        executePostProcessors(nodeDef, context);
+        return result;
+    }
+
+    private void executePreProcessors(NodeDefinition nodeDef, ChainContext context) {
+        List<ComponentRef> preComponents = nodeDef.getPreComponents();
+        if (preComponents == null || preComponents.isEmpty()) return;
+        log.debug("前置处理器执行开始 nodeId={} count={}", nodeDef.getId(), preComponents.size());
+        lifecycleExecutor.executePreProcessors(preComponents, context);
+        log.debug("前置处理器执行完成 nodeId={}", nodeDef.getId());
+    }
+
+    private void executePostProcessors(NodeDefinition nodeDef, ChainContext context) {
+        List<ComponentRef> postComponents = nodeDef.getPostComponents();
+        if (postComponents == null || postComponents.isEmpty()) return;
+        log.debug("后置处理器执行开始 nodeId={} count={}", nodeDef.getId(), postComponents.size());
+        lifecycleExecutor.executePostProcessors(postComponents, context);
+        log.debug("后置处理器执行完成 nodeId={}", nodeDef.getId());
     }
 
     private Object executeCondition(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
@@ -147,7 +189,10 @@ public class NodeRunner {
                 return null;
             }
         }
-        return lifecycleExecutor.execute(nodeDef, context);
+        executePreProcessors(nodeDef, context);
+        Object result = lifecycleExecutor.execute(nodeDef, context);
+        executePostProcessors(nodeDef, context);
+        return result;
     }
 
     private Object executeScript(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {

@@ -1,12 +1,14 @@
 package com.zestflow.executor.chain;
 
 import com.zestflow.common.constant.ChainConstants;
+import com.zestflow.common.model.dto.ComponentRef;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -29,6 +31,27 @@ public class NodeDefinition {
 
     /** 映射的 @ZestComponent ID */
     private String component;
+
+    /** 绑定元件名称 */
+    private String componentName;
+
+    /** 元件分组 */
+    private String groupName;
+
+    /** 描述 */
+    private String description;
+
+    /** 参数解析器链（按顺序匹配，第一个 supports 的生效） */
+    private List<ComponentRef> paramResolvers;
+
+    /** 参数校验器 */
+    private ComponentRef paramValidator;
+
+    /** 前置处理器列表 */
+    private List<ComponentRef> preComponents;
+
+    /** 后置处理器列表 */
+    private List<ComponentRef> postComponents;
 
     /** 脚本内容（SCRIPT 类型） */
     private String script;

@@ -1,7 +1,5 @@
 package com.zestflow.executor.annotation;
 
-import com.zestflow.common.model.TagValueType;
-
 import java.lang.annotation.*;
 
 /**
@@ -34,7 +32,4 @@ public @interface ZestTag {
 
     /** 路由匹配值 */
     String value();
-
-    /** 值类型，默认 STRING */
-    TagValueType type() default TagValueType.STRING;
 }
