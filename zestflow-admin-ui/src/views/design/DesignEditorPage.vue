@@ -41,11 +41,11 @@
           <el-button text @click="zoomReset"><el-icon><ScaleToOriginal /></el-icon></el-button>
         </el-tooltip>
         <span class="toolbar-divider" />
-        <el-tooltip content="导出为 PNG">
+        <el-tooltip content="导出">
           <el-button text @click="handleExport"><el-icon><Picture /></el-icon></el-button>
         </el-tooltip>
         <span class="toolbar-divider" />
-        <el-select v-model="defaultEdgeStyle" size="small" style="width:100px" @change="onDefaultEdgeStyleChange">
+        <el-select v-model="defaultEdgeStyle" size="small" style="width:80px" @change="onDefaultEdgeStyleChange">
           <el-option label="直线" value="straight" />
           <el-option label="折线" value="polyline" />
           <el-option label="曲线" value="curve" />
@@ -122,11 +122,11 @@
         <div class="palette-header">{{ $t('design.nodes') }}</div>
         <div class="palette-list">
           <div
-            v-for="nt in nodeTypes"
-            :key="nt.type"
-            class="palette-item"
-            draggable="true"
-            @dragstart="onDragStart($event, nt)"
+              v-for="nt in nodeTypes"
+              :key="nt.type"
+              class="palette-item"
+              draggable="true"
+              @dragstart="onDragStart($event, nt)"
           >
             <div class="palette-icon" :style="{ background: nt.color }" v-html="nt.icon" />
             <div class="palette-label">{{ nt.label }}</div>
@@ -140,26 +140,89 @@
         <div ref="minimapContainerRef" class="minimap-container" />
         <!-- 连线端点拖拽手柄 -->
         <div
-          v-for="ep in endpointHandles" :key="ep.side"
-          class="ep-handle"
-          :style="{ left: ep.x + 'px', top: ep.y + 'px' }"
-          @mousedown.prevent="onEpDragStart($event, ep.side)"
+            v-for="ep in endpointHandles" :key="ep.side"
+            class="ep-handle"
+            :style="{ left: ep.x + 'px', top: ep.y + 'px' }"
+            @mousedown.prevent="onEpDragStart($event, ep.side)"
         />
       </div>
 
       <!-- 右侧属性面板 -->
       <div class="property-panel">
         <div class="panel-header">
-          {{ selectedEdgeData ? '连线属性' : selectedNodeData ? '节点属性' : $t('design.properties') }}
-          <el-tag v-if="selectedNodeData" size="small" :color="nodeColor(selectedNodeData.nodeType)" style="color:#fff;border:none;margin-left:6px">
-            {{ typeLabel(selectedNodeData.nodeType) }}
-          </el-tag>
+          <span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            {{ selectedEdgeData ? '连线属性' : selectedNodeData ? '节点属性' : $t('design.properties') }}
+            <el-tag v-if="selectedNodeData" size="small" :color="nodeColor(selectedNodeData.nodeType)" style="color:#fff;border:none;margin-left:6px">
+              {{ typeLabel(selectedNodeData.nodeType) }}
+            </el-tag>
+            <el-button v-if="selectedNodeData && canBindComponent(selectedNodeData.nodeType)" size="small" type="primary" plain @click="openBindDialog" style="margin-left:4px">
+              {{ selectedNodeData.componentId ? '重新绑定' : '绑定元件' }}
+            </el-button>
+          </span>
         </div>
         <!-- 节点属性 -->
         <div v-if="selectedNodeData" class="panel-body">
           <el-form size="small" label-position="top">
-            <el-form-item label="名称">
-              <el-input v-model="selectedNodeData.label" @input="onDataChange" />
+            <el-form-item v-if="canBindComponent(selectedNodeData.nodeType)" label="元件ID">
+              <el-input :model-value="selectedNodeData.componentId || ''" disabled placeholder="绑定后自动填充" />
+            </el-form-item>
+            <el-form-item v-if="canBindComponent(selectedNodeData.nodeType)" label="元件名称">
+              <el-input :model-value="selectedNodeData.componentName || ''" disabled placeholder="绑定后自动填充" />
+            </el-form-item>
+            <el-form-item v-if="canBindComponent(selectedNodeData.nodeType)" label="执行策略">
+              <el-select v-model="selectedNodeData.executeStrategy" style="width:100%" @change="onDataChange">
+                <el-option label="正常执行" value="NORMAL" />
+                <el-option label="失败重试" value="RETRY_ON_FAILURE" />
+                <el-option label="异常中断" value="STOP_ON_EXCEPTION" />
+                <el-option label="忽略异常" value="IGNORE_EXCEPTION" />
+              </el-select>
+            </el-form-item>
+            <!-- 参数绑定器 -->
+            <div v-if="canBindComponent(selectedNodeData.nodeType)" style="padding:0 0 4px 0;width:100%">
+              <div style="font-size:12px;color:#606266;margin-bottom:4px">{{ $t('components.typeParamBinder') }}</div>
+              <el-tag v-if="selectedNodeData.paramBinderName" type="info" size="small" closable style="margin-bottom:4px" @close="clearSingleBind('paramBinder')">
+                {{ selectedNodeData.paramBinderName }}
+              </el-tag>
+              <el-button size="small" type="primary" plain @click="openBindDialog('binder')" style="width:100%">
+                {{ selectedNodeData.paramBinderId ? '重新绑定' : '+ 绑定' }}
+              </el-button>
+            </div>
+            <!-- 参数校验器 -->
+            <div v-if="canBindComponent(selectedNodeData.nodeType)" style="padding:0 0 4px 0;width:100%">
+              <div style="font-size:12px;color:#606266;margin-bottom:4px">{{ $t('components.typeParamValidator') }}</div>
+              <el-tag v-if="selectedNodeData.paramValidatorName" type="info" size="small" closable style="margin-bottom:4px" @close="clearSingleBind('paramValidator')">
+                {{ selectedNodeData.paramValidatorName }}
+              </el-tag>
+              <el-button size="small" type="primary" plain @click="openBindDialog('validator')" style="width:100%">
+                {{ selectedNodeData.paramValidatorId ? '重新绑定' : '+ 绑定' }}
+              </el-button>
+            </div>
+            <!-- 前置处理器 -->
+            <div v-if="canBindComponent(selectedNodeData.nodeType)" style="padding:0 0 8px 0;width:100%">
+              <div style="font-size:12px;color:#606266;margin-bottom:4px">前置处理器</div>
+              <div v-for="(item, idx) in (selectedNodeData.preComponents || [])" :key="idx" style="display:flex;align-items:center;gap:2px;margin-bottom:3px">
+                <el-tag type="info" size="small" closable style="flex:1;overflow:hidden;text-align:left;justify-content:flex-start" @close="removePrePost('pre', idx)">
+                  <span style="opacity:0.6;margin-right:2px">{{ idx + 1 }}.</span>{{ item.componentName }}
+                </el-tag>
+                <el-button text size="small" :disabled="idx === 0" @click="movePrePost('pre', idx, -1)" style="padding:0 2px">↑</el-button>
+                <el-button text size="small" :disabled="idx === (selectedNodeData.preComponents || []).length - 1" @click="movePrePost('pre', idx, 1)" style="padding:0 2px">↓</el-button>
+              </div>
+              <el-button size="small" type="primary" plain @click="openBindDialog('pre')" style="width:100%">+ 添加前置</el-button>
+            </div>
+            <!-- 后置处理器 -->
+            <div v-if="canBindComponent(selectedNodeData.nodeType)" style="padding:0 0 8px 0;width:100%">
+              <div style="font-size:12px;color:#606266;margin-bottom:4px">后置处理器</div>
+              <div v-for="(item, idx) in (selectedNodeData.postComponents || [])" :key="idx" style="display:flex;align-items:center;gap:2px;margin-bottom:3px">
+                <el-tag type="info" size="small" closable style="flex:1;overflow:hidden;text-align:left;justify-content:flex-start" @close="removePrePost('post', idx)">
+                  <span style="opacity:0.6;margin-right:2px">{{ idx + 1 }}.</span>{{ item.componentName }}
+                </el-tag>
+                <el-button text size="small" :disabled="idx === 0" @click="movePrePost('post', idx, -1)" style="padding:0 2px">↑</el-button>
+                <el-button text size="small" :disabled="idx === (selectedNodeData.postComponents || []).length - 1" @click="movePrePost('post', idx, 1)" style="padding:0 2px">↓</el-button>
+              </div>
+              <el-button size="small" type="primary" plain @click="openBindDialog('post')" style="width:100%">+ 添加后置</el-button>
+            </div>
+            <el-form-item v-if="hasDescription(selectedNodeData.nodeType)" label="执行脚本">
+              <el-input v-model="selectedNodeData.script" type="textarea" :rows="3" placeholder="输入执行脚本..." @input="onDataChange" />
             </el-form-item>
             <el-form-item v-if="hasDescription(selectedNodeData.nodeType)" label="描述">
               <el-input v-model="selectedNodeData.description" type="textarea" :rows="3" @input="onDataChange" />
@@ -217,16 +280,85 @@
     <teleport to="body">
       <div v-if="inlineEditor.show" class="inline-editor-overlay" :style="{ left: inlineEditor.x + 'px', top: inlineEditor.y + 'px' }">
         <el-input
-          ref="inlineInputRef"
-          v-model="inlineEditor.value"
-          size="small"
-          placeholder="输入标签..."
-          @keydown.enter.prevent="inlineEditorConfirm"
-          @keydown.escape.prevent="inlineEditorCancel"
-          @blur="inlineEditorConfirm"
+            ref="inlineInputRef"
+            v-model="inlineEditor.value"
+            size="small"
+            placeholder="输入标签..."
+            @keydown.enter.prevent="inlineEditorConfirm"
+            @keydown.escape.prevent="inlineEditorCancel"
+            @blur="inlineEditorConfirm"
         />
       </div>
     </teleport>
+
+    <!-- 绑定元件弹窗 -->
+    <el-dialog v-model="bindDialog.visible" :title="bindDialog.target === 'main' ? '绑定' + bindDialog.typeLabel : '添加' + bindTypeTargetLabel(bindDialog.target)" width="1060px" @close="bindDialog.loading=false">
+      <div style="margin-bottom:12px;display:flex;gap:8px">
+        <el-input v-model="bindDialog.keyword" :placeholder="'搜索元件名称'" clearable style="width:200px" @keyup.enter="fetchBindList" />
+        <el-select v-model="bindDialog.groupFilter" placeholder="全部分组" clearable style="width:150px" @change="fetchBindList">
+          <el-option v-for="g in bindGroupOptions" :key="g" :label="g" :value="g" />
+        </el-select>
+        <el-button type="primary" @click="fetchBindList">查询</el-button>
+      </div>
+      <el-table :data="bindFilteredList" v-loading="bindDialog.loading" stripe border height="250" style="width:100%"
+                :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"
+                @row-click="onBindSelect"
+      >
+        <el-table-column prop="componentId" label="元件ID" width="170" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span style="font-family:monospace;font-weight:500">{{ row.componentId }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="componentName" label="名称" show-overflow-tooltip min-width="80" />
+        <el-table-column label="类型" width="80" align="center">
+          <template #default="{ row }">
+            <el-tag :type="bindTypeTagType(row.componentType)" size="small">
+              {{ bindTypeLabel(row.componentType) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="groupName" label="分组" width="90" show-overflow-tooltip />
+        <el-table-column prop="executorSource" label="来源" width="140" show-overflow-tooltip />
+        <el-table-column label="超时" width="70" align="center">
+          <template #default="{ row }">{{ row.timeout === -1 ? '-' : row.timeout }}</template>
+        </el-table-column>
+        <el-table-column label="异步" width="55" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.async ? 'warning' : 'info'" size="small">
+              {{ row.async ? '是' : '否' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="状态" width="70" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
+              {{ row.status === 1 ? '在线' : '离线' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="cachedAt" label="采集时间" width="140" show-overflow-tooltip />
+        <el-table-column label="已选" width="55" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.componentId === bindDialog.selectedId" type="success" size="small">已选</el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div style="display:flex;justify-content:flex-end;margin-top:12px">
+        <el-pagination
+            v-model:current-page="bindDialog.page"
+            v-model:page-size="bindDialog.pageSize"
+            :total="bindDialog.total"
+            :page-sizes="[5, 10, 20]"
+            layout="total, sizes, prev, pager, next"
+            @current-change="fetchBindList"
+            @size-change="fetchBindList"
+        />
+      </div>
+      <template #footer>
+        <el-button @click="bindDialog.visible=false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="confirmBind">{{ $t('common.confirm') }}</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -244,6 +376,7 @@ import { Keyboard } from '@antv/x6-plugin-keyboard'
 import { Clipboard } from '@antv/x6-plugin-clipboard'
 import { Export } from '@antv/x6-plugin-export'
 import { designApi } from '@/api/design'
+import { componentApi } from '@/api/component'
 import {
   ArrowLeft, Check, Pointer, Back, Right,
   CopyDocument, DocumentAdd,
@@ -255,7 +388,8 @@ import {
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
-const designId = Number(route.params.id)
+const designCode = route.params.id as string
+const moduleId = Number(route.query.moduleId) || 0
 
 // ====== 响应式状态 ======
 const design = ref<any>(null)
@@ -275,6 +409,35 @@ const gridSnapEnabled = ref(false)
 const panModeEnabled = ref(false)
 const endpointHandles = ref<{ side: 'source' | 'target'; x: number; y: number }[]>([])
 let draggingEp: { side: 'source' | 'target' } | null = null
+
+// 绑定元件弹窗状态
+const bindDialog = reactive({
+  visible: false,
+  loading: false,
+  typeLabel: '',
+  componentType: '',
+  target: 'main',
+  list: [] as any[],
+  selectedId: '' as string,
+  keyword: '',
+  groupFilter: '',
+  page: 1,
+  pageSize: 5,
+  total: 0,
+})
+
+const bindFilteredList = computed(() => {
+  if (!bindDialog.groupFilter) return bindDialog.list
+  return bindDialog.list.filter((item: any) => item.groupName === bindDialog.groupFilter)
+})
+
+const bindGroupOptions = computed(() => {
+  const groups = new Set<string>()
+  bindDialog.list.forEach((item: any) => {
+    if (item.groupName) groups.add(item.groupName)
+  })
+  return Array.from(groups).sort()
+})
 
 const graphContainerRef = ref<HTMLDivElement | null>(null)
 const canvasContainerRef = ref<HTMLDivElement | null>(null)
@@ -341,7 +504,7 @@ function closeContextMenu() {
 
 function onCanvasContextMenu(e: MouseEvent) {
   if (!graph) return
-  const cell = graph.getCellFromPoint(e.clientX, e.clientY)
+  const cell = (graph as any).getCellAt(e.clientX, e.clientY)
   contextMenu.isNode = !!cell && cell.isNode()
   contextMenu.isEdge = !!cell && cell.isEdge()
   contextMenu.cell = cell
@@ -369,7 +532,7 @@ function contextCopyNode() {
 }
 
 function contextSelectAll() {
-  graph?.getAllCells().filter(c => c.isNode()).forEach(c => graph?.select(c.id))
+  graph?.getCells().filter(c => c.isNode()).forEach(c => graph?.select(c.id))
   closeContextMenu()
 }
 
@@ -392,14 +555,18 @@ const nodeColors: Record<string, string> = {
   task: '#3b82f6',
   condition: '#f59e0b',
   multicondition: '#8b5cf6',
+  loader: '#06b6d4',
+  parser: '#ec4899',
   end: '#6b7280',
 }
 
 const nodeTypes = [
   { type: 'start', label: '开始', color: '#22c55e', icon: '<svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="currentColor"/></svg>' },
-  { type: 'task', label: '任务', color: '#3b82f6', icon: '<svg viewBox="0 0 14 14"><rect x="2" y="1" width="10" height="12" rx="2" fill="currentColor"/></svg>' },
-  { type: 'condition', label: '条件', color: '#f59e0b', icon: '<svg viewBox="0 0 14 14"><polygon points="7,0 14,7 7,14 0,7" fill="currentColor"/></svg>' },
-  { type: 'multicondition', label: '多条件', color: '#8b5cf6', icon: '<svg viewBox="0 0 14 14"><polygon points="10,0 14,7 10,14 4,14 0,7 4,0" fill="currentColor"/></svg>' },
+  { type: 'task', label: '执行元件', color: '#3b82f6', icon: '<svg viewBox="0 0 14 14"><rect x="2" y="1" width="10" height="12" rx="2" fill="currentColor"/></svg>' },
+  { type: 'condition', label: '判断元件', color: '#f59e0b', icon: '<svg viewBox="0 0 14 14"><polygon points="7,0 14,7 7,14 0,7" fill="currentColor"/></svg>' },
+  { type: 'multicondition', label: '选择器元件', color: '#8b5cf6', icon: '<svg viewBox="0 0 14 14"><polygon points="10,0 14,7 10,14 4,14 0,7 4,0" fill="currentColor"/></svg>' },
+  { type: 'loader', label: '加载器元件', color: '#06b6d4', icon: '<svg viewBox="0 0 14 14"><path d="M7,0 L14,3 L14,11 L7,14 L0,11 L0,3 Z" fill="currentColor"/></svg>' },
+  { type: 'parser', label: '解析器元件', color: '#ec4899', icon: '<svg viewBox="0 0 14 14"><path d="M2,1 L12,1 L12,13 L2,13 Z M4,4 L10,4 M4,7 L10,7 M4,10 L8,10" fill="none" stroke="currentColor" stroke-width="2"/></svg>' },
   { type: 'end', label: '结束', color: '#6b7280', icon: '<svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="7" cy="7" r="2" fill="currentColor"/></svg>' },
 ]
 
@@ -409,21 +576,226 @@ function typeLabel(type: string) {
   return nodeTypes.find(nt => nt.type === type)?.label || type
 }
 
-function hasDescription(type: string) { return type === 'task' || type === 'condition' || type === 'multicondition' }
+function hasDescription(type: string) { return type === 'task' || type === 'condition' || type === 'multicondition' || type === 'loader' || type === 'parser' }
+
+// ====== 绑定元件 ======
+
+/** 元件类型标签 */
+function bindTypeLabel(type: string): string {
+  const map: Record<string, string> = {
+    EXECUTOR: '执行器',
+    PREDICATE: '判断器',
+    SELECTOR: '选择器',
+    LOADER: '加载器',
+    PARSER: '解析器',
+    PRE_PROCESSOR: '前置器',
+    POST_PROCESSOR: '后置器',
+    PARAM_BINDER: '参数绑定器',
+    PARAM_VALIDATOR: '参数校验器',
+  }
+  return map[type] || type
+}
+
+function bindTypeTagType(type: string): string {
+  const map: Record<string, string> = {
+    EXECUTOR: 'primary',
+    PREDICATE: 'warning',
+    SELECTOR: '',
+    LOADER: 'cyan',
+    PARSER: 'success',
+    PRE_PROCESSOR: '',
+    POST_PROCESSOR: 'success',
+    PARAM_BINDER: '',
+    PARAM_VALIDATOR: 'success',
+  }
+  return map[type] || 'info'
+}
+
+function bindTypeTargetLabel(target: string): string {
+  const map: Record<string, string> = {
+    pre: '前置处理器',
+    post: '后置处理器',
+    binder: '参数绑定器',
+    validator: '参数校验器',
+  }
+  return map[target] || ''
+}
+
+/** 节点类型 → 元件类型映射 */
+function typeToComponentType(nodeType: string): string {
+  const map: Record<string, string> = {
+    task: 'EXECUTOR',
+    condition: 'PREDICATE',
+    multicondition: 'SELECTOR',
+    loader: 'LOADER',
+    parser: 'PARSER',
+  }
+  return map[nodeType] || ''
+}
+
+/** 非开始/结束节点可绑定元件 */
+function canBindComponent(nodeType: string) {
+  return typeToComponentType(nodeType) !== ''
+}
+
+async function openBindDialog(target: string = 'main') {
+  if (!selectedNodeData.value) return
+  bindDialog.target = target
+  let ct: string
+  if (target === 'pre') {
+    ct = 'PRE_PROCESSOR'
+    bindDialog.typeLabel = '前置器'
+    bindDialog.selectedId = ''
+  } else if (target === 'post') {
+    ct = 'POST_PROCESSOR'
+    bindDialog.typeLabel = '后置器'
+    bindDialog.selectedId = ''
+  } else if (target === 'binder') {
+    ct = 'PARAM_BINDER'
+    bindDialog.typeLabel = '参数绑定器'
+    bindDialog.selectedId = selectedNodeData.value.paramBinderId || ''
+  } else if (target === 'validator') {
+    ct = 'PARAM_VALIDATOR'
+    bindDialog.typeLabel = '参数校验器'
+    bindDialog.selectedId = selectedNodeData.value.paramValidatorId || ''
+  } else {
+    ct = typeToComponentType(selectedNodeData.value.nodeType)
+    if (!ct) return
+    bindDialog.typeLabel = typeLabel(selectedNodeData.value.nodeType)
+    bindDialog.selectedId = selectedNodeData.value.componentId || ''
+  }
+  bindDialog.componentType = ct
+  bindDialog.keyword = ''
+  bindDialog.groupFilter = ''
+  bindDialog.page = 1
+  bindDialog.pageSize = 5
+  bindDialog.total = 0
+  bindDialog.visible = true
+  await fetchBindList()
+}
+
+async function fetchBindList() {
+  bindDialog.loading = true
+  try {
+    const res = await componentApi.list({
+      moduleId,
+      componentType: bindDialog.componentType,
+      keyword: bindDialog.keyword || undefined,
+      page: bindDialog.page,
+      size: bindDialog.pageSize,
+    })
+    bindDialog.list = res.records || []
+    bindDialog.total = res.total
+  } catch {
+    bindDialog.list = []
+    bindDialog.total = 0
+  } finally {
+    bindDialog.loading = false
+  }
+}
+
+function onBindSelect(row: any) {
+  bindDialog.selectedId = bindDialog.selectedId === row.componentId ? '' : row.componentId
+}
+
+function confirmBind() {
+  bindDialog.visible = false
+  if (!selectedCell || !selectedNodeData.value) return
+  if (bindDialog.target === 'pre' || bindDialog.target === 'post') {
+    // 前置/后置处理器：追加到数组
+    if (!bindDialog.selectedId) return
+    const found = bindDialog.list.find((c: any) => c.componentId === bindDialog.selectedId)
+    if (!found) return
+    const key = bindDialog.target === 'pre' ? 'preComponents' : 'postComponents'
+    if (!selectedNodeData.value[key]) selectedNodeData.value[key] = []
+    selectedNodeData.value[key].push({ componentId: found.componentId, componentName: found.componentName })
+    selectedCell.setData({ ...selectedNodeData.value })
+    return
+  }
+  // 参数绑定器/校验器：单槽绑定
+  if (bindDialog.target === 'binder' || bindDialog.target === 'validator') {
+    if (!bindDialog.selectedId) return
+    const found = bindDialog.list.find((c: any) => c.componentId === bindDialog.selectedId)
+    if (!found) return
+    const idKey = bindDialog.target === 'binder' ? 'paramBinderId' : 'paramValidatorId'
+    const nameKey = bindDialog.target === 'binder' ? 'paramBinderName' : 'paramValidatorName'
+    selectedNodeData.value[idKey] = found.componentId
+    selectedNodeData.value[nameKey] = found.componentName
+    selectedCell.setData({ ...selectedNodeData.value })
+    return
+  }
+  // 主元件绑定
+  const found = bindDialog.list.find((c: any) => c.componentId === bindDialog.selectedId)
+  if (found) {
+    selectedNodeData.value.componentId = found.componentId
+    selectedNodeData.value.componentName = found.componentName
+    selectedNodeData.value.label = found.componentName || found.componentId
+  } else {
+    delete selectedNodeData.value.componentId
+    delete selectedNodeData.value.componentName
+    selectedNodeData.value.label = typeLabel(selectedNodeData.value.nodeType)
+  }
+  selectedCell.setData({ ...selectedNodeData.value })
+  selectedCell.setLabels(selectedNodeData.value.label ? [{ attrs: { label: { text: selectedNodeData.value.label } } }] : [])
+}
+
+function removePrePost(target: string, idx: number) {
+  if (!selectedCell || !selectedNodeData.value) return
+  const key = target === 'pre' ? 'preComponents' : 'postComponents'
+  const arr = selectedNodeData.value[key]
+  if (arr) {
+    arr.splice(idx, 1)
+    selectedCell.setData({ ...selectedNodeData.value })
+  }
+}
+
+function movePrePost(target: string, idx: number, direction: number) {
+  if (!selectedCell || !selectedNodeData.value) return
+  const key = target === 'pre' ? 'preComponents' : 'postComponents'
+  const arr = selectedNodeData.value[key]
+  if (!arr) return
+  const newIdx = idx + direction
+  if (newIdx < 0 || newIdx >= arr.length) return
+  const tmp = arr[newIdx]
+  arr[newIdx] = arr[idx]
+  arr[idx] = tmp
+  selectedCell.setData({ ...selectedNodeData.value })
+}
+
+function unbindComponent() {
+  if (!selectedCell || !selectedNodeData.value) return
+  delete selectedNodeData.value.componentId
+  delete selectedNodeData.value.componentName
+  selectedNodeData.value.label = typeLabel(selectedNodeData.value.nodeType)
+  selectedCell.setData({ ...selectedNodeData.value })
+  selectedCell.setLabels(selectedNodeData.value.label ? [{ attrs: { label: { text: selectedNodeData.value.label } } }] : [])
+}
+
+function clearSingleBind(target: 'paramBinder' | 'paramValidator') {
+  if (!selectedCell || !selectedNodeData.value) return
+  if (target === 'paramBinder') {
+    delete selectedNodeData.value.paramBinderId
+    delete selectedNodeData.value.paramBinderName
+  } else {
+    delete selectedNodeData.value.paramValidatorId
+    delete selectedNodeData.value.paramValidatorName
+  }
+  selectedCell.setData({ ...selectedNodeData.value })
+}
 
 // ====== 连接手柄端口 ======
 const handleGroup = {
   position: { name: 'absolute' },
   attrs: {
     circle: { r: 7, magnet: true, stroke: '#fff', fill: '#fff', strokeWidth: 2.5, cursor: 'crosshair',
-              'stroke-opacity': 0, 'fill-opacity': 0 },
+      'stroke-opacity': 0, 'fill-opacity': 0 },
   },
   zIndex: 10,
 }
 
 function getPorts(type: string) {
-  // 矩形类（开始/结束/任务）：每条边 2 个端口，共 8 个
-  if (type === 'start' || type === 'end' || type === 'task') {
+  // 矩形类（开始/结束/任务/加载器/解析器）：每条边 2 个端口，共 8 个
+  if (type === 'start' || type === 'end' || type === 'task' || type === 'loader' || type === 'parser') {
     return [
       { id: 't',  group: 'handle', args: { x: '50%', y: '0%' } },
       { id: 'tr', group: 'handle', args: { x: '100%', y: '15%' } },
@@ -503,7 +875,7 @@ function registerShapes() {
     ports: { groups: { handle: handleGroup }, items: getPorts('end') },
   })
 
-  // --- 任务节点（蓝底白字） ---
+  // --- 执行元件（蓝底白字） ---
   reg('flow-task', {
     inherit: 'rect',
     width: 160,
@@ -511,12 +883,12 @@ function registerShapes() {
     markup: [{ tagName: 'rect', selector: 'body' }, { tagName: 'text', selector: 'label' }],
     attrs: {
       body: { rx: 8, ry: 8, fill: nodeColors.task, stroke: 'none' },
-      label: { text: '任务', fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
+      label: { text: '执行元件', fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
     },
     ports: { groups: { handle: handleGroup }, items: getPorts('task') },
   })
 
-  // --- 条件节点（橘色菱形） ---
+  // --- 判断元件（橘色菱形） ---
   reg('flow-condition', {
     inherit: 'polygon',
     width: 100,
@@ -524,12 +896,12 @@ function registerShapes() {
     markup: [{ tagName: 'polygon', selector: 'body' }, { tagName: 'text', selector: 'label' }],
     attrs: {
       body: { refPoints: '50,0 100,40 50,80 0,40', fill: nodeColors.condition, stroke: 'none' },
-      label: { text: '条件', fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
+      label: { text: '判断元件', fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
     },
     ports: { groups: { handle: handleGroup }, items: getPorts('condition') },
   })
 
-  // --- 多条件节点（紫色六边形） ---
+  // --- 选择器元件（紫色六边形） ---
   reg('flow-multicondition', {
     inherit: 'polygon',
     width: 120,
@@ -537,9 +909,35 @@ function registerShapes() {
     markup: [{ tagName: 'polygon', selector: 'body' }, { tagName: 'text', selector: 'label' }],
     attrs: {
       body: { refPoints: '85,0 120,40 85,80 35,80 0,40 35,0', fill: nodeColors.multicondition, stroke: 'none' },
-      label: { text: '多条件', fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
+      label: { text: '选择器元件', fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
     },
     ports: { groups: { handle: handleGroup }, items: getPorts('multicondition') },
+  })
+
+  // --- 加载器元件（青色圆角矩形） ---
+  reg('flow-loader', {
+    inherit: 'rect',
+    width: 160,
+    height: 46,
+    markup: [{ tagName: 'rect', selector: 'body' }, { tagName: 'text', selector: 'label' }],
+    attrs: {
+      body: { rx: 8, ry: 8, fill: nodeColors.loader, stroke: 'none' },
+      label: { text: '加载器元件', fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
+    },
+    ports: { groups: { handle: handleGroup }, items: getPorts('loader') },
+  })
+
+  // --- 解析器元件（粉色圆角矩形） ---
+  reg('flow-parser', {
+    inherit: 'rect',
+    width: 160,
+    height: 46,
+    markup: [{ tagName: 'rect', selector: 'body' }, { tagName: 'text', selector: 'label' }],
+    attrs: {
+      body: { rx: 8, ry: 8, fill: nodeColors.parser, stroke: 'none' },
+      label: { text: '解析器元件', fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
+    },
+    ports: { groups: { handle: handleGroup }, items: getPorts('parser') },
   })
 }
 
@@ -554,7 +952,8 @@ function updateNodeVisual(node: Node) {
 function getShapeForType(nodeType: string): string {
   return {
     start: 'flow-start', task: 'flow-task', condition: 'flow-condition',
-    multicondition: 'flow-multicondition', end: 'flow-end',
+    multicondition: 'flow-multicondition', loader: 'flow-loader', parser: 'flow-parser',
+    end: 'flow-end',
   }[nodeType] || 'flow-task'
 }
 
@@ -576,7 +975,8 @@ function initGraph() {
       highlight: false,
       targetAnchor: { name: 'orth' },
       connectionPoint: { name: 'anchor' },
-      validateConnection({ sourceCell, targetCell }) {
+      validateConnection({ sourceCell, targetCell }: { sourceCell: any; targetCell: any }) {
+        if (!sourceCell || !targetCell) return false
         if (sourceCell.id === targetCell.id) return false
         return true
       },
@@ -597,14 +997,14 @@ function initGraph() {
       },
     },
     sorting: 'approx',
-  })
+  } as any)
 
   // 插件
   graph.use(new Snapline({ enabled: true, sharp: true }))
   graph.use(new Selection({
     enabled: true, multiple: true, rubberEdge: true, rubberNode: true, rubberband: true, showNodeSelectionBox: true,
   }))
-  graph.use(new MiniMap({ container: minimapContainerRef.value!, width: 200, height: 140, minVisible: 0.1 }))
+  graph.use(new MiniMap({ container: minimapContainerRef.value!, width: 200, height: 140 }))
   graph.use(new History({ enabled: true }))
   graph.use(new Keyboard({ enabled: true }))
   graph.use(new Clipboard())
@@ -617,7 +1017,7 @@ function initGraph() {
   graph.bindKey('ctrl+y', () => graph?.redo())
   graph.bindKey('ctrl+c', () => { if (graph) { const c = graph.getSelectedCells(); if (c.length > 0) { graph.copy(c); canPaste.value = true } } })
   graph.bindKey('ctrl+v', () => handlePaste())
-  graph.bindKey('ctrl+a', () => graph?.getAllCells().filter(c => c.isNode()).forEach(c => graph?.select(c.id)))
+  graph.bindKey('ctrl+a', () => graph?.getCells().filter(c => c.isNode()).forEach(c => graph?.select(c.id)))
 
   // 事件
   graph.on('scale', ({ sx }) => { zoomLevel.value = sx })
@@ -653,13 +1053,22 @@ function initGraph() {
     }
   })
 
+  let lastClickTime = 0
+  let lastClickNode: any = null
   graph.on('node:click', ({ node }) => {
+    const now = Date.now()
+    if (lastClickNode === node && now - lastClickTime < 350) {
+      // 双击检测：选中节点 + 弹出绑定弹窗
+      const data = node.getData()
+      if (data && canBindComponent(data.nodeType)) {
+        selectedCell = node
+        selectedNodeData.value = { ...data }
+        openBindDialog()
+      }
+    }
+    lastClickTime = now
+    lastClickNode = node
     graph?.cleanSelection(); graph?.select(node.id)
-  })
-
-  graph.on('node:dblclick', ({ node, e }) => {
-    const pos = graph!.localToClient(node.getPosition())
-    showInlineEditor(pos.x + 50, pos.y - 8, node.getData()?.label || '', node, false)
   })
 
   graph.on('edge:click', ({ edge }) => {
@@ -739,7 +1148,7 @@ function triggerEdgeLabelEdit(edge: Edge) {
   if (view) {
     const bbox = view.getBBox()
     const center = graph!.localToClient({ x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 })
-    const labelText = edge.getLabels()?.[0]?.attrs?.label?.text || ''
+    const labelText = String(edge.getLabels()?.[0]?.attrs?.label?.text || '')
     showInlineEditor(center.x - 60, center.y - 26, labelText, edge, true)
   }
 }
@@ -769,7 +1178,7 @@ function onDrop(event: DragEvent) {
   const { type, label } = JSON.parse(raw)
   const shape = getShapeForType(type)
   const pos = graph.clientToLocal(event.clientX, event.clientY)
-  const sizes: Record<string, [number, number]> = { start: [148, 40], task: [160, 46], condition: [100, 80], multicondition: [120, 80], end: [148, 40] }
+  const sizes: Record<string, [number, number]> = { start: [148, 40], task: [160, 46], condition: [100, 80], multicondition: [120, 80], loader: [160, 46], parser: [160, 46], end: [148, 40] }
   const [w, h] = sizes[type] || [160, 46]
   const node = graph.addNode({
     shape,
@@ -777,7 +1186,7 @@ function onDrop(event: DragEvent) {
     y: pos.y - h / 2,
     width: w,
     height: h,
-    data: { label, nodeType: type, description: '' },
+    data: { label, nodeType: type, description: '', preComponents: [], postComponents: [], paramBinderId: '', paramBinderName: '', paramValidatorId: '', paramValidatorName: '', executeStrategy: 'NORMAL' },
   })
   updateNodeVisual(node)
 }
@@ -811,8 +1220,8 @@ function onDefaultEdgeStyleChange(style: 'straight' | 'polyline' | 'curve') {
   const connector = { name: style === 'straight' ? 'normal' : isPolyline ? 'rounded' : 'smooth' }
   graph.options.connecting.router = router
   graph.options.connecting.connector = connector
-  graph.options.defaultEdge.router = router as any
-  graph.options.defaultEdge.connector = connector as any
+  ;(graph.options as any).defaultEdge.router = router as any
+  ;(graph.options as any).defaultEdge.connector = connector as any
   // manhattan 路由器自带方向计算，无需额外 sourceAnchor
   // 曲线/直线从端口位置出发，也不需要 sourceAnchor
   ;(graph.options.connecting as any).sourceAnchor = undefined
@@ -829,7 +1238,7 @@ function selectedNodes(): Node[] {
 
 /** 对齐 */
 function onAlign(dir: string) {
-  graph?.alignCells(selectedNodes(), dir as any)
+  ;(graph as any).alignCells(selectedNodes(), dir as any)
 }
 
 /** 均匀分布 */
@@ -837,8 +1246,8 @@ function onDistribute(dir: string) {
   const nodes = selectedNodes()
   if (nodes.length < 3) return
   const sorted = dir === 'horizontal'
-    ? [...nodes].sort((a, b) => a.position().x - b.position().x)
-    : [...nodes].sort((a, b) => a.position().y - b.position().y)
+      ? [...nodes].sort((a, b) => a.position().x - b.position().x)
+      : [...nodes].sort((a, b) => a.position().y - b.position().y)
   const first = sorted[0].position()
   const last = sorted[sorted.length - 1].position()
   const span = dir === 'horizontal' ? last.x - first.x : last.y - first.y
@@ -865,9 +1274,9 @@ function toggleSnap() {
   gridSnapEnabled.value = !gridSnapEnabled.value
   if (!graph) return
   if (gridSnapEnabled.value) {
-    graph.setGrid({ visible: true, size: 20, type: 'doubleMesh', args: [{ color: '#e2e8f0', thickness: 1 }, { color: '#cbd5e1', thickness: 1 }] })
+    ;(graph as any).drawGrid({ visible: true, size: 20, type: 'doubleMesh', args: [{ color: '#e2e8f0', thickness: 1 }, { color: '#cbd5e1', thickness: 1 }] })
   } else {
-    graph.setGrid({ visible: true, size: 20, type: 'dot', args: [{ color: '#e2e8f0', thickness: 1 }] })
+    ;(graph as any).drawGrid({ visible: true, size: 20, type: 'dot', args: [{ color: '#e2e8f0', thickness: 1 }] })
   }
 }
 
@@ -934,7 +1343,7 @@ function onEpDragMove(e: MouseEvent, edge: Edge) {
   const localPt = graph.clientToLocal(clientPt)
   const cell = draggingEp.side === 'source' ? edge.getSourceCell() : edge.getTargetCell()
   if (!cell) return
-  const center = cell.getBBox().center()
+  const center = cell.getBBox().center
   const angle = Math.atan2(localPt.y - center.y, localPt.x - center.x) * (180 / Math.PI)
   if (draggingEp.side === 'source') {
     edge.setSource({ ...edge.getSource(), connectionPoint: { name: 'boundary', args: { angle } } })
@@ -1023,7 +1432,7 @@ function downloadURI(uri: string, filename: string) {
 // ====== 加载设计 ======
 async function loadDesign() {
   try {
-    design.value = await designApi.getById(designId)
+    design.value = await designApi.getByCode(designCode, moduleId)
     if (!graph) return
     if (design.value.graphData) {
       // graphData 可能是字符串或已解析对象
@@ -1075,10 +1484,23 @@ async function loadDesign() {
 // ====== 保存 ======
 async function handleSave() {
   if (!graph) return
+
+  // 已发布链的确认弹窗
+  const boundChains = (design.value as any)?.boundChains
+  if (boundChains && boundChains.some((c: any) => c.status === 3 || c.status === 4)) {
+    try {
+      await ElMessageBox.confirm(
+          t('chains.designModifyConfirm'),
+          t('common.confirm'),
+          { confirmButtonText: t('design.saveGraph'), cancelButtonText: t('common.cancel'), type: 'warning' }
+      )
+    } catch { return }
+  }
+
   saving.value = true
   try {
     const json = graph.toJSON()
-    await designApi.saveGraph(designId, JSON.stringify(json))
+    await designApi.saveGraph(designCode, moduleId, JSON.stringify(json))
     ElMessage.success(t('design.saveGraphSuccess'))
   } catch { ElMessage.error('保存失败') }
   finally { saving.value = false }
@@ -1119,17 +1541,17 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 16px;
+  padding: 4px 12px;
   border-bottom: 1px solid #e2e8f0;
   background: #f8fafc;
   flex-shrink: 0;
 }
 
-.toolbar-left { display: flex; align-items: center; gap: 12px; }
+.toolbar-left { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .toolbar-title { font-weight: 600; font-size: 15px; color: #0f172a; }
-.toolbar-center { display: flex; align-items: center; gap: 2px; }
-.toolbar-right { display: flex; align-items: center; gap: 4px; }
-.toolbar-divider { width: 1px; height: 20px; background: #cbd5e1; margin: 0 6px; }
+.toolbar-center { display: flex; align-items: center; gap: 0; flex: 1; min-width: 0; overflow: hidden; }
+.toolbar-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.toolbar-divider { width: 1px; height: 16px; background: #cbd5e1; margin: 0 4px; flex-shrink: 0; }
 .zoom-label { font-size: 12px; color: #475569; min-width: 36px; text-align: center; font-variant-numeric: tabular-nums; }
 
 .stat-badge {

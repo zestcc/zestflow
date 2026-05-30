@@ -19,6 +19,9 @@ export interface UserManageVO {
   mustChangePassword?: number
   generatedPassword?: string
   moduleRoles: ModuleRoleAssignment[]
+  updatedBy?: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface UserCreateDTO {

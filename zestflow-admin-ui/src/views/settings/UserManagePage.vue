@@ -1,5 +1,6 @@
 <template>
   <div class="user-manage">
+    <div v-if="userStore.user?.isSuperAdmin === 1">
     <div class="page-header">
       <div class="stats-summary">
         <span class="summary-total" style="font-weight:600;color:#409eff">用户 {{ filteredList.length }}</span>
@@ -63,18 +64,18 @@
           {{ row.moduleRoles?.length || 0 }}
         </template>
       </el-table-column>
-      <el-table-column :label="$t('common.actions')" width="330" fixed="right">
+      <el-table-column :label="$t('common.actions')" width="230" fixed="right">
         <template #default="{ row }">
-          <el-button text type="primary" size="small" @click="openEdit(row)">
+          <el-button text type="primary" size="small" class="action-btn" @click="openEdit(row)">
             {{ $t('common.edit') }}
           </el-button>
-          <el-button text type="primary" size="small" @click="openAssignModules(row)">
+          <el-button text type="primary" size="small" class="action-btn" @click="openAssignModules(row)">
             {{ $t('settings.assignModules') }}
           </el-button>
-          <el-button text type="primary" size="small" @click="handleResetPassword(row)">
+          <el-button text type="primary" size="small" class="action-btn" @click="handleResetPassword(row)">
             {{ $t('settings.resetPassword') }}
           </el-button>
-          <el-button text type="danger" size="small" @click="handleDelete(row)">
+          <el-button text type="danger" size="small" class="action-btn" @click="handleDelete(row)">
             {{ $t('common.delete') }}
           </el-button>
         </template>
@@ -241,11 +242,18 @@
         </el-button>
       </template>
     </el-dialog>
+    </div>
+    <div v-else style="text-align:center;padding:80px 0;color:#909399;font-size:16px">
+      {{ $t('settings.superAdminOnly') }}
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useUserStore } from '@/stores/user'
+
+const userStore = useUserStore()
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { userManageApi, roleApi } from '@/api/user-manage'
@@ -556,6 +564,7 @@ onMounted(fetchList)
   border-bottom: 1px solid #ebeef5;
   font-size: 14px;
 }
+.action-btn.action-btn { padding: 2px 4px; margin-left: 0; }
 .assign-info-tag {
   margin-left: 4px;
 }

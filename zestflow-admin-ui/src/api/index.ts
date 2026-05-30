@@ -1,18 +1,26 @@
 import axios from 'axios'
-import type { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios'
+import type { AxiosInstance, InternalAxiosRequestConfig, AxiosRequestConfig, AxiosResponse } from 'axios'
 import { ElMessage } from 'element-plus'
 import router from '@/router'
 import i18n from '@/i18n'
 
 const { t } = i18n.global
 
-const http: AxiosInstance = axios.create({
+// 自定义接口：响应拦截器已解包 data，故泛型返回值直接为 T（非 AxiosResponse）
+interface HttpClient {
+  get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T>
+  post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T>
+  put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T>
+  delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<T>
+}
+
+const instance: AxiosInstance = axios.create({
   baseURL: '/api',
   timeout: 30000,
 })
 
 // 请求拦截器：注入 token 和语言偏好
-http.interceptors.request.use(
+instance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('token')
     if (token) {
@@ -38,16 +46,25 @@ function getErrorMessage(data: any): string {
 }
 
 // 响应拦截器：解包 data + 统一错误处理
-http.interceptors.response.use(
+instance.interceptors.response.use(
   (response: AxiosResponse) => {
     const body = response.data
+    // 非对象响应（如字符串）直接返回
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return body
+    }
     const { code, errorCode, message, data } = body
-    if (code && code !== 200) {
+    // code 为数字 200 → 标准 Result.success，解包返回 data
+    if (typeof code === 'number' && code === 200) {
+      return data
+    }
+    // code 为数字且非 200 → 错误响应，弹窗并 reject
+    if (typeof code === 'number' && code !== 200) {
       ElMessage.error(getErrorMessage(body))
       return Promise.reject(new Error(message || ''))
     }
-    // 成功响应直接返回 data 字段，调用方拿到的是真正的业务数据
-    return data
+    // 无 code 或 code 非数字（如实体编码 CHN...）→ 代理接口裸 JSON，直接返回
+    return body
   },
   (error) => {
     if (error.response?.status === 401) {
@@ -63,4 +80,4 @@ http.interceptors.response.use(
   },
 )
 
-export default http
+export default instance as HttpClient

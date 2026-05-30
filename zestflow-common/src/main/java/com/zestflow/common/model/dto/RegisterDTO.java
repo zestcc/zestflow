@@ -35,4 +35,7 @@ public class RegisterDTO implements Serializable {
 
     /** 扩展元数据 JSON */
     private String metadata;
+
+    /** 该执行器提供的所有 @ZestExecute 元件清单 */
+    private java.util.List<ComponentDTO> components;
 }

@@ -551,14 +551,17 @@ log.error("链执行失败 chainId={} nodeId={}", chainId, nodeId, e);
 
 1. **禁止自定义 CSS 修饰表格和表单** — 能用 Element Plus 属性/参数实现的，一律不写自定义 CSS
 2. **表格统一表头样式** — 所有 `el-table` 统一使用 `:header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"`
-3. **列宽适配** — 不写固定 px 列宽，让 Element Plus 自动分配，操作列可单独设 `width` 防止按钮溢出
+3. **列宽策略** — 编码列用固定 px（如 160px）确保不换行；名称/描述等文本列用 `min-width` + `show-overflow-tooltip`；操作列固定 px + `fixed="right"`
 4. **表格分页** — 所有列表页必须加分页组件 `el-pagination`
 5. **筛选条件** — 列表页顶部加筛选栏，查询/重置按钮
 6. **输入框样式** — 不改动 Element Plus 输入框默认样式，登录/注册/找回密码页的反自动填充 CSS（`inset box-shadow`）是系统级防护不可删除
-7. **内容溢出** — 可能超长的列加 `show-overflow-tooltip`，气泡展示完整内容
+7. **所有内容列加 `show-overflow-tooltip`** — 编码、名称、描述、时间等任何可能超长的列必须加此属性，超长显示 `...` + 悬浮气泡展示全文。状态标签（el-tag）、数字等定宽内容列可例外
 8. **弹窗尺寸** — 弹窗宽度要充足（如 1200px），确保内容不挤占；表格列宽分配均匀，避免某列过长或过短
 9. **统计信息** — 列表页顶部展示分类统计（全部/正常/异常/离线），用不同颜色区分
 10. **禁止交互元素文本选中** — 按钮、菜单、标签等交互元素设置 `user-select: none`，写在 `index.html` 的全局 `<style>` 中确保生效
+11. **操作栏紧凑（强制）** — 所有列表页操作栏必须使用 `class="action-btn"` + CSS `.action-btn.action-btn { padding: 2px 4px; margin-left: 0; }` 压缩按钮内边距，列宽标准：3 按钮 ≤170px，4 按钮 ≤230px，5 按钮 ≤240px
+12. **弹窗关闭后自动刷新列表** — 所有弹窗操作（新增/编辑/绑定/解绑/删除等）成功后，关闭弹窗的同时必须自动刷新列表，且保持当前筛选条件和分页状态不变（不重置 page=1，不清空 filter）
+13. **编码列点击查看详情（强制）** — 所有列表页的编码列（包括主实体编码和外键引用编码）必须可点击，点击后使用 `el-drawer` 从右侧滑出详情面板。主实体编码展示自身详情，外键引用编码（如链表中展示的设计编码）展示被引用实体详情。详情内容包括名称、编码、状态、描述、时间等基本信息。
 
 ### 开发环境规范
 
@@ -567,10 +570,53 @@ log.error("链执行失败 chainId={} nodeId={}", chainId, nodeId, e);
 
 ### 数据库变更规范（强制）
 
+0. **禁止在 Java 代码中执行任何 DDL** — 所有表结构变更（CREATE TABLE、ALTER TABLE、DROP TABLE、CREATE INDEX 等）只允许在 SQL 迁移脚本中定义，严禁在 `@PostConstruct`、`ApplicationRunner` 或任何代码路径中执行 DDL 语句。
 1. **所有数据库改动必须入 Flyway 迁移脚本** — 任何 DDL（新增表、新增字段、修改字段、索引变更等）都必须在 `db/migration/` 下创建新的版本化迁移脚本（如 `V2__xxx.sql`），禁止直接在已有脚本上修改。
 2. **注释带时间戳** — 所有 DDL 修改的注释上方必须加上当前日期标记，格式为 `-- YYYY-MM-DD：修改内容说明`，方便追溯变更历史。
-3. **DDL 脚本 + 实时库同步** — 新建迁移脚本后，必须直接在数据库上执行对应的 `ALTER TABLE` 语句，保证实时库和脚本一致（本地开发可直接重启应用由 Flyway 自动执行）。仅改 SQL 文件会导致运行时报 `Unknown column` 错误。
+3. **DDL 脚本 + 实时库同步** — 新建迁移脚本后，重启应用由 Flyway 自动执行。如果迁移脚本包含存量数据迁移，需手动在数据库上执行确认。
 4. **默认值双重保障** — 新增字段的默认值同时在 DDL（`DEFAULT xxx`）和 Service 层代码中设置，避免空指针。
+5. **未正式发布前可删表重建** — 当前无正式用户（没有 v1 版本），所有数据库可随时 `DROP TABLE` 后由 Flyway 重新创建。需要表结构变更时，直接修改 `init.sql` 或最新迁移脚本 <code>V{n}__xxx.sql</code>，通知后执行 Flyway clean + migrate 即可。
+
+### 数据审计规范（强制，2026-05 立规）
+
+**核心原则：所有数据变更必须可追溯，记录操作人、操作时间。涉及三个数据源：Admin 库、Executor 业务库、Collector 日志库。**
+
+#### 操作人透传
+
+| 场景 | 方式 |
+|------|------|
+| Admin 直接操作（Admin DB） | MyBatis-Plus `MetaObjectHandler` 自动填充 `updatedBy`/`updatedAt`/`createdAt` |
+| Admin 代理到 Executor（Admin Controller → Executor Netty） | Admin Controller 调用 `injectUpdatedBy(bodyJson)` 从 `SecurityUtils.getCurrentUsername()` 获取当前登录用户名，注入到请求体 JSON 的 `updatedBy` 字段 |
+| Executor 本地操作（Executor business DB） | 每个 mutation 方法接受 `String updatedBy` 参数，手动设置 `updated_by` 列 |
+| Executor ServerHandler（Netty 端点） | 从请求体 `updatedBy` 字段解析；无 body 的请求（DELETE/PUT status）从 URL query param `?updatedBy=xxx` 解析 |
+| 机器间通信（Registry、心跳） | 不注入用户信息（无用户上下文），系统自动记录 |
+
+#### 表结构要求
+
+所有业务表必须包含以下审计字段：
+
+```sql
+`created_by`  VARCHAR(64)  DEFAULT NULL  COMMENT '创建人',
+`updated_by`  VARCHAR(64)  DEFAULT NULL  COMMENT '最后更新人',
+`created_at`  VARCHAR(32)  DEFAULT NULL  COMMENT '创建时间',
+`updated_at`  VARCHAR(32)  DEFAULT NULL  COMMENT '更新时间',
+`is_deleted`  TINYINT      DEFAULT 0     COMMENT '删除标记（0-未删 1-已删）'
+```
+
+- `created_at`/`updated_at`：使用 `LocalDateTime.now().format("yyyy-MM-dd HH:mm:ss")` 字符串格式（兼容 Executor 端 H2/MySQL）
+- `is_deleted`：所有 DELETE 操作改为 UPDATE `is_deleted=1`，查询列表和详情时过滤 `is_deleted = 0`
+
+#### 展示规范
+
+- **列表页**：不展示创建人、创建时间（保持列表简洁）
+- **详情页**（Drawer/Dialog）：必须展示创建人、创建时间、更新人、更新时间
+
+#### 硬删除例外
+
+以下场景允许硬删除（DELETE FROM / TRUNCATE）：
+- 关联关系表/绑定表（如 `zf_design_binding`，主实体已有审计字段）
+- 日志/事件表（数据量大，按时间分区清理）
+- 临时表/缓存表
 
 ## 已实现功能
 
@@ -843,6 +889,12 @@ CREATE TABLE IF NOT EXISTS `chain_event` (
 | 2026-05 | PNG 导出改为 cloneNode + XMLSerializer 纯内存序列化 + 离屏 Canvas，去掉 ElMessage 避免闪 |
 | 2026-05 | 连线自动吸附最近端口（edge:connected 事件纠正目标到最近端口）|
 | 2026-05 | 节点类型名称精简（"任务节点"→"任务"，"条件节点"→"条件"）|
+| 2026-05 | 节点标签"任务"→"执行器" |
+| 2026-05 | 属性面板字段顺序：名称→元件ID→元件名称→执行策略→参数绑定器→参数校验器→前置处理器→后置处理器→执行脚本→描述 |
+| 2026-05 | 属性面板所有标签统一不设 `font-weight:600`，与 el-form-item 默认标签一致 |
+| 2026-05 | 前置/后置处理器内项目标签左对齐（`text-align:left; justify-content:flex-start`）|
+| 2026-05 | 工具栏紧凑模式（`gap:8px`、分隔线 `margin:0 4px`、`padding:6px 12px`），去掉节点连线统计、置顶/置底 |
+| 2026-05 | 禁止 AI 擅自使用 `git checkout` / `git reset --hard` 等破坏性命令 |
 
 ## 工作原则
 

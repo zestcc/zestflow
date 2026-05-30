@@ -3,8 +3,11 @@
     <div class="page-header">
       <div class="stats-summary">
         <span style="font-weight:600;color:#409eff">{{ $t('chains.total') }} {{ chainList.length }}</span>
-        <el-tag type="success" size="small" style="margin-left:8px">{{ $t('chains.enabled') }} {{ stats.enabled }}</el-tag>
-        <el-tag type="danger" size="small">{{ $t('chains.disabled') }} {{ stats.disabled }}</el-tag>
+        <el-tag type="danger" size="small" style="margin-left:6px">{{ $t('chains.disabled') }} {{ stats.disabled }}</el-tag>
+        <el-tag type="info" size="small" style="margin-left:6px">{{ $t('chains.notDesigned') }} {{ stats.notDesigned }}</el-tag>
+        <el-tag type="warning" size="small" style="margin-left:6px">{{ $t('chains.unpublished') }} {{ stats.unpublished }}</el-tag>
+        <el-tag type="primary" size="small" effect="dark" style="margin-left:6px">{{ $t('chains.publishing') }} {{ stats.publishing }}</el-tag>
+        <el-tag type="success" size="small" style="margin-left:6px">{{ $t('chains.published') }} {{ stats.published }}</el-tag>
         <el-select
           v-model="currentModuleId"
           filterable
@@ -23,9 +26,12 @@
         <el-input v-model="filter.keyword" :placeholder="$t('chains.keyword')" clearable style="width:200px" @keyup.enter="handleSearch" />
       </el-form-item>
       <el-form-item :label="$t('common.status')">
-        <el-select v-model="filter.status" :placeholder="$t('chains.total')" clearable style="width:100px">
-          <el-option :label="$t('chains.enabled')" :value="1" />
+        <el-select v-model="filter.status" :placeholder="$t('chains.total')" clearable style="width:110px">
           <el-option :label="$t('chains.disabled')" :value="0" />
+          <el-option :label="$t('chains.notDesigned')" :value="1" />
+          <el-option :label="$t('chains.unpublished')" :value="2" />
+          <el-option :label="$t('chains.publishing')" :value="3" />
+          <el-option :label="$t('chains.published')" :value="4" />
         </el-select>
       </el-form-item>
       <el-form-item>
@@ -41,26 +47,45 @@
       style="width:100%"
       :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"
     >
-      <el-table-column prop="code" :label="$t('chains.code')" show-overflow-tooltip width="150" />
-      <el-table-column prop="name" :label="$t('chains.name')" show-overflow-tooltip min-width="150" />
-      <el-table-column prop="status" :label="$t('common.status')" width="90" align="center">
+      <el-table-column prop="code" :label="$t('chains.code')" width="160">
         <template #default="{ row }">
-          <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
-            {{ row.status === 1 ? $t('chains.enabled') : $t('chains.disabled') }}
+          <span style="color:#409eff;cursor:pointer" @click="openChainDetail(row)">{{ row.code }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="name" :label="$t('chains.name')" show-overflow-tooltip min-width="150" />
+      <el-table-column :label="$t('common.status')" width="80" align="center">
+        <template #default="{ row }">
+          <el-tag :type="statusTagType(row.status)" size="small">
+            {{ statusLabel(row.status) }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="description" :label="$t('chains.description')" show-overflow-tooltip min-width="160" />
-      <el-table-column prop="createdAt" :label="$t('chains.createdAt')" width="170">
-        <template #default="{ row }">{{ row.createdAt?.replace('T', ' ') }}</template>
-      </el-table-column>
-      <el-table-column :label="$t('common.actions')" width="220" fixed="right">
+      <el-table-column label="进度" width="100" align="center">
         <template #default="{ row }">
-          <el-button text type="primary" size="small" @click="openEdit(row)">{{ $t('common.edit') }}</el-button>
-          <el-button text :type="row.status === 1 ? 'warning' : 'success'" size="small" @click="handleToggleStatus(row)">
-            {{ row.status === 1 ? $t('chains.disable') : $t('chains.enable') }}
-          </el-button>
-          <el-button text type="danger" size="small" @click="handleDelete(row)">{{ $t('common.delete') }}</el-button>
+          <span :style="{ color: row.status === 4 ? '#67c23a' : row.status === 0 ? '#f56c6c' : '#909399' }">
+            {{ row.publishedCount || 0 }}/{{ row.totalExecutors || 0 }}
+          </span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="designCode" label="设计编码" width="160">
+        <template #default="{ row }">
+          <span v-if="!row.designCode" style="color:#c0c4cc">-</span>
+          <span v-else style="color:#409eff;cursor:pointer" @click="openDesignDetail(row.designCode, row.moduleId)">{{ row.designCode }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="description" :label="$t('chains.description')" show-overflow-tooltip min-width="160" />
+      <el-table-column prop="updatedBy" :label="$t('common.updatedBy')" width="120" show-overflow-tooltip />
+      <el-table-column prop="updatedAt" :label="$t('chains.updatedAt')" width="160" show-overflow-tooltip>
+        <template #default="{ row }">{{ row.updatedAt?.replace('T', ' ') }}</template>
+      </el-table-column>
+      <el-table-column :label="$t('common.actions')" width="240" fixed="right">
+        <template #default="{ row }">
+          <el-button v-if="row.status === 2 && row.designCode" text type="primary" size="small" class="action-btn" @click="handlePublish(row)">{{ $t('chains.publish') }}</el-button>
+          <el-button text type="primary" size="small" class="action-btn" @click="openDesignDialog(row)">设计</el-button>
+          <el-button text type="primary" size="small" class="action-btn" @click="openEdit(row)">{{ $t('common.edit') }}</el-button>
+          <el-button v-if="row.status !== 0" text type="warning" size="small" class="action-btn" @click="handleToggleStatus(row)">{{ $t('chains.disable') }}</el-button>
+          <el-button v-else text type="success" size="small" class="action-btn" @click="handleToggleStatus(row)">{{ $t('chains.enable') }}</el-button>
+          <el-button text type="danger" size="small" class="action-btn" @click="handleDelete(row)">{{ $t('common.delete') }}</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -113,17 +138,181 @@
         <el-button type="primary" :loading="editSubmitting" @click="handleEdit">{{ $t('common.save') }}</el-button>
       </template>
     </el-dialog>
+
+    <!-- 设计管理弹窗 -->
+    <el-dialog v-model="designListDialogVisible" title="设计管理" width="800px" :close-on-click-modal="false">
+      <div style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:14px;color:#606266">全部 {{ designList.length }}</span>
+        <el-button type="primary" size="small" @click="openCreateDesignDialog">新增设计</el-button>
+      </div>
+      <el-table :data="designList" v-loading="designLoading" stripe border
+        style="width:100%" max-height="400" highlight-current-row
+        :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"
+      >
+        <el-table-column prop="code" label="设计编码" width="160" show-overflow-tooltip />
+        <el-table-column prop="name" label="设计名称" show-overflow-tooltip />
+        <el-table-column prop="description" label="描述" show-overflow-tooltip />
+        <el-table-column label="选择" width="70" align="center">
+          <template #default="{ row }">
+            <span style="cursor:pointer" @click.stop="toggleDesignSelect(row.code)">
+              <el-radio v-model="selectedDesignCode" :label="row.code" @click.stop>&nbsp;</el-radio>
+            </span>
+          </template>
+        </el-table-column>
+      </el-table>
+      <el-empty v-if="!designLoading && designList.length === 0" :image-size="60" description="该模块下暂无设计，请先新增设计" />
+      <template #footer>
+        <el-button @click="designListDialogVisible = false">取消</el-button>
+        <el-button :disabled="!selectedDesignCode" type="primary" :loading="bindingDesign" @click="confirmBindDesign">确定绑定</el-button>
+        <el-button v-if="currentChainForDesign?.designCode" :loading="bindingDesign" @click="confirmUnbind">取消绑定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 新增设计弹窗（复用公共组件） -->
+    <CreateDesignDialog
+      v-model:visible="createDesignDialogVisible"
+      :module-options="modules"
+      :default-module-id="currentChainForDesign?.moduleId"
+      :default-name="currentChainForDesign ? currentChainForDesign.name + t('design.design') : ''"
+      :disable-module="true"
+      append-to-body
+      @saved="onDesignCreated"
+    >
+      <template #footer="{ saving, handleSave }">
+        <el-button @click="createDesignDialogVisible = false">取消</el-button>
+        <el-button :loading="saving" @click="handleSave">保存</el-button>
+        <el-button type="primary" :loading="saving" @click="handleSaveThenDesign(handleSave)">去设计</el-button>
+      </template>
+    </CreateDesignDialog>
+
+    <!-- 链详情抽屉 -->
+    <el-drawer v-model="chainDrawerVisible" title="链详情" :size="480" destroy-on-close>
+      <template v-if="currentChainDetail">
+        <div style="padding:0 8px">
+          <div style="font-size:20px;font-weight:600;color:#303133;margin-bottom:12px">{{ currentChainDetail.name }}</div>
+          <el-descriptions :column="1" border size="small">
+            <el-descriptions-item label="编码">
+              <el-tag size="small" style="font-family:monospace">{{ currentChainDetail.code }}</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="状态">
+              <el-tag :type="statusTagType(currentChainDetail.status)" size="small">
+                {{ statusLabel(currentChainDetail.status) }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="模块">
+              {{ moduleNameMap[currentChainDetail.moduleId] || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="描述">
+              {{ currentChainDetail.description || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="关联设计">
+              <span v-if="currentChainDetail.designCode" style="color:#409eff;cursor:pointer" @click="openDesignDetail(currentChainDetail.designCode, currentChainDetail.moduleId)">{{ currentChainDetail.designCode }}</span>
+              <span v-else style="color:#c0c4cc">-</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="创建人">{{ currentChainDetail.createdBy || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="创建时间">{{ currentChainDetail.createdAt?.replace('T', ' ') }}</el-descriptions-item>
+            <el-descriptions-item :label="$t('common.updatedBy')">{{ currentChainDetail.updatedBy || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="更新时间">{{ currentChainDetail.updatedAt?.replace('T', ' ') }}</el-descriptions-item>
+          </el-descriptions>
+        </div>
+      </template>
+    </el-drawer>
+
+    <!-- 设计详情抽屉 -->
+    <el-drawer v-model="designDrawerVisible" title="设计详情" :size="520" destroy-on-close>
+      <template v-if="currentDesignDetail">
+        <div style="padding:0 8px">
+          <div style="font-size:20px;font-weight:600;color:#303133;margin-bottom:12px">{{ currentDesignDetail.name }}</div>
+          <el-descriptions :column="1" border size="small">
+            <el-descriptions-item label="编码">
+              <el-tag size="small" style="font-family:monospace">{{ currentDesignDetail.code }}</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="状态">
+              <el-tag :type="currentDesignDetail.status === 1 ? 'success' : 'danger'" size="small">
+                {{ currentDesignDetail.status === 1 ? '启用' : '停用' }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="设计者">
+              {{ currentDesignDetail.designer || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="模块">
+              {{ moduleNameMap[currentDesignDetail.moduleId] || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="描述">
+              {{ currentDesignDetail.description || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="绑定链">
+              <template v-if="currentDesignDetail.boundChains && currentDesignDetail.boundChains.length > 0">
+                <div v-for="c in currentDesignDetail.boundChains" :key="c.id" style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                  <el-tag size="small" type="info" style="font-family:monospace">{{ c.code }}</el-tag>
+                  <span style="font-size:13px;color:#303133">{{ c.name }}</span>
+                  <el-tag :type="statusTagType(c.status)" size="small" style="margin-left:auto">
+                    {{ statusLabel(c.status) }}
+                  </el-tag>
+                </div>
+              </template>
+              <span v-else style="color:#c0c4cc">-</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="创建人">{{ currentDesignDetail.createdBy || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="创建时间">{{ currentDesignDetail.createdAt?.replace('T', ' ') }}</el-descriptions-item>
+            <el-descriptions-item :label="$t('common.updatedBy')">{{ currentDesignDetail.updatedBy || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="更新时间">{{ currentDesignDetail.updatedAt?.replace('T', ' ') }}</el-descriptions-item>
+          </el-descriptions>
+        </div>
+      </template>
+    </el-drawer>
   </div>
+
+    <!-- 发布进度弹窗 -->
+    <el-dialog v-model="publishDialogVisible" :title="$t('chains.publish') + ' ' + $t('chains.publishStatus')" width="600px" :close-on-click-modal="false" :close-on-press-escape="false">
+      <template v-if="publishing">
+        <div style="text-align:center;padding:20px 0">
+          <el-progress type="circle" :percentage="publishProgressPercent" :status="publishProgressPercent === 100 ? 'success' : undefined" />
+          <p style="margin-top:12px;color:#606266">{{ publishProgressText }}</p>
+        </div>
+      </template>
+      <template v-if="publishResults.length > 0">
+        <div style="margin-top:12px;font-weight:600;color:#303133;margin-bottom:8px">执行器详情</div>
+        <el-table :data="publishResults" stripe border size="small"
+          :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"
+        >
+          <el-table-column prop="url" label="执行器地址" show-overflow-tooltip />
+          <el-table-column label="状态" width="80" align="center">
+            <template #default="{ row }">
+              <el-tag :type="row.ok ? 'success' : 'danger'" size="small">{{ row.ok ? '成功' : '失败' }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="message" label="消息" show-overflow-tooltip />
+        </el-table>
+      </template>
+      <template #footer>
+        <el-button type="primary" @click="publishDialogVisible = false" :disabled="publishing">{{ $t('common.close') }}</el-button>
+      </template>
+    </el-dialog>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { chainApi, type ChainCreateDTO } from '@/api/chain'
 import { moduleApi, type ModuleVO } from '@/api/module'
+import { designApi, type DesignVO } from '@/api/design'
+import CreateDesignDialog from '@/components/CreateDesignDialog.vue'
 
 const { t } = useI18n()
+const router = useRouter()
+
+function statusTagType(status: number): string {
+  return ['danger', 'info', 'warning', 'primary', 'success'][status] || 'info'
+}
+function statusLabel(status: number): string {
+  const labels = [t('chains.disabled'), t('chains.notDesigned'), t('chains.unpublished'), t('chains.publishing'), t('chains.published')]
+  return labels[status] || '-'
+}
+
+
 
 const loading = ref(false)
 const modules = ref<ModuleVO[]>([])
@@ -136,10 +325,44 @@ const pageSize = ref(10)
 const filter = ref({ keyword: '', status: undefined as number | undefined })
 
 const stats = computed(() => {
-  const enabled = chainList.value.filter((c: any) => c.status === 1).length
   const disabled = chainList.value.filter((c: any) => c.status === 0).length
-  return { enabled, disabled }
+  const notDesigned = chainList.value.filter((c: any) => c.status === 1).length
+  const unpublished = chainList.value.filter((c: any) => c.status === 2).length
+  const publishing = chainList.value.filter((c: any) => c.status === 3).length
+  const published = chainList.value.filter((c: any) => c.status === 4).length
+  return { disabled, notDesigned, unpublished, publishing, published }
 })
+
+const moduleNameMap = computed(() => {
+  const map: Record<number, string> = {}
+  modules.value.forEach(m => { map[m.id] = m.name })
+  return map
+})
+
+
+// 链详情抽屉
+const chainDrawerVisible = ref(false)
+const currentChainDetail = ref<any>(null)
+function openChainDetail(row: any) {
+  currentChainDetail.value = row
+  chainDrawerVisible.value = true
+}
+
+// 设计详情抽屉
+const designDrawerVisible = ref(false)
+const currentDesignDetail = ref<any>(null)
+const designDetailLoading = ref(false)
+async function openDesignDetail(designCode: string, moduleId: number) {
+  designDetailLoading.value = true
+  designDrawerVisible.value = true
+  try {
+    currentDesignDetail.value = await designApi.getByCode(designCode, moduleId)
+  } catch {
+    currentDesignDetail.value = null
+  } finally {
+    designDetailLoading.value = false
+  }
+}
 
 async function fetchModules() {
   try {
@@ -207,35 +430,40 @@ async function handleCreate() {
 const editDialogVisible = ref(false)
 const editSubmitting = ref(false)
 const editFormRef = ref<any>(null)
-const editingId = ref<number | null>(null)
+const editingCode = ref<string | null>(null)
+const editingModuleId = ref<number>(0)
 const editForm = ref({ name: '', description: '' })
 const editRules = {
   name: [{ required: true, message: () => t('validation.required', { field: t('chains.name') }), trigger: 'blur' }],
 }
 
 function openEdit(row: any) {
-  editingId.value = row.id
+  editingCode.value = row.code
+  editingModuleId.value = row.moduleId
   editForm.value = { name: row.name, description: row.description || '' }
   editDialogVisible.value = true
 }
 
 async function handleEdit() {
   const valid = await editFormRef.value?.validate().catch(() => false)
-  if (!valid || !editingId.value) return
+  if (!valid || !editingCode.value) return
   editSubmitting.value = true
   try {
-    await chainApi.update(editingId.value, { name: editForm.value.name, description: editForm.value.description || undefined })
+    await chainApi.update(editingCode.value, { name: editForm.value.name, description: editForm.value.description || undefined, moduleId: editingModuleId.value })
     ElMessage.success(t('common.edit') + '成功')
     editDialogVisible.value = false
     await fetchList()
   } finally { editSubmitting.value = false }
 }
 
-// 启停
 async function handleToggleStatus(row: any) {
-  await chainApi.toggleStatus(row.id)
-  ElMessage.success(row.status === 1 ? t('chains.disable') + '成功' : t('chains.enable') + '成功')
-  await fetchList()
+  try {
+    await chainApi.toggleStatus(row.code, row.moduleId)
+    ElMessage.success(row.status === 0 ? t('chains.enable') + '成功' : t('chains.disable') + '成功')
+    fetchList()
+  } catch {
+    ElMessage.error('操作失败')
+  }
 }
 
 // 删除
@@ -243,10 +471,147 @@ function handleDelete(row: any) {
   ElMessageBox.confirm(t('chains.deleteConfirm', { name: row.name }), t('common.delete'),
     { confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel'), type: 'warning' }
   ).then(async () => {
-    await chainApi.delete(row.id)
+    await chainApi.delete(row.code, row.moduleId)
     ElMessage.success(t('common.delete') + '成功')
     await fetchList()
   }).catch(() => {})
+}
+
+// 设计管理
+const designListDialogVisible = ref(false)
+const designList = ref<DesignVO[]>([])
+const designLoading = ref(false)
+const selectedDesignCode = ref<string | null>(null)
+const bindingDesign = ref(false)
+const currentChainForDesign = ref<any>(null)
+
+async function openDesignDialog(row: any) {
+  currentChainForDesign.value = row
+  designList.value = []
+  selectedDesignCode.value = row.designCode || null
+  designListDialogVisible.value = true
+  designLoading.value = true
+  try {
+    const res = await designApi.list({ moduleId: row.moduleId, page: 1, size: 999 })
+    designList.value = res.records || []
+  } finally {
+    designLoading.value = false
+  }
+}
+
+function toggleDesignSelect(code: string) {
+  if (selectedDesignCode.value === code) {
+    selectedDesignCode.value = null
+  } else {
+    selectedDesignCode.value = code
+  }
+}
+
+async function confirmBindDesign() {
+  if (!selectedDesignCode.value || !currentChainForDesign.value) return
+
+  bindingDesign.value = true
+  try {
+    await designApi.bind(selectedDesignCode.value, currentChainForDesign.value.code, currentChainForDesign.value.moduleId)
+    ElMessage.success('绑定成功')
+    designListDialogVisible.value = false
+    fetchList()
+  } finally {
+    bindingDesign.value = false
+  }
+}
+
+async function confirmUnbind() {
+  if (!currentChainForDesign.value?.designCode || !currentChainForDesign.value?.code) return
+  bindingDesign.value = true
+  try {
+    await designApi.unbind(currentChainForDesign.value.designCode, currentChainForDesign.value.code, currentChainForDesign.value.moduleId)
+    ElMessage.success('已取消绑定')
+    designListDialogVisible.value = false
+    fetchList()
+  } finally {
+    bindingDesign.value = false
+  }
+}
+
+// 新增设计
+const createDesignDialogVisible = ref(false)
+const lastCreatedDesign = ref<DesignVO | null>(null)
+
+function openCreateDesignDialog() {
+  lastCreatedDesign.value = null
+  createDesignDialogVisible.value = true
+}
+
+/** "去设计"：若已有设计则直接跳转，否则创建后跳转 */
+async function handleSaveThenDesign(handleSave: () => Promise<any>) {
+  if (lastCreatedDesign.value) {
+    // 已保存过，直接跳转
+    goToDesign(lastCreatedDesign.value)
+    return
+  }
+  // 还没有，先保存再跳转
+  const design = await handleSave()
+  if (design) {
+    goToDesign(design)
+  }
+}
+
+function goToDesign(design: DesignVO) {
+  if (!currentChainForDesign.value) return
+  designApi.bind(design.code, currentChainForDesign.value.code, currentChainForDesign.value.moduleId).then(() => {
+    ElMessage.success('设计已创建并绑定')
+    createDesignDialogVisible.value = false
+    designListDialogVisible.value = false
+    router.push({ name: 'DesignEditor', params: { id: design.code }, query: { moduleId: design.moduleId } })
+  }).catch(() => ElMessage.error('操作失败'))
+}
+
+function onDesignCreated(design: DesignVO) {
+  lastCreatedDesign.value = design
+  ElMessage.success('保存成功')
+  if (currentChainForDesign.value) {
+    designApi.list({ moduleId: currentChainForDesign.value.moduleId, page: 1, size: 999 }).then(res => {
+      designList.value = res.records || []
+    })
+  }
+}
+
+// 发布
+const publishDialogVisible = ref(false)
+const publishing = ref(false)
+const publishProgressPercent = ref(0)
+const publishProgressText = ref('')
+const publishResults = ref<Array<{ url: string; ok: boolean; message: string }>>([])
+const currentPublishingChain = ref<any>(null)
+
+async function handlePublish(row: any) {
+  currentPublishingChain.value = row
+  publishResults.value = []
+  publishProgressPercent.value = 0
+  publishProgressText.value = t('chains.publishing') + '...'
+  publishing.value = true
+  publishDialogVisible.value = true
+  try {
+    const res = await chainApi.publish(row.code, row.moduleId)
+    publishResults.value = res.details || []
+    const total = res.total || 0
+    const success = res.success || 0
+    publishProgressPercent.value = total > 0 ? Math.round((success / total) * 100) : 0
+    publishProgressText.value = res.message || (res.code === 200 ? t('chains.publishSuccess') : t('chains.publishFailed'))
+    if (res.code === 200) {
+      ElMessage.success(t('chains.publishSuccess'))
+    } else {
+      ElMessage.warning(res.message || t('chains.publishFailed'))
+    }
+    fetchList()
+  } catch {
+    publishProgressPercent.value = 0
+    publishProgressText.value = t('common.requestFailed')
+    ElMessage.error(t('common.requestFailed'))
+  } finally {
+    publishing.value = false
+  }
 }
 
 onMounted(async () => {
@@ -272,4 +637,5 @@ onMounted(async () => {
   align-items: center;
   font-size: 14px;
 }
+.action-btn.action-btn { padding: 2px 4px; margin-left: 0; }
 </style>

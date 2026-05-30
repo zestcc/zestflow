@@ -19,6 +19,11 @@ public class ChainVO {
     private Long moduleId;
     private Integer status;
     private String description;
+    private String designCode;
+    private String designName;
+    private String designDescription;
+    private Long designId;
+    private String updatedBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

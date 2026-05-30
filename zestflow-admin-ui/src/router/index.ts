@@ -73,6 +73,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '设计编辑器' },
       },
       {
+        path: 'components',
+        name: 'Components',
+        component: () => import('@/views/components/ComponentsPage.vue'),
+        meta: { title: '元件列表' },
+      },
+      {
         path: 'schedules',
         name: 'Schedules',
         component: () => import('@/views/schedules/SchedulesPage.vue'),
@@ -85,23 +91,23 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '日志查询' },
       },
       {
-        path: 'profile',
-        name: 'Profile',
-        component: () => import('@/views/profile/ProfilePage.vue'),
-        meta: { title: '用户信息' },
+        path: 'executors',
+        name: 'Executors',
+        component: () => import('@/views/settings/ModuleManagePage.vue'),
+        meta: { title: '执行器列表' },
       },
       {
         path: 'settings',
         name: 'Settings',
         component: () => import('@/views/settings/SettingsPage.vue'),
         meta: { title: '系统设置' },
-        redirect: { name: 'ModuleManage' },
+        redirect: { name: 'UserManage' },
         children: [
           {
-            path: 'modules',
-            name: 'ModuleManage',
-            component: () => import('@/views/settings/ModuleManagePage.vue'),
-            meta: { title: '模块管理' },
+            path: 'profile',
+            name: 'Profile',
+            component: () => import('@/views/profile/ProfilePage.vue'),
+            meta: { title: '用户信息' },
           },
           {
             path: 'users',

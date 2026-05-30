@@ -1,89 +1,121 @@
 package com.zestflow.admin.controller;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.zestflow.admin.model.dto.DesignBindDTO;
-import com.zestflow.admin.model.dto.DesignCreateDTO;
-import com.zestflow.admin.model.dto.DesignUpdateDTO;
-import com.zestflow.admin.model.vo.ChainVO;
-import com.zestflow.admin.model.vo.DesignVO;
-import com.zestflow.admin.service.DesignService;
-import com.zestflow.common.model.Result;
-import jakarta.validation.Valid;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.zestflow.admin.client.ExecutorProxyService;
+import com.zestflow.admin.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.Map;
-
+/**
+ * 设计管理 — 所有数据通过 HTTP 代理到具体 Executor 端
+ */
 @RestController
 @RequestMapping("/designs")
 @RequiredArgsConstructor
 public class DesignController {
 
-    private final DesignService designService;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    private final ExecutorProxyService proxyService;
 
     @GetMapping
-    public Result<IPage<DesignVO>> listByModuleId(
+    public String listByModuleId(
             @RequestParam Long moduleId,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Integer status,
             @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "20") Integer size) {
-        return Result.success(designService.listByModuleId(moduleId, keyword, status, page, size));
+            @RequestParam(defaultValue = "10") Integer size) {
+        String query = "?keyword=" + (keyword != null ? keyword : "")
+                + "&status=" + (status != null ? status : "")
+                + "&page=" + page + "&size=" + size;
+        return proxyService.getFromExecutor(moduleId, "/api/designs", query);
     }
 
-    @GetMapping("/{id}")
-    public Result<DesignVO> getById(@PathVariable Long id) {
-        return Result.success(designService.getById(id));
+    @GetMapping("/{code}")
+    public String getByCode(@PathVariable String code, @RequestParam Long moduleId) {
+        return proxyService.getFromExecutor(moduleId, "/api/designs/" + code, null);
     }
 
     @PostMapping
-    public Result<DesignVO> create(@Valid @RequestBody DesignCreateDTO dto) {
-        return Result.success(designService.create(dto));
+    public String create(@RequestBody String bodyJson) {
+        String enriched = injectUpdatedBy(bodyJson);
+        return proxyService.executeOnExecutor(extractModuleId(bodyJson), "POST", "/api/designs", enriched);
     }
 
-    @PutMapping("/{id}")
-    public Result<DesignVO> update(@PathVariable Long id, @Valid @RequestBody DesignUpdateDTO dto) {
-        return Result.success(designService.update(id, dto));
+    @PutMapping("/{code}")
+    public String update(@PathVariable String code, @RequestBody String bodyJson) {
+        String enriched = injectUpdatedBy(bodyJson);
+        return proxyService.executeOnExecutor(extractModuleId(bodyJson), "PUT", "/api/designs/" + code, enriched);
     }
 
-    @PutMapping("/{id}/graph")
-    public Result<Void> saveGraph(@PathVariable Long id, @RequestBody Map<String, String> body) {
-        designService.saveGraph(id, body.get("graphData"));
-        return Result.success();
+    @PutMapping("/{code}/graph")
+    public String saveGraph(@PathVariable String code, @RequestBody String bodyJson) {
+        Long moduleId = extractModuleId(bodyJson);
+        if (moduleId == null) return "{\"code\":400,\"message\":\"缺少 moduleId\"}";
+        String enriched = injectUpdatedBy(bodyJson);
+        return proxyService.executeOnExecutor(moduleId, "PUT", "/api/designs/" + code + "/graph", enriched);
     }
 
-    @DeleteMapping("/{id}")
-    public Result<Void> delete(@PathVariable Long id) {
-        designService.delete(id);
-        return Result.success();
+    @DeleteMapping("/{code}")
+    public String delete(@PathVariable String code, @RequestParam Long moduleId) {
+        String username = com.zestflow.admin.util.SecurityUtils.getCurrentUsername();
+        String query = username != null ? "?updatedBy=" + username : "";
+        return proxyService.executeOnExecutor(moduleId, "DELETE", "/api/designs/" + code + query, null);
     }
 
-    @PutMapping("/{id}/status")
-    public Result<Void> toggleStatus(@PathVariable Long id) {
-        designService.toggleStatus(id);
-        return Result.success();
+    @PutMapping("/{code}/status")
+    public String toggleStatus(@PathVariable String code, @RequestParam Long moduleId) {
+        String body = "{\"moduleId\":" + moduleId + "}";
+        String enriched = injectUpdatedBy(body);
+        return proxyService.executeOnExecutor(moduleId, "PUT", "/api/designs/" + code + "/status", enriched);
     }
 
-    @GetMapping("/{id}/bindings")
-    public Result<List<ChainVO>> getBindings(@PathVariable Long id) {
-        return Result.success(designService.getBindings(id));
+    @GetMapping("/{code}/bindings")
+    public String getBindings(@PathVariable String code, @RequestParam Long moduleId) {
+        return proxyService.getFromExecutor(moduleId, "/api/designs/" + code + "/bindings", null);
     }
 
-    @GetMapping("/{id}/bindable")
-    public Result<List<ChainVO>> getBindable(@PathVariable Long id) {
-        return Result.success(designService.getBindable(id));
+    @GetMapping("/{code}/bindable")
+    public String getBindable(@PathVariable String code, @RequestParam Long moduleId) {
+        return proxyService.getFromExecutor(moduleId, "/api/designs/" + code + "/bindable", null);
     }
 
-    @PostMapping("/{id}/bindings")
-    public Result<Void> bind(@PathVariable Long id, @Valid @RequestBody DesignBindDTO dto) {
-        designService.bind(id, dto.getChainId());
-        return Result.success();
+    @PostMapping("/{code}/bindings")
+    public String bind(@PathVariable String code, @RequestParam Long moduleId, @RequestBody String bodyJson) {
+        String enriched = injectUpdatedBy(bodyJson);
+        return proxyService.executeOnExecutor(moduleId, "POST", "/api/designs/" + code + "/bindings", enriched);
     }
 
-    @DeleteMapping("/{id}/bindings/{chainId}")
-    public Result<Void> unbind(@PathVariable Long id, @PathVariable Long chainId) {
-        designService.unbind(id, chainId);
-        return Result.success();
+    @DeleteMapping("/{code}/bindings/{chainCode}")
+    public String unbind(@PathVariable String code, @PathVariable String chainCode, @RequestParam Long moduleId) {
+        // unbind is DELETE without body — pass updatedBy as query param
+        String username = com.zestflow.admin.util.SecurityUtils.getCurrentUsername();
+        String query = username != null ? "?updatedBy=" + username : "";
+        return proxyService.executeOnExecutor(moduleId, "DELETE",
+                "/api/designs/" + code + "/bindings/" + chainCode + query, null);
+    }
+
+    private String injectUpdatedBy(String bodyJson) {
+        try {
+            ObjectNode node = (ObjectNode) MAPPER.readTree(bodyJson);
+            String username = SecurityUtils.getCurrentUsername();
+            if (username != null) {
+                node.put("updatedBy", username);
+            }
+            return MAPPER.writeValueAsString(node);
+        } catch (Exception e) {
+            return bodyJson;
+        }
+    }
+
+    private Long extractModuleId(String bodyJson) {
+        try {
+            com.fasterxml.jackson.databind.JsonNode json = new com.fasterxml.jackson.databind.ObjectMapper().readTree(bodyJson);
+            if (json.has("moduleId") && !json.get("moduleId").isNull()) {
+                return json.get("moduleId").asLong();
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 }

@@ -43,9 +43,9 @@
       style="width:100%"
       :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"
     >
-      <el-table-column prop="code" :label="$t('design.code')" width="130">
+      <el-table-column prop="code" :label="$t('design.code')" width="160">
         <template #default="{ row }">
-          <span style="font-family:monospace;font-weight:600;color:#303133">{{ row.code }}</span>
+          <span style="color:#409eff;cursor:pointer;font-family:monospace;font-weight:600" @click="openDesignDetail(row)">{{ row.code }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="name" :label="$t('design.name')" show-overflow-tooltip min-width="140" />
@@ -65,62 +65,29 @@
       <el-table-column :label="$t('design.boundChainCodes')" width="180" show-overflow-tooltip>
         <template #default="{ row }">
           <span v-if="!row.boundChainCodes" style="color:#909399;font-size:12px">{{ $t('design.noBindings') }}</span>
-          <el-popover
-            v-else
-            trigger="click"
-            placement="bottom"
-            :width="360"
-            @show="loadChainDetails(row)"
-          >
-            <template #reference>
-              <span style="color:#409eff;cursor:pointer;text-decoration:underline dotted;">
-                {{ row.boundChainCodes }}
-              </span>
-            </template>
-            <div style="padding:4px 0">
-              <div style="font-weight:600;margin-bottom:8px;color:#303133;font-size:14px">
-                {{ $t('design.boundChainHint') }}
-              </div>
-              <div v-if="chainDetailsMap[row.id] && chainDetailsMap[row.id].length > 0">
-                <div
-                  v-for="chain in chainDetailsMap[row.id]"
-                  :key="chain.id"
-                  style="display:flex;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0"
-                >
-                  <el-tag size="small" style="font-family:monospace;margin-right:8px">{{ chain.code }}</el-tag>
-                  <span style="flex:1;font-size:13px;color:#303133">{{ chain.name }}</span>
-                  <el-tag :type="chain.status === 1 ? 'success' : 'danger'" size="small">
-                    {{ chain.status === 1 ? $t('chains.enabled') : $t('chains.disabled') }}
-                  </el-tag>
-                </div>
-              </div>
-              <el-empty v-else :description="$t('design.noBindings')" />
-            </div>
-          </el-popover>
+          <span v-else style="color:#409eff;cursor:pointer" @click="openChainDetailFromDesign(row)">{{ row.boundChainCodes }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="description" :label="$t('design.description')" show-overflow-tooltip min-width="140" />
-      <el-table-column prop="createdAt" :label="$t('design.createdAt')" width="160">
-        <template #default="{ row }">{{ row.createdAt?.replace('T', ' ') }}</template>
-      </el-table-column>
-      <el-table-column prop="updatedAt" :label="$t('design.updatedAt')" width="160">
+      <el-table-column prop="updatedBy" :label="$t('common.updatedBy')" width="120" show-overflow-tooltip />
+      <el-table-column prop="updatedAt" :label="$t('design.updatedAt')" width="160" show-overflow-tooltip>
         <template #default="{ row }">{{ row.updatedAt?.replace('T', ' ') }}</template>
       </el-table-column>
-      <el-table-column :label="$t('common.actions')" width="340" fixed="right">
+      <el-table-column :label="$t('common.actions')" width="190" fixed="right">
         <template #default="{ row }">
-          <el-button text type="primary" size="small" @click="handleDesign(row)">
+          <el-button text type="primary" size="small" class="action-btn" @click="handleDesign(row)">
             {{ $t('design.design') }}
           </el-button>
-          <el-button text type="primary" size="small" @click="openBindDialog(row)">
+          <el-button text type="primary" size="small" class="action-btn" @click="openBindDialog(row)">
             {{ $t('design.bind') }}
           </el-button>
-          <el-button text type="primary" size="small" @click="handleToggleStatus(row)">
+          <el-button text type="primary" size="small" class="action-btn" @click="handleToggleStatus(row)">
             {{ row.status === 1 ? $t('design.disable') : $t('design.enable') }}
           </el-button>
-          <el-button text type="primary" size="small" @click="openEdit(row)">
+          <el-button text type="primary" size="small" class="action-btn" @click="openEdit(row)">
             {{ $t('common.edit') }}
           </el-button>
-          <el-button text type="danger" size="small" @click="handleDelete(row)">
+          <el-button text type="danger" size="small" class="action-btn" @click="handleDelete(row)">
             {{ $t('design.delete') }}
           </el-button>
         </template>
@@ -140,28 +107,12 @@
     </div>
 
     <!-- 创建弹窗 -->
-    <el-dialog v-model="createDialogVisible" :title="$t('design.createDesign')" width="600px" :close-on-click-modal="false">
-      <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="100px">
-        <el-form-item :label="$t('design.module')" prop="moduleId">
-          <el-select v-model="createForm.moduleId" filterable style="width:100%" :placeholder="$t('design.selectModule')">
-            <el-option v-for="m in modules" :key="m.id" :label="m.name" :value="m.id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item :label="$t('design.name')" prop="name">
-          <el-input v-model="createForm.name" maxlength="100" autocomplete="off" />
-        </el-form-item>
-        <el-form-item :label="$t('design.designer')" prop="designer">
-          <el-input v-model="createForm.designer" maxlength="50" autocomplete="off" />
-        </el-form-item>
-        <el-form-item :label="$t('design.description')" prop="description">
-          <el-input v-model="createForm.description" type="textarea" maxlength="500" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="createDialogVisible = false">{{ $t('common.cancel') }}</el-button>
-        <el-button type="primary" :loading="createSubmitting" @click="handleCreate">{{ $t('common.save') }}</el-button>
-      </template>
-    </el-dialog>
+    <CreateDesignDialog
+      v-model:visible="createDialogVisible"
+      :module-options="modules"
+      :default-module-id="currentModuleId"
+      @saved="onDesignCreated"
+    />
 
     <!-- 编辑弹窗 -->
     <el-dialog v-model="editDialogVisible" :title="$t('design.editDesign')" width="600px" :close-on-click-modal="false">
@@ -193,7 +144,7 @@
       <div style="margin-bottom:8px">
         <span style="font-weight:600;color:#606266">{{ $t('design.alreadyBound') }}：</span>
         <span v-if="boundChains.length === 0" style="color:#909399">{{ $t('design.noBindings') }}</span>
-        <el-tag v-for="b in boundChains" :key="b.id" closable style="margin-right:6px;margin-bottom:4px" @close="handleUnbind(b.id)">
+        <el-tag v-for="b in boundChains" :key="b.code" closable style="margin-right:6px;margin-bottom:4px" @close="handleUnbind(b.code)">
           {{ b.code }} - {{ b.name }}
         </el-tag>
       </div>
@@ -211,7 +162,7 @@
         </el-table-column>
         <el-table-column :label="$t('common.actions')" width="80" align="center">
           <template #default="{ row }">
-            <el-button text type="primary" size="small" @click="handleBind(row.id)">{{ $t('design.bind') }}</el-button>
+            <el-button text type="primary" size="small" @click="handleBind(row.code)">{{ $t('design.bind') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -219,6 +170,79 @@
         <el-button @click="bindDialogVisible = false">{{ $t('common.confirm') }}</el-button>
       </template>
     </el-dialog>
+
+    <!-- 设计详情抽屉 -->
+    <el-drawer v-model="designDrawerVisible" title="设计详情" :size="520" destroy-on-close>
+      <template v-if="currentDesignDetail">
+        <div style="padding:0 8px">
+          <div style="font-size:20px;font-weight:600;color:#303133;margin-bottom:12px">{{ currentDesignDetail.name }}</div>
+          <el-descriptions :column="1" border size="small">
+            <el-descriptions-item label="编码">
+              <el-tag size="small" style="font-family:monospace">{{ currentDesignDetail.code }}</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="状态">
+              <el-tag :type="currentDesignDetail.status === 1 ? 'success' : 'danger'" size="small">
+                {{ currentDesignDetail.status === 1 ? $t('design.enabled') : $t('design.disabled') }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="设计者">
+              {{ currentDesignDetail.designer || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="模块">
+              {{ getModuleName(currentDesignDetail.moduleId) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="描述">
+              {{ currentDesignDetail.description || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="绑定链">
+              <template v-if="currentDesignDetail.boundChains && currentDesignDetail.boundChains.length > 0">
+                <div v-for="c in currentDesignDetail.boundChains" :key="c.code" style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                  <el-tag size="small" type="info" style="font-family:monospace">{{ c.code }}</el-tag>
+                  <span style="font-size:13px;color:#303133">{{ c.name }}</span>
+                  <el-tag :type="chainStatusTagType(c.status)" size="small" style="margin-left:auto">
+                    {{ chainStatusLabel(c.status) }}
+                  </el-tag>
+                </div>
+              </template>
+              <span v-else style="color:#c0c4cc">-</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="创建人">{{ currentDesignDetail.createdBy || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="创建时间">{{ currentDesignDetail.createdAt?.replace('T', ' ') }}</el-descriptions-item>
+            <el-descriptions-item :label="$t('common.updatedBy')">{{ currentDesignDetail.updatedBy || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="更新时间">{{ currentDesignDetail.updatedAt?.replace('T', ' ') }}</el-descriptions-item>
+          </el-descriptions>
+        </div>
+      </template>
+    </el-drawer>
+
+    <!-- 链详情抽屉 -->
+    <el-drawer v-model="chainDrawerVisible" title="链详情" :size="480" destroy-on-close>
+      <template v-if="currentChainDetail">
+        <div style="padding:0 8px">
+          <div style="font-size:20px;font-weight:600;color:#303133;margin-bottom:12px">{{ currentChainDetail.name }}</div>
+          <el-descriptions :column="1" border size="small">
+            <el-descriptions-item label="编码">
+              <el-tag size="small" style="font-family:monospace">{{ currentChainDetail.code }}</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="状态">
+              <el-tag :type="currentChainDetail.status === 0 ? 'danger' : 'success'" size="small">
+                {{ currentChainDetail.status === 0 ? $t('chains.disabled') : $t('chains.enabled') }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="模块">
+              {{ moduleNameMap[currentChainDetail.moduleId] || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="描述">
+              {{ currentChainDetail.description || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="创建人">{{ currentChainDetail.createdBy || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="创建时间">{{ currentChainDetail.createdAt?.replace('T', ' ') }}</el-descriptions-item>
+            <el-descriptions-item :label="$t('common.updatedBy')">{{ currentChainDetail.updatedBy || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="更新时间">{{ currentChainDetail.updatedAt?.replace('T', ' ') }}</el-descriptions-item>
+          </el-descriptions>
+        </div>
+      </template>
+    </el-drawer>
   </div>
 </template>
 
@@ -227,9 +251,10 @@ import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import { designApi, type DesignVO, type DesignCreateDTO } from '@/api/design'
+import { designApi, type DesignVO } from '@/api/design'
 import type { ChainVO } from '@/api/chain'
 import { moduleApi, type ModuleVO } from '@/api/module'
+import CreateDesignDialog from '@/components/CreateDesignDialog.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -241,6 +266,14 @@ const designList = ref<DesignVO[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
+
+function chainStatusTagType(status: number): string {
+  return ['danger', 'info', 'warning', 'primary', 'success'][status] || 'info'
+}
+function chainStatusLabel(status: number): string {
+  const labels = [t('chains.disabled'), t('chains.notDesigned'), t('chains.unpublished'), t('chains.publishing'), t('chains.published')]
+  return labels[status] || '-'
+}
 const filter = ref({ keyword: '', status: undefined as number | undefined })
 
 const currentModuleName = computed(() => {
@@ -248,23 +281,17 @@ const currentModuleName = computed(() => {
   return m ? m.name : ''
 })
 
+function getModuleName(moduleId: number | undefined): string {
+  if (moduleId == null) return '-'
+  const m = modules.value.find(m => m.id === moduleId)
+  return m ? m.name : '-'
+}
+
 const stats = computed(() => {
   const enabled = designList.value.filter(c => c.status === 1).length
   const disabled = designList.value.filter(c => c.status === 0).length
   return { enabled, disabled }
 })
-
-// 链详情缓存（用于弹窗展示）
-const chainDetailsMap = ref<Record<number, ChainVO[]>>({})
-
-async function loadChainDetails(row: DesignVO) {
-  try {
-    const bindings = await designApi.getBindings(row.id)
-    chainDetailsMap.value[row.id] = bindings
-  } catch {
-    chainDetailsMap.value[row.id] = []
-  }
-}
 
 async function fetchModules() {
   try {
@@ -278,8 +305,6 @@ async function fetchModules() {
 async function fetchList() {
   if (!currentModuleId.value) return
   loading.value = true
-  // 清除链详情缓存
-  chainDetailsMap.value = {}
   try {
     const res = await designApi.list({
       moduleId: currentModuleId.value,
@@ -299,48 +324,31 @@ function handleReset() { filter.value = { keyword: '', status: undefined }; page
 
 // 创建
 const createDialogVisible = ref(false)
-const createSubmitting = ref(false)
-const createFormRef = ref<any>(null)
-const createForm = ref({ name: '', description: '', designer: '', moduleId: undefined as number | undefined })
-const createRules = {
-  name: [{ required: true, message: () => t('validation.required', { field: t('design.name') }), trigger: 'blur' }],
-  moduleId: [{ required: true, message: () => t('design.selectModule'), trigger: 'change' }],
-}
 
 function openCreate() {
-  createForm.value = { name: '', description: '', designer: '', moduleId: currentModuleId.value }
   createDialogVisible.value = true
 }
 
-async function handleCreate() {
-  const valid = await createFormRef.value?.validate().catch(() => false)
-  if (!valid) return
-  createSubmitting.value = true
-  try {
-    const res = await designApi.create({
-      name: createForm.value.name,
-      description: createForm.value.description || undefined,
-      designer: createForm.value.designer || undefined,
-      moduleId: createForm.value.moduleId!,
-    } as DesignCreateDTO)
-    ElMessage.success(t('design.createDesign') + '成功，' + t('design.code') + '：' + res.code)
-    createDialogVisible.value = false
-    await fetchList()
-  } finally { createSubmitting.value = false }
+function onDesignCreated(design: DesignVO) {
+  ElMessage.success(t('design.createDesign') + '成功，' + t('design.code') + '：' + design.code)
+  createDialogVisible.value = false
+  fetchList()
 }
 
 // 编辑
 const editDialogVisible = ref(false)
 const editSubmitting = ref(false)
 const editFormRef = ref<any>(null)
-const editingId = ref<number | null>(null)
+const editingCode = ref<string | null>(null)
+const editingModuleId = ref<number>(0)
 const editForm = ref({ code: '', name: '', description: '', designer: '' })
 const editRules = {
   name: [{ required: true, message: () => t('validation.required', { field: t('design.name') }), trigger: 'blur' }],
 }
 
 function openEdit(row: DesignVO) {
-  editingId.value = row.id
+  editingCode.value = row.code
+  editingModuleId.value = row.moduleId
   editForm.value = {
     code: row.code,
     name: row.name,
@@ -352,13 +360,14 @@ function openEdit(row: DesignVO) {
 
 async function handleEdit() {
   const valid = await editFormRef.value?.validate().catch(() => false)
-  if (!valid || !editingId.value) return
+  if (!valid || !editingCode.value) return
   editSubmitting.value = true
   try {
-    await designApi.update(editingId.value, {
+    await designApi.update(editingCode.value, {
       name: editForm.value.name,
       description: editForm.value.description || undefined,
       designer: editForm.value.designer || undefined,
+      moduleId: editingModuleId.value,
     })
     ElMessage.success(t('common.edit') + '成功')
     editDialogVisible.value = false
@@ -368,7 +377,7 @@ async function handleEdit() {
 
 // 启停 / 删除
 async function handleToggleStatus(row: DesignVO) {
-  await designApi.toggleStatus(row.id)
+  await designApi.toggleStatus(row.code, row.moduleId)
   ElMessage.success(row.status === 1 ? t('design.disable') + '成功' : t('design.enable') + '成功')
   await fetchList()
 }
@@ -377,7 +386,7 @@ function handleDelete(row: DesignVO) {
   ElMessageBox.confirm(t('design.deleteConfirm', { name: row.name }), t('design.delete'),
     { confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel'), type: 'warning' }
   ).then(async () => {
-    await designApi.delete(row.id)
+    await designApi.delete(row.code, row.moduleId)
     ElMessage.success(t('design.delete') + '成功')
     await fetchList()
   }).catch(() => {})
@@ -385,7 +394,7 @@ function handleDelete(row: DesignVO) {
 
 // 设计 → 跳转编辑器
 function handleDesign(row: DesignVO) {
-  router.push({ name: 'DesignEditor', params: { id: row.id } })
+  router.push({ name: 'DesignEditor', params: { id: row.code }, query: { moduleId: row.moduleId } })
 }
 
 // 绑定
@@ -399,22 +408,22 @@ async function openBindDialog(row: DesignVO) {
   bindDialogVisible.value = true
   try {
     const [bindings, bindable] = await Promise.all([
-      designApi.getBindings(row.id),
-      designApi.getBindable(row.id),
+      designApi.getBindings(row.code, row.moduleId),
+      designApi.getBindable(row.code, row.moduleId),
     ])
     boundChains.value = bindings
     bindableChains.value = bindable
   } catch { /* ignore */ }
 }
 
-async function handleBind(chainId: number) {
+async function handleBind(chainCode: string) {
   if (!bindTarget.value) return
   try {
-    await designApi.bind(bindTarget.value.id, chainId)
+    await designApi.bind(bindTarget.value.code, chainCode, bindTarget.value.moduleId)
     ElMessage.success(t('design.bind') + '成功')
     const [bindings, bindable] = await Promise.all([
-      designApi.getBindings(bindTarget.value.id),
-      designApi.getBindable(bindTarget.value.id),
+      designApi.getBindings(bindTarget.value.code, bindTarget.value.moduleId),
+      designApi.getBindable(bindTarget.value.code, bindTarget.value.moduleId),
     ])
     boundChains.value = bindings
     bindableChains.value = bindable
@@ -422,18 +431,53 @@ async function handleBind(chainId: number) {
   } catch { /* ignore */ }
 }
 
-async function handleUnbind(chainId: number) {
+async function handleUnbind(chainCode: string) {
   if (!bindTarget.value) return
   try {
-    await designApi.unbind(bindTarget.value.id, chainId)
+    await designApi.unbind(bindTarget.value.code, chainCode, bindTarget.value.moduleId)
     ElMessage.success(t('design.unbind') + '成功')
     const [bindings, bindable] = await Promise.all([
-      designApi.getBindings(bindTarget.value.id),
-      designApi.getBindable(bindTarget.value.id),
+      designApi.getBindings(bindTarget.value.code, bindTarget.value.moduleId),
+      designApi.getBindable(bindTarget.value.code, bindTarget.value.moduleId),
     ])
     boundChains.value = bindings
     bindableChains.value = bindable
     await fetchList()
+  } catch { /* ignore */ }
+}
+
+// 设计详情抽屉
+const designDrawerVisible = ref(false)
+const currentDesignDetail = ref<DesignVO | null>(null)
+async function openDesignDetail(row: DesignVO) {
+  designDrawerVisible.value = true
+  currentDesignDetail.value = null
+  try {
+    currentDesignDetail.value = await designApi.getByCode(row.code, row.moduleId)
+  } catch { /* ignore */ }
+}
+
+// 链详情抽屉
+const chainDrawerVisible = ref(false)
+const currentChainDetail = ref<any>(null)
+const moduleNameMap = computed(() => {
+  const map: Record<number, string> = {}
+  modules.value.forEach(m => { map[m.id] = m.name })
+  return map
+})
+function openChainDetail(chain: any) {
+  currentChainDetail.value = chain
+  chainDrawerVisible.value = true
+}
+
+async function openChainDetailFromDesign(row: DesignVO) {
+  try {
+    const detail = await designApi.getByCode(row.code, row.moduleId)
+    const chains = detail.boundChains
+    if (chains && chains.length > 0) {
+      currentChainDetail.value = chains[0]
+      chainDrawerVisible.value = true
+    }
   } catch { /* ignore */ }
 }
 
@@ -450,4 +494,5 @@ onMounted(async () => {
 .stats-summary {
   display: flex; align-items: center; font-size: 14px;
 }
+.action-btn.action-btn { padding: 2px 4px; margin-left: 0; }
 </style>

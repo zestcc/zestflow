@@ -23,6 +23,7 @@
 
     <properties>
         <java.version>17</java.version>
+        <jdk17.home>D:/IT/JDK/JDK17/jdk-17.0.12</jdk17.home>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -168,6 +169,8 @@
                         <source>${java.version}</source>
                         <target>${java.version}</target>
                         <parameters>true</parameters>
+                        <fork>true</fork>
+                        <executable>${jdk17.home}/bin/javac</executable>
                         <annotationProcessorPaths>
                             <path>
                                 <groupId>org.projectlombok</groupId>

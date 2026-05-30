@@ -7,6 +7,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestTemplate;
 
+import java.nio.charset.StandardCharsets;
+
 /**
  * Collector 客户端配置 — 封装 Admin 连接 Collector 的参数
  */
@@ -16,7 +18,13 @@ public class CollectorConfig {
 
     @Bean
     public RestTemplate restTemplate() {
-        return new RestTemplate();
+        RestTemplate restTemplate = new RestTemplate();
+        // 默认 StringHttpMessageConverter 用 ISO-8859-1，中文会变 ????
+        restTemplate.getMessageConverters().stream()
+                .filter(c -> c instanceof org.springframework.http.converter.StringHttpMessageConverter)
+                .forEach(c -> ((org.springframework.http.converter.StringHttpMessageConverter) c)
+                        .setDefaultCharset(StandardCharsets.UTF_8));
+        return restTemplate;
     }
 
     @Bean

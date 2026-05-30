@@ -2,6 +2,7 @@ package com.zestflow.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zestflow.admin.constant.ErrorCode;
+
 import com.zestflow.admin.model.dto.AssignModuleRoleDTO;
 import com.zestflow.admin.model.dto.UserCreateDTO;
 import com.zestflow.admin.model.dto.UserUpdateDTO;
@@ -115,6 +116,7 @@ public class UserManageServiceImpl implements UserManageService {
         user.setStatus(1);
         user.setIsSuperAdmin(dto.getIsSuperAdmin() != null ? dto.getIsSuperAdmin() : 0);
         user.setMustChangePassword(1);
+
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.insert(user);
@@ -158,6 +160,7 @@ public class UserManageServiceImpl implements UserManageService {
 
         if (dto.getStatus() != null) user.setStatus(dto.getStatus());
         if (dto.getIsSuperAdmin() != null) user.setIsSuperAdmin(dto.getIsSuperAdmin());
+
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.updateById(user);
 
@@ -188,6 +191,7 @@ public class UserManageServiceImpl implements UserManageService {
         String rawPassword = generateRandomPassword();
         user.setPassword(passwordEncoder.encode(rawPassword));
         user.setMustChangePassword(1);
+
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.updateById(user);
         log.info("用户密码重置成功 userId={}", id);
@@ -276,6 +280,9 @@ public class UserManageServiceImpl implements UserManageService {
                 .isSuperAdmin(user.getIsSuperAdmin())
                 .moduleRoles(roleVOs)
                 .mustChangePassword(user.getMustChangePassword())
+                .updatedBy(user.getUpdatedBy())
+                .createdAt(user.getCreatedAt())
+                .updatedAt(user.getUpdatedAt())
                 .build();
     }
 }

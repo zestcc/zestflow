@@ -8,6 +8,11 @@
     <!-- 筛选栏 -->
     <el-card shadow="never" class="filter-card">
       <el-form :inline="true" :model="query" size="default">
+        <el-form-item :label="$t('schedules.module')">
+          <el-select v-model="query.moduleId" :placeholder="$t('schedules.module')" clearable style="width:200px">
+            <el-option v-for="m in modules" :key="m.id" :label="m.name" :value="m.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item :label="$t('schedules.keyword')">
           <el-input v-model="query.keyword" :placeholder="$t('schedules.keyword')" clearable />
         </el-form-item>
@@ -53,16 +58,16 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="updatedAt" :label="$t('common.updatedAt')" width="170" />
-        <el-table-column :label="$t('common.actions')" width="280" fixed="right">
+        <el-table-column prop="updatedAt" :label="$t('common.updatedAt')" width="170" show-overflow-tooltip />
+        <el-table-column :label="$t('common.actions')" width="240" fixed="right">
           <template #default="{ row }">
-            <el-button text size="small" type="primary" @click="showEdit(row)">{{ $t('common.edit') }}</el-button>
-            <el-button text size="small" :type="row.status === 1 ? 'warning' : 'success'" @click="toggleStatus(row)">
+            <el-button text size="small" type="primary" class="action-btn" @click="showEdit(row)">{{ $t('common.edit') }}</el-button>
+            <el-button text size="small" :type="row.status === 1 ? 'warning' : 'success'" class="action-btn" @click="toggleStatus(row)">
               {{ row.status === 1 ? $t('schedules.disable') : $t('schedules.enable') }}
             </el-button>
-            <el-button text size="small" type="success" @click="handleTrigger(row)">{{ $t('schedules.manualTrigger') }}</el-button>
-            <el-button text size="small" type="primary" @click="showLogs(row)">{{ $t('schedules.viewLogs') }}</el-button>
-            <el-button text size="small" type="danger" @click="handleDelete(row)">{{ $t('common.delete') }}</el-button>
+            <el-button text size="small" type="success" class="action-btn" @click="handleTrigger(row)">{{ $t('schedules.manualTrigger') }}</el-button>
+            <el-button text size="small" type="primary" class="action-btn" @click="showLogs(row)">{{ $t('schedules.viewLogs') }}</el-button>
+            <el-button text size="small" type="danger" class="action-btn" @click="handleDelete(row)">{{ $t('common.delete') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -85,15 +90,23 @@
       :close-on-click-modal="false"
     >
       <el-form ref="formRef" :model="form" :rules="rules" label-width="120px">
-        <el-form-item :label="$t('schedules.chainCode')" prop="chainId">
-          <el-select v-model="form.chainId" :placeholder="$t('schedules.selectChain')" filterable style="width:100%">
+        <el-form-item v-if="!isEditing" :label="$t('schedules.module')" prop="moduleId">
+          <el-select v-model="form.moduleId" :placeholder="$t('design.selectModule')" filterable style="width:100%" @change="onModuleChangeForChain">
+            <el-option v-for="m in modules" :key="m.id" :label="m.name" :value="m.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="!isEditing" :label="$t('schedules.chainCode')" prop="chainCode">
+          <el-select v-model="form.chainCode" :placeholder="$t('schedules.selectChain')" filterable style="width:100%" @change="onChainSelect">
             <el-option
               v-for="c in chainOptions"
-              :key="c.id"
+              :key="c.code"
               :label="c.code + ' - ' + c.name"
-              :value="c.id"
+              :value="c.code"
             />
           </el-select>
+        </el-form-item>
+        <el-form-item v-else :label="$t('schedules.chainCode')">
+          <el-input :model-value="form.chainCode + ' - ' + form.chainName" disabled />
         </el-form-item>
         <el-form-item :label="$t('schedules.cron')" prop="cron">
           <el-input v-model="form.cron" placeholder="0 0/5 * * * ?" />
@@ -168,12 +181,14 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { scheduleApi, type ScheduleVO, type ScheduleCreateDTO, type ScheduleUpdateDTO, type ScheduleLogVO } from '@/api/schedule'
 import { chainApi, type ChainVO } from '@/api/chain'
+import { moduleApi, type ModuleVO } from '@/api/module'
 
 const { t } = useI18n()
 
 const list = ref<ScheduleVO[]>([])
 const total = ref(0)
-const query = reactive({ keyword: undefined as string | undefined, status: undefined as number | undefined, page: 1, size: 20 })
+const query = reactive({ moduleId: undefined as number | undefined, keyword: undefined as string | undefined, status: undefined as number | undefined, page: 1, size: 20 })
+const modules = ref<ModuleVO[]>([])
 
 const stats = computed(() => {
   const total = list.value.length
@@ -188,11 +203,12 @@ const isEditing = ref(false)
 const editingId = ref<number | null>(null)
 const submitting = ref(false)
 const formRef = ref<any>(null)
-const form = reactive<ScheduleCreateDTO & { chainId: number }>({ chainId: 0, cron: '', routeStrategy: 'round_robin', remark: '' })
+const form = reactive({ moduleId: 0, chainCode: '', chainName: '', cron: '', routeStrategy: 'round_robin', remark: '' })
 const chainOptions = ref<ChainVO[]>([])
 
-const rules = {
-  chainId: [{ required: true, message: t('schedules.selectChain'), trigger: 'change' }],
+const rules: Record<string, any[]> = {
+  moduleId: [{ required: true, message: t('design.selectModule'), trigger: 'change' }],
+  chainCode: [{ required: true, message: t('schedules.selectChain'), trigger: 'change' }],
   cron: [{ required: true, message: t('schedules.cron') + t('validation.required', { field: '' }), trigger: 'blur' }],
 }
 
@@ -211,26 +227,49 @@ function statusText(status: number): string {
 }
 
 async function fetchList() {
-  const res = await scheduleApi.list({ keyword: query.keyword, status: query.status, page: query.page, size: query.size })
+  const res = await scheduleApi.list({ moduleId: query.moduleId, keyword: query.keyword, status: query.status, page: query.page, size: query.size })
   list.value = res.records || []
   total.value = res.total || 0
 }
 
 async function search() { query.page = 1; fetchList() }
-function resetSearch() { query.keyword = undefined; query.status = undefined; query.page = 1; fetchList() }
+function resetSearch() { query.moduleId = undefined; query.keyword = undefined; query.status = undefined; query.page = 1; fetchList() }
 
-async function fetchChains() {
+async function fetchModules() {
   try {
-    const res = await chainApi.list({ moduleId: 0, page: 1, size: 999 })
+    modules.value = await moduleApi.list()
+  } catch { modules.value = [] }
+}
+
+async function fetchChains(moduleId: number) {
+  try {
+    const res = await chainApi.list({ moduleId, page: 1, size: 999 })
     chainOptions.value = res.records || []
-  } catch (_e) { chainOptions.value = [] }
+  } catch { chainOptions.value = [] }
 }
 
 function resetForm() {
-  form.chainId = 0
+  form.moduleId = 0
+  form.chainCode = ''
+  form.chainName = ''
   form.cron = ''
   form.routeStrategy = 'round_robin'
   form.remark = ''
+}
+
+function onModuleChangeForChain() {
+  form.chainCode = ''
+  form.chainName = ''
+  if (form.moduleId) {
+    fetchChains(form.moduleId)
+  } else {
+    chainOptions.value = []
+  }
+}
+
+function onChainSelect(code: string) {
+  const c = chainOptions.value.find(x => x.code === code)
+  form.chainName = c?.name || ''
 }
 
 async function showCreate() {
@@ -238,18 +277,17 @@ async function showCreate() {
   editingId.value = null
   resetForm()
   dialogVisible.value = true
-  fetchChains()
 }
 
 async function showEdit(row: ScheduleVO) {
   isEditing.value = true
   editingId.value = row.id
-  form.chainId = row.chainId
+  form.chainCode = row.chainCode
+  form.chainName = row.chainName
   form.cron = row.cron
   form.routeStrategy = row.routeStrategy || 'round_robin'
   form.remark = row.remark || ''
   dialogVisible.value = true
-  fetchChains()
 }
 
 async function handleSave() {
@@ -261,7 +299,7 @@ async function handleSave() {
       const dto: ScheduleUpdateDTO = { cron: form.cron, routeStrategy: form.routeStrategy, remark: form.remark }
       await scheduleApi.update(editingId.value, dto)
     } else {
-      const dto: ScheduleCreateDTO = { chainId: form.chainId, cron: form.cron, routeStrategy: form.routeStrategy, remark: form.remark }
+      const dto: ScheduleCreateDTO = { moduleId: form.moduleId, chainCode: form.chainCode, chainName: form.chainName, cron: form.cron, routeStrategy: form.routeStrategy, remark: form.remark }
       await scheduleApi.create(dto)
     }
     dialogVisible.value = false
@@ -306,7 +344,10 @@ async function fetchLogs() {
   logTotal.value = res.total || 0
 }
 
-onMounted(fetchList)
+onMounted(async () => {
+  await fetchModules()
+  fetchList()
+})
 </script>
 
 <style scoped>
@@ -317,4 +358,5 @@ onMounted(fetchList)
 .stats-row { display: flex; gap: 24px; align-items: center; }
 .stat-item b { font-size: 16px; }
 .stat-item.total b { color: #409eff; }
+.action-btn.action-btn { padding: 2px 4px; margin-left: 0; }
 </style>

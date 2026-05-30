@@ -2,7 +2,6 @@ import http from './index'
 
 export interface ScheduleVO {
   id: number
-  chainId: number
   chainCode: string
   chainName: string
   moduleId: number
@@ -12,12 +11,15 @@ export interface ScheduleVO {
   status: number
   remark?: string
   createdBy?: string
+  updatedBy?: string
   createdAt: string
   updatedAt: string
 }
 
 export interface ScheduleCreateDTO {
-  chainId: number
+  moduleId: number
+  chainCode: string
+  chainName: string
   cron: string
   routeStrategy?: string
   params?: string

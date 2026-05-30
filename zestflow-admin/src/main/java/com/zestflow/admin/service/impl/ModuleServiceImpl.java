@@ -2,6 +2,7 @@ package com.zestflow.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zestflow.admin.constant.ErrorCode;
+
 import com.zestflow.admin.model.dto.ModuleCreateDTO;
 import com.zestflow.admin.model.dto.ModuleUpdateDTO;
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
@@ -87,6 +88,7 @@ public class ModuleServiceImpl implements ModuleService {
             );
             po.setSortOrder(maxSort != null ? maxSort.getSortOrder() + 1 : 1);
         }
+
         po.setCreatedAt(LocalDateTime.now());
         po.setUpdatedAt(LocalDateTime.now());
         moduleMapper.insert(po);
@@ -107,6 +109,7 @@ public class ModuleServiceImpl implements ModuleService {
         if (dto.getStatus() != null) po.setStatus(dto.getStatus());
         if (dto.getOwner() != null) po.setOwner(dto.getOwner());
         if (dto.getSortOrder() != null) po.setSortOrder(dto.getSortOrder());
+
         po.setUpdatedAt(LocalDateTime.now());
         moduleMapper.updateById(po);
 
@@ -161,6 +164,7 @@ public class ModuleServiceImpl implements ModuleService {
                 .executorHealthy(healthy)
                 .executorError(error)
                 .executorOffline(offline)
+                .updatedBy(po.getUpdatedBy())
                 .createdAt(po.getCreatedAt())
                 .updatedAt(po.getUpdatedAt())
                 .build();

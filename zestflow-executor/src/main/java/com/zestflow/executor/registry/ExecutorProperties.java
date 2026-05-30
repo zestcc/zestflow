@@ -72,6 +72,9 @@ public class ExecutorProperties {
     /** 同层并行节点数上限 */
     private int chainParallelThreshold = 3;
 
+    /** 数据持久化目录（链定义、设计图等） */
+    private String dataDir = "./zestflow-data";
+
     /** 链默认超时（毫秒） */
     private long chainDefaultTimeoutMs = 60000;
 

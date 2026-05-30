@@ -26,6 +26,9 @@ public class ExecutorRegistryPO {
 
     private LocalDateTime lastHeartbeat;
 
+    @TableField(value = "updated_by", fill = FieldFill.INSERT_UPDATE)
+    private String updatedBy;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 

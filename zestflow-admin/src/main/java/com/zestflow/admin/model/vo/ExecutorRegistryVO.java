@@ -23,5 +23,6 @@ public class ExecutorRegistryVO {
     private Integer executorPort;
     private Integer status;
     private LocalDateTime lastHeartbeat;
+    private String updatedBy;
     private LocalDateTime createdAt;
 }

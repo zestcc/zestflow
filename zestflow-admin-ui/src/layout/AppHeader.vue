@@ -38,11 +38,11 @@
         </span>
         <template #dropdown>
           <el-dropdown-menu>
-            <el-dropdown-item @click="router.push('/profile')">
+            <el-dropdown-item @click="router.push('/settings/profile')">
               {{ $t('layout.profile') }}
             </el-dropdown-item>
-            <el-dropdown-item @click="router.push('/settings')">
-              {{ $t('layout.settings') }}
+            <el-dropdown-item @click="router.push('/settings/users')">
+              {{ $t('settings.userManage') }}
             </el-dropdown-item>
             <el-dropdown-item divided @click="userStore.logout()">
               {{ $t('layout.logout') }}

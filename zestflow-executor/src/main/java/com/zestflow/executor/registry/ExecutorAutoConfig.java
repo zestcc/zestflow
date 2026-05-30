@@ -13,8 +13,9 @@ import com.zestflow.executor.lifecycle.LifecycleExecutor;
 import com.zestflow.executor.param.ParamConverterRegistry;
 import com.zestflow.executor.retry.RetryExecutor;
 import com.zestflow.executor.scanner.ComponentScanner;
+import com.zestflow.executor.chain.ChainRepository;
+import com.zestflow.executor.design.DesignRepository;
 import com.zestflow.executor.server.ExecutorServer;
-import com.zestflow.executor.server.ServerHandler;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -24,6 +25,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
 import org.springframework.web.client.RestTemplate;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @AutoConfiguration
@@ -33,13 +35,24 @@ public class ExecutorAutoConfig {
     @Bean(initMethod = "start", destroyMethod = "stop")
     public ExecutorServer executorServer(ExecutorProperties properties,
                                           java.util.Optional<EventPublisher> eventPublisher,
-                                          ChainExecutionEngine chainExecutionEngine) {
-        return new ExecutorServer(properties.getPort(), chainExecutionEngine, eventPublisher.orElse(null));
+                                          ChainExecutionEngine chainExecutionEngine,
+                                          ChainRepository chainRepo,
+                                          DesignRepository designRepo,
+                                          ComponentScanner componentScanner,
+                                          ChainLoader chainLoader) {
+        return new ExecutorServer(properties.getPort(), chainExecutionEngine, eventPublisher.orElse(null),
+                chainRepo, designRepo, componentScanner, chainLoader);
     }
 
     @Bean
     public RestTemplate zestflowRestTemplate() {
-        return new RestTemplate();
+        RestTemplate restTemplate = new RestTemplate();
+        // 默认 StringHttpMessageConverter 用 ISO-8859-1，中文会变 ????
+        restTemplate.getMessageConverters().stream()
+                .filter(c -> c instanceof org.springframework.http.converter.StringHttpMessageConverter)
+                .forEach(c -> ((org.springframework.http.converter.StringHttpMessageConverter) c)
+                        .setDefaultCharset(StandardCharsets.UTF_8));
+        return restTemplate;
     }
 
     @Bean
@@ -51,8 +64,9 @@ public class ExecutorAutoConfig {
     public ExecutorRegistrar executorRegistrar(AdminClient adminClient,
                                                ExecutorProperties properties,
                                                ExecutorServer executorServer,
-                                               Environment environment) {
-        return new ExecutorRegistrar(adminClient, properties, executorServer, environment);
+                                               Environment environment,
+                                               ComponentScanner componentScanner) {
+        return new ExecutorRegistrar(adminClient, properties, executorServer, environment, componentScanner);
     }
 
     // ==================== 事件发布 ====================
@@ -117,14 +131,14 @@ public class ExecutorAutoConfig {
     }
 
     @Bean
-    public ChainLoader chainLoader(AdminClient adminClient,
-                                   ChainManager chainManager,
+    public ChainLoader chainLoader(ChainManager chainManager,
                                    ComponentScanner componentScanner,
                                    ChainValidator chainValidator,
                                    ChainDefinitionBuilder chainDefinitionBuilder,
-                                   ExecutorProperties properties) {
-        return new ChainLoader(adminClient, chainManager, componentScanner,
-                chainValidator, chainDefinitionBuilder, properties);
+                                   ChainRepository chainRepo,
+                                   DesignRepository designRepo) {
+        return new ChainLoader(chainManager, componentScanner,
+                chainValidator, chainDefinitionBuilder, chainRepo, designRepo);
     }
 
     // ==================== 执行引擎 ====================
@@ -202,14 +216,16 @@ public class ExecutorAutoConfig {
         return chain;
     }
 
-    // ==================== ServerHandler ====================
+    // ==================== 数据访问 ====================
 
     @Bean
-    public ServerHandler serverHandler(ChainExecutionEngine chainExecutionEngine,
-                                        java.util.Optional<EventPublisher> eventPublisher) {
-        ServerHandler handler = new ServerHandler(chainExecutionEngine);
-        eventPublisher.ifPresent(handler::setEventPublisher);
-        return handler;
+    public ChainRepository chainRepository(org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
+        return new ChainRepository(jdbcTemplate);
+    }
+
+    @Bean
+    public DesignRepository designRepository(org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
+        return new DesignRepository(jdbcTemplate);
     }
 
     // ==================== 降级策略 ====================

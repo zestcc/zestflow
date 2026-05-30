@@ -4,15 +4,14 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zestflow.admin.constant.ErrorCode;
+
 import com.zestflow.admin.model.dto.ScheduleCreateDTO;
 import com.zestflow.admin.model.dto.ScheduleUpdateDTO;
-import com.zestflow.admin.model.entity.ChainPO;
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
 import com.zestflow.admin.model.entity.ScheduleLogPO;
 import com.zestflow.admin.model.entity.SchedulePO;
 import com.zestflow.admin.model.vo.ScheduleLogVO;
 import com.zestflow.admin.model.vo.ScheduleVO;
-import com.zestflow.admin.repository.ChainMapper;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import com.zestflow.admin.repository.ScheduleLogMapper;
 import com.zestflow.admin.repository.ScheduleMapper;
@@ -40,7 +39,6 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     private final ScheduleMapper scheduleMapper;
     private final ScheduleLogMapper scheduleLogMapper;
-    private final ChainMapper chainMapper;
     private final ExecutorRegistryMapper executorRegistryMapper;
     private final ExecutorClient executorClient;
     private final List<RouteStrategy> routeStrategies;
@@ -78,25 +76,20 @@ public class ScheduleServiceImpl implements ScheduleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ScheduleVO create(ScheduleCreateDTO dto, String username) {
-        ChainPO chain = chainMapper.selectById(dto.getChainId());
-        if (chain == null) {
-            throw new BizException(ErrorCode.CHAIN_NOT_FOUND);
-        }
-
         SchedulePO po = new SchedulePO();
-        po.setChainId(dto.getChainId());
-        po.setChainCode(chain.getCode());
-        po.setChainName(chain.getName());
-        po.setModuleId(chain.getModuleId());
+        po.setModuleId(dto.getModuleId());
+        po.setChainCode(dto.getChainCode());
+        po.setChainName(dto.getChainName());
         po.setCron(dto.getCron());
         po.setRouteStrategy(dto.getRouteStrategy() != null ? dto.getRouteStrategy() : "round_robin");
         po.setParams(dto.getParams());
         po.setStatus(1);
         po.setRemark(dto.getRemark());
         po.setCreatedBy(username);
+
         scheduleMapper.insert(po);
 
-        log.info("调度创建成功 scheduleId={} chainCode={} cron={}", po.getId(), chain.getCode(), dto.getCron());
+        log.info("调度创建成功 scheduleId={} chainCode={} cron={}", po.getId(), dto.getChainCode(), dto.getCron());
         return toVO(po);
     }
 
@@ -112,6 +105,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         if (dto.getParams() != null) po.setParams(dto.getParams());
         if (dto.getRemark() != null) po.setRemark(dto.getRemark());
         if (dto.getStatus() != null) po.setStatus(dto.getStatus());
+
         scheduleMapper.updateById(po);
         log.info("调度更新成功 scheduleId={}", id);
         return toVO(po);
@@ -137,6 +131,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         }
         int newStatus = po.getStatus() == 1 ? 0 : 1;
         po.setStatus(newStatus);
+
         scheduleMapper.updateById(po);
         log.info("调度状态切换 scheduleId={} newStatus={}", id, newStatus);
     }
@@ -271,6 +266,7 @@ public class ScheduleServiceImpl implements ScheduleService {
                 .status(po.getStatus())
                 .remark(po.getRemark())
                 .createdBy(po.getCreatedBy())
+                .updatedBy(po.getUpdatedBy())
                 .createdAt(po.getCreatedAt())
                 .updatedAt(po.getUpdatedAt())
                 .build();

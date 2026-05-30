@@ -5,13 +5,11 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.model.dto.ScheduleCreateDTO;
 import com.zestflow.admin.model.dto.ScheduleUpdateDTO;
-import com.zestflow.admin.model.entity.ChainPO;
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
 import com.zestflow.admin.model.entity.ScheduleLogPO;
 import com.zestflow.admin.model.entity.SchedulePO;
 import com.zestflow.admin.model.vo.ScheduleLogVO;
 import com.zestflow.admin.model.vo.ScheduleVO;
-import com.zestflow.admin.repository.ChainMapper;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import com.zestflow.admin.repository.ScheduleLogMapper;
 import com.zestflow.admin.repository.ScheduleMapper;
@@ -42,7 +40,6 @@ class ScheduleServiceImplTest {
 
     @Mock private ScheduleMapper scheduleMapper;
     @Mock private ScheduleLogMapper scheduleLogMapper;
-    @Mock private ChainMapper chainMapper;
     @Mock private ExecutorRegistryMapper executorRegistryMapper;
     @Mock private ExecutorClient executorClient;
     @Mock private RouteStrategy routeStrategy;
@@ -53,22 +50,17 @@ class ScheduleServiceImplTest {
     void setUp() {
         when(routeStrategy.name()).thenReturn("round_robin");
         scheduleService = new ScheduleServiceImpl(
-                scheduleMapper, scheduleLogMapper, chainMapper,
+                scheduleMapper, scheduleLogMapper,
                 executorRegistryMapper, executorClient, List.of(routeStrategy)
         );
     }
 
     @Test
     void createSchedule() {
-        ChainPO chain = new ChainPO();
-        chain.setId(1L);
-        chain.setCode("chain-test");
-        chain.setName("测试链");
-        chain.setModuleId(10L);
-        when(chainMapper.selectById(1L)).thenReturn(chain);
-
         ScheduleCreateDTO dto = new ScheduleCreateDTO();
-        dto.setChainId(1L);
+        dto.setModuleId(10L);
+        dto.setChainCode("chain-test");
+        dto.setChainName("测试链");
         dto.setCron("0 */5 * * * ?");
         dto.setRouteStrategy("round_robin");
         dto.setRemark("测试调度");
@@ -79,17 +71,6 @@ class ScheduleServiceImplTest {
         assertThat(vo.getCron()).isEqualTo("0 */5 * * * ?");
         assertThat(vo.getCreatedBy()).isEqualTo("admin");
         verify(scheduleMapper).insert(any(SchedulePO.class));
-    }
-
-    @Test
-    void createSchedule_chainNotFound() {
-        when(chainMapper.selectById(anyLong())).thenReturn(null);
-        ScheduleCreateDTO dto = new ScheduleCreateDTO();
-        dto.setChainId(999L);
-
-        assertThatThrownBy(() -> scheduleService.create(dto, "admin"))
-                .isInstanceOf(BizException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHAIN_NOT_FOUND);
     }
 
     @Test

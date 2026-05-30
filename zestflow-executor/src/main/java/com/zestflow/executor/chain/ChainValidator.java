@@ -94,7 +94,7 @@ public class ChainValidator {
     // ==================== 私有校验方法 ====================
 
     private void validateEdgeReferences(ChainDefinition def, List<String> errors) {
-        if (def.getEdges() == null) return;
+        if (def.getEdges() == null || def.getNodes() == null) return;
 
         for (ChainDefinition.ChainEdge edge : def.getEdges()) {
             if (!def.getNodes().containsKey(edge.getSource())) {
@@ -111,8 +111,12 @@ public class ChainValidator {
      * WHITE(0)=未访问, GRAY(1)=访问中, BLACK(2)=已访问
      */
     private void detectCycle(ChainDefinition def, List<String> errors) {
+        Map<String, NodeDefinition> nodes = def.getNodes();
+        if (nodes == null || nodes.isEmpty()) {
+            return;
+        }
         Map<String, Integer> color = new HashMap<>();
-        for (String nodeId : def.getNodes().keySet()) {
+        for (String nodeId : nodes.keySet()) {
             color.put(nodeId, 0); // WHITE
         }
 
@@ -132,7 +136,7 @@ public class ChainValidator {
         color.put(nodeId, 1); // GRAY
         path.add(nodeId);
 
-        List<String> successors = adjacency.getOrDefault(nodeId, List.of());
+        List<String> successors = adjacency != null ? adjacency.getOrDefault(nodeId, List.of()) : List.of();
         for (String next : successors) {
             if (color.getOrDefault(next, 0) == 1) {
                 // 发现回边 → 有环
@@ -152,7 +156,9 @@ public class ChainValidator {
     }
 
     private void validateComponents(ChainDefinition def, List<String> errors) {
-        for (NodeDefinition node : def.getNodes().values()) {
+        Map<String, NodeDefinition> nodes = def.getNodes();
+        if (nodes == null) return;
+        for (NodeDefinition node : nodes.values()) {
             if (node.isNormal() || node.isCondition()) {
                 if (node.getComponent() == null || node.getComponent().isEmpty()) {
                     errors.add("节点[" + node.getId() + "] 缺少 component 配置");
@@ -165,7 +171,9 @@ public class ChainValidator {
     }
 
     private void validateConfig(ChainDefinition def, List<String> errors) {
-        for (NodeDefinition node : def.getNodes().values()) {
+        Map<String, NodeDefinition> nodes = def.getNodes();
+        if (nodes == null) return;
+        for (NodeDefinition node : nodes.values()) {
             if (node.getTimeout() < 0 && node.getTimeout() != -1) {
                 errors.add("节点[" + node.getId() + "] 超时时间不能为负数");
             }

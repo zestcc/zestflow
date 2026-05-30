@@ -83,11 +83,11 @@
           <span style="color:#c0c4cc;font-weight:600">{{ row.executorOffline }}</span>
         </template>
       </el-table-column>
-      <el-table-column :label="$t('common.actions')" width="200" fixed="right">
+      <el-table-column :label="$t('common.actions')" width="170" fixed="right">
         <template #default="{ row }">
-          <el-button text type="primary" size="small" @click="openExecutors(row)">执行器</el-button>
-          <el-button text type="primary" size="small" @click="openEdit(row)">{{ $t('common.edit') }}</el-button>
-          <el-button text type="danger" size="small" @click="handleDelete(row)">{{ $t('common.delete') }}</el-button>
+          <el-button text type="primary" size="small" class="action-btn" @click="openExecutors(row)">执行器</el-button>
+          <el-button text type="primary" size="small" class="action-btn" @click="openEdit(row)">{{ $t('common.edit') }}</el-button>
+          <el-button text type="danger" size="small" class="action-btn" @click="handleDelete(row)">{{ $t('common.delete') }}</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -144,11 +144,7 @@
             {{ formatTime(row.lastHeartbeat) }}
           </template>
         </el-table-column>
-        <el-table-column label="注册时间" show-overflow-tooltip>
-          <template #default="{ row }">
-            {{ formatTime(row.createdAt) }}
-          </template>
-        </el-table-column>
+        <el-table-column prop="updatedBy" label="更新人" width="120" show-overflow-tooltip />
         <el-table-column :label="$t('common.actions')" width="150" fixed="right" align="center">
           <template #default="{ row }">
             <el-button
@@ -458,4 +454,5 @@ onMounted(fetchList)
 .summary-healthy { color: #67c23a; }
 .summary-error { color: #f56c6c; }
 .summary-offline { color: #c0c4cc; }
+.action-btn.action-btn { padding: 2px 4px; margin-left: 0; }
 </style>

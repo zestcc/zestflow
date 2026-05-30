@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -21,6 +22,9 @@ public class UserManageVO {
     private Integer isSuperAdmin;
     private Integer mustChangePassword;
     private String generatedPassword;
+    private String updatedBy;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     private List<ModuleRoleAssignmentVO> moduleRoles;
 
     @Data

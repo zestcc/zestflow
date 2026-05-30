@@ -86,6 +86,66 @@ public class LifecycleExecutor {
     }
 
     /**
+     * 执行节点的所有前置处理器（按顺序依次执行）
+     */
+    public void executePreProcessors(java.util.List<String> preComponentIds, ChainContext context) {
+        if (preComponentIds == null || preComponentIds.isEmpty()) return;
+        for (String componentId : preComponentIds) {
+            ComponentMeta meta = componentScanner.getComponent(componentId);
+            if (meta == null) {
+                log.warn("前置处理器未找到: {}", componentId);
+                continue;
+            }
+            injectParams(meta, context);
+            invokeMethod(meta.getExecuteMethod(), meta.getTargetBean(), context, null);
+        }
+    }
+
+    /**
+     * 执行节点的所有后置处理器（按顺序依次执行）
+     */
+    public void executePostProcessors(java.util.List<String> postComponentIds, ChainContext context) {
+        if (postComponentIds == null || postComponentIds.isEmpty()) return;
+        for (String componentId : postComponentIds) {
+            ComponentMeta meta = componentScanner.getComponent(componentId);
+            if (meta == null) {
+                log.warn("后置处理器未找到: {}", componentId);
+                continue;
+            }
+            injectParams(meta, context);
+            invokeMethod(meta.getExecuteMethod(), meta.getTargetBean(), context, null);
+        }
+    }
+
+    /**
+     * 执行参数绑定器（单绑）
+     */
+    public void executeParamBinder(String componentId, ChainContext context) {
+        if (componentId == null || componentId.isEmpty()) return;
+        ComponentMeta meta = componentScanner.getComponent(componentId);
+        if (meta == null) {
+            log.warn("参数绑定器未找到: {}", componentId);
+            return;
+        }
+        injectParams(meta, context);
+        invokeMethod(meta.getExecuteMethod(), meta.getTargetBean(), context, null);
+    }
+
+    /**
+     * 执行参数校验器（单绑）
+     */
+    public void executeParamValidator(String componentId, ChainContext context) {
+        if (componentId == null || componentId.isEmpty()) return;
+        ComponentMeta meta = componentScanner.getComponent(componentId);
+        if (meta == null) {
+            log.warn("参数校验器未找到: {}", componentId);
+            return;
+        }
+        injectParams(meta, context);
+        invokeMethod(meta.getExecuteMethod(), meta.getTargetBean(), context, null);
+    }
+
+    /**
      * 反射调用方法
      */
     public Object invokeMethod(Method method, Object bean, ChainContext context, Object extraParam) {

@@ -1,8 +1,12 @@
 package com.zestflow.executor.server;
 
 import com.zestflow.common.constant.RegistryConstants;
+import com.zestflow.executor.chain.ChainLoader;
+import com.zestflow.executor.chain.ChainRepository;
+import com.zestflow.executor.design.DesignRepository;
 import com.zestflow.executor.engine.ChainExecutionEngine;
 import com.zestflow.executor.event.EventPublisher;
+import com.zestflow.executor.scanner.ComponentScanner;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
@@ -10,8 +14,8 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.codec.http.HttpRequestDecoder;
-import io.netty.handler.codec.http.HttpResponseEncoder;
+import io.netty.handler.codec.http.HttpObjectAggregator;
+import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.timeout.IdleStateHandler;
 import lombok.extern.slf4j.Slf4j;
 
@@ -28,12 +32,14 @@ public class ExecutorServer {
     private Channel channel;
 
     public ExecutorServer(int port, EventPublisher eventPublisher) {
-        this(port, null, eventPublisher);
+        this(port, null, eventPublisher, null, null, null, null);
     }
 
-    public ExecutorServer(int port, ChainExecutionEngine engine, EventPublisher eventPublisher) {
+    public ExecutorServer(int port, ChainExecutionEngine engine, EventPublisher eventPublisher,
+                          ChainRepository chainRepo, DesignRepository designRepo,
+                          ComponentScanner componentScanner, ChainLoader chainLoader) {
         this.port = port;
-        this.serverHandler = new ServerHandler(engine);
+        this.serverHandler = new ServerHandler(engine, chainRepo, designRepo, componentScanner, chainLoader);
         if (eventPublisher != null) {
             this.serverHandler.setEventPublisher(eventPublisher);
         }
@@ -64,8 +70,8 @@ public class ExecutorServer {
                     @Override
                     protected void initChannel(Channel ch) {
                         ch.pipeline()
-                                .addLast(new HttpRequestDecoder())
-                                .addLast(new HttpResponseEncoder())
+                                .addLast(new HttpServerCodec())
+                                .addLast(new HttpObjectAggregator(1048576))
                                 .addLast(new IdleStateHandler(
                                         0, 0, RegistryConstants.DEFAULT_HEARTBEAT_INTERVAL_SECONDS * 2))
                                 .addLast(serverHandler);

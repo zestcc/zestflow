@@ -26,6 +26,9 @@ public class UserPO {
 
     private Integer mustChangePassword;
 
+    @TableField(value = "updated_by", fill = FieldFill.INSERT_UPDATE)
+    private String updatedBy;
+
     private String resetToken;
 
     private LocalDateTime resetTokenExpiry;

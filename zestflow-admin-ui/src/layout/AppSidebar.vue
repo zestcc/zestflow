@@ -24,6 +24,14 @@
         <el-icon><EditPen /></el-icon>
         <span>{{ $t('layout.design') }}</span>
       </el-menu-item>
+      <el-menu-item index="/components">
+        <el-icon><Grid /></el-icon>
+        <span>{{ $t('layout.components') }}</span>
+      </el-menu-item>
+      <el-menu-item index="/executors">
+        <el-icon><Monitor /></el-icon>
+        <span>{{ $t('layout.executors') }}</span>
+      </el-menu-item>
       <el-menu-item index="/schedules">
         <el-icon><Timer /></el-icon>
         <span>{{ $t('layout.schedules') }}</span>
@@ -32,20 +40,18 @@
         <el-icon><Document /></el-icon>
         <span>{{ $t('layout.logs') }}</span>
       </el-menu-item>
-      <el-menu-item index="/profile">
-        <el-icon><User /></el-icon>
-        <span>{{ $t('layout.profile') }}</span>
-      </el-menu-item>
       <el-sub-menu index="/settings">
         <template #title>
           <el-icon><Tools /></el-icon>
           <span>{{ $t('layout.settings') }}</span>
         </template>
-        <el-menu-item index="/settings/modules">
-          {{ $t('settings.moduleManage') }}
+        <el-menu-item index="/settings/profile">
+          <el-icon><User /></el-icon>
+          <span>{{ $t('layout.profile') }}</span>
         </el-menu-item>
         <el-menu-item index="/settings/users">
-          {{ $t('settings.userManage') }}
+          <el-icon><UserFilled /></el-icon>
+          <span>{{ $t('settings.userManage') }}</span>
         </el-menu-item>
       </el-sub-menu>
     </el-menu>
@@ -55,7 +61,7 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
 import {
-  Odometer, Connection, EditPen, Timer, Document, User, Tools,
+  Odometer, Connection, EditPen, Grid, Timer, Document, Monitor, User, UserFilled, Tools,
 } from '@element-plus/icons-vue'
 
 defineProps<{ collapsed: boolean }>()

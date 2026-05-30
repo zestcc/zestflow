@@ -9,6 +9,7 @@ import com.zestflow.admin.repository.ModuleMapper;
 import com.zestflow.admin.service.ExecutorRegistryService;
 import com.zestflow.common.exception.BizException;
 import com.zestflow.admin.constant.ErrorCode;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -51,6 +52,7 @@ public class ExecutorRegistryServiceImpl implements ExecutorRegistryService {
                 .executorPort(po.getExecutorPort())
                 .status(po.getStatus())
                 .lastHeartbeat(po.getLastHeartbeat())
+                .updatedBy(po.getUpdatedBy())
                 .createdAt(po.getCreatedAt())
                 .build()
         ).collect(Collectors.toList());
@@ -63,6 +65,7 @@ public class ExecutorRegistryServiceImpl implements ExecutorRegistryService {
             throw new BizException(ErrorCode.EXECUTOR_NOT_FOUND);
         }
         po.setStatus(status);
+
         po.setUpdatedAt(LocalDateTime.now());
         executorRegistryMapper.updateById(po);
         log.info("执行器状态变更 executorId={} status={}", po.getExecutorId(), status);

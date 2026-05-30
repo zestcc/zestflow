@@ -7,8 +7,14 @@ import lombok.Data;
 @Data
 public class ScheduleCreateDTO {
 
-    @NotNull(message = "链ID不能为空")
-    private Long chainId;
+    @NotNull(message = "模块ID不能为空")
+    private Long moduleId;
+
+    @NotBlank(message = "链编码不能为空")
+    private String chainCode;
+
+    @NotBlank(message = "链名称不能为空")
+    private String chainName;
 
     @NotBlank(message = "cron 表达式不能为空")
     private String cron;

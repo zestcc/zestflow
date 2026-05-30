@@ -13,6 +13,7 @@ export interface ModuleVO {
   executorHealthy: number
   executorError: number
   executorOffline: number
+  updatedBy?: string
 }
 
 export interface ModuleCreateDTO {
@@ -67,4 +68,5 @@ export interface ExecutorRegistryVO {
   status: number
   lastHeartbeat: string | null
   createdAt: string
+  updatedBy?: string
 }

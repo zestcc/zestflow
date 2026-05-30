@@ -41,7 +41,7 @@ public class AdminClient {
         List<String> adminList = parseAddresses();
         for (String adminUrl : adminList) {
             try {
-                String url = adminUrl + "/registry/register";
+                String url = adminUrl + "/api/registry/register";
                 HttpEntity<RegisterDTO> entity = new HttpEntity<>(dto, buildHeaders());
                 ResponseEntity<Result<Void>> resp = restTemplate.exchange(
                         url, HttpMethod.POST, entity, RESULT_VOID_TYPE);
@@ -61,7 +61,7 @@ public class AdminClient {
         List<String> adminList = parseAddresses();
         for (String adminUrl : adminList) {
             try {
-                String url = adminUrl + "/registry/heartbeat";
+                String url = adminUrl + "/api/registry/heartbeat";
                 HttpEntity<HeartbeatDTO> entity = new HttpEntity<>(dto, buildHeaders());
                 ResponseEntity<Result<Void>> resp = restTemplate.exchange(
                         url, HttpMethod.POST, entity, RESULT_VOID_TYPE);
@@ -80,7 +80,7 @@ public class AdminClient {
         boolean allSuccess = true;
         for (String adminUrl : adminList) {
             try {
-                String url = adminUrl + "/registry/" + executorId;
+                String url = adminUrl + "/api/registry/" + executorId;
                 HttpEntity<Void> entity = new HttpEntity<>(buildHeaders());
                 ResponseEntity<Result<Void>> resp = restTemplate.exchange(
                         url, HttpMethod.DELETE, entity, RESULT_VOID_TYPE);

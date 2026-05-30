@@ -1,7 +1,9 @@
 package com.zestflow.executor.registry;
 
+import com.zestflow.common.model.dto.ComponentDTO;
 import com.zestflow.common.model.dto.HeartbeatDTO;
 import com.zestflow.common.model.dto.RegisterDTO;
+import com.zestflow.executor.scanner.ComponentScanner;
 import com.zestflow.executor.server.ExecutorServer;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +15,9 @@ import org.springframework.core.env.Environment;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -28,6 +32,7 @@ public class ExecutorRegistrar implements ApplicationRunner {
     private final ExecutorProperties properties;
     private final ExecutorServer executorServer;
     private final Environment environment;
+    private final ComponentScanner componentScanner;
 
     private final AtomicBoolean registered = new AtomicBoolean(false);
     private final AtomicInteger retryCount = new AtomicInteger(0);
@@ -45,6 +50,10 @@ public class ExecutorRegistrar implements ApplicationRunner {
     private static final int WARN_THRESHOLD = 5;
 
     private String executorId;
+
+    public boolean isRegistered() {
+        return registered.get();
+    }
 
     @Override
     public void run(ApplicationArguments args) {
@@ -151,7 +160,28 @@ public class ExecutorRegistrar implements ApplicationRunner {
                 .port(executorServer.getPort())
                 .moduleCode(moduleCode)
                 .moduleName(moduleName)
+                .components(buildComponentDTOs())
                 .build();
+    }
+
+    /**
+     * 从 ComponentScanner 提取所有 @ZestExecute 元件清单，
+     * 注册时随 RegisterDTO 透传给 Admin
+     */
+    private List<ComponentDTO> buildComponentDTOs() {
+        List<ComponentDTO> list = new ArrayList<>();
+        for (ComponentScanner.ComponentMeta meta : componentScanner.getRegistry().values()) {
+            list.add(ComponentDTO.builder()
+                    .componentId(meta.getExecuteId())
+                    .componentName(meta.getName() != null ? meta.getName() : "")
+                    .description(meta.getDescription() != null ? meta.getDescription() : "")
+                    .groupName(meta.getGroupName() != null ? meta.getGroupName() : "")
+                    .timeout(meta.getTimeout())
+                    .async(meta.isAsync())
+                    .componentType(meta.getComponentType().name())
+                    .build());
+        }
+        return list;
     }
 
     private String resolveModuleCode() {

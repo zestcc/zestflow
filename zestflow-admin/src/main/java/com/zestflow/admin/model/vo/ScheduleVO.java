@@ -20,6 +20,7 @@ public class ScheduleVO {
     private Integer status;
     private String remark;
     private String createdBy;
+    private String updatedBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

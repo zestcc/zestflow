@@ -22,6 +22,7 @@ public class DesignVO {
     private String description;
     private String graphData;
     private String designer;
+    private String updatedBy;
     private Integer chainCount;
     private String boundChainCodes;
     private List<ChainVO> boundChains;

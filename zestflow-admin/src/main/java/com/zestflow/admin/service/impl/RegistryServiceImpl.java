@@ -96,6 +96,7 @@ public class RegistryServiceImpl implements RegistryService {
         }
         po.setStatus(status);
         po.setLastHeartbeat(LocalDateTime.now());
+
         executorRegistryMapper.updateById(po);
         log.info("执行器状态手动变更为 status={} executorId={}", status, executorId);
     }

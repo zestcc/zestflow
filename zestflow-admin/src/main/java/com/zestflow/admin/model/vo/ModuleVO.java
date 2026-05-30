@@ -24,6 +24,7 @@ public class ModuleVO {
     private Integer executorHealthy;
     private Integer executorError;
     private Integer executorOffline;
+    private String updatedBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

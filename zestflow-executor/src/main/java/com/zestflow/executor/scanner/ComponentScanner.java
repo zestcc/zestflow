@@ -1,8 +1,7 @@
 package com.zestflow.executor.scanner;
 
-import com.zestflow.executor.annotation.ZestComponent;
-import com.zestflow.executor.annotation.ZestExecute;
-import com.zestflow.executor.annotation.ZestParam;
+import com.zestflow.common.model.ComponentType;
+import com.zestflow.executor.annotation.*;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.aop.framework.AopProxyUtils;
@@ -18,12 +17,13 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 组件扫描器：扫描 Spring 容器中所有标注 @ZestExecute 的方法，
- * 每个方法注册为一个独立可编排的执行元件。
+ * 组件扫描器：扫描 Spring 容器中所有标注 @ZestComponent 的类，
+ * 将其中的 @ZestExecute / @ZestPredicate / @ZestSelector / @ZestLoader / @ZestParser
+ * / @ZestPreProcessor / @ZestPostProcessor / @ZestParamBinder / @ZestParamValidator 方法注册为独立可编排的执行元件。
  * <p>
  * 注册 key 规则：
  * <ol>
- *   <li>@ZestExecute("createOrder") 的 value 不为空 → 直接使用 "createOrder"</li>
+ *   <li>注解 value 不为空 → 直接使用该值</li>
  *   <li>value 为空 → 默认 "类简单名.方法名"</li>
  * </ol>
  */
@@ -43,11 +43,11 @@ public class ComponentScanner implements ApplicationContextAware {
 
     /**
      * 扫描 ApplicationContext 中所有带 @ZestComponent 的类，
-     * 将其中的 @ZestExecute 方法注册为独立元件
+     * 将其中的注解方法注册为独立元件
      */
     public void scan(ApplicationContext applicationContext) {
         Map<String, Object> beans = applicationContext.getBeansWithAnnotation(ZestComponent.class);
-        log.info("开始扫描 @ZestExecute 执行元件，共发现 {} 个组件类", beans.size());
+        log.info("开始扫描执行元件，共发现 {} 个组件类", beans.size());
 
         for (Map.Entry<String, Object> entry : beans.entrySet()) {
             Object bean = entry.getValue();
@@ -57,29 +57,28 @@ public class ComponentScanner implements ApplicationContextAware {
             ZestComponent compAnn = AnnotationUtils.findAnnotation(targetClass, ZestComponent.class);
             String groupName = (compAnn != null) ? compAnn.value() : "";
 
-            // 扫描 @ZestExecute 方法（使用 Spring 缓存 Method[]，避免 getMethods() 重复分配）
+            // 扫描类中所有带元件注解的方法
             ReflectionUtils.doWithMethods(targetClass,
                     method -> {
-                        ZestExecute execAnn = method.getAnnotation(ZestExecute.class);
-                        if (execAnn == null) {
-                            return;
-                        }
+                        ComponentType type = resolveComponentType(method);
+                        if (type == null) return;
 
-                        String executeId = resolveExecuteId(execAnn, method);
+                        String annotationValue = resolveAnnotationValue(method, type);
+                        String executeId = resolveExecuteId(annotationValue, method);
                         if (registry.containsKey(executeId)) {
                             log.warn("执行元件 ID 重复: {}，后扫描的将覆盖之前的", executeId);
                         }
 
-                        ComponentMeta meta = buildComponentMeta(executeId, groupName, bean, targetClass, method, execAnn);
+                        ComponentMeta meta = buildComponentMeta(executeId, groupName, bean, targetClass, method, type);
                         registry.put(executeId, meta);
-                        log.debug("注册执行元件 executeId={} class={}.{}()",
-                                executeId, targetClass.getSimpleName(), method.getName());
+                        log.debug("注册执行元件 type={} executeId={} class={}.{}()",
+                                type, executeId, targetClass.getSimpleName(), method.getName());
                     },
                     method -> !method.getDeclaringClass().equals(Object.class)
             );
         }
 
-        log.info("@ZestExecute 执行元件扫描完成，共注册 {} 个元件", registry.size());
+        log.info("执行元件扫描完成，共注册 {} 个元件", registry.size());
     }
 
     /**
@@ -109,27 +108,152 @@ public class ComponentScanner implements ApplicationContextAware {
 
     // ==================== 私有方法 ====================
 
-    private String resolveExecuteId(ZestExecute annotation, Method method) {
-        String id = annotation.value();
-        if (id != null && !id.isEmpty()) {
-            return id;
+    /**
+     * 解析方法上的元件注解类型，无对应注解时返回 null
+     */
+    private ComponentType resolveComponentType(Method method) {
+        if (method.getAnnotation(ZestExecute.class) != null) return ComponentType.EXECUTOR;
+        if (method.getAnnotation(ZestPredicate.class) != null) return ComponentType.PREDICATE;
+        if (method.getAnnotation(ZestSelector.class) != null) return ComponentType.SELECTOR;
+        if (method.getAnnotation(ZestLoader.class) != null) return ComponentType.LOADER;
+        if (method.getAnnotation(ZestParser.class) != null) return ComponentType.PARSER;
+        if (method.getAnnotation(ZestPreProcessor.class) != null) return ComponentType.PRE_PROCESSOR;
+        if (method.getAnnotation(ZestPostProcessor.class) != null) return ComponentType.POST_PROCESSOR;
+        if (method.getAnnotation(ZestParamBinder.class) != null) return ComponentType.PARAM_BINDER;
+        if (method.getAnnotation(ZestParamValidator.class) != null) return ComponentType.PARAM_VALIDATOR;
+        return null;
+    }
+
+    /**
+     * 从方法和类型中提取注解的 value 值
+     */
+    private String resolveAnnotationValue(Method method, ComponentType type) {
+        return switch (type) {
+            case EXECUTOR -> {
+                ZestExecute a = method.getAnnotation(ZestExecute.class);
+                yield a != null ? a.value() : "";
+            }
+            case PREDICATE -> {
+                ZestPredicate a = method.getAnnotation(ZestPredicate.class);
+                yield a != null ? a.value() : "";
+            }
+            case SELECTOR -> {
+                ZestSelector a = method.getAnnotation(ZestSelector.class);
+                yield a != null ? a.value() : "";
+            }
+            case LOADER -> {
+                ZestLoader a = method.getAnnotation(ZestLoader.class);
+                yield a != null ? a.value() : "";
+            }
+            case PARSER -> {
+                ZestParser a = method.getAnnotation(ZestParser.class);
+                yield a != null ? a.value() : "";
+            }
+            case PRE_PROCESSOR -> {
+                ZestPreProcessor a = method.getAnnotation(ZestPreProcessor.class);
+                yield a != null ? a.value() : "";
+            }
+            case POST_PROCESSOR -> {
+                ZestPostProcessor a = method.getAnnotation(ZestPostProcessor.class);
+                yield a != null ? a.value() : "";
+            }
+            case PARAM_BINDER -> {
+                ZestParamBinder a = method.getAnnotation(ZestParamBinder.class);
+                yield a != null ? a.value() : "";
+            }
+            case PARAM_VALIDATOR -> {
+                ZestParamValidator a = method.getAnnotation(ZestParamValidator.class);
+                yield a != null ? a.value() : "";
+            }
+        };
+    }
+
+    private String resolveExecuteId(String annotationValue, Method method) {
+        if (annotationValue != null && !annotationValue.isEmpty()) {
+            return annotationValue;
         }
         return method.getDeclaringClass().getSimpleName() + "." + method.getName();
     }
 
     private ComponentMeta buildComponentMeta(String executeId, String groupName,
                                               Object bean, Class<?> targetClass,
-                                              Method method, ZestExecute annotation) {
+                                              Method method, ComponentType type) {
         ComponentMeta meta = new ComponentMeta();
         meta.setExecuteId(executeId);
         meta.setGroupName(groupName);
-        meta.setName(annotation.name());
-        meta.setDescription(annotation.description());
+        meta.setComponentType(type);
         meta.setTargetBean(bean);
         meta.setTargetClass(targetClass);
         meta.setExecuteMethod(method);
-        meta.setTimeout(annotation.timeout());
-        meta.setAsync(annotation.async());
+
+        // 按类型提取名称和描述
+        switch (type) {
+            case EXECUTOR -> {
+                ZestExecute a = method.getAnnotation(ZestExecute.class);
+                if (a != null) {
+                    meta.setName(a.name());
+                    meta.setDescription(a.description());
+                    meta.setTimeout(a.timeout());
+                    meta.setAsync(a.async());
+                }
+            }
+            case PREDICATE -> {
+                ZestPredicate a = method.getAnnotation(ZestPredicate.class);
+                if (a != null) {
+                    meta.setName(a.name());
+                    meta.setDescription(a.description());
+                }
+            }
+            case SELECTOR -> {
+                ZestSelector a = method.getAnnotation(ZestSelector.class);
+                if (a != null) {
+                    meta.setName(a.name());
+                    meta.setDescription(a.description());
+                }
+            }
+            case LOADER -> {
+                ZestLoader a = method.getAnnotation(ZestLoader.class);
+                if (a != null) {
+                    meta.setName(a.name());
+                    meta.setDescription(a.description());
+                }
+            }
+            case PARSER -> {
+                ZestParser a = method.getAnnotation(ZestParser.class);
+                if (a != null) {
+                    meta.setName(a.name());
+                    meta.setDescription(a.description());
+                }
+            }
+            case PRE_PROCESSOR -> {
+                ZestPreProcessor a = method.getAnnotation(ZestPreProcessor.class);
+                if (a != null) {
+                    meta.setName(a.name());
+                    meta.setDescription(a.description());
+                }
+            }
+            case POST_PROCESSOR -> {
+                ZestPostProcessor a = method.getAnnotation(ZestPostProcessor.class);
+                if (a != null) {
+                    meta.setName(a.name());
+                    meta.setDescription(a.description());
+                }
+            }
+            case PARAM_BINDER -> {
+                ZestParamBinder a = method.getAnnotation(ZestParamBinder.class);
+                if (a != null) {
+                    meta.setName(a.name());
+                    meta.setDescription(a.description());
+                }
+            }
+            case PARAM_VALIDATOR -> {
+                ZestParamValidator a = method.getAnnotation(ZestParamValidator.class);
+                if (a != null) {
+                    meta.setName(a.name());
+                    meta.setDescription(a.description());
+                }
+            }
+        }
 
         // 扫描 @ZestParam 字段
         scanZestParamFields(targetClass, meta);
@@ -158,6 +282,8 @@ public class ComponentScanner implements ApplicationContextAware {
         private String executeId;
         /** 所属分组名称（@ZestComponent value） */
         private String groupName;
+        /** 元件类型 */
+        private ComponentType componentType = ComponentType.EXECUTOR;
         /** 显示名称 */
         private String name;
         /** 描述 */
