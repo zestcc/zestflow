@@ -1,12 +1,7 @@
 package com.zestflow.executor.scanner;
 
 import com.zestflow.common.model.ComponentType;
-import com.zestflow.executor.annotation.ZestComponent;
-import com.zestflow.executor.annotation.ZestExecute;
-import com.zestflow.executor.annotation.ZestLoader;
-import com.zestflow.executor.annotation.ZestParser;
-import com.zestflow.executor.annotation.ZestPredicate;
-import com.zestflow.executor.annotation.ZestSelector;
+import com.zestflow.executor.annotation.*;
 import com.zestflow.executor.context.ChainContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -115,6 +110,84 @@ class ComponentScannerTest {
 
         scanner.scan(ctx);
         assertThat(scanner.componentCount()).isEqualTo(2);
+    }
+
+    @Test
+    void scanTagsIndividual() {
+        ApplicationContext ctx = mock(ApplicationContext.class);
+        when(ctx.getBeansWithAnnotation(ZestComponent.class))
+                .thenReturn(Map.of("tagHandler", new TagTestHandler()));
+
+        scanner.scan(ctx);
+
+        // exec_1 — 单个 @ZestTag 重复标注
+        ComponentScanner.ComponentMeta exec1 = scanner.getComponent("exec_1");
+        assertThat(exec1).isNotNull();
+        assertThat(exec1.getTagDefs()).hasSize(2);
+        assertThat(exec1.getTagDefs()).anyMatch(t -> "执行成功".equals(t.getName()) && "ok".equals(t.getValue()));
+        assertThat(exec1.getTagDefs()).anyMatch(t -> "执行失败".equals(t.getName()) && "fail".equals(t.getValue()));
+
+        // pred_1 — 布尔值标签
+        ComponentScanner.ComponentMeta pred1 = scanner.getComponent("pred_1");
+        assertThat(pred1).isNotNull();
+        assertThat(pred1.getTagDefs()).hasSize(2);
+        assertThat(pred1.getTagDefs()).anyMatch(t -> "通过".equals(t.getName()) && "true".equals(t.getValue()));
+        assertThat(pred1.getTagDefs()).anyMatch(t -> "拒绝".equals(t.getName()) && "false".equals(t.getValue()));
+    }
+
+    @Test
+    void scanTagsContainer() {
+        ApplicationContext ctx = mock(ApplicationContext.class);
+        when(ctx.getBeansWithAnnotation(ZestComponent.class))
+                .thenReturn(Map.of("tagHandler", new TagTestHandler()));
+
+        scanner.scan(ctx);
+
+        // exec_2 — @ZestTags 容器指定
+        ComponentScanner.ComponentMeta exec2 = scanner.getComponent("exec_2");
+        assertThat(exec2).isNotNull();
+        assertThat(exec2.getTagDefs()).hasSize(3);
+        assertThat(exec2.getTagDefs()).anyMatch(t -> "低".equals(t.getName()) && "low".equals(t.getValue()));
+        assertThat(exec2.getTagDefs()).anyMatch(t -> "中".equals(t.getName()) && "medium".equals(t.getValue()));
+        assertThat(exec2.getTagDefs()).anyMatch(t -> "高".equals(t.getName()) && "high".equals(t.getValue()));
+
+        // sel_2 — @ZestTags 容器
+        ComponentScanner.ComponentMeta sel2 = scanner.getComponent("sel_2");
+        assertThat(sel2).isNotNull();
+        assertThat(sel2.getTagDefs()).hasSize(3);
+        assertThat(sel2.getTagDefs()).anyMatch(t -> "微信".equals(t.getName()) && "wechat".equals(t.getValue()));
+        assertThat(sel2.getTagDefs()).anyMatch(t -> "支付宝".equals(t.getName()) && "alipay".equals(t.getValue()));
+        assertThat(sel2.getTagDefs()).anyMatch(t -> "银行卡".equals(t.getName()) && "card".equals(t.getValue()));
+    }
+
+    @Test
+    void scanTagsDeduplicate() {
+        ApplicationContext ctx = mock(ApplicationContext.class);
+        when(ctx.getBeansWithAnnotation(ZestComponent.class))
+                .thenReturn(Map.of("tagHandler", new TagTestHandler()));
+
+        scanner.scan(ctx);
+
+        // exec_3 — name+value 完全相同，应去重保留 1 个
+        ComponentScanner.ComponentMeta exec3 = scanner.getComponent("exec_3");
+        assertThat(exec3).isNotNull();
+        assertThat(exec3.getTagDefs()).hasSize(1);
+        assertThat(exec3.getTagDefs().get(0).getName()).isEqualTo("唯一");
+        assertThat(exec3.getTagDefs().get(0).getValue()).isEqualTo("only");
+    }
+
+    @Test
+    void scanNoTags() {
+        ApplicationContext ctx = mock(ApplicationContext.class);
+        when(ctx.getBeansWithAnnotation(ZestComponent.class))
+                .thenReturn(Map.of("tagHandler", new TagTestHandler()));
+
+        scanner.scan(ctx);
+
+        // exec_0 — 没有 @ZestTag，tagDefs 应为空
+        ComponentScanner.ComponentMeta exec0 = scanner.getComponent("exec_0");
+        assertThat(exec0).isNotNull();
+        assertThat(exec0.getTagDefs()).isEmpty();
     }
 
     @Test
@@ -266,5 +339,56 @@ class ComponentScannerTest {
         @ZestParser("parse_7") public void parse_7() {}
         @ZestParser("parse_8") public void parse_8() {}
         @ZestParser("parse_9") public void parse_9() {}
+    }
+
+    // ==================== 标签测试：两种写法 ====================
+
+    @ZestComponent("tagTest")
+    static class TagTestHandler {
+
+        // 无标签 — 测试空 tagDefs
+        @ZestExecute("exec_0")
+        public void exec_0() {}
+
+        // 单个 @ZestTag 重复标注 — 测试个体写法
+        @ZestExecute("exec_1")
+        @ZestTag(name = "执行成功", value = "ok")
+        @ZestTag(name = "执行失败", value = "fail")
+        public void exec_1() {}
+
+        // @ZestTags 容器 — 测试容器写法
+        @ZestExecute("exec_2")
+        @ZestTags({
+            @ZestTag(name = "低", value = "low"),
+            @ZestTag(name = "中", value = "medium"),
+            @ZestTag(name = "高", value = "high")
+        })
+        public void exec_2() {}
+
+        // name+value 完全相同 — 测试去重
+        @ZestExecute("exec_3")
+        @ZestTag(name = "唯一", value = "only")
+        @ZestTag(name = "唯一", value = "only")
+        public void exec_3() {}
+
+        // PREDICATE + 布尔值标签
+        @ZestPredicate("pred_1")
+        @ZestTag(name = "通过", value = "true")
+        @ZestTag(name = "拒绝", value = "false")
+        public boolean pred_1() { return true; }
+
+        // SELECTOR
+        @ZestSelector("sel_1")
+        @ZestTag(name = "超时阈值", value = "100")
+        public String sel_1() { return "100"; }
+
+        // SELECTOR + @ZestTags 容器
+        @ZestSelector("sel_2")
+        @ZestTags({
+            @ZestTag(name = "微信", value = "wechat"),
+            @ZestTag(name = "支付宝", value = "alipay"),
+            @ZestTag(name = "银行卡", value = "card")
+        })
+        public String sel_2() { return "wechat"; }
     }
 }

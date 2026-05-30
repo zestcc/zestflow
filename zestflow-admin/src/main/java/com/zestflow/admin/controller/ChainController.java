@@ -125,6 +125,7 @@ public class ChainController {
         }
 
         String graphData = null;
+        String chainData = null;
         try {
             String chainJson = proxyService.getFromExecutor(moduleId, "/api/chains/" + code, null);
             JsonNode chainNode = MAPPER.readTree(chainJson);
@@ -134,6 +135,9 @@ public class ChainController {
                 JsonNode designNode = MAPPER.readTree(designJson);
                 if (designNode.has("graphData")) {
                     graphData = designNode.get("graphData").asText();
+                }
+                if (designNode.has("chainData") && !designNode.get("chainData").asText().isEmpty()) {
+                    chainData = designNode.get("chainData").asText();
                 }
             }
         } catch (Exception e) {
@@ -147,6 +151,7 @@ public class ChainController {
                 .chainCode(code)
                 .moduleId(moduleId)
                 .graphData(graphData)
+                .chainData(chainData)
                 .totalExecutors(executorUrls.size())
                 .timestamp(System.currentTimeMillis())
                 .build();

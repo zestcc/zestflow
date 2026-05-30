@@ -6,11 +6,11 @@
         <el-button text @click="goBack">
           <el-icon><ArrowLeft /></el-icon> {{ $t('design.back') }}
         </el-button>
+        <span v-if="moduleName" class="module-prefix">{{ moduleName }}</span>
         <span class="toolbar-title">{{ design?.name }}</span>
         <el-tag v-if="design" :type="design.status === 1 ? 'success' : 'danger'" size="small">
           {{ design.status === 1 ? $t('design.enabled') : $t('design.disabled') }}
         </el-tag>
-        <span class="stat-badge">{{ nodeCount }} 节点 · {{ edgeCount }} 连线</span>
       </div>
       <div class="toolbar-center">
         <el-tooltip content="撤销 (Ctrl+Z)">
@@ -44,6 +44,14 @@
         <el-tooltip content="导出">
           <el-button text @click="handleExport"><el-icon><Picture /></el-icon></el-button>
         </el-tooltip>
+        <el-tooltip content="查看链数据">
+          <el-button text @click="showChainDataDialog">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 4H7a2 2 0 00-2 2v5a2 2 0 01-2 2 2 2 0 012 2v5a2 2 0 002 2h2" />
+              <path d="M15 4h2a2 2 0 012 2v5a2 2 0 002 2 2 2 0 00-2 2v5a2 2 0 01-2 2h-2" />
+            </svg>
+          </el-button>
+        </el-tooltip>
         <span class="toolbar-divider" />
         <el-select v-model="defaultEdgeStyle" size="small" style="width:80px" @change="onDefaultEdgeStyleChange">
           <el-option label="直线" value="straight" />
@@ -75,14 +83,6 @@
             </el-dropdown-menu>
           </template>
         </el-dropdown>
-        <span class="toolbar-divider" />
-        <!-- 图层 -->
-        <el-tooltip content="置顶">
-          <el-button text :disabled="selectedCount < 1" @click="toFront"><el-icon><Top /></el-icon></el-button>
-        </el-tooltip>
-        <el-tooltip content="置底">
-          <el-button text :disabled="selectedCount < 1" @click="toBack"><el-icon><Bottom /></el-icon></el-button>
-        </el-tooltip>
         <span class="toolbar-divider" />
         <!-- 网格吸附 -->
         <el-tooltip :content="gridSnapEnabled ? '关闭吸附' : '开启吸附'">
@@ -164,7 +164,10 @@
         <div v-if="selectedNodeData" class="panel-body">
           <el-form size="small" label-position="top">
             <el-form-item v-if="canBindComponent(selectedNodeData.nodeType)" label="元件ID">
-              <el-input :model-value="selectedNodeData.componentId || ''" disabled placeholder="绑定后自动填充" />
+              <el-link v-if="selectedNodeData.componentId" type="primary" :underline="'never'" style="font-family:monospace;cursor:pointer" @click="openCompDetail(selectedNodeData)">
+                {{ selectedNodeData.componentId }}
+              </el-link>
+              <span v-else style="color:#bbb;font-size:12px">绑定后自动填充</span>
             </el-form-item>
             <el-form-item v-if="canBindComponent(selectedNodeData.nodeType)" label="元件名称">
               <el-input :model-value="selectedNodeData.componentName || ''" disabled placeholder="绑定后自动填充" />
@@ -232,8 +235,11 @@
         <!-- 连线属性 -->
         <div v-else-if="selectedEdgeData" class="panel-body">
           <el-form size="small" label-position="top">
-            <el-form-item label="标签文字">
-              <el-input v-model="selectedEdgeData.label" placeholder="双击连线也可编辑" @input="onEdgeLabelChange" />
+              <el-form-item label="标签值">
+              <el-select v-if="edgeSourceTagDefs.length > 0" v-model="selectedEdgeData.label" placeholder="选择标签值" @change="onEdgeLabelChange" style="width:100%">
+                <el-option v-for="td in edgeSourceTagDefs" :key="td.value" :label="td.name + ' (' + td.value + ')'" :value="td.value" />
+              </el-select>
+              <el-input v-else v-model="selectedEdgeData.label" placeholder="双击连线也可编辑" @input="onEdgeLabelChange" />
             </el-form-item>
             <el-form-item label="线型">
               <el-radio-group v-model="selectedEdgeStyle" size="small" @change="onEdgeStyleChange">
@@ -278,8 +284,22 @@
 
     <!-- 行内编辑输入框 -->
     <teleport to="body">
-      <div v-if="inlineEditor.show" class="inline-editor-overlay" :style="{ left: inlineEditor.x + 'px', top: inlineEditor.y + 'px' }">
+      <div v-if="inlineEditor.show" class="inline-editor-overlay" :style="{ left: inlineEditor.x + 'px', top: inlineEditor.y + 'px' }" @click.stop>
+        <el-select
+            v-if="inlineEditor.tagDefs.length > 0"
+            v-model="inlineEditor.value"
+            size="small"
+            placeholder="选择标签值"
+            @change="inlineEditorConfirm"
+            @keydown.escape.prevent="inlineEditorCancel"
+            @blur="inlineEditorConfirm"
+            ref="inlineInputRef"
+            popper-class="inline-editor-popper"
+        >
+          <el-option v-for="td in inlineEditor.tagDefs" :key="td.value" :label="td.name + ' (' + td.value + ')'" :value="td.value" />
+        </el-select>
         <el-input
+            v-else
             ref="inlineInputRef"
             v-model="inlineEditor.value"
             size="small"
@@ -306,7 +326,9 @@
       >
         <el-table-column prop="componentId" label="元件ID" width="170" show-overflow-tooltip>
           <template #default="{ row }">
-            <span style="font-family:monospace;font-weight:500">{{ row.componentId }}</span>
+            <el-link type="primary" :underline="'never'" style="font-family:monospace;font-weight:500;cursor:pointer" @click.stop="openCompDetail(row)">
+              {{ row.componentId }}
+            </el-link>
           </template>
         </el-table-column>
         <el-table-column prop="componentName" label="名称" show-overflow-tooltip min-width="80" />
@@ -339,7 +361,12 @@
         <el-table-column prop="cachedAt" label="采集时间" width="140" show-overflow-tooltip />
         <el-table-column label="已选" width="55" align="center">
           <template #default="{ row }">
-            <el-tag v-if="row.componentId === bindDialog.selectedId" type="success" size="small">已选</el-tag>
+            <el-tag v-if="bindDialog.selectedIds.includes(row.componentId)" type="success" size="small">已选</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="标签" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.tagDefs && row.tagDefs.length" size="small" type="info">{{ row.tagDefs.length }}</el-tag>
           </template>
         </el-table-column>
       </el-table>
@@ -357,6 +384,85 @@
       <template #footer>
         <el-button @click="bindDialog.visible=false">{{ $t('common.cancel') }}</el-button>
         <el-button type="primary" @click="confirmBind">{{ $t('common.confirm') }}</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 元件详情抽屉 -->
+    <el-drawer v-model="compDrawer.visible" title="元件详情" size="500px" destroy-on-close>
+      <template v-if="compDrawer.data">
+        <el-descriptions :column="1" border style="margin-bottom:16px">
+          <el-descriptions-item label="元件ID">
+            <span style="font-family:monospace">{{ compDrawer.data.componentId }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="元件名称">
+            {{ compDrawer.data.componentName }}
+          </el-descriptions-item>
+          <el-descriptions-item label="类型">
+            <el-tag size="small">{{ compDrawer.data.componentType }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="分组" v-if="compDrawer.data.groupName">
+            {{ compDrawer.data.groupName }}
+          </el-descriptions-item>
+          <el-descriptions-item label="来源" v-if="compDrawer.data.executorSource">
+            {{ compDrawer.data.executorSource }}
+          </el-descriptions-item>
+          <el-descriptions-item label="超时">
+            {{ compDrawer.data.timeout === -1 ? '-' : compDrawer.data.timeout }}
+          </el-descriptions-item>
+          <el-descriptions-item label="异步">
+            <el-tag :type="compDrawer.data.async ? 'warning' : 'info'" size="small">
+              {{ compDrawer.data.async ? '是' : '否' }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="状态">
+            <el-tag :type="compDrawer.data.status === 1 ? 'success' : 'info'" size="small">
+              {{ compDrawer.data.status === 1 ? '在线' : '离线' }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="采集时间" v-if="compDrawer.data.cachedAt">
+            {{ compDrawer.data.cachedAt }}
+          </el-descriptions-item>
+          <el-descriptions-item label="描述" v-if="compDrawer.data.description">
+            {{ compDrawer.data.description }}
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <el-descriptions :column="1" border v-if="compDrawer.data.tagDefs && compDrawer.data.tagDefs.length > 0">
+          <el-descriptions-item label="标签">
+            <el-table :data="compDrawer.data.tagDefs" border size="small" style="width:100%">
+              <el-table-column label="名称" prop="name" show-overflow-tooltip />
+              <el-table-column label="值" prop="value" show-overflow-tooltip width="140">
+                <template #default="{ row }">
+                  <el-tag size="small" type="info">{{ row.value }}</el-tag>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-descriptions-item>
+        </el-descriptions>
+      </template>
+    </el-drawer>
+
+    <!-- 链数据预览弹窗 -->
+    <el-dialog v-model="chainDataDialog.visible" title="链数据预览" width="900px" top="5vh">
+      <div v-if="chainDataDialog.errors.length > 0" style="margin-bottom:12px">
+        <el-alert
+            v-for="(err, i) in chainDataDialog.errors" :key="i"
+            :title="err" type="warning" show-icon :closable="false"
+            style="margin-bottom:4px"
+        />
+      </div>
+      <div v-if="chainDataDialog.success" style="margin-bottom:12px">
+        <el-alert title="校验通过" type="success" show-icon :closable="false" />
+      </div>
+      <el-input
+          v-model="chainDataDialog.json"
+          type="textarea"
+          :rows="20"
+          readonly
+          style="font-family:monospace;font-size:12px"
+      />
+      <template #footer>
+        <el-button @click="chainDataDialog.visible=false">{{ $t('common.close') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -377,12 +483,13 @@ import { Clipboard } from '@antv/x6-plugin-clipboard'
 import { Export } from '@antv/x6-plugin-export'
 import { designApi } from '@/api/design'
 import { componentApi } from '@/api/component'
+import { moduleApi } from '@/api/module'
 import {
   ArrowLeft, Check, Pointer, Back, Right,
   CopyDocument, DocumentAdd,
   ZoomIn, ZoomOut, FullScreen, ScaleToOriginal,
   Delete, Select, Edit, Picture,
-  ArrowRight, ArrowDown, Top, Bottom, Sort, Rank,
+  ArrowRight, ArrowDown, Sort, Rank,
 } from '@element-plus/icons-vue'
 
 const { t } = useI18n()
@@ -393,12 +500,14 @@ const moduleId = Number(route.query.moduleId) || 0
 
 // ====== 响应式状态 ======
 const design = ref<any>(null)
+const moduleName = ref('')
 const saving = ref(false)
 const selectedCount = ref(0)
 const canUndo = ref(false)
 const canRedo = ref(false)
 const selectedNodeData = ref<any>(null)
 const selectedEdgeData = ref<any>(null)
+const edgeSourceTagDefs = ref<Array<{name: string; value: string}>>([])
 const zoomLevel = ref(1)
 const canPaste = ref(false)
 const nodeCount = ref(0)
@@ -419,12 +528,34 @@ const bindDialog = reactive({
   target: 'main',
   list: [] as any[],
   selectedId: '' as string,
+  selectedIds: [] as string[],
   keyword: '',
   groupFilter: '',
   page: 1,
   pageSize: 5,
   total: 0,
 })
+
+// 元件详情抽屉
+const compDrawer = reactive({
+  visible: false,
+  data: null as any,
+})
+
+// 链数据预览弹窗
+const chainDataDialog = reactive({
+  visible: false,
+  json: '',
+  errors: [] as string[],
+  success: false,
+})
+
+function openCompDetail(row: any) {
+  // 优先从绑定列表中补全详情；如果是节点属性面板传入，可能缺少来源/采集时间等字段
+  const full = row.executorSource ? row : bindDialog.list.find((c: any) => c.componentId === row.componentId)
+  compDrawer.data = full || row
+  compDrawer.visible = true
+}
 
 const bindFilteredList = computed(() => {
   if (!bindDialog.groupFilter) return bindDialog.list
@@ -456,23 +587,51 @@ const inlineEditor = reactive({
   value: '',
   target: null as any,
   isEdge: false,
+  tagDefs: [] as Array<{name: string; value: string}>,
 })
 
-function showInlineEditor(x: number, y: number, value: string, target: any, isEdge: boolean) {
+function showInlineEditor(x: number, y: number, value: string, target: any, isEdge: boolean, tagDefs?: Array<{name: string; value: string}>) {
   inlineEditor.show = true
   inlineEditor.x = x
   inlineEditor.y = y
   inlineEditor.value = value
   inlineEditor.target = target
   inlineEditor.isEdge = isEdge
-  nextTick(() => inlineInputRef.value?.focus())
+  inlineEditor.tagDefs = tagDefs || []
+  nextTick(() => {
+    if (tagDefs && tagDefs.length > 0) {
+      // select 下拉不需要 focus
+    } else {
+      inlineInputRef.value?.focus()
+    }
+  })
+  setTimeout(() => document.addEventListener('click', inlineEditorOutsideClick), 0)
+}
+
+function setEdgeLabelSafe(edge: any, text: string) {
+  if (!text) { edge.setLabels([]); return }
+  const labels = edge.getLabels()
+  if (labels[0]) {
+    if (!labels[0].attrs) labels[0].attrs = {}
+    if (!labels[0].attrs.label) labels[0].attrs.label = {}
+    labels[0].attrs.label.text = text
+    edge.setLabels(labels)
+  } else {
+    edge.setLabels([{
+      attrs: {
+        labelBg: { fill: '#fff', rx: 4, ry: 4, stroke: '#e2e8f0', strokeWidth: 1, pointerEvents: 'auto', cursor: 'move' },
+        label: { text, fill: '#475569', fontSize: 12, textAnchor: 'middle', textVerticalAnchor: 'middle', refX: '50%', pointerEvents: 'auto', cursor: 'move' },
+      },
+      position: { distance: 0.5 },
+    }])
+  }
 }
 
 function inlineEditorConfirm() {
   if (!inlineEditor.target) return
   if (inlineEditor.isEdge) {
     const text = inlineEditor.value || ''
-    inlineEditor.target.setLabels(text ? [{ attrs: { label: { text } } }] : [])
+    setEdgeLabelSafe(inlineEditor.target, text)
     if (selectedEdgeData.value) selectedEdgeData.value.label = text
   } else {
     const data = { ...inlineEditor.target.getData(), label: inlineEditor.value || inlineEditor.target.id }
@@ -485,6 +644,16 @@ function inlineEditorConfirm() {
 function inlineEditorCancel() {
   inlineEditor.show = false
   inlineEditor.target = null
+  document.removeEventListener('click', inlineEditorOutsideClick)
+}
+
+function inlineEditorOutsideClick(e: MouseEvent) {
+  if (!inlineEditor.show) return
+  const overlay = document.querySelector('.inline-editor-overlay')
+  if (overlay?.contains(e.target as any)) return
+  const popper = (e.target as HTMLElement).closest('.el-select-dropdown, .el-popper')
+  if (popper) return
+  inlineEditorCancel()
 }
 
 // ====== 右键菜单 ======
@@ -646,23 +815,28 @@ async function openBindDialog(target: string = 'main') {
     ct = 'PRE_PROCESSOR'
     bindDialog.typeLabel = '前置器'
     bindDialog.selectedId = ''
+    bindDialog.selectedIds = (selectedNodeData.value.preComponents || []).map((p: any) => p.componentId)
   } else if (target === 'post') {
     ct = 'POST_PROCESSOR'
     bindDialog.typeLabel = '后置器'
     bindDialog.selectedId = ''
+    bindDialog.selectedIds = (selectedNodeData.value.postComponents || []).map((p: any) => p.componentId)
   } else if (target === 'binder') {
     ct = 'PARAM_BINDER'
     bindDialog.typeLabel = '参数绑定器'
     bindDialog.selectedId = selectedNodeData.value.paramBinderId || ''
+    bindDialog.selectedIds = bindDialog.selectedId ? [bindDialog.selectedId] : []
   } else if (target === 'validator') {
     ct = 'PARAM_VALIDATOR'
     bindDialog.typeLabel = '参数校验器'
     bindDialog.selectedId = selectedNodeData.value.paramValidatorId || ''
+    bindDialog.selectedIds = bindDialog.selectedId ? [bindDialog.selectedId] : []
   } else {
     ct = typeToComponentType(selectedNodeData.value.nodeType)
     if (!ct) return
     bindDialog.typeLabel = typeLabel(selectedNodeData.value.nodeType)
     bindDialog.selectedId = selectedNodeData.value.componentId || ''
+    bindDialog.selectedIds = bindDialog.selectedId ? [bindDialog.selectedId] : []
   }
   bindDialog.componentType = ct
   bindDialog.keyword = ''
@@ -696,6 +870,14 @@ async function fetchBindList() {
 
 function onBindSelect(row: any) {
   bindDialog.selectedId = bindDialog.selectedId === row.componentId ? '' : row.componentId
+  // 同步 selectedIds，实时反映选中状态
+  const existing = (() => {
+    if (bindDialog.target === 'pre') return (selectedNodeData.value?.preComponents || []).map((p: any) => p.componentId)
+    if (bindDialog.target === 'post') return (selectedNodeData.value?.postComponents || []).map((p: any) => p.componentId)
+    return []
+  })()
+  bindDialog.selectedIds = [...existing]
+  if (bindDialog.selectedId) bindDialog.selectedIds.push(bindDialog.selectedId)
 }
 
 function confirmBind() {
@@ -729,6 +911,7 @@ function confirmBind() {
   if (found) {
     selectedNodeData.value.componentId = found.componentId
     selectedNodeData.value.componentName = found.componentName
+    selectedNodeData.value.tagDefs = found.tagDefs || []
     selectedNodeData.value.label = found.componentName || found.componentId
   } else {
     delete selectedNodeData.value.componentId
@@ -766,6 +949,7 @@ function unbindComponent() {
   if (!selectedCell || !selectedNodeData.value) return
   delete selectedNodeData.value.componentId
   delete selectedNodeData.value.componentName
+  delete selectedNodeData.value.tagDefs
   selectedNodeData.value.label = typeLabel(selectedNodeData.value.nodeType)
   selectedCell.setData({ ...selectedNodeData.value })
   selectedCell.setLabels(selectedNodeData.value.label ? [{ attrs: { label: { text: selectedNodeData.value.label } } }] : [])
@@ -966,6 +1150,7 @@ function initGraph() {
     grid: { visible: true, size: 20, type: 'dot' },
     panning: { enabled: true, eventTypes: ['rightMouseDown'] },
     mousewheel: { enabled: true, zoomAtMousePosition: true },
+    interacting: { edgeLabelMovable: true },
     connecting: {
       router: { name: 'manhattan', args: { padding: { top: 15, bottom: 15, left: 15, right: 15 }, step: 10 } },
       connector: { name: 'rounded' },
@@ -990,8 +1175,8 @@ function initGraph() {
       label: {
         markup: [{ tagName: 'rect', selector: 'labelBg' }, { tagName: 'text', selector: 'label' }],
         attrs: {
-          labelBg: { fill: '#fff', rx: 4, ry: 4, stroke: '#e2e8f0', strokeWidth: 1 },
-          label: { text: '', fill: '#475569', fontSize: 12, textAnchor: 'middle', textVerticalAnchor: 'middle', refX: '50%' },
+          labelBg: { fill: '#fff', rx: 4, ry: 4, stroke: '#e2e8f0', strokeWidth: 1, pointerEvents: 'auto', cursor: 'move' },
+          label: { text: '', fill: '#475569', fontSize: 12, textAnchor: 'middle', textVerticalAnchor: 'middle', refX: '50%', pointerEvents: 'auto', cursor: 'move' },
         },
         position: { distance: 0.5 },
       },
@@ -1034,6 +1219,7 @@ function initGraph() {
     selectedEdgeData.value = null
     selectedNodeData.value = null
     selectedCell = null
+    edgeSourceTagDefs.value = []
     if (cells.length !== 1 || !cells[0].isEdge()) {
       hideEndpointHandles()
     }
@@ -1043,6 +1229,10 @@ function initGraph() {
       else if (cell.isEdge()) {
         selectedCell = cell
         const ls = cell.getLabels()
+        const srcNode = cell.getSourceCell()
+        if (srcNode && srcNode.isNode()) {
+          edgeSourceTagDefs.value = srcNode.getData()?.tagDefs || []
+        }
         selectedEdgeData.value = { label: ls?.[0]?.attrs?.label?.text || '' }
         const router = cell.getRouter()
         const connector = cell.getConnector()
@@ -1077,7 +1267,7 @@ function initGraph() {
   })
 
   graph.on('edge:dblclick', ({ edge, e }) => {
-    triggerEdgeLabelEdit(edge)
+    triggerEdgeLabelEdit(edge, e)
   })
 
   graph.on('blank:click', () => {
@@ -1143,13 +1333,23 @@ function initGraph() {
   }
 }
 
-function triggerEdgeLabelEdit(edge: Edge) {
+function triggerEdgeLabelEdit(edge: Edge, e?: any) {
   const view = graph!.findViewByCell(edge)
   if (view) {
-    const bbox = view.getBBox()
-    const center = graph!.localToClient({ x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 })
+    let x: number, y: number
+    if (e) {
+      x = e.clientX
+      y = e.clientY
+    } else {
+      const bbox = view.getBBox()
+      const center = graph!.localToClient({ x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 })
+      x = center.x
+      y = center.y
+    }
     const labelText = String(edge.getLabels()?.[0]?.attrs?.label?.text || '')
-    showInlineEditor(center.x - 60, center.y - 26, labelText, edge, true)
+    const srcNode = edge.getSourceCell()
+    const tagDefs = (srcNode && srcNode.isNode()) ? (srcNode.getData()?.tagDefs || []) : []
+    showInlineEditor(x + 10, y + 10, labelText, edge, true, tagDefs)
   }
 }
 
@@ -1201,7 +1401,7 @@ function onDataChange() {
 function onEdgeLabelChange() {
   if (selectedCell && selectedEdgeData.value) {
     const text = selectedEdgeData.value.label || ''
-    selectedCell.setLabels(text ? [{ attrs: { label: { text } } }] : [])
+    setEdgeLabelSafe(selectedCell, text)
   }
 }
 
@@ -1257,16 +1457,6 @@ function onDistribute(dir: string) {
     if (dir === 'horizontal') n.position(first.x + gap * i, pos.y)
     else n.position(pos.x, first.y + gap * i)
   })
-}
-
-/** 置顶 */
-function toFront() {
-  selectedNodes().forEach(n => n.toFront())
-}
-
-/** 置底 */
-function toBack() {
-  selectedNodes().forEach(n => n.toBack())
 }
 
 /** 网格吸附开关 */
@@ -1353,6 +1543,26 @@ function onEpDragMove(e: MouseEvent, edge: Edge) {
   updateEndpointHandles(edge)
 }
 
+function onLabelDragMove(e: MouseEvent, edge: Edge, path: any, totalLen: number) {
+  if (!graph) return
+  const p = graph.clientToLocal({ x: e.clientX, y: e.clientY })
+  const steps = 100
+  let minDist = Infinity, bestLen = 0
+  for (let i = 0; i <= steps; i++) {
+    const len = (i / steps) * totalLen
+    const pt = path.pointAtLength(len, {})
+    if (!pt) continue
+    const d = Math.sqrt((p.x - pt.x) ** 2 + (p.y - pt.y) ** 2)
+    if (d < minDist) { minDist = d; bestLen = len }
+  }
+  const distance = totalLen > 0 ? Math.max(0, Math.min(1, bestLen / totalLen)) : 0.5
+  const labels = edge.getLabels()
+  if (labels[0]) {
+    labels[0].position = { distance }
+    edge.setLabels(labels)
+  }
+}
+
 function removeSelected() {
   if (!graph) return
   const cells = graph.getSelectedCells()
@@ -1429,10 +1639,288 @@ function downloadURI(uri: string, filename: string) {
   link.click()
 }
 
+// ====== 图翻译 → ChainDefinitionDTO ======
+
+/** 节点类型映射：X6 nodeType → ChainNodeDTO type */
+function mapNodeType(nodeType: string): string {
+  const map: Record<string, string> = {
+    task: 'NORMAL',
+    condition: 'CONDITION',
+    multicondition: 'CONDITION',
+    loader: 'NORMAL',
+    parser: 'NORMAL',
+  }
+  return map[nodeType] || 'NORMAL'
+}
+
+/** 翻译 X6 图为 ChainDefinitionDTO JSON */
+function translateGraphToChain(): any {
+  if (!graph) return { nodes: [], edges: [] }
+
+  // 链级元数据
+  const root: Record<string, any> = {}
+  if (design.value?.name) root.name = design.value.name
+  if (designCode) root.code = designCode
+  if (moduleId) root.moduleId = moduleId
+
+  // 只翻译业务节点（跳过 start/end）
+  root.nodes = graph.getNodes()
+      .filter(n => { const t = n.getData()?.nodeType; return t && t !== 'start' && t !== 'end' })
+      .map(n => {
+        const data = n.getData() || {}
+        const config: Record<string, any> = {}
+
+        // 执行策略（有非默认值时才带出）
+        if (data.executeStrategy && data.executeStrategy !== 'NORMAL') {
+          config.executeStrategy = data.executeStrategy
+        }
+
+        const node: Record<string, any> = {
+          id: n.id,
+          label: data.label || '',
+          type: typeToComponentType(data.nodeType),
+          component: data.componentId || undefined,
+        }
+
+        // 分组
+        if (data.groupName) node.groupName = data.groupName
+
+        // 绑定元件名称
+        if (data.componentName) node.componentName = data.componentName
+
+        // 执行脚本
+        if (data.script) node.script = data.script
+
+        // 描述
+        if (data.description) node.description = data.description
+
+        // 执行策略配置
+        if (Object.keys(config).length > 0) node.config = config
+
+        // 参数绑定器
+        if (data.paramBinderId) {
+          node.paramBinder = { componentId: data.paramBinderId, componentName: data.paramBinderName || '' }
+        }
+
+        // 参数校验器
+        if (data.paramValidatorId) {
+          node.paramValidator = { componentId: data.paramValidatorId, componentName: data.paramValidatorName || '' }
+        }
+
+        // 前置处理器
+        if (data.preComponents?.length) {
+          node.preComponents = data.preComponents.map((p: any) => ({
+            componentId: p.componentId,
+            componentName: p.componentName || '',
+          }))
+        }
+
+        // 后置处理器
+        if (data.postComponents?.length) {
+          node.postComponents = data.postComponents.map((p: any) => ({
+            componentId: p.componentId,
+            componentName: p.componentName || '',
+          }))
+        }
+
+        return node
+      })
+
+  root.edges = graph.getEdges().map(e => {
+    const labelText = String(e.getLabels()?.[0]?.attrs?.label?.text || '')
+
+    return {
+      source: e.getSourceCellId() || '',
+      target: e.getTargetCellId() || '',
+      label: labelText || undefined,
+    }
+  })
+
+  return root
+}
+
+/** 校验链拓扑 */
+function validateChain(): string[] {
+  const errors: string[] = []
+  if (!graph) return ['画布未初始化']
+
+  const nodes = graph.getNodes()
+  const edges = graph.getEdges()
+
+  if (nodes.length < 2) {
+    errors.push('链至少需要 2 个节点（开始 + 结束）')
+    return errors
+  }
+
+  const startNodes = nodes.filter(n => n.getData()?.nodeType === 'start')
+  const endNodes = nodes.filter(n => n.getData()?.nodeType === 'end')
+
+  // 1. 基础 — Start/End 存在性
+  if (startNodes.length === 0) errors.push('缺少「开始」节点')
+  if (endNodes.length === 0) errors.push('缺少「结束」节点')
+  if (startNodes.length > 1) errors.push('流程只能有一个「开始」节点')
+  if (startNodes.length === 0 || endNodes.length === 0) return errors
+
+  // 2. 节点名称不能为空
+  nodes.forEach(n => {
+    const data = n.getData()
+    if (!data?.label || !data.label.trim()) {
+      errors.push(`存在名称为空的节点（ID: ${n.id}）`)
+    }
+  })
+
+  // 3. 孤立节点（没有任何连线）
+  const connectedNodeIds = new Set<string>()
+  edges.forEach(e => {
+    const srcId = e.getSourceCellId()
+    const tgtId = e.getTargetCellId()
+    if (srcId) connectedNodeIds.add(srcId)
+    if (tgtId) connectedNodeIds.add(tgtId)
+  })
+  nodes.forEach(n => {
+    if (!connectedNodeIds.has(n.id)) {
+      errors.push(`节点「${n.getData()?.label || n.id}」没有任何连线，是孤立节点`)
+    }
+  })
+
+  // 3. 路径连通性：Start → ... → End BFS
+  const reachableFromStart = new Set<string>()
+  const queue = startNodes.map(n => n.id)
+  while (queue.length > 0) {
+    const current = queue.shift()!
+    if (reachableFromStart.has(current)) continue
+    reachableFromStart.add(current)
+    edges.forEach(e => {
+      if (e.getSourceCellId() === current) {
+        const tgt = e.getTargetCellId()
+        if (tgt && !reachableFromStart.has(tgt)) queue.push(tgt)
+      }
+    })
+  }
+  if (!endNodes.some(en => reachableFromStart.has(en.id))) {
+    errors.push('流程图不完整：从「开始」节点无法到达「结束」节点，中间有断开的路径')
+    return errors
+  }
+
+  // 3b. 节点自环检测
+  edges.forEach(e => {
+    const src = e.getSourceCellId()
+    const tgt = e.getTargetCellId()
+    if (src && tgt && src === tgt) {
+      const node = graph!.getCellById(src)
+      const label = (node as any)?.getData?.()?.label || src
+      errors.push(`节点「${label}」存在自环（连线从自己出发又连回自己）`)
+    }
+  })
+
+  // 4. 业务节点（除 start/end）未绑定元件
+  const bindableTypes = new Set(['task', 'condition', 'multicondition', 'loader', 'parser'])
+  nodes.forEach(n => {
+    const data = n.getData() || {}
+    const t = data.nodeType
+    if (!bindableTypes.has(t)) return
+    if (!data.componentId) {
+      errors.push(`节点「${data.label || n.id}」(${typeLabel(t)}) 未绑定元件`)
+    }
+  })
+
+  // 5. 条件节点出线检查
+  nodes.forEach(n => {
+    const data = n.getData() || {}
+    const t = data.nodeType
+    if (t !== 'condition' && t !== 'multicondition') return
+    const outgoingEdges = edges.filter(e => e.getSourceCellId() === n.id)
+    if (outgoingEdges.length === 0) {
+      errors.push(`条件节点「${data.label || n.id}」没有任何出线，必须至少有一个分支出口`)
+    }
+    outgoingEdges.forEach(e => {
+      const labelText = String(e.getLabels()?.[0]?.attrs?.label?.text || '').trim()
+      if (!labelText) {
+        errors.push(`条件节点「${data.label || n.id}」的出线缺少标签值（如 true/false）`)
+      }
+    })
+  })
+
+  return errors
+}
+
+/** 死环检测 — 仅警告，不拦截保存 */
+function detectCycleWarnings(): string[] {
+  const warnings: string[] = []
+  if (!graph) return warnings
+
+  const nodes = graph.getNodes()
+  const idToLabel = new Map<string, string>()
+  const adj = new Map<string, string[]>()
+  nodes.forEach(n => {
+    const t = n.getData()?.nodeType
+    if (t === 'start' || t === 'end') return
+    idToLabel.set(n.id, n.getData()?.label || n.id)
+    adj.set(n.id, [])
+  })
+  graph.getEdges().forEach(e => {
+    const src = e.getSourceCellId()
+    const tgt = e.getTargetCellId()
+    if (src && tgt && adj.has(src) && adj.has(tgt)) {
+      adj.get(src)!.push(tgt)
+    }
+  })
+
+  // 三色标记 DFS
+  const color = new Map<string, number>()
+  const parent = new Map<string, string | null>()
+  adj.forEach((_, id) => { color.set(id, 0); parent.set(id, null) })
+
+  const found: string[] = []
+  function dfs(u: string) {
+    color.set(u, 1)
+    for (const v of adj.get(u) || []) {
+      if (color.get(v) === 1) {
+        const path: string[] = [v]
+        let cur: string | null = u
+        while (cur && cur !== v) { path.push(cur); cur = parent.get(cur) || null }
+        path.reverse()
+        found.push(`发现环: ${path.map(id => idToLabel.get(id) || id).join(' → ')} → ${path[0]}`)
+      } else if (color.get(v) === 0) {
+        parent.set(v, u)
+        dfs(v)
+      }
+    }
+    color.set(u, 2)
+  }
+  adj.forEach((_, id) => { if (color.get(id) === 0) dfs(id) })
+  return found
+}
+
+/** 显示链数据预览弹窗 */
+function showChainDataDialog() {
+  if (!graph) {
+    ElMessage.warning('画布未初始化')
+    return
+  }
+
+  const validationErrors = validateChain()
+  const cycleWarnings = detectCycleWarnings()
+  const allErrors = [...validationErrors, ...cycleWarnings]
+
+  const chain = translateGraphToChain()
+  chainDataDialog.json = JSON.stringify(chain, null, 2)
+  chainDataDialog.errors = allErrors
+  chainDataDialog.success = allErrors.length === 0
+  chainDataDialog.visible = true
+}
+
 // ====== 加载设计 ======
 async function loadDesign() {
   try {
     design.value = await designApi.getByCode(designCode, moduleId)
+    // 获取模块名称
+    if (moduleId) {
+      try {
+        const mod = await moduleApi.getById(moduleId)
+        moduleName.value = mod.name || mod.code
+      } catch { /* ignore */ }
+    }
     if (!graph) return
     if (design.value.graphData) {
       // graphData 可能是字符串或已解析对象
@@ -1485,7 +1973,26 @@ async function loadDesign() {
 async function handleSave() {
   if (!graph) return
 
-  // 已发布链的确认弹窗
+  // 1. 拓扑校验（阻断）
+  const validationErrors = validateChain()
+  if (validationErrors.length > 0) {
+    ElMessage.warning('校验不通过:\n' + validationErrors.join('\n'))
+    return
+  }
+
+  // 2. 死环警告（不阻断）
+  const cycleWarnings = detectCycleWarnings()
+  if (cycleWarnings.length > 0) {
+    try {
+      await ElMessageBox.confirm(
+          '流程图存在死环:\n' + cycleWarnings.join('\n') + '\n\n确定继续保存吗？',
+          t('common.confirm'),
+          { confirmButtonText: t('design.saveGraph'), cancelButtonText: t('common.cancel'), type: 'warning' }
+      )
+    } catch { return }
+  }
+
+  // 3. 已发布链的确认弹窗
   const boundChains = (design.value as any)?.boundChains
   if (boundChains && boundChains.some((c: any) => c.status === 3 || c.status === 4)) {
     try {
@@ -1500,7 +2007,8 @@ async function handleSave() {
   saving.value = true
   try {
     const json = graph.toJSON()
-    await designApi.saveGraph(designCode, moduleId, JSON.stringify(json))
+    const chain = translateGraphToChain()
+    await designApi.saveGraph(designCode, moduleId, JSON.stringify(json), JSON.stringify(chain))
     ElMessage.success(t('design.saveGraphSuccess'))
   } catch { ElMessage.error('保存失败') }
   finally { saving.value = false }
@@ -1519,10 +2027,10 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   closeContextMenu()
   inlineEditor.show = false
+  document.removeEventListener('click', inlineEditorOutsideClick)
   resizeObserver?.disconnect()
   graph?.dispose()
   graph = null
-  // 清理拖拽监听器
   draggingEp = null
 })
 </script>
@@ -1548,7 +2056,8 @@ onBeforeUnmount(() => {
 }
 
 .toolbar-left { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.toolbar-title { font-weight: 600; font-size: 15px; color: #0f172a; }
+.toolbar-title { font-size: 15px; }
+.module-prefix { font-size: 13px; margin-right: 2px; }
 .toolbar-center { display: flex; align-items: center; gap: 0; flex: 1; min-width: 0; overflow: hidden; }
 .toolbar-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .toolbar-divider { width: 1px; height: 16px; background: #cbd5e1; margin: 0 4px; flex-shrink: 0; }

@@ -176,6 +176,7 @@ CREATE TABLE `zf_design` (
     `designer`    VARCHAR(64)  DEFAULT NULL,
     `status`      TINYINT      NOT NULL DEFAULT 1  COMMENT '1-启用 0-停用',
     `graph_data`  TEXT         DEFAULT NULL,
+    `chain_data`  TEXT         DEFAULT NULL        COMMENT '翻译后的链定义 JSON（ChainDefinitionDTO 格式）',
     `created_by`  VARCHAR(64)  DEFAULT NULL        COMMENT '创建人',
     `updated_by`  VARCHAR(64)  DEFAULT NULL        COMMENT '最后修改人',
     `is_deleted`  TINYINT      DEFAULT 0           COMMENT '删除标记（0-未删 1-已删）',

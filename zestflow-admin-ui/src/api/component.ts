@@ -1,5 +1,10 @@
 import http from './index'
 
+export interface TagDef {
+  name: string
+  value: string
+}
+
 export interface ComponentVO {
   componentId: string
   componentName: string
@@ -8,6 +13,7 @@ export interface ComponentVO {
   timeout: number
   async: boolean
   componentType: string
+  tagDefs?: TagDef[]
   status: number
   updatedAt: string
   executorSource?: string

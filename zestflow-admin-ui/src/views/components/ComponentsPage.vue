@@ -55,7 +55,9 @@
     >
       <el-table-column prop="componentId" :label="$t('components.componentId')" width="240" show-overflow-tooltip>
         <template #default="{ row }">
-          <span style="font-family:monospace;font-weight:500">{{ row.componentId }}</span>
+          <el-link type="primary" :underline="'never'" style="font-family:monospace;font-weight:500;cursor:pointer" @click="showDetail(row)">
+            {{ row.componentId }}
+          </el-link>
         </template>
       </el-table-column>
       <el-table-column prop="componentName" :label="$t('components.componentName')" show-overflow-tooltip min-width="80" />
@@ -101,6 +103,62 @@
         @size-change="page=1;fetchList()"
       />
     </div>
+
+    <el-drawer v-model="drawerVisible" :title="$t('components.detail')" size="600px" destroy-on-close>
+      <template v-if="selectedComp">
+        <el-descriptions :column="1" border style="margin-bottom:16px">
+          <el-descriptions-item :label="$t('components.componentId')">
+            <span style="font-family:monospace">{{ selectedComp.componentId }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item :label="$t('components.componentName')">
+            {{ selectedComp.componentName }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="$t('components.componentType')">
+            <el-tag :type="typeTagType(selectedComp.componentType)" size="small">
+              {{ typeLabel(selectedComp.componentType) }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item :label="$t('components.description')" v-if="selectedComp.description">
+            {{ selectedComp.description }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="$t('components.groupName')">
+            {{ selectedComp.groupName }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="$t('components.executorSource')" v-if="selectedComp.executorSource">
+            {{ selectedComp.executorSource }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="$t('components.timeout')">
+            {{ selectedComp.timeout === -1 ? '-' : selectedComp.timeout }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="$t('components.isAsync')">
+            <el-tag :type="selectedComp.async ? 'warning' : 'info'" size="small">
+              {{ selectedComp.async ? $t('components.yes') : $t('components.no') }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item :label="$t('components.status')">
+            <el-tag :type="selectedComp.status === 1 ? 'success' : 'info'" size="small">
+              {{ selectedComp.status === 1 ? $t('components.active') : $t('components.offline') }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item :label="$t('components.updatedAt')" v-if="selectedComp.cachedAt">
+            {{ selectedComp.cachedAt }}
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <el-descriptions :column="1" border v-if="selectedComp.tagDefs && selectedComp.tagDefs.length > 0" style="margin-bottom:16px">
+          <el-descriptions-item :label="$t('components.tags')">
+            <el-table :data="selectedComp.tagDefs" border size="small" style="width:100%">
+              <el-table-column :label="$t('components.tagName')" prop="name" show-overflow-tooltip />
+              <el-table-column :label="$t('components.tagValue')" prop="value" show-overflow-tooltip width="160">
+                <template #default="{ row }">
+                  <el-tag size="small" type="info">{{ row.value }}</el-tag>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-descriptions-item>
+        </el-descriptions>
+      </template>
+    </el-drawer>
   </div>
 </template>
 
@@ -151,6 +209,14 @@ const page = ref(1)
 const pageSize = ref(10)
 const modules = ref<ModuleVO[]>([])
 const currentModuleId = ref<number>(0)
+
+const drawerVisible = ref(false)
+const selectedComp = ref<ComponentVO | null>(null)
+
+function showDetail(row: ComponentVO) {
+  selectedComp.value = row
+  drawerVisible.value = true
+}
 
 const filter = ref({
   keyword: '',

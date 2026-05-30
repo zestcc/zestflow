@@ -16,6 +16,7 @@ public class DesignPO {
     private String designer;
     private Integer status;
     private String graphData;
+    private String chainData;
     private String createdBy;
     private String updatedBy;
     private String createdAt;

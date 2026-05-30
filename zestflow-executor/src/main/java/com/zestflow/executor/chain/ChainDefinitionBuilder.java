@@ -77,7 +77,28 @@ public class ChainDefinitionBuilder {
     }
 
     /**
-     * 从 JSON 字符串构建
+     * 从 JSON 字符串构建（优先使用 chainData，fallback 到 graphDataJson）
+     */
+    public ChainDefinition build(String chainCode, Integer version, String chainDataJson, String graphDataJson) {
+        if (chainDataJson != null && !chainDataJson.isEmpty()) {
+            try {
+                ChainDefinitionDTO dto = MAPPER.readValue(chainDataJson, ChainDefinitionDTO.class);
+                if (dto.getCode() == null || dto.getCode().isEmpty()) {
+                    dto.setCode(chainCode);
+                }
+                if (dto.getVersion() == null) {
+                    dto.setVersion(version != null ? version : 1);
+                }
+                return build(dto);
+            } catch (Exception e) {
+                log.warn("chainData 解析失败，fallback 到 graphData code={}", chainCode);
+            }
+        }
+        return build(chainCode, version, graphDataJson);
+    }
+
+    /**
+     * 从 graphData JSON 构建（兼容旧数据）
      */
     public ChainDefinition build(String chainCode, Integer version, String graphDataJson) {
         ChainDefinitionDTO dto = parseJson(chainCode, version, graphDataJson);

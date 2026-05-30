@@ -3,6 +3,8 @@ package com.zestflow.test.component;
 import com.zestflow.executor.annotation.ZestComponent;
 import com.zestflow.executor.annotation.ZestExecute;
 import com.zestflow.executor.annotation.ZestPredicate;
+import com.zestflow.executor.annotation.ZestTag;
+import com.zestflow.executor.annotation.ZestTags;
 import com.zestflow.executor.context.ChainContext;
 import lombok.extern.slf4j.Slf4j;
 
@@ -13,12 +15,20 @@ import java.util.Map;
 public class RiskHandler {
 
     @ZestPredicate(value = "riskCheckUser", name = "用户风控判断")
+    @ZestTags({
+        @ZestTag(name="用户正常", value="true"),
+        @ZestTag(name="用户异常", value="false")
+    })
     public boolean riskCheckUser(ChainContext ctx) {
         log.info("风控-用户风控判断");
         return true;
     }
 
     @ZestPredicate(value = "riskCheckDevice", name = "设备风控判断")
+    @ZestTags({
+        @ZestTag(name="设备可信", value="true"),
+        @ZestTag(name="设备异常", value="false")
+    })
     public boolean riskCheckDevice(ChainContext ctx) {
         log.info("风控-设备风控判断");
         return true;

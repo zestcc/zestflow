@@ -255,10 +255,29 @@ public class ComponentScanner implements ApplicationContextAware {
             }
         }
 
+        // 扫描 @ZestTag 标签定义（所有类型元件都可标注）
+        scanZestTags(method, meta);
+
         // 扫描 @ZestParam 字段
         scanZestParamFields(targetClass, meta);
 
         return meta;
+    }
+
+    /**
+     * 扫描方法上的 @ZestTag 注解（支持单个、多个和 @ZestTags 容器），
+     * 去重合并到元数据
+     */
+    private void scanZestTags(Method method, ComponentMeta meta) {
+        ZestTag[] tags = method.getAnnotationsByType(ZestTag.class);
+        if (tags == null || tags.length == 0) return;
+
+        Set<String> seen = new HashSet<>();
+        for (ZestTag tag : tags) {
+            String key = tag.name() + "|" + tag.value();
+            if (!seen.add(key)) continue;
+            meta.getTagDefs().add(new TagDef(tag.name(), tag.value()));
+        }
     }
 
     private void scanZestParamFields(Class<?> targetClass, ComponentMeta meta) {
@@ -301,9 +320,25 @@ public class ComponentScanner implements ApplicationContextAware {
         /** @ZestParam 字段列表 */
         private List<ParamField> paramFields = new ArrayList<>();
 
+        /** @ZestTag 标签定义列表 */
+        private List<TagDef> tagDefs = new ArrayList<>();
+
         public void addParamField(Field field, ZestParam annotation) {
             paramFields.add(new ParamField(field, annotation));
         }
+    }
+
+    /**
+     * 标签定义（name + value）
+     */
+    @lombok.Data
+    @lombok.AllArgsConstructor
+    @lombok.NoArgsConstructor
+    public static class TagDef {
+        /** 显示名称 */
+        private String name;
+        /** 路由匹配值 */
+        private String value;
     }
 
     /**

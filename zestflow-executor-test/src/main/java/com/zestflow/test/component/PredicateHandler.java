@@ -2,6 +2,7 @@ package com.zestflow.test.component;
 
 import com.zestflow.executor.annotation.ZestComponent;
 import com.zestflow.executor.annotation.ZestPredicate;
+import com.zestflow.executor.annotation.ZestTag;
 import com.zestflow.executor.context.ChainContext;
 import lombok.extern.slf4j.Slf4j;
 
@@ -10,18 +11,26 @@ import lombok.extern.slf4j.Slf4j;
 public class PredicateHandler {
 
     @ZestPredicate(value = "predStockAvailable", name = "库存检查")
+    @ZestTag(name="有货", value="true")
+    @ZestTag(name="缺货", value="false")
     public boolean predStockAvailable(ChainContext ctx) {
         return true; }
 
     @ZestPredicate(value = "predUserVip", name = "VIP判断")
+    @ZestTag(name="VIP用户", value="true")
+    @ZestTag(name="普通用户", value="false")
     public boolean predUserVip(ChainContext ctx) {
         return false; }
 
     @ZestPredicate(value = "predOrderPaid", name = "支付状态判断")
+    @ZestTag(name="已支付", value="true")
+    @ZestTag(name="未支付", value="false")
     public boolean predOrderPaid(ChainContext ctx) {
         return true; }
 
     @ZestPredicate(value = "predRiskPass", name = "风控判断")
+    @ZestTag(name="通过", value="true")
+    @ZestTag(name="拒绝", value="false")
     public boolean predRiskPass(ChainContext ctx) {
         return true; }
 

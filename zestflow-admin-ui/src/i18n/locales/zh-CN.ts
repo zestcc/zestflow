@@ -342,6 +342,11 @@ export default {
     typePostProcessor: '后置器',
     typeParamBinder: '参数绑定器',
     typeParamValidator: '参数校验器',
+    detail: '元件详情',
+    description: '描述',
+    tags: '标签',
+    tagName: '标签名称',
+    tagValue: '标签值',
   },
   layout: {
     dashboard: '仪表盘',

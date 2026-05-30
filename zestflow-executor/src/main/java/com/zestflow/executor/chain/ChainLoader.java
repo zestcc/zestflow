@@ -83,13 +83,14 @@ public class ChainLoader implements ApplicationRunner, Ordered {
             for (ChainPO chain : activeChains) {
                 try {
                     DesignPO design = designRepo.get(chain.getDesignCode());
-                    if (design == null || design.getGraphData() == null || design.getGraphData().isEmpty()) {
+                    if (design == null || (design.getGraphData() == null && design.getChainData() == null)) {
                         log.warn("设计数据为空，跳过 chainCode={} designCode={}", chain.getCode(), chain.getDesignCode());
                         continue;
                     }
 
                     ChainDefinition definition = chainDefinitionBuilder.build(
-                            chain.getCode(), ChainConstants.CHAIN_INIT, design.getGraphData());
+                            chain.getCode(), ChainConstants.CHAIN_INIT,
+                            design.getChainData(), design.getGraphData());
                     definitions.add(definition);
 
                     log.info("链定义构建成功 code={} nodes={} layers={}",
@@ -132,7 +133,7 @@ public class ChainLoader implements ApplicationRunner, Ordered {
      * @param graphData 设计图谱 JSON（可选，null 时从 DB 读取）
      * @return 加载结果
      */
-    public ChainReloadResult reloadChainLocal(String chainCode, String graphData) {
+    public ChainReloadResult reloadChainLocal(String chainCode, String graphData, String chainData) {
         try {
             // 1. 检查链是否存在
             ChainPO chain = chainRepo.get(chainCode);
@@ -149,10 +150,10 @@ public class ChainLoader implements ApplicationRunner, Ordered {
                 return new ChainReloadResult(false, "链未绑定设计: " + chainCode, 0);
             }
 
-            // 3. 如果推送了 graphData，先持久化到设计表
+            // 3. 如果推送了图形数据，先持久化到设计表
             if (graphData != null && !graphData.isEmpty()) {
-                designRepo.saveGraph(designCode, graphData, null);
-                log.info("推送 graphData 已持久化 designCode={}", designCode);
+                designRepo.saveGraph(designCode, graphData, chainData, null);
+                log.info("推送 graphData/chainData 已持久化 designCode={}", designCode);
             }
 
             // 4. 读取设计，获取 graphData
@@ -161,13 +162,14 @@ public class ChainLoader implements ApplicationRunner, Ordered {
                 return new ChainReloadResult(false, "设计不存在: " + designCode, 0);
             }
             String actualGraphData = design.getGraphData();
-            if (actualGraphData == null || actualGraphData.isEmpty()) {
+            String actualChainData = design.getChainData();
+            if ((actualGraphData == null || actualGraphData.isEmpty()) && (actualChainData == null || actualChainData.isEmpty())) {
                 return new ChainReloadResult(false, "设计图为空: " + designCode, 0);
             }
 
-            // 5. 从 JSON 构建链定义
+            // 5. 从 JSON 构建链定义（优先使用 chainData）
             ChainDefinition definition = chainDefinitionBuilder.build(chainCode,
-                    ChainConstants.CHAIN_INIT, actualGraphData);
+                    ChainConstants.CHAIN_INIT, actualChainData, actualGraphData);
 
             // 6. 校验
             List<String> errors = chainValidator.validate(definition);

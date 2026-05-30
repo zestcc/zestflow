@@ -9,6 +9,7 @@ export interface DesignVO {
   status: number
   description?: string
   graphData?: string
+  chainData?: string
   designer?: string
   boundChainCodes?: string
   boundChains?: ChainVO[]
@@ -51,8 +52,8 @@ export const designApi = {
     return http.put<DesignVO>(`/designs/${code}`, data)
   },
 
-  saveGraph(code: string, moduleId: number, graphData: string) {
-    return http.put(`/designs/${code}/graph`, { graphData, moduleId })
+  saveGraph(code: string, moduleId: number, graphData: string, chainData?: string) {
+    return http.put(`/designs/${code}/graph`, { graphData, chainData, moduleId })
   },
 
   delete(code: string, moduleId: number) {

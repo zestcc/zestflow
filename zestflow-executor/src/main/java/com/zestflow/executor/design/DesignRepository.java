@@ -24,6 +24,7 @@ public class DesignRepository {
         po.setDesigner(rs.getString("designer"));
         po.setStatus(rs.getInt("status"));
         po.setGraphData(rs.getString("graph_data"));
+        try { po.setChainData(rs.getString("chain_data")); } catch (Exception ignored) {}
         po.setCreatedBy(rs.getString("created_by"));
         po.setUpdatedBy(rs.getString("updated_by"));
         po.setCreatedAt(rs.getString("created_at"));
@@ -77,12 +78,12 @@ public class DesignRepository {
     }
 
     public DesignPO create(String name, String description, String designer, String moduleCode, String graphData,
-                           String updatedBy) {
+                           String chainData, String updatedBy) {
         String code = CodeGenerator.generate("DSN");
         String now = LocalDateTime.now().format(DTF);
         String creator = updatedBy != null ? updatedBy : (moduleCode != null ? moduleCode : "");
-        jdbc.update("INSERT INTO zf_design(code, name, description, designer, status, graph_data, created_by, updated_by, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
-                code, name, description, designer, 1, graphData,
+        jdbc.update("INSERT INTO zf_design(code, name, description, designer, status, graph_data, chain_data, created_by, updated_by, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                code, name, description, designer, 1, graphData, chainData,
                 creator, creator, now, now);
         log.info("设计创建成功 code={} name={} createdBy={}", code, name, creator);
         return get(code);
@@ -103,12 +104,12 @@ public class DesignRepository {
         return get(code);
     }
 
-    public DesignPO saveGraph(String code, String graphData, String updatedBy) {
+    public DesignPO saveGraph(String code, String graphData, String chainData, String updatedBy) {
         DesignPO cur = get(code);
         if (cur == null) return null;
         String now = LocalDateTime.now().format(DTF);
-        jdbc.update("UPDATE zf_design SET graph_data=?, updated_by=?, updated_at=? WHERE code=?",
-                graphData, updatedBy != null ? updatedBy : cur.getUpdatedBy(), now, code);
+        jdbc.update("UPDATE zf_design SET graph_data=?, chain_data=?, updated_by=?, updated_at=? WHERE code=?",
+                graphData, chainData, updatedBy != null ? updatedBy : cur.getUpdatedBy(), now, code);
         log.info("设计图保存成功 code={}", code);
         return get(code);
     }

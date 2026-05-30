@@ -40,6 +40,9 @@ public class PublishEventDTO implements Serializable {
     /** 设计图谱 JSON（Admin 推送时携带） */
     private String graphData;
 
+    /** 链定义 JSON — ChainDefinitionDTO 格式（前端翻译后的纯结构数据） */
+    private String chainData;
+
     /** 总执行器数（Admin 填充） */
     private Integer totalExecutors;
 

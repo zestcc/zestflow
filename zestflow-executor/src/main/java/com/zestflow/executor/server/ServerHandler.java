@@ -374,9 +374,10 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
         String designer = json.has("designer") ? json.get("designer").asText(null) : null;
         String moduleCode = json.has("moduleCode") ? json.get("moduleCode").asText(null) : null;
         String graphData = json.has("graphData") ? json.get("graphData").asText(null) : null;
+        String chainData = json.has("chainData") ? json.get("chainData").asText(null) : null;
         String updatedBy = json.has("updatedBy") ? json.get("updatedBy").asText(null) : null;
 
-        DesignPO data = designRepo.create(name, description, designer, moduleCode, graphData, updatedBy);
+        DesignPO data = designRepo.create(name, description, designer, moduleCode, graphData, chainData, updatedBy);
         log.info("创建设计 code={} name={} moduleCode={} designer={}", data.getCode(), name, moduleCode, designer);
         writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(designToJson(data, null)));
         return true;
@@ -406,8 +407,9 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
     private boolean handleSaveDesignGraph(ChannelHandlerContext ctx, String code, String body) throws Exception {
         JsonNode json = MAPPER.readTree(body);
         String graphData = json.has("graphData") ? json.get("graphData").asText() : "";
+        String chainData = json.has("chainData") ? json.get("chainData").asText() : "";
         String updatedBy = json.has("updatedBy") ? json.get("updatedBy").asText(null) : null;
-        DesignPO data = designRepo.saveGraph(code, graphData, updatedBy);
+        DesignPO data = designRepo.saveGraph(code, graphData, chainData, updatedBy);
         if (data == null) {
             log.warn("保存图谱设计不存在 code={}", code);
             writeResponse(ctx, HttpResponseStatus.NOT_FOUND,
@@ -517,6 +519,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
 
         // 解析发布事件（兼容纯 graphData 和 PublishEventDTO）
         String graphData = null;
+        String chainData = null;
         String publishId = null;
         if (body != null && !body.isEmpty()) {
             try {
@@ -527,12 +530,15 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
                 if (json.has("graphData") && !json.get("graphData").isNull()) {
                     graphData = json.get("graphData").asText();
                 }
+                if (json.has("chainData") && !json.get("chainData").isNull()) {
+                    chainData = json.get("chainData").asText();
+                }
             } catch (Exception e) {
                 log.warn("解析请求体失败 code={}", code);
             }
         }
 
-        ChainLoader.ChainReloadResult result = chainLoader.reloadChainLocal(code, graphData);
+        ChainLoader.ChainReloadResult result = chainLoader.reloadChainLocal(code, graphData, chainData);
         log.info("链热加载结果 code={} success={} nodes={} publishId={} msg={}",
                 code, result.isSuccess(), result.getNodeCount(), publishId, result.getErrorMessage());
 
@@ -596,6 +602,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
                 item.put("timeout", meta.getTimeout());
                 item.put("async", meta.isAsync());
                 item.put("componentType", meta.getComponentType().name());
+                item.put("tagDefs", meta.getTagDefs());
                 item.put("status", 1);
                 all.add(item);
             }
@@ -732,6 +739,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
         node.put("designer", d.getDesigner() != null ? d.getDesigner() : "");
         node.put("status", d.getStatus() != null ? d.getStatus() : 0);
         node.put("graphData", d.getGraphData() != null ? d.getGraphData() : "");
+        node.put("chainData", d.getChainData() != null ? d.getChainData() : "");
         node.put("createdBy", d.getCreatedBy() != null ? d.getCreatedBy() : "");
         node.put("updatedBy", d.getUpdatedBy() != null ? d.getUpdatedBy() : "");
         node.put("createdAt", d.getCreatedAt() != null ? d.getCreatedAt() : "");
