@@ -923,21 +923,13 @@ CREATE TABLE IF NOT EXISTS `chain_event` (
 | 2026-06 | `ExecutionTrace` 新增 `appCode` 字段 |
 | 2026-06 | `chain_event` 表 DDL 新增 `app_code` 列；`chain_id`/`node_id` 注释改为「编码」|
 
-## 进行中工作
+## 新机器初始化（事件系统修复已提交，commit c1b1faa）
 
-### 事件系统全面修复（2026-06-01 会话）
-
-**已完成代码修改（未部署验证）：**
-- ExecutorProperties 默认值解析（appCode/appName/host）
-- NodeRunner/DefaultChainExecutionEngine 事件发布：chainId/nodeId 改用 code、补 appCode/params/result/errorMessage
-- chain_event 表加 app_code 列
-- 前端日志详情抽屉展示 appCode/params/result
-
-**需要在新机器上做的：**
-1. 同步数据库：`ALTER TABLE zestflow_test_log.chain_event ADD COLUMN app_code VARCHAR(64) DEFAULT NULL COMMENT '应用编码' AFTER executor_id;`
+**代码已全部提交，新机器 clone/pull 后需要做的：**
+1. 数据库迁移：`ALTER TABLE zestflow_test_log.chain_event ADD COLUMN app_code VARCHAR(64) DEFAULT NULL COMMENT '应用编码' AFTER executor_id;`
 2. 编译安装：`mvn install -pl zestflow-executor -am -DskipTests && mvn package -pl zestflow-executor-test -am -DskipTests`
-3. 启动测试应用（端口 8081）
-4. 验证：POST `/api/orders/handleApplyAfterSale` → 检查 chain_event 表数据（app_code 非空、params/result 有值、cost_ms > 0）
+3. 启动 Admin + 测试应用（端口 8081）
+4. 验证：POST `/api/orders/handleApplyAfterSale` → 检查 chain_event 表数据（app_code 非空、params/result 有值、cost_ms > 0、executor_id 为编码非 null@null）
 
 ## 工作原则
 
