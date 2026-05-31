@@ -27,7 +27,7 @@ public class SecurityConfig {
             .headers(headers -> headers
                 .frameOptions(frame -> frame.sameOrigin())
                 .xssProtection(xss -> xss.headerValue(XXssProtectionHeaderWriter.HeaderValue.ENABLED_MODE_BLOCK))
-                .contentTypeOptions(contentType -> contentType.disable())
+                .contentTypeOptions(contentType -> contentType.disable()) // 禁用后后端返回 JSON 不再强制 MIME 嗅探为下载
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth

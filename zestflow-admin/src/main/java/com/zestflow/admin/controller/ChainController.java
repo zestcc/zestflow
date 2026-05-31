@@ -13,6 +13,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.scheduling.annotation.Scheduled;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -121,11 +124,12 @@ public class ChainController {
             return MAPPER.writeValueAsString(defNode);
         } catch (Exception e) {
             log.warn("获取链定义失败 code={}", code, e);
-            return "{\"code\":500,\"message\":\"" + e.getMessage() + "\"}";
+            return "{\"code\":500,\"message\":\"获取链定义失败\"}";
         }
     }
 
     /** 链同步状态内存缓存：executorId → ChainSyncDTO */
+    private static final Duration SYNC_CACHE_TTL = Duration.ofMinutes(5);
     private static final ConcurrentHashMap<String, com.zestflow.common.model.dto.ChainSyncDTO> CHAIN_SYNC_STATUS = new ConcurrentHashMap<>();
 
     /**
@@ -135,6 +139,9 @@ public class ChainController {
     public String receiveChainSync(@RequestBody String syncJson) {
         try {
             com.zestflow.common.model.dto.ChainSyncDTO sync = MAPPER.readValue(syncJson, com.zestflow.common.model.dto.ChainSyncDTO.class);
+            if (sync.getTimestamp() == null) {
+                sync.setTimestamp(System.currentTimeMillis());
+            }
             CHAIN_SYNC_STATUS.put(sync.getExecutorId(), sync);
             log.info("收到链同步通知 executorId={} status={} loaded={}", sync.getExecutorId(), sync.getStatus(),
                     sync.getLoadedChains() != null ? sync.getLoadedChains().size() : 0);
@@ -157,8 +164,17 @@ public class ChainController {
             }
             return MAPPER.writeValueAsString(CHAIN_SYNC_STATUS);
         } catch (Exception e) {
-            return "{\"code\":500,\"message\":\"" + e.getMessage() + "\"}";
+            return "{\"code\":500,\"message\":\"查询同步状态失败\"}";
         }
+    }
+
+    /**
+     * 定期清理过期的同步状态缓存，防止内存泄漏
+     */
+    @Scheduled(fixedRate = 60000)
+    public void evictStaleSyncStatus() {
+        long cutoff = System.currentTimeMillis() - SYNC_CACHE_TTL.toMillis();
+        CHAIN_SYNC_STATUS.entrySet().removeIf(e -> e.getValue().getTimestamp() < cutoff);
     }
 
     @GetMapping("/{code}")
@@ -235,8 +251,66 @@ public class ChainController {
         try { eventBody = MAPPER.writeValueAsString(publishEvent); }
         catch (Exception e) { return "{\"code\":500,\"message\":\"序列化失败\"}"; }
 
+        // 读取当前链数据作为回滚基线
+        // 读取当前链数据作为回滚基线（部分失败时回滚成功执行器）
+        String rollbackGraphData = null;
+        String rollbackChainData = null;
+        try {
+            String chainJson = proxyService.getFromExecutor(moduleId, "/api/chains/" + code, null);
+            if (chainJson != null) {
+                JsonNode chainNode = MAPPER.readTree(chainJson);
+                String designCode = chainNode.has("designCode") ? chainNode.get("designCode").asText() : null;
+                if (designCode != null && !designCode.isEmpty()) {
+                    String designJson = proxyService.getFromExecutor(moduleId, "/api/designs/" + designCode, null);
+                    if (designJson != null) {
+                        JsonNode designNode = MAPPER.readTree(designJson);
+                        if (designNode.has("graphData"))
+                            rollbackGraphData = designNode.get("graphData").asText();
+                        if (designNode.has("chainData"))
+                            rollbackChainData = designNode.get("chainData").asText();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("读取回滚基线数据失败 code={}", code, e);
+        }
+
         BroadcastResult reloadResult = proxyService.broadcastToExecutors(
                 moduleId, "PUT", "/api/chains/" + code + "/reload", eventBody);
+
+        // 部分失败时回滚已成功的执行器
+        if (!reloadResult.isAllSuccess() && reloadResult.getSuccess() > 0 && rollbackGraphData != null) {
+            log.warn("发布部分失败，开始回滚已成功的执行器 code={} success={}/{}",
+                    code, reloadResult.getSuccess(), reloadResult.getTotal());
+            PublishEventDTO rollbackEvent = PublishEventDTO.builder()
+                    .publishId("rollback-" + publishId)
+                    .eventType(ChainEventType.PUBLISH_ROLLBACK)
+                    .chainCode(code)
+                    .moduleId(moduleId)
+                    .graphData(rollbackGraphData)
+                    .chainData(rollbackChainData)
+                    .totalExecutors(reloadResult.getSuccess())
+                    .timestamp(System.currentTimeMillis())
+                    .build();
+            String rollbackBody;
+            try {
+                rollbackBody = MAPPER.writeValueAsString(rollbackEvent);
+                // 只在成功的执行器上回滚
+                for (ExecutorResult r : reloadResult.getResults()) {
+                    if (r.isOk()) {
+                        try {
+                            proxyService.executeOnExecutor(moduleId, "PUT",
+                                    "/api/chains/" + code + "/reload", rollbackBody);
+                            log.info("回滚成功 executor={}", r.getUrl());
+                        } catch (Exception re) {
+                            log.error("回滚失败 executor={}", r.getUrl(), re);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("序列化回滚数据失败", e);
+            }
+        }
 
         // 缓存发布进度
         PUBLISH_PROGRESS.put(code + ":" + moduleId,
@@ -270,7 +344,7 @@ public class ChainController {
         try {
             return MAPPER.writeValueAsString(result);
         } catch (Exception e) {
-            return "{\"code\":500,\"message\":\"" + e.getMessage() + "\"}";
+            return "{\"code\":500,\"message\":\"序列化发布结果失败\"}";
         }
     }
 

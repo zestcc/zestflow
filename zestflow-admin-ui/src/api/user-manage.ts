@@ -50,9 +50,17 @@ export interface AssignModuleRoleDTO {
   roleId: number
 }
 
+export interface PageResponse<T> {
+  records: T[]
+  total: number
+  size: number
+  current: number
+  pages: number
+}
+
 export const userManageApi = {
-  list() {
-    return http.get<UserManageVO[]>('/users')
+  list(params?: { username?: string; email?: string; status?: number; isSuperAdmin?: number; page?: number; size?: number }) {
+    return http.get<PageResponse<UserManageVO> | UserManageVO[]>('/users', { params })
   },
   getById(id: number) {
     return http.get<UserManageVO>(`/users/${id}`)

@@ -44,6 +44,7 @@ public class JdbcEventCollector implements EventCollector {
         return ChainEventPO.builder()
                 .eventId(event.getEventId())
                 .eventType(event.getEventType().name())
+                .executionId(event.getExecutionId())
                 .chainId(event.getChainId())
                 .chainName(event.getChainName())
                 .nodeId(event.getNodeId())

@@ -3,7 +3,7 @@
     <div v-if="userStore.user?.isSuperAdmin === 1">
     <div class="page-header">
       <div class="stats-summary">
-        <span class="summary-total" style="font-weight:600;color:#409eff">用户 {{ filteredList.length }}</span>
+        <span class="summary-total" style="font-weight:600;color:#409eff">{{ $t('settings.userManage') }} {{ total }}</span>
       </div>
       <el-button type="primary" @click="openCreate">
         {{ $t('settings.createUser') }}
@@ -12,32 +12,32 @@
 
     <!-- 筛选条件 -->
     <el-form :model="filter" inline size="default" style="margin-bottom:12px">
-      <el-form-item label="用户名">
-        <el-input v-model="filter.username" placeholder="输入用户名" clearable style="width:140px" />
+      <el-form-item :label="$t('common.username')">
+        <el-input v-model="filter.username" :placeholder="$t('common.username')" clearable style="width:140px" />
       </el-form-item>
-      <el-form-item label="邮箱">
-        <el-input v-model="filter.email" placeholder="输入邮箱" clearable style="width:180px" />
+      <el-form-item :label="$t('common.email')">
+        <el-input v-model="filter.email" :placeholder="$t('common.email')" clearable style="width:180px" />
       </el-form-item>
-      <el-form-item label="状态">
-        <el-select v-model="filter.status" placeholder="全部" clearable style="width:100px">
+      <el-form-item :label="$t('common.status')">
+        <el-select v-model="filter.status" :placeholder="$t('common.all')" clearable style="width:100px">
           <el-option :label="$t('settings.enabled')" :value="1" />
           <el-option :label="$t('settings.disabled')" :value="0" />
         </el-select>
       </el-form-item>
-      <el-form-item label="超管">
-        <el-select v-model="filter.isSuperAdmin" placeholder="全部" clearable style="width:100px">
+      <el-form-item :label="$t('settings.isSuperAdmin')">
+        <el-select v-model="filter.isSuperAdmin" :placeholder="$t('common.all')" clearable style="width:100px">
           <el-option :label="$t('settings.yes')" :value="1" />
           <el-option :label="$t('settings.no')" :value="0" />
         </el-select>
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" @click="handleSearch">查询</el-button>
-        <el-button @click="handleReset">重置</el-button>
+        <el-button type="primary" @click="handleSearch">{{ $t('common.search') }}</el-button>
+        <el-button @click="handleReset">{{ $t('common.reset') }}</el-button>
       </el-form-item>
     </el-form>
 
     <el-table
-      :data="paginatedList"
+      :data="userList"
       v-loading="loading"
       stripe border
       style="width: 100%"
@@ -85,9 +85,11 @@
       <el-pagination
         v-model:current-page="page"
         v-model:page-size="pageSize"
-        :total="filteredList.length"
+        :total="total"
         :page-sizes="[10, 20, 50]"
         layout="total, sizes, prev, pager, next, jumper"
+        @current-change="fetchList"
+        @size-change="fetchList"
       />
     </div>
 
@@ -123,21 +125,21 @@
     <!-- 创建成功弹窗（显示账号密码） -->
     <el-dialog
       v-model="resultDialogVisible"
-      title="创建成功"
+      :title="$t('settings.createResultTitle')"
       width="400px"
       :close-on-click-modal="false"
     >
       <div class="result-box">
         <div class="result-row">
-          <span class="result-label">用户名</span>
+          <span class="result-label">{{ $t('common.username') }}</span>
           <span class="result-value">{{ resultAccount }}</span>
         </div>
         <div class="result-row">
-          <span class="result-label">密码</span>
+          <span class="result-label">{{ $t('settings.passwordLabel') }}</span>
           <span class="result-value result-password">{{ resultPassword }}</span>
         </div>
         <el-alert
-          title="请妥善保存账号密码，关闭后将无法再次查看密码"
+          :title="$t('settings.savePasswordWarning')"
           type="warning"
           :closable="false"
           show-icon
@@ -145,24 +147,24 @@
         />
       </div>
       <template #footer>
-        <el-button type="primary" @click="resultDialogVisible = false">我已保存</el-button>
+        <el-button type="primary" @click="resultDialogVisible = false">{{ $t('settings.savedConfirm') }}</el-button>
       </template>
     </el-dialog>
 
     <!-- 重置密码成功弹窗 -->
     <el-dialog
       v-model="resetResultVisible"
-      title="密码已重置"
+      :title="$t('settings.passwordResetResultTitle')"
       width="400px"
       :close-on-click-modal="false"
     >
       <div class="result-box">
         <div class="result-row">
-          <span class="result-label">新密码</span>
+          <span class="result-label">{{ $t('settings.newPasswordFor') }}</span>
           <span class="result-value result-password">{{ resetResultPassword }}</span>
         </div>
         <el-alert
-          title="请妥善保管新密码，关闭后将无法再次查看"
+          :title="$t('settings.keepPasswordWarning')"
           type="warning"
           :closable="false"
           show-icon
@@ -170,7 +172,7 @@
         />
       </div>
       <template #footer>
-        <el-button type="primary" @click="resetResultVisible = false">我已保存</el-button>
+        <el-button type="primary" @click="resetResultVisible = false">{{ $t('settings.savedConfirm') }}</el-button>
       </template>
     </el-dialog>
 
@@ -250,7 +252,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 
 const userStore = useUserStore()
@@ -265,6 +267,7 @@ const { t } = useI18n()
 
 const loading = ref(false)
 const userList = ref<UserManageVO[]>([])
+const total = ref(0)
 
 // 筛选条件
 const filter = ref({
@@ -278,28 +281,15 @@ const filter = ref({
 const page = ref(1)
 const pageSize = ref(10)
 
-const filteredList = computed(() => {
-  let list = userList.value
-  const f = filter.value
-  if (f.username) list = list.filter(u => u.username.includes(f.username))
-  if (f.email) list = list.filter(u => u.email.includes(f.email))
-  if (f.status === 0 || f.status === 1) list = list.filter(u => u.status === f.status)
-  if (f.isSuperAdmin === 0 || f.isSuperAdmin === 1) list = list.filter(u => u.isSuperAdmin === f.isSuperAdmin)
-  return list
-})
-
-const paginatedList = computed(() => {
-  const start = (page.value - 1) * pageSize.value
-  return filteredList.value.slice(start, start + pageSize.value)
-})
-
 function handleSearch() {
   page.value = 1
+  fetchList()
 }
 
 function handleReset() {
   filter.value = { username: '', email: '', status: '', isSuperAdmin: '' }
   page.value = 1
+  fetchList()
 }
 
 // 用户表单
@@ -354,7 +344,23 @@ const availableModuleOptions = ref<ModuleVO[]>([])
 async function fetchList() {
   loading.value = true
   try {
-    userList.value = await userManageApi.list()
+    const params: Record<string, any> = {
+      page: page.value,
+      size: pageSize.value,
+    }
+    if (filter.value.username) params.username = filter.value.username
+    if (filter.value.email) params.email = filter.value.email
+    if (filter.value.status === 0 || filter.value.status === 1) params.status = filter.value.status
+    if (filter.value.isSuperAdmin === 0 || filter.value.isSuperAdmin === 1) params.isSuperAdmin = filter.value.isSuperAdmin
+    const res = await userManageApi.list(params)
+    // 分页响应：res 为 PageResponse；兼容旧版全量数组
+    if (Array.isArray(res)) {
+      userList.value = res
+      total.value = res.length
+    } else {
+      userList.value = res.records
+      total.value = res.total
+    }
   } finally {
     loading.value = false
   }
@@ -392,7 +398,7 @@ async function handleUserSubmit() {
         isSuperAdmin: userForm.value.isSuperAdmin,
       }
       await userManageApi.update(editingUserId.value, dto)
-      ElMessage.success(t('common.edit') + '成功')
+      ElMessage.success(t('settings.updateSuccess'))
     } else {
       const res = await userManageApi.create({
         username: userForm.value.username,
@@ -417,7 +423,7 @@ function handleDelete(row: UserManageVO) {
     { confirmButtonText: t('settings.yes'), cancelButtonText: t('settings.no'), type: 'warning' },
   ).then(async () => {
     await userManageApi.delete(row.id)
-    ElMessage.success(t('common.delete') + '成功')
+    ElMessage.success(t('settings.deleteSuccess'))
     await fetchList()
   }).catch(() => {})
 }
@@ -481,7 +487,7 @@ async function handleAddAssignment() {
       roleId: assignForm.value.roleId!,
     }
     await userManageApi.assignModuleRole(dto)
-    ElMessage.success(t('settings.addAssignment') + '成功')
+    ElMessage.success(t('settings.assignSuccess'))
     addAssignDialogVisible.value = false
     // 刷新分配列表
     const updated = await userManageApi.getById(assignTargetUser.value.id)
@@ -511,7 +517,7 @@ async function handleRemoveAssignment(index: number) {
 
   try {
     await userManageApi.removeModuleRole(assignTargetUser.value.id, item.moduleId)
-    ElMessage.success(t('common.delete') + '成功')
+    ElMessage.success(t('settings.deleteSuccess'))
     assignModules.value.splice(index, 1)
     // 同步更新 userList
     const idx = userList.value.findIndex(u => u.id === assignTargetUser.value!.id)
@@ -526,9 +532,9 @@ async function handleRemoveAssignment(index: number) {
 async function handleResetPassword(row: UserManageVO) {
   try {
     await ElMessageBox.confirm(
-      `确定要重置用户「${row.username}」的密码吗？重置后系统将自动生成新密码。`,
-      '确认重置密码',
-      { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' },
+      t('settings.resetPasswordConfirm', { username: row.username }),
+      t('settings.resetPasswordTitle'),
+      { confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel'), type: 'warning' },
     )
     const res = await userManageApi.resetPassword(row.id)
     resetResultPassword.value = res.generatedPassword

@@ -2,9 +2,12 @@ package com.zestflow.executor.engine;
 
 import com.zestflow.common.constant.ChainConstants;
 import com.zestflow.common.model.dto.ChainEvent;
+import com.zestflow.common.model.dto.ChainExecuteResultDTO;
 import com.zestflow.common.model.dto.ComponentRef;
 import com.zestflow.common.model.dto.NodeResultDTO;
 import com.zestflow.executor.circuit.SimpleCircuitBreaker;
+import com.zestflow.executor.chain.ChainDefinition;
+import com.zestflow.executor.chain.ChainManager;
 import com.zestflow.executor.chain.NodeDefinition;
 import com.zestflow.executor.context.ChainContext;
 import com.zestflow.executor.event.EventPublisher;
@@ -15,7 +18,13 @@ import com.zestflow.executor.retry.RetryExecutor;
 import com.zestflow.executor.scanner.ComponentScanner;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.script.Bindings;
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import javax.script.ScriptException;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.List;
 import java.util.concurrent.*;
@@ -36,9 +45,18 @@ public class NodeRunner {
     private final InterceptorChain interceptorChain;
     private final LifecycleExecutor lifecycleExecutor;
     private final RetryExecutor retryExecutor;
+    private final ChainManager chainManager;
+
+    /** 子链执行引擎（setter 注入，避免与 DefaultChainExecutionEngine 循环依赖） */
+    private ChainExecutionEngine chainExecutionEngine;
 
     /** 熔断器缓存：nodeId → CircuitBreaker */
     private final ConcurrentHashMap<String, SimpleCircuitBreaker> circuitBreakers = new ConcurrentHashMap<>();
+
+    /** 执行器标识（moduleCode@host:port） */
+    private final String executorId;
+    /** 应用名 */
+    private final String appName;
 
     /**
      * 清除指定节点的熔断器状态（链热加载时调用，防止旧熔断状态污染新链）
@@ -62,12 +80,23 @@ public class NodeRunner {
 
     public NodeRunner(ComponentScanner componentScanner, EventPublisher eventPublisher,
                       InterceptorChain interceptorChain, LifecycleExecutor lifecycleExecutor,
-                      RetryExecutor retryExecutor) {
+                      RetryExecutor retryExecutor, ChainManager chainManager,
+                      com.zestflow.executor.registry.ExecutorProperties properties) {
         this.componentScanner = componentScanner;
         this.eventPublisher = eventPublisher;
         this.interceptorChain = interceptorChain;
         this.lifecycleExecutor = lifecycleExecutor;
         this.retryExecutor = retryExecutor;
+        this.chainManager = chainManager;
+        this.executorId = properties.getModuleCode() + "@" + properties.getHost() + ":" + properties.getPort();
+        this.appName = properties.getModuleName() != null ? properties.getModuleName() : properties.getModuleCode();
+    }
+
+    /**
+     * 设置子链执行引擎（setter 注入，避免与 DefaultChainExecutionEngine 循环依赖）
+     */
+    public void setChainExecutionEngine(ChainExecutionEngine chainExecutionEngine) {
+        this.chainExecutionEngine = chainExecutionEngine;
     }
 
     /**
@@ -79,19 +108,25 @@ public class NodeRunner {
         String nodeId = nodeDef.getId();
 
         try {
-            // 熔断器检查
+            // 熔断器检查 — 断开时快速失败，不走重试/降级
             if (nodeDef.isCircuitBreakerEnabled()) {
                 SimpleCircuitBreaker cb = circuitBreakers.computeIfAbsent(nodeId,
                         k -> new SimpleCircuitBreaker(nodeId, nodeDef.getCircuitBreakerThreshold(),
                                 nodeDef.getCircuitBreakerRecoveryMs()));
                 if (!cb.tryAcquire()) {
                     log.warn("熔断器断开，请求被拒绝 nodeId={}", nodeId);
-                    throw new RuntimeException("熔断器已断开 nodeId=" + nodeId);
+                    stateMachine.transit(ChainConstants.NODE_FAILED);
+                    publishNodeEvent(ChainEvent.EventType.NODE_FAILED, nodeDef, context, 0L, 0, "熔断器已断开");
+                    return NodeResultDTO.builder()
+                            .nodeId(nodeId)
+                            .status(ChainConstants.NODE_FAILED)
+                            .errorMessage("熔断器已断开 nodeId=" + nodeId)
+                            .build();
                 }
             }
 
             stateMachine.transit(ChainConstants.NODE_RUNNING);
-            publishNodeEvent(ChainEvent.EventType.NODE_STARTED, nodeId, context);
+            publishNodeEvent(ChainEvent.EventType.NODE_STARTED, nodeDef, context, null, null, null);
 
             // 拦截器前置
             interceptorChain.beforeNode(nodeDef, context);
@@ -110,15 +145,8 @@ public class NodeRunner {
             interceptorChain.afterNode(nodeDef, context, result);
 
             stateMachine.transit(ChainConstants.NODE_SUCCESS);
-            publishNodeEvent(ChainEvent.EventType.NODE_COMPLETED, nodeId, context);
-
-            // 熔断器记录成功
-            if (nodeDef.isCircuitBreakerEnabled()) {
-                SimpleCircuitBreaker cb = circuitBreakers.get(nodeId);
-                if (cb != null) cb.onSuccess();
-            }
-
             long costMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
+            publishNodeEvent(ChainEvent.EventType.NODE_COMPLETED, nodeDef, context, costMs, 1, null);
             log.debug("节点执行成功 nodeId={} cost={}ms", nodeId, costMs);
 
             return NodeResultDTO.builder()
@@ -146,7 +174,7 @@ public class NodeRunner {
             recordCircuitBreakerFailure(nodeDef, nodeId);
 
             stateMachine.transit(ChainConstants.NODE_FAILED);
-            publishNodeEvent(ChainEvent.EventType.NODE_FAILED, nodeId, context);
+            publishNodeEvent(ChainEvent.EventType.NODE_FAILED, nodeDef, context, costMs, 0, e.getMessage());
 
             return NodeResultDTO.builder()
                     .nodeId(nodeId)
@@ -196,21 +224,108 @@ public class NodeRunner {
     }
 
     private Object executeScript(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
-        throw new UnsupportedOperationException("脚本节点暂未实现 nodeId=" + nodeDef.getId());
+        String script = nodeDef.getScript();
+        if (script == null || script.isEmpty()) {
+            throw new IllegalArgumentException("脚本内容为空 nodeId=" + nodeDef.getId());
+        }
+
+        ScriptEngineManager manager = new ScriptEngineManager();
+        ScriptEngine engine = manager.getEngineByName("groovy");
+        if (engine == null) {
+            throw new IllegalStateException("Groovy 脚本引擎不可用，请确保 groovy-jsr223 在 classpath 中 nodeId=" + nodeDef.getId());
+        }
+
+        Bindings bindings = engine.createBindings();
+        bindings.put("ctx", context);
+        bindings.put("params", context.snapshot());
+
+        try {
+            Object result = engine.eval(script, bindings);
+            log.debug("脚本执行成功 nodeId={}", nodeDef.getId());
+            return result;
+        } catch (ScriptException e) {
+            throw new RuntimeException("脚本执行失败 nodeId=" + nodeDef.getId() + " error=" + e.getMessage(), e);
+        }
     }
 
     private Object executeSubChain(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
-        throw new UnsupportedOperationException("子链节点暂未实现 nodeId=" + nodeDef.getId()
-                + " subChainCode=" + nodeDef.getSubChainCode());
+        String subChainCode = nodeDef.getSubChainCode();
+        if (subChainCode == null || subChainCode.isEmpty()) {
+            throw new IllegalArgumentException("子链编码为空 nodeId=" + nodeDef.getId());
+        }
+
+        ChainDefinition subChain = chainManager.get(subChainCode);
+        if (subChain == null) {
+            throw new IllegalArgumentException("子链不存在 code=" + subChainCode + " nodeId=" + nodeDef.getId());
+        }
+
+        if (chainExecutionEngine == null) {
+            throw new IllegalStateException("子链执行引擎未注入 nodeId=" + nodeDef.getId());
+        }
+
+        log.debug("子链执行开始 nodeId={} subChainCode={}", nodeDef.getId(), subChainCode);
+        ChainExecuteResultDTO result = chainExecutionEngine.execute(subChainCode, context.snapshot());
+        log.debug("子链执行完成 nodeId={} subChainCode={}", nodeDef.getId(), subChainCode);
+        return result.getResultData();
     }
 
+    @SuppressWarnings("unchecked")
     private Object executeIterator(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
-        throw new UnsupportedOperationException("迭代器节点暂未实现 nodeId=" + nodeDef.getId());
+        String dataSourceExpr = nodeDef.getIteratorDataSource();
+        if (dataSourceExpr == null || dataSourceExpr.isEmpty()) {
+            log.debug("迭代器数据源表达式为空，跳过 nodeId={}", nodeDef.getId());
+            return List.of();
+        }
+
+        Object dataSource = context.get(dataSourceExpr);
+        if (dataSource == null) {
+            log.warn("迭代器数据源为空 nodeId={} expr={}", nodeDef.getId(), dataSourceExpr);
+            return List.of();
+        }
+
+        if (!(dataSource instanceof Collection)) {
+            throw new IllegalArgumentException("迭代器数据源不是集合类型 nodeId=" + nodeDef.getId()
+                    + " type=" + dataSource.getClass().getName());
+        }
+
+        Collection<Object> items = (Collection<Object>) dataSource;
+        String itemName = nodeDef.getIteratorItemName();
+        List<NodeDefinition> subNodes = nodeDef.getIteratorSubNodes();
+
+        if (subNodes == null || subNodes.isEmpty()) {
+            log.warn("迭代器子节点为空，直接返回数据源 nodeId={}", nodeDef.getId());
+            return new ArrayList<>(items);
+        }
+
+        List<Object> results = new ArrayList<>();
+        int index = 0;
+        for (Object item : items) {
+            // 将当前迭代项放入上下文
+            if (itemName != null && !itemName.isEmpty()) {
+                context.put(itemName, item);
+            }
+            context.put("_iterator_index", index);
+            context.put("_iterator_total", items.size());
+
+            // 按序执行所有子节点（同层共享同一个上下文）
+            for (NodeDefinition subNode : subNodes) {
+                NodeResultDTO subResult = execute(subNode, context);
+                if (Objects.equals(subResult.getStatus(), ChainConstants.NODE_FAILED)) {
+                    log.warn("迭代器子节点执行失败，中断迭代 nodeId={} subNodeId={} index={}",
+                            nodeDef.getId(), subNode.getId(), index);
+                    return results;
+                }
+            }
+            index++;
+        }
+
+        log.debug("迭代器执行完成 nodeId={} count={}", nodeDef.getId(), index);
+        return results;
     }
 
     private NodeResultDTO handleRetry(NodeDefinition nodeDef, ChainContext context,
                                        NodeStateMachine stateMachine, long startTime) {
-        publishNodeEvent(ChainEvent.EventType.NODE_RETRYING, nodeDef.getId(), context);
+        publishNodeEvent(ChainEvent.EventType.NODE_RETRYING, nodeDef, context, null, null, null);
 
         boolean retried = retryExecutor.executeWithRetry(
                 nodeDef, context,
@@ -221,7 +336,7 @@ public class NodeRunner {
         if (retried) {
             stateMachine.transit(ChainConstants.NODE_SUCCESS);
             // retry 成功后不会回到 try 块的成功路径，此处补发完成事件
-            publishNodeEvent(ChainEvent.EventType.NODE_COMPLETED, nodeDef.getId(), context);
+            publishNodeEvent(ChainEvent.EventType.NODE_COMPLETED, nodeDef, context, costMs, 1, null);
 
             if (nodeDef.isCircuitBreakerEnabled()) {
                 SimpleCircuitBreaker cb = circuitBreakers.get(nodeDef.getId());
@@ -247,13 +362,14 @@ public class NodeRunner {
 
     private NodeResultDTO handleFallback(NodeDefinition nodeDef, ChainContext context,
                                           NodeStateMachine stateMachine, long startTime, Throwable cause) {
-        publishNodeEvent(ChainEvent.EventType.NODE_FALLBACKING, nodeDef.getId(), context);
+        publishNodeEvent(ChainEvent.EventType.NODE_FALLBACK_START, nodeDef, context, null, null, null);
+        long costMs = 0;
 
         try {
             lifecycleExecutor.executeFallback(nodeDef, context, cause);
-            long costMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
+            costMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
             // 降级成功后不会回到 try 块的成功路径，此处补发完成事件
-            publishNodeEvent(ChainEvent.EventType.NODE_COMPLETED, nodeDef.getId(), context);
+            publishNodeEvent(ChainEvent.EventType.NODE_FALLBACK_SUCCESS, nodeDef, context, costMs, 1, null);
             return NodeResultDTO.builder()
                     .nodeId(nodeDef.getId())
                     .status(ChainConstants.NODE_SUCCESS)
@@ -262,7 +378,7 @@ public class NodeRunner {
         } catch (Exception fallbackError) {
             log.error("降级执行失败 nodeId={}", nodeDef.getId(), fallbackError);
             stateMachine.transit(ChainConstants.NODE_FAILED);
-            publishNodeEvent(ChainEvent.EventType.NODE_FAILED, nodeDef.getId(), context);
+            publishNodeEvent(ChainEvent.EventType.NODE_FALLBACK_FAILED, nodeDef, context, costMs, 0, fallbackError.getMessage());
             return NodeResultDTO.builder()
                     .nodeId(nodeDef.getId())
                     .status(ChainConstants.NODE_FAILED)
@@ -278,13 +394,21 @@ public class NodeRunner {
         }
     }
 
-    private void publishNodeEvent(ChainEvent.EventType eventType, String nodeId, ChainContext context) {
+    private void publishNodeEvent(ChainEvent.EventType eventType, NodeDefinition nodeDef,
+                                   ChainContext context, Long costMs, Integer status, String errorMessage) {
         eventPublisher.publish(ChainEvent.builder()
                 .eventId(UUID.randomUUID().toString())
                 .eventType(eventType)
+                .executionId(context.getInstanceId())
                 .chainId(context.getInstanceId())
                 .chainName(context.getChainCode())
-                .nodeId(nodeId)
+                .nodeId(nodeDef.getId())
+                .nodeName(nodeDef.getLabel())
+                .executorId(executorId)
+                .appName(appName)
+                .costMs(costMs)
+                .status(status)
+                .errorMessage(errorMessage)
                 .timestamp(System.currentTimeMillis())
                 .build());
     }

@@ -9,6 +9,7 @@ import com.zestflow.collector.jdbc.mapper.ChainEventMapper;
 import com.zestflow.collector.model.dto.EventQuery;
 import com.zestflow.collector.model.dto.EventStats;
 import com.zestflow.collector.model.dto.EventStatsQuery;
+import com.zestflow.collector.model.dto.ExecutionTrace;
 import com.zestflow.collector.spi.EventQueryService;
 import com.zestflow.common.model.dto.ChainEvent;
 import lombok.RequiredArgsConstructor;
@@ -52,7 +53,6 @@ public class JdbcEventQueryService implements EventQueryService {
 
     @Override
     public EventStats queryStats(EventStatsQuery query) {
-        // 使用 Mapper 自定义统计查询，此处返回基础统计
         LambdaQueryWrapper<ChainEventPO> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.isNotBlank(query.getAppName())) {
             wrapper.eq(ChainEventPO::getAppName, query.getAppName());
@@ -71,14 +71,81 @@ public class JdbcEventQueryService implements EventQueryService {
         }
 
         long totalCount = chainEventMapper.selectCount(wrapper);
-        // 需要额外 SQL 统计，此处简化
         return EventStats.builder()
                 .totalCount(totalCount)
                 .build();
     }
 
+    @Override
+    public List<ExecutionTrace> queryExecutionTraces(EventQuery query) {
+        int limit = query.getPageSize();
+        int offset = (query.getPage() - 1) * limit;
+        List<ChainEventPO> pos = chainEventMapper.selectExecutionTraces(query, limit, offset);
+        return pos.stream()
+                .map(JdbcEventQueryService::poToTraceSummary)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public long countExecutionTraces(EventQuery query) {
+        return chainEventMapper.countExecutionTraces(query);
+    }
+
+    @Override
+    public ExecutionTrace getExecutionTrace(String executionId) {
+        if (executionId == null || executionId.isEmpty()) return null;
+        List<ChainEventPO> pos = chainEventMapper.selectByExecutionId(executionId);
+        if (pos.isEmpty()) return null;
+
+        List<ChainEvent> events = pos.stream()
+                .map(JdbcEventQueryService::toDTO)
+                .collect(Collectors.toList());
+
+        ChainEventPO first = pos.get(0);
+        long startTime = pos.stream().mapToLong(ChainEventPO::getTimestamp).min().orElse(0);
+        long endTime = pos.stream().mapToLong(ChainEventPO::getTimestamp).max().orElse(0);
+
+        // 计算状态和耗时
+        Integer status = null;
+        Long costMs = null;
+        String errorMessage = null;
+        int nodeCount = 0;
+        int successCount = 0;
+        int failedCount = 0;
+
+        for (ChainEventPO po : pos) {
+            String et = po.getEventType();
+            if ("CHAIN_COMPLETED".equals(et)) { status = 1; costMs = po.getCostMs(); }
+            else if ("CHAIN_FAILED".equals(et)) { status = 0; costMs = po.getCostMs(); errorMessage = po.getErrorMessage(); }
+            else if ("CHAIN_TIMEOUT".equals(et)) { status = 0; costMs = po.getCostMs(); errorMessage = "执行超时"; }
+            else if ("NODE_COMPLETED".equals(et) || "NODE_FALLBACK_SUCCESS".equals(et)) { successCount++; nodeCount++; }
+            else if ("NODE_STARTED".equals(et)) { nodeCount++; }
+            else if ("NODE_FAILED".equals(et) || "NODE_FALLBACK_FAILED".equals(et)) { failedCount++; nodeCount++; }
+        }
+
+        return ExecutionTrace.builder()
+                .executionId(executionId)
+                .chainName(first.getChainName())
+                .executorId(first.getExecutorId())
+                .appName(first.getAppName())
+                .startTime(startTime)
+                .endTime(endTime)
+                .costMs(costMs)
+                .status(status)
+                .eventCount(pos.size())
+                .nodeCount(nodeCount)
+                .successCount(successCount)
+                .failedCount(failedCount)
+                .errorMessage(errorMessage)
+                .events(events)
+                .build();
+    }
+
     private LambdaQueryWrapper<ChainEventPO> buildQueryWrapper(EventQuery query) {
         LambdaQueryWrapper<ChainEventPO> wrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.isNotBlank(query.getExecutionId())) {
+            wrapper.eq(ChainEventPO::getExecutionId, query.getExecutionId());
+        }
         if (StringUtils.isNotBlank(query.getChainId())) {
             wrapper.eq(ChainEventPO::getChainId, query.getChainId());
         }
@@ -113,10 +180,24 @@ public class JdbcEventQueryService implements EventQueryService {
         return wrapper;
     }
 
+    /** PO → 轨迹摘要（不含 events 列表） */
+    private static ExecutionTrace poToTraceSummary(ChainEventPO po) {
+        return ExecutionTrace.builder()
+                .executionId(po.getExecutionId())
+                .chainName(po.getChainName())
+                .executorId(po.getExecutorId())
+                .appName(po.getAppName())
+                .startTime(po.getTimestamp())
+                .status(po.getStatus())
+                .eventCount(0)
+                .build();
+    }
+
     static ChainEvent toDTO(ChainEventPO po) {
         return ChainEvent.builder()
                 .eventId(po.getEventId())
                 .eventType(ChainEvent.EventType.valueOf(po.getEventType()))
+                .executionId(po.getExecutionId())
                 .chainId(po.getChainId())
                 .chainName(po.getChainName())
                 .nodeId(po.getNodeId())

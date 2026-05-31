@@ -801,18 +801,13 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
 
     // ==================== 执行链 ====================
 
-    @SuppressWarnings("unchecked")
     private void handleExecute(ChannelHandlerContext ctx, String body) {
         try {
             log.info("收到执行请求 body={}", body);
             ChainExecuteRequestDTO request = MAPPER.readValue(body, ChainExecuteRequestDTO.class);
-            publishEvent(ChainEvent.EventType.CHAIN_STARTED, request.getChainCode(), body, null);
+            // 引擎内部负责发布 CHAIN_STARTED / COMPLETED / FAILED 等事件
             ChainExecuteResultDTO result = chainExecutionEngine.execute(
                     request.getChainCode(), request.getParams());
-            ChainEvent.EventType resultType = result.getStatus() != null && result.getStatus() == 3
-                    ? ChainEvent.EventType.CHAIN_COMPLETED
-                    : ChainEvent.EventType.CHAIN_FAILED;
-            publishEvent(resultType, request.getChainCode(), null, result.getErrorMessage());
             String json = MAPPER.writeValueAsString(result);
             writeResponse(ctx, HttpResponseStatus.OK, json);
         } catch (Exception e) {
@@ -823,20 +818,6 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
     }
 
     // ==================== 工具方法 ====================
-
-    private void publishEvent(ChainEvent.EventType eventType, String chainCode,
-                               String params, String errorMessage) {
-        if (eventPublisher != null) {
-            eventPublisher.publish(ChainEvent.builder()
-                    .eventId(UUID.randomUUID().toString())
-                    .eventType(eventType)
-                    .chainId(chainCode)
-                    .timestamp(System.currentTimeMillis())
-                    .params(params)
-                    .errorMessage(errorMessage)
-                    .build());
-        }
-    }
 
     private void writeResponse(ChannelHandlerContext ctx, HttpResponseStatus status, String body) {
         ByteBuf buf = Unpooled.copiedBuffer(body, CharsetUtil.UTF_8);

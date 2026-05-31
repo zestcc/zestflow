@@ -191,12 +191,14 @@ public class ExecutorAutoConfig {
                                  EventPublisher eventPublisher,
                                  InterceptorChain interceptorChain,
                                  LifecycleExecutor lifecycleExecutor,
-                                 RetryExecutor retryExecutor) {
+                                 RetryExecutor retryExecutor,
+                                 ChainManager chainManager,
+                                 ExecutorProperties properties) {
         return new NodeRunner(componentScanner, eventPublisher,
-                interceptorChain, lifecycleExecutor, retryExecutor);
+                interceptorChain, lifecycleExecutor, retryExecutor, chainManager, properties);
     }
 
-    @Bean
+    @Bean(destroyMethod = "destroy")
     public DefaultChainExecutionEngine chainExecutionEngine(ChainManager chainManager,
                                                              DagSorter dagSorter,
                                                              NodeRunner nodeRunner,
@@ -204,8 +206,11 @@ public class ExecutorAutoConfig {
                                                              EventPublisher eventPublisher,
                                                              InterceptorChain interceptorChain,
                                                              ExecutorProperties properties) {
-        return new DefaultChainExecutionEngine(chainManager, dagSorter, nodeRunner,
+        DefaultChainExecutionEngine engine = new DefaultChainExecutionEngine(chainManager, dagSorter, nodeRunner,
                 instanceManager, eventPublisher, interceptorChain, properties);
+        // setter 注入打破循环依赖：NodeRunner → ChainExecutionEngine → NodeRunner
+        nodeRunner.setChainExecutionEngine(engine);
+        return engine;
     }
 
     // ==================== 拦截器 ====================

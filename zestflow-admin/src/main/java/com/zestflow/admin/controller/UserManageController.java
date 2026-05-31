@@ -1,5 +1,6 @@
 package com.zestflow.admin.controller;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.zestflow.admin.model.dto.AssignModuleRoleDTO;
 import com.zestflow.admin.model.dto.UserCreateDTO;
 import com.zestflow.admin.model.dto.UserUpdateDTO;
@@ -22,8 +23,17 @@ public class UserManageController {
     private final UserManageService userManageService;
 
     @GetMapping
-    public Result<List<UserManageVO>> listAll() {
-        return Result.success(userManageService.listAll());
+    public Result<?> listAll(
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) Integer isSuperAdmin,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        if (page <= 0 || "all".equals(String.valueOf(page))) {
+            return Result.success(userManageService.listAll());
+        }
+        return Result.success(userManageService.listPage(username, email, status, isSuperAdmin, page, size));
     }
 
     @GetMapping("/{id}")

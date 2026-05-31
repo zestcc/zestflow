@@ -28,6 +28,9 @@ public class ChainEventPO {
     /** 事件类型 */
     private String eventType;
 
+    /** 执行追踪 ID（同一次链执行的所有事件共享） */
+    private String executionId;
+
     /** 链实例 ID */
     private String chainId;
 
@@ -70,4 +73,8 @@ public class ChainEventPO {
     /** 创建时间 */
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
+
+    /** 事件数（GROUP BY 查询用，非 DB 字段） */
+    @TableField(exist = false)
+    private Integer eventCount;
 }

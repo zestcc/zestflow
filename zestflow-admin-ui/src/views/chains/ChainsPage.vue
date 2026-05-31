@@ -459,10 +459,10 @@ async function handleEdit() {
 async function handleToggleStatus(row: any) {
   try {
     await chainApi.toggleStatus(row.code, row.moduleId)
-    ElMessage.success(row.status === 0 ? t('chains.enable') + '成功' : t('chains.disable') + '成功')
+    ElMessage.success(row.status === 0 ? t('chains.enableSuccess') : t('chains.disableSuccess'))
     fetchList()
   } catch {
-    ElMessage.error('操作失败')
+    ElMessage.error(t('chains.operationFailed'))
   }
 }
 
@@ -472,7 +472,7 @@ function handleDelete(row: any) {
     { confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel'), type: 'warning' }
   ).then(async () => {
     await chainApi.delete(row.code, row.moduleId)
-    ElMessage.success(t('common.delete') + '成功')
+    ElMessage.success(t('chains.deleteSuccess'))
     await fetchList()
   }).catch(() => {})
 }
@@ -513,7 +513,7 @@ async function confirmBindDesign() {
   bindingDesign.value = true
   try {
     await designApi.bind(selectedDesignCode.value, currentChainForDesign.value.code, currentChainForDesign.value.moduleId)
-    ElMessage.success('绑定成功')
+    ElMessage.success(t('chains.bindSuccess'))
     designListDialogVisible.value = false
     fetchList()
   } finally {
@@ -526,7 +526,7 @@ async function confirmUnbind() {
   bindingDesign.value = true
   try {
     await designApi.unbind(currentChainForDesign.value.designCode, currentChainForDesign.value.code, currentChainForDesign.value.moduleId)
-    ElMessage.success('已取消绑定')
+    ElMessage.success(t('chains.unbindSuccess'))
     designListDialogVisible.value = false
     fetchList()
   } finally {
@@ -560,16 +560,16 @@ async function handleSaveThenDesign(handleSave: () => Promise<any>) {
 function goToDesign(design: DesignVO) {
   if (!currentChainForDesign.value) return
   designApi.bind(design.code, currentChainForDesign.value.code, currentChainForDesign.value.moduleId).then(() => {
-    ElMessage.success('设计已创建并绑定')
+    ElMessage.success(t('chains.createAndBindSuccess'))
     createDesignDialogVisible.value = false
     designListDialogVisible.value = false
     router.push({ name: 'DesignEditor', params: { id: design.code }, query: { moduleId: design.moduleId } })
-  }).catch(() => ElMessage.error('操作失败'))
+  }).catch(() => ElMessage.error(t('chains.operationFailed')))
 }
 
 function onDesignCreated(design: DesignVO) {
   lastCreatedDesign.value = design
-  ElMessage.success('保存成功')
+  ElMessage.success(t('chains.saveSuccess'))
   if (currentChainForDesign.value) {
     designApi.list({ moduleId: currentChainForDesign.value.moduleId, page: 1, size: 999 }).then(res => {
       designList.value = res.records || []

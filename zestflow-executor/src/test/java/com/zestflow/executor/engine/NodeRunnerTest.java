@@ -4,7 +4,7 @@ import com.zestflow.common.constant.ChainConstants;
 import com.zestflow.common.model.dto.ChainEvent;
 import com.zestflow.common.model.dto.ComponentRef;
 import com.zestflow.common.model.dto.NodeResultDTO;
-import com.zestflow.executor.chain.NodeDefinition;
+import com.zestflow.executor.chain.ChainManager;
 import com.zestflow.executor.chain.NodeDefinition;
 import com.zestflow.executor.context.ChainContext;
 import com.zestflow.executor.event.EventPublisher;
@@ -38,15 +38,24 @@ class NodeRunnerTest {
     @Mock InterceptorChain interceptorChain;
     @Mock LifecycleExecutor lifecycleExecutor;
     @Mock RetryExecutor retryExecutor;
+    @Mock ChainManager chainManager;
+    @Mock com.zestflow.executor.registry.ExecutorProperties executorProperties;
 
     @Captor ArgumentCaptor<ChainEvent> eventCaptor;
+
+    private String executorId;
 
     private NodeRunner nodeRunner;
 
     @BeforeEach
     void setUp() {
+        when(executorProperties.getModuleCode()).thenReturn("test-module");
+        when(executorProperties.getHost()).thenReturn("127.0.0.1");
+        when(executorProperties.getPort()).thenReturn(9999);
+        when(executorProperties.getModuleName()).thenReturn("test-app");
+        executorId = "test-module@127.0.0.1:9999";
         nodeRunner = new NodeRunner(componentScanner, eventPublisher,
-                interceptorChain, lifecycleExecutor, retryExecutor);
+                interceptorChain, lifecycleExecutor, retryExecutor, chainManager, executorProperties);
     }
 
     // ==================== NodeStateMachine 单元测试 ====================
@@ -390,6 +399,137 @@ class NodeRunnerTest {
         );
     }
 
+    // ==================== 脚本节点 ====================
+
+    @Test
+    void scriptNodeEmptyContentReturnsFailure() {
+        NodeDefinition nodeDef = NodeDefinition.builder()
+                .id("n1").type(ChainConstants.NODE_TYPE_SCRIPT)
+                .script("")
+                .build();
+        ChainContext ctx = context();
+
+        NodeResultDTO result = nodeRunner.execute(nodeDef, ctx);
+
+        assertThat(result.getStatus()).isEqualTo(ChainConstants.NODE_FAILED);
+        assertThat(result.getErrorMessage()).contains("脚本内容为空");
+    }
+
+    @Test
+    void scriptNodeNullContentReturnsFailure() {
+        NodeDefinition nodeDef = NodeDefinition.builder()
+                .id("n1").type(ChainConstants.NODE_TYPE_SCRIPT)
+                .script(null)
+                .build();
+        ChainContext ctx = context();
+
+        NodeResultDTO result = nodeRunner.execute(nodeDef, ctx);
+
+        assertThat(result.getStatus()).isEqualTo(ChainConstants.NODE_FAILED);
+        assertThat(result.getErrorMessage()).contains("脚本内容为空");
+    }
+
+    // ==================== 子链节点 ====================
+
+    @Test
+    void subChainNodeEmptyCodeReturnsFailure() {
+        NodeDefinition nodeDef = NodeDefinition.builder()
+                .id("n1").type(ChainConstants.NODE_TYPE_SUB_CHAIN)
+                .subChainCode("")
+                .build();
+        ChainContext ctx = context();
+
+        NodeResultDTO result = nodeRunner.execute(nodeDef, ctx);
+
+        assertThat(result.getStatus()).isEqualTo(ChainConstants.NODE_FAILED);
+        assertThat(result.getErrorMessage()).contains("子链编码为空");
+    }
+
+    @Test
+    void subChainNodeNullCodeReturnsFailure() {
+        NodeDefinition nodeDef = NodeDefinition.builder()
+                .id("n1").type(ChainConstants.NODE_TYPE_SUB_CHAIN)
+                .subChainCode(null)
+                .build();
+        ChainContext ctx = context();
+
+        NodeResultDTO result = nodeRunner.execute(nodeDef, ctx);
+
+        assertThat(result.getStatus()).isEqualTo(ChainConstants.NODE_FAILED);
+        assertThat(result.getErrorMessage()).contains("子链编码为空");
+    }
+
+    @Test
+    void subChainNodeNotFoundReturnsFailure() {
+        NodeDefinition nodeDef = NodeDefinition.builder()
+                .id("n1").type(ChainConstants.NODE_TYPE_SUB_CHAIN)
+                .subChainCode("non-existent-chain")
+                .build();
+        ChainContext ctx = context();
+
+        when(chainManager.get("non-existent-chain")).thenReturn(null);
+
+        NodeResultDTO result = nodeRunner.execute(nodeDef, ctx);
+
+        assertThat(result.getStatus()).isEqualTo(ChainConstants.NODE_FAILED);
+        assertThat(result.getErrorMessage()).contains("子链不存在");
+    }
+
+    // ==================== 迭代器节点 ====================
+
+    @Test
+    void iteratorNodeEmptyDataSourceReturnsSuccess() {
+        NodeDefinition nodeDef = NodeDefinition.builder()
+                .id("n1").type(ChainConstants.NODE_TYPE_ITERATOR)
+                .iteratorDataSource("")
+                .build();
+        ChainContext ctx = context();
+
+        NodeResultDTO result = nodeRunner.execute(nodeDef, ctx);
+
+        assertThat(result.getStatus()).isEqualTo(ChainConstants.NODE_SUCCESS);
+    }
+
+    @Test
+    void iteratorNodeNullDataSourceReturnsSuccess() {
+        NodeDefinition nodeDef = NodeDefinition.builder()
+                .id("n1").type(ChainConstants.NODE_TYPE_ITERATOR)
+                .iteratorDataSource(null)
+                .build();
+        ChainContext ctx = context();
+
+        NodeResultDTO result = nodeRunner.execute(nodeDef, ctx);
+
+        assertThat(result.getStatus()).isEqualTo(ChainConstants.NODE_SUCCESS);
+    }
+
+    @Test
+    void iteratorNodeNullContextValueReturnsSuccess() {
+        NodeDefinition nodeDef = NodeDefinition.builder()
+                .id("n1").type(ChainConstants.NODE_TYPE_ITERATOR)
+                .iteratorDataSource("items")
+                .build();
+        ChainContext ctx = new ChainContext("test-instance", "test-chain", null);
+
+        NodeResultDTO result = nodeRunner.execute(nodeDef, ctx);
+
+        assertThat(result.getStatus()).isEqualTo(ChainConstants.NODE_SUCCESS);
+    }
+
+    @Test
+    void iteratorNodeNonCollectionDataSourceReturnsFailure() {
+        NodeDefinition nodeDef = NodeDefinition.builder()
+                .id("n1").type(ChainConstants.NODE_TYPE_ITERATOR)
+                .iteratorDataSource("items")
+                .build();
+        ChainContext ctx = new ChainContext("test-instance", "test-chain", Map.of("items", "not-a-collection"));
+
+        NodeResultDTO result = nodeRunner.execute(nodeDef, ctx);
+
+        assertThat(result.getStatus()).isEqualTo(ChainConstants.NODE_FAILED);
+        assertThat(result.getErrorMessage()).contains("不是集合类型");
+    }
+
     // ==================== 不支持节点类型 ====================
 
     @Test
@@ -401,45 +541,6 @@ class NodeRunnerTest {
 
         assertThat(result.getStatus()).isEqualTo(ChainConstants.NODE_FAILED);
         assertThat(result.getErrorMessage()).contains("不支持的节点类型");
-    }
-
-    @Test
-    void scriptNodeNotImplemented() {
-        NodeDefinition nodeDef = nodeDef("n1", ChainConstants.NODE_TYPE_SCRIPT);
-        ChainContext ctx = context();
-
-        NodeResultDTO result = nodeRunner.execute(nodeDef, ctx);
-
-        assertThat(result.getStatus()).isEqualTo(ChainConstants.NODE_FAILED);
-        assertThat(result.getErrorMessage()).contains("脚本节点暂未实现");
-    }
-
-    @Test
-    void subChainNodeNotImplemented() {
-        NodeDefinition nodeDef = NodeDefinition.builder()
-                .id("n1").type(ChainConstants.NODE_TYPE_SUB_CHAIN).component("sub")
-                .subChainCode("sub-chain-001")
-                .build();
-        ChainContext ctx = context();
-
-        NodeResultDTO result = nodeRunner.execute(nodeDef, ctx);
-
-        assertThat(result.getStatus()).isEqualTo(ChainConstants.NODE_FAILED);
-        assertThat(result.getErrorMessage()).contains("子链节点暂未实现");
-    }
-
-    @Test
-    void iteratorNodeNotImplemented() {
-        NodeDefinition nodeDef = NodeDefinition.builder()
-                .id("n1").type(ChainConstants.NODE_TYPE_ITERATOR).component("iter")
-                .iteratorDataSource("items")
-                .build();
-        ChainContext ctx = context();
-
-        NodeResultDTO result = nodeRunner.execute(nodeDef, ctx);
-
-        assertThat(result.getStatus()).isEqualTo(ChainConstants.NODE_FAILED);
-        assertThat(result.getErrorMessage()).contains("迭代器节点暂未实现");
     }
 
     // ==================== 熔断器清理 ====================

@@ -3,6 +3,7 @@ package com.zestflow.admin.service.impl;
 import com.zestflow.admin.client.CollectorClient;
 import com.zestflow.admin.client.dto.EventQueryDTO;
 import com.zestflow.admin.client.dto.EventQueryResult;
+import com.zestflow.admin.client.dto.ExecutionTraceResult;
 import com.zestflow.admin.service.LogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,5 +20,15 @@ public class LogServiceImpl implements LogService {
     @Override
     public EventQueryResult queryEvents(EventQueryDTO query) {
         return collectorClient.queryEvents(query);
+    }
+
+    @Override
+    public EventQueryResult queryExecutionTraces(EventQueryDTO query) {
+        return collectorClient.queryExecutionTraces(query);
+    }
+
+    @Override
+    public ExecutionTraceResult getExecutionTrace(String executionId) {
+        return collectorClient.getExecutionTrace(executionId);
     }
 }

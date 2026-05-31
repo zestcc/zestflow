@@ -50,7 +50,7 @@
             <el-tag size="small">{{ $t('schedules.' + (row.routeStrategy || 'round_robin')) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createdBy" label="创建人" width="120" show-overflow-tooltip />
+        <el-table-column prop="createdBy" :label="$t('common.createdBy')" width="120" show-overflow-tooltip />
         <el-table-column :label="$t('common.status')" width="80">
           <template #default="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
@@ -209,7 +209,7 @@ const chainOptions = ref<ChainVO[]>([])
 const rules: Record<string, any[]> = {
   moduleId: [{ required: true, message: t('design.selectModule'), trigger: 'change' }],
   chainCode: [{ required: true, message: t('schedules.selectChain'), trigger: 'change' }],
-  cron: [{ required: true, message: t('schedules.cron') + t('validation.required', { field: '' }), trigger: 'blur' }],
+  cron: [{ required: true, message: t('validation.required', { field: t('schedules.cron') }), trigger: 'blur' }],
 }
 
 // 日志弹窗

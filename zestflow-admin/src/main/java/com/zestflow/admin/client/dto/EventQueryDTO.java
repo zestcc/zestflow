@@ -19,6 +19,9 @@ public class EventQueryDTO {
     /** 链实例 ID */
     private String chainId;
 
+    /** 执行追踪 ID */
+    private String executionId;
+
     /** 执行器 ID */
     private String executorId;
 
@@ -37,12 +40,17 @@ public class EventQueryDTO {
     /** 状态（0=失败, 1=成功） */
     private Integer status;
 
+    /** 链名称 */
+    private String chainName;
+
     /** 关键字 */
     private String keyword;
 
     /** 页码 */
+    @Builder.Default
     private int page = 1;
 
     /** 每页条数 */
+    @Builder.Default
     private int pageSize = 20;
 }

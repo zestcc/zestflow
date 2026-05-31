@@ -27,4 +27,7 @@ public class ChainSyncDTO {
 
     /** 错误信息（仅 FAILED 时） */
     private String errorMessage;
+
+    /** 同步时间戳 */
+    private Long timestamp;
 }

@@ -2,13 +2,13 @@
   <div class="module-manage">
     <div class="page-header">
       <div class="stats-summary">
-        <span class="summary-item summary-total">模块 {{ moduleList.length }}</span>
+        <span class="summary-item summary-total">{{ $t('settings.moduleTotal') }} {{ moduleList.length }}</span>
         <el-divider direction="vertical" />
-        <span class="summary-item summary-healthy">正常 {{ moduleList.reduce((s, m) => s + m.executorHealthy, 0) }}</span>
+        <span class="summary-item summary-healthy">{{ $t('settings.executorHealthy') }} {{ moduleList.reduce((s, m) => s + m.executorHealthy, 0) }}</span>
         <el-divider direction="vertical" />
-        <span class="summary-item summary-error">异常 {{ moduleList.reduce((s, m) => s + m.executorError, 0) }}</span>
+        <span class="summary-item summary-error">{{ $t('settings.executorError') }} {{ moduleList.reduce((s, m) => s + m.executorError, 0) }}</span>
         <el-divider direction="vertical" />
-        <span class="summary-item summary-offline">离线 {{ moduleList.reduce((s, m) => s + m.executorOffline, 0) }}</span>
+        <span class="summary-item summary-offline">{{ $t('settings.executorOffline') }} {{ moduleList.reduce((s, m) => s + m.executorOffline, 0) }}</span>
       </div>
       <el-button type="primary" @click="openCreate">
         {{ $t('settings.createModule') }}
@@ -17,31 +17,31 @@
 
     <!-- 筛选条件 -->
     <el-form :model="filter" inline size="default" style="margin-bottom:12px">
-      <el-form-item label="模块编号">
-        <el-input v-model="filter.code" placeholder="输入模块编号" clearable style="width:140px" />
+      <el-form-item :label="$t('settings.moduleCode')">
+        <el-input v-model="filter.code" :placeholder="$t('settings.moduleCodePlaceholder')" clearable style="width:140px" />
       </el-form-item>
-      <el-form-item label="模块名称">
-        <el-input v-model="filter.name" placeholder="输入模块名称" clearable style="width:140px" />
+      <el-form-item :label="$t('settings.moduleName')">
+        <el-input v-model="filter.name" :placeholder="$t('settings.moduleNamePlaceholder')" clearable style="width:140px" />
       </el-form-item>
-      <el-form-item label="负责人">
-        <el-input v-model="filter.owner" placeholder="输入负责人" clearable style="width:120px" />
+      <el-form-item :label="$t('settings.filterOwner')">
+        <el-input v-model="filter.owner" :placeholder="$t('settings.filterOwnerPlaceholder')" clearable style="width:120px" />
       </el-form-item>
-      <el-form-item label="状态">
-        <el-select v-model="filter.status" placeholder="全部" clearable style="width:100px">
+      <el-form-item :label="$t('common.status')">
+        <el-select v-model="filter.status" :placeholder="$t('common.all')" clearable style="width:100px">
           <el-option :label="$t('settings.enabled')" :value="1" />
           <el-option :label="$t('settings.disabled')" :value="0" />
         </el-select>
       </el-form-item>
-      <el-form-item label="执行器">
+      <el-form-item :label="$t('settings.filterExecutor')">
         <el-checkbox-group v-model="filter.executorStatuses">
-          <el-checkbox label="正常" value="1" />
-          <el-checkbox label="异常" value="2" />
-          <el-checkbox label="离线" value="0" />
+          <el-checkbox :label="$t('settings.executorHealthy')" value="1" />
+          <el-checkbox :label="$t('settings.executorError')" value="2" />
+          <el-checkbox :label="$t('settings.executorOffline')" value="0" />
         </el-checkbox-group>
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" @click="handleSearch">查询</el-button>
-        <el-button @click="handleReset">重置</el-button>
+        <el-button type="primary" @click="handleSearch">{{ $t('settings.filterSearch') }}</el-button>
+        <el-button @click="handleReset">{{ $t('common.reset') }}</el-button>
       </el-form-item>
     </el-form>
 
@@ -63,29 +63,29 @@
         </template>
       </el-table-column>
       <el-table-column prop="owner" :label="$t('settings.moduleOwner')" />
-      <el-table-column label="全部" align="center">
+      <el-table-column :label="$t('settings.executorTotal')" align="center">
         <template #default="{ row }">
           <span style="color:#409eff;font-weight:600">{{ row.executorTotal }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="正常" align="center">
+      <el-table-column :label="$t('settings.executorHealthy')" align="center">
         <template #default="{ row }">
           <span style="color:#67c23a;font-weight:600">{{ row.executorHealthy }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="异常" align="center">
+      <el-table-column :label="$t('settings.executorError')" align="center">
         <template #default="{ row }">
           <span style="color:#f56c6c;font-weight:600">{{ row.executorError }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="离线" align="center">
+      <el-table-column :label="$t('settings.executorOffline')" align="center">
         <template #default="{ row }">
           <span style="color:#c0c4cc;font-weight:600">{{ row.executorOffline }}</span>
         </template>
       </el-table-column>
       <el-table-column :label="$t('common.actions')" width="170" fixed="right">
         <template #default="{ row }">
-          <el-button text type="primary" size="small" class="action-btn" @click="openExecutors(row)">执行器</el-button>
+          <el-button text type="primary" size="small" class="action-btn" @click="openExecutors(row)">{{ $t('settings.executorList') }}</el-button>
           <el-button text type="primary" size="small" class="action-btn" @click="openEdit(row)">{{ $t('common.edit') }}</el-button>
           <el-button text type="danger" size="small" class="action-btn" @click="handleDelete(row)">{{ $t('common.delete') }}</el-button>
         </template>
@@ -110,13 +110,13 @@
       :close-on-click-modal="false"
     >
       <div style="display:flex;align-items:center;gap:4px;margin-bottom:12px;font-size:13px" v-if="executorList.length > 0">
-        <span style="color:#409eff;font-weight:600">全部 {{ executorList.length }}</span>
+        <span style="color:#409eff;font-weight:600">{{ $t('settings.executorTotal') }} {{ executorList.length }}</span>
         <el-divider direction="vertical" />
-        <span style="color:#67c23a;font-weight:600">正常 {{ executorList.filter(e => e.status === 1).length }}</span>
+        <span style="color:#67c23a;font-weight:600">{{ $t('settings.executorHealthy') }} {{ executorList.filter(e => e.status === 1).length }}</span>
         <el-divider direction="vertical" />
-        <span style="color:#f56c6c;font-weight:600">异常 {{ executorList.filter(e => e.status === 2).length }}</span>
+        <span style="color:#f56c6c;font-weight:600">{{ $t('settings.executorError') }} {{ executorList.filter(e => e.status === 2).length }}</span>
         <el-divider direction="vertical" />
-        <span style="color:#c0c4cc;font-weight:600">离线 {{ executorList.filter(e => e.status === 0).length }}</span>
+        <span style="color:#c0c4cc;font-weight:600">{{ $t('settings.executorOffline') }} {{ executorList.filter(e => e.status === 0).length }}</span>
       </div>
       <el-table
         :data="paginatedExecutorList"
@@ -126,25 +126,25 @@
         max-height="440"
         :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"
       >
-        <el-table-column prop="executorId" label="执行器ID" show-overflow-tooltip />
-        <el-table-column label="地址" show-overflow-tooltip>
+        <el-table-column prop="executorId" :label="$t('settings.executorId')" show-overflow-tooltip />
+        <el-table-column :label="$t('settings.executorAddress')" show-overflow-tooltip>
           <template #default="{ row }">
             <span style="font-family:monospace;font-size:13px">{{ row.executorHost }}:{{ row.executorPort }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" align="center">
+        <el-table-column prop="status" :label="$t('common.status')" align="center">
           <template #default="{ row }">
-            <el-tag v-if="row.status === 1" type="success" size="small" effect="dark">正常</el-tag>
-            <el-tag v-else-if="row.status === 2" type="danger" size="small" effect="dark">异常</el-tag>
-            <el-tag v-else type="info" size="small" effect="dark">离线</el-tag>
+            <el-tag v-if="row.status === 1" type="success" size="small" effect="dark">{{ $t('settings.executorHealthy') }}</el-tag>
+            <el-tag v-else-if="row.status === 2" type="danger" size="small" effect="dark">{{ $t('settings.executorError') }}</el-tag>
+            <el-tag v-else type="info" size="small" effect="dark">{{ $t('settings.executorOffline') }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="最后心跳" show-overflow-tooltip>
+        <el-table-column :label="$t('settings.lastHeartbeat')" show-overflow-tooltip>
           <template #default="{ row }">
             {{ formatTime(row.lastHeartbeat) }}
           </template>
         </el-table-column>
-        <el-table-column prop="updatedBy" label="更新人" width="120" show-overflow-tooltip />
+        <el-table-column prop="updatedBy" :label="$t('common.updatedBy')" width="120" show-overflow-tooltip />
         <el-table-column :label="$t('common.actions')" width="150" fixed="right" align="center">
           <template #default="{ row }">
             <el-button
@@ -152,13 +152,13 @@
               text type="success" size="small"
               :loading="togglingId === row.id"
               @click="toggleStatus(row, 1)"
-            >上线</el-button>
+            >{{ $t('settings.online') }}</el-button>
             <el-button
               v-if="row.status !== 0"
               text type="warning" size="small"
               :loading="togglingId === row.id"
               @click="toggleStatus(row, 0)"
-            >下线</el-button>
+            >{{ $t('settings.offline') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -173,8 +173,8 @@
       </div>
       <el-empty v-if="executorList.length === 0 && !executorLoading" :image-size="80">
         <template #description>
-          <span style="font-size:14px;color:#606266">暂无注册的执行器</span><br />
-          <span style="font-size:12px;color:#909399">Executor 启动后将自动注册</span>
+          <span style="font-size:14px;color:#606266">{{ $t('settings.noExecutors') }}</span><br />
+          <span style="font-size:12px;color:#909399">{{ $t('settings.autoRegisterHint') }}</span>
         </template>
       </el-empty>
     </el-dialog>
@@ -311,11 +311,11 @@ const form = ref<ModuleCreateDTO>({
 const rules = {
   code: [
     { required: true, message: () => t('validation.required', { field: t('settings.moduleCode') }), trigger: 'blur' },
-    { min: 2, max: 50, message: '编码长度 2-50 位', trigger: 'blur' },
+    { min: 2, max: 50, message: () => t('validation.lengthRange', { field: t('settings.moduleCode'), min: 2, max: 50 }), trigger: 'blur' },
   ],
   name: [
     { required: true, message: () => t('validation.required', { field: t('settings.moduleName') }), trigger: 'blur' },
-    { min: 2, max: 100, message: '名称长度 2-100 位', trigger: 'blur' },
+    { min: 2, max: 100, message: () => t('validation.lengthRange', { field: t('settings.moduleName'), min: 2, max: 100 }), trigger: 'blur' },
   ],
 }
 
@@ -366,9 +366,9 @@ async function handleSubmit() {
     if (healthy > 0 || error > 0) {
       try {
         await ElMessageBox.confirm(
-          `该模块下还有 ${healthy} 个在线、${error} 个异常执行器，确定要停用吗？`,
-          '停用确认',
-          { confirmButtonText: '确定停用', cancelButtonText: '取消', type: 'warning' },
+          t('settings.disableConfirm', { healthy, error }),
+          t('settings.disableConfirmTitle'),
+          { confirmButtonText: t('settings.disableConfirmBtn'), cancelButtonText: t('common.cancel'), type: 'warning' },
         )
       } catch {
         return
@@ -382,10 +382,10 @@ async function handleSubmit() {
       const dto: ModuleUpdateDTO = { ...form.value }
       delete (dto as any).code
       await moduleApi.update(editingId.value, dto)
-      ElMessage.success(t('common.save') + '成功')
+      ElMessage.success(t('settings.updateSuccess'))
     } else {
       await moduleApi.create(form.value)
-      ElMessage.success(t('settings.createModule') + '成功')
+      ElMessage.success(t('settings.createSuccess'))
     }
     dialogVisible.value = false
     await fetchList()
@@ -401,13 +401,13 @@ function handleDelete(row: ModuleVO) {
     { confirmButtonText: t('settings.yes'), cancelButtonText: t('settings.no'), type: 'warning' },
   ).then(async () => {
     await moduleApi.delete(row.id)
-    ElMessage.success(t('common.delete') + '成功')
+    ElMessage.success(t('settings.deleteSuccess'))
     await fetchList()
   }).catch(() => {})
 }
 
 async function openExecutors(row: ModuleVO) {
-  executorDialogTitle.value = `执行器列表 - ${row.name} (${row.code})`
+  executorDialogTitle.value = t('settings.executorListTitle', { name: row.name, code: row.code })
   executorList.value = []
   executorDialogVisible.value = true
   executorLoading.value = true
@@ -422,7 +422,7 @@ async function toggleStatus(row: ExecutorRegistryVO, newStatus: number) {
   togglingId.value = row.id
   try {
     await moduleApi.updateExecutorStatus(row.id, newStatus)
-    ElMessage.success(newStatus === 1 ? '上线成功' : '已下线')
+    ElMessage.success(t(newStatus === 1 ? 'settings.onlineSuccess' : 'settings.offlineSuccess'))
     const idx = executorList.value.findIndex(e => e.id === row.id)
     if (idx !== -1) executorList.value[idx].status = newStatus
   } catch {

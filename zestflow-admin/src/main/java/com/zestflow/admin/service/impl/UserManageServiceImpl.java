@@ -1,6 +1,8 @@
 package com.zestflow.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zestflow.admin.constant.ErrorCode;
 
 import com.zestflow.admin.model.dto.AssignModuleRoleDTO;
@@ -70,6 +72,36 @@ public class UserManageServiceImpl implements UserManageService {
         return users.stream()
                 .map(user -> toManageVO(user, assignmentMap.getOrDefault(user.getId(), Collections.emptyList()), moduleMap, roleMap))
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public IPage<UserManageVO> listPage(String username, String email, Integer status, Integer isSuperAdmin, int page, int size) {
+        LambdaQueryWrapper<UserPO> wrapper = new LambdaQueryWrapper<UserPO>()
+                .eq(username != null && !username.isEmpty(), UserPO::getUsername, username)
+                .eq(email != null && !email.isEmpty(), UserPO::getEmail, email)
+                .eq(status != null, UserPO::getStatus, status)
+                .eq(isSuperAdmin != null, UserPO::getIsSuperAdmin, isSuperAdmin);
+
+        Page<UserPO> poPage = userMapper.selectPage(new Page<>(page, size), wrapper);
+        if (poPage.getRecords().isEmpty()) {
+            return poPage.convert(u -> null);
+        }
+
+        List<Long> userIds = poPage.getRecords().stream().map(UserPO::getId).collect(Collectors.toList());
+        List<UserModuleRolePO> assignments = userModuleRoleMapper.selectList(
+                new LambdaQueryWrapper<UserModuleRolePO>().in(UserModuleRolePO::getUserId, userIds)
+        );
+        Map<Long, List<UserModuleRolePO>> assignmentMap = assignments.stream()
+                .collect(Collectors.groupingBy(UserModuleRolePO::getUserId));
+
+        List<ModulePO> allModules = moduleMapper.selectList(null);
+        Map<Long, ModulePO> moduleMap = allModules.stream()
+                .collect(Collectors.toMap(ModulePO::getId, m -> m));
+        List<RolePO> allRoles = roleMapper.selectList(null);
+        Map<Long, RolePO> roleMap = allRoles.stream()
+                .collect(Collectors.toMap(RolePO::getId, r -> r));
+
+        return poPage.convert(user -> toManageVO(user, assignmentMap.getOrDefault(user.getId(), Collections.emptyList()), moduleMap, roleMap));
     }
 
     @Override

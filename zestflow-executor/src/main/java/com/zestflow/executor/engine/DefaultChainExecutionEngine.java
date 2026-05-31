@@ -65,6 +65,20 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
         this.properties = properties;
     }
 
+    /** 关闭 ForkJoinPool + 清理过期实例，释放线程资源 */
+    public void destroy() {
+        instanceManager.cleanupCompleted();
+        forkJoinPool.shutdown();
+        try {
+            if (!forkJoinPool.awaitTermination(5, TimeUnit.SECONDS)) {
+                forkJoinPool.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            forkJoinPool.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
+
     @Override
     public ChainExecuteResultDTO execute(String chainCode, Map<String, Object> params) {
         long startTime = System.currentTimeMillis();
@@ -197,15 +211,18 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
      * 发布链级事件
      */
     private void publishChainEvent(ChainEvent.EventType eventType, String chainCode, ChainInstance instance) {
+        String instanceId = instance.getInstanceId();
         eventPublisher.publish(ChainEvent.builder()
                 .eventId(UUID.randomUUID().toString())
                 .eventType(eventType)
-                .chainId(instance.getInstanceId())
+                .executionId(instanceId)
+                .chainId(instanceId)
                 .chainName(chainCode)
                 .executorId(properties.getModuleCode() + "@" + properties.getHost() + ":" + properties.getPort())
                 .appName(properties.getModuleName())
                 .timestamp(System.currentTimeMillis())
                 .costMs(instance.elapsed())
+                .status(eventType == ChainEvent.EventType.CHAIN_COMPLETED ? 1 : 0)
                 .build());
     }
 
@@ -219,7 +236,6 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
             return List.of(nodeRunner.execute(nodeDef, context));
         }
 
-        int threshold = Math.min(properties.getChainParallelThreshold(), nodeIds.size());
         List<CompletableFuture<NodeResultDTO>> futures = new ArrayList<>();
 
         for (String nodeId : nodeIds) {
@@ -235,10 +251,15 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
             }
         }
 
+        long chainTimeout = definition.getTimeout();
         return futures.stream()
                 .map(f -> {
                     try {
-                        return f.get(definition.getTimeout(), TimeUnit.MILLISECONDS);
+                        long remainingTime = chainTimeout - instance.elapsed();
+                        long timeout = Math.min(
+                                nodeDefTimeout(chainTimeout, remainingTime),
+                                Math.max(remainingTime, 1000));
+                        return f.get(timeout, TimeUnit.MILLISECONDS);
                     } catch (Exception e) {
                         log.error("并行节点执行异常", e);
                         return NodeResultDTO.builder()
@@ -248,5 +269,10 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
                     }
                 })
                 .collect(Collectors.toList());
+    }
+
+    /** 取节点超时与剩余时间的最小值 */
+    private static long nodeDefTimeout(long chainTimeout, long remainingTime) {
+        return Math.min(chainTimeout, Math.max(remainingTime, 0));
     }
 }

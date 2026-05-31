@@ -13,38 +13,38 @@
         </el-tag>
       </div>
       <div class="toolbar-center">
-        <el-tooltip content="撤销 (Ctrl+Z)">
+        <el-tooltip :content="$t('design.undo')">
           <el-button text :disabled="!canUndo" @click="handleUndo"><el-icon><Back /></el-icon></el-button>
         </el-tooltip>
-        <el-tooltip content="重做 (Ctrl+Y)">
+        <el-tooltip :content="$t('design.redo')">
           <el-button text :disabled="!canRedo" @click="handleRedo"><el-icon><Right /></el-icon></el-button>
         </el-tooltip>
         <span class="toolbar-divider" />
-        <el-tooltip content="复制 (Ctrl+C)">
+        <el-tooltip :content="$t('design.copy')">
           <el-button text :disabled="selectedCount !== 1" @click="handleCopy"><el-icon><CopyDocument /></el-icon></el-button>
         </el-tooltip>
-        <el-tooltip content="粘贴 (Ctrl+V)">
+        <el-tooltip :content="$t('design.paste')">
           <el-button text :disabled="!canPaste" @click="handlePaste"><el-icon><DocumentAdd /></el-icon></el-button>
         </el-tooltip>
         <span class="toolbar-divider" />
-        <el-tooltip content="缩小">
+        <el-tooltip :content="$t('design.zoomOut')">
           <el-button text @click="zoomOut"><el-icon><ZoomOut /></el-icon></el-button>
         </el-tooltip>
         <span class="zoom-label">{{ Math.round(zoomLevel * 100) }}%</span>
-        <el-tooltip content="放大">
+        <el-tooltip :content="$t('design.zoomIn')">
           <el-button text @click="zoomIn"><el-icon><ZoomIn /></el-icon></el-button>
         </el-tooltip>
-        <el-tooltip content="适应画布">
+        <el-tooltip :content="$t('design.fitCanvas')">
           <el-button text @click="zoomToFit"><el-icon><FullScreen /></el-icon></el-button>
         </el-tooltip>
-        <el-tooltip content="实际大小">
+        <el-tooltip :content="$t('design.actualSize')">
           <el-button text @click="zoomReset"><el-icon><ScaleToOriginal /></el-icon></el-button>
         </el-tooltip>
         <span class="toolbar-divider" />
-        <el-tooltip content="导出">
+        <el-tooltip :content="$t('design.exportPng')">
           <el-button text @click="handleExport"><el-icon><Picture /></el-icon></el-button>
         </el-tooltip>
-        <el-tooltip content="查看链数据">
+        <el-tooltip :content="$t('design.viewChainData')">
           <el-button text @click="showChainDataDialog">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M9 4H7a2 2 0 00-2 2v5a2 2 0 01-2 2 2 2 0 012 2v5a2 2 0 002 2h2" />
@@ -54,52 +54,52 @@
         </el-tooltip>
         <span class="toolbar-divider" />
         <el-select v-model="defaultEdgeStyle" size="small" style="width:80px" @change="onDefaultEdgeStyleChange">
-          <el-option label="直线" value="straight" />
-          <el-option label="折线" value="polyline" />
-          <el-option label="曲线" value="curve" />
+          <el-option :label="$t('design.straightLine')" value="straight" />
+          <el-option :label="$t('design.polylineLine')" value="polyline" />
+          <el-option :label="$t('design.curveLine')" value="curve" />
         </el-select>
         <span class="toolbar-divider" />
         <!-- 对齐 -->
         <el-dropdown trigger="click" :disabled="selectedCount < 2" @command="onAlign">
-          <el-button text size="small">对齐<el-icon><ArrowDown /></el-icon></el-button>
+          <el-button text size="small">{{ $t('design.align') }}<el-icon><ArrowDown /></el-icon></el-button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="left"><el-icon><ArrowLeft /></el-icon> 左对齐</el-dropdown-item>
-              <el-dropdown-item command="center">垂直居中</el-dropdown-item>
-              <el-dropdown-item command="right"><el-icon><ArrowRight /></el-icon> 右对齐</el-dropdown-item>
-              <el-dropdown-item command="top" divided>顶部对齐</el-dropdown-item>
-              <el-dropdown-item command="middle">水平居中</el-dropdown-item>
-              <el-dropdown-item command="bottom"><el-icon><ArrowDown /></el-icon> 底部对齐</el-dropdown-item>
+              <el-dropdown-item command="left"><el-icon><ArrowLeft /></el-icon> {{ $t('design.alignLeft') }}</el-dropdown-item>
+              <el-dropdown-item command="center">{{ $t('design.alignVCenter') }}</el-dropdown-item>
+              <el-dropdown-item command="right"><el-icon><ArrowRight /></el-icon> {{ $t('design.alignRight') }}</el-dropdown-item>
+              <el-dropdown-item command="top" divided>{{ $t('design.alignTop') }}</el-dropdown-item>
+              <el-dropdown-item command="middle">{{ $t('design.alignHCenter') }}</el-dropdown-item>
+              <el-dropdown-item command="bottom"><el-icon><ArrowDown /></el-icon> {{ $t('design.alignBottom') }}</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
         <!-- 均匀分布 -->
         <el-dropdown trigger="click" :disabled="selectedCount < 3" @command="onDistribute">
-          <el-button text size="small">分布<el-icon><ArrowDown /></el-icon></el-button>
+          <el-button text size="small">{{ $t('design.distribute') }}<el-icon><ArrowDown /></el-icon></el-button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="horizontal"><el-icon><Sort /></el-icon> 水平分布</el-dropdown-item>
-              <el-dropdown-item command="vertical"><el-icon><Sort /></el-icon> 垂直分布</el-dropdown-item>
+              <el-dropdown-item command="horizontal"><el-icon><Sort /></el-icon> {{ $t('design.distributeH') }}</el-dropdown-item>
+              <el-dropdown-item command="vertical"><el-icon><Sort /></el-icon> {{ $t('design.distributeV') }}</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
         <span class="toolbar-divider" />
         <!-- 网格吸附 -->
-        <el-tooltip :content="gridSnapEnabled ? '关闭吸附' : '开启吸附'">
+        <el-tooltip :content="gridSnapEnabled ? $t('design.snapDisable') : $t('design.snapEnable')">
           <el-button text @click="toggleSnap">
             <el-icon :style="gridSnapEnabled ? { color: '#3b82f6' } : {}"><Pointer /></el-icon>
           </el-button>
         </el-tooltip>
         <!-- 全屏 -->
-        <el-tooltip content="全屏">
+        <el-tooltip :content="$t('design.fullscreen')">
           <el-button text @click="toggleFullscreen"><el-icon><FullScreen /></el-icon></el-button>
         </el-tooltip>
         <!-- 清空 -->
-        <el-tooltip content="清空画布">
+        <el-tooltip :content="$t('design.clearCanvas')">
           <el-button text @click="clearCanvas"><el-icon><Delete /></el-icon></el-button>
         </el-tooltip>
         <!-- 拖拽模式 -->
-        <el-tooltip :content="panModeEnabled ? '退出拖拽模式' : '拖拽画布'">
+        <el-tooltip :content="panModeEnabled ? $t('design.exitPanMode') : $t('design.panMode')">
           <el-button text @click="togglePanMode">
             <el-icon :style="panModeEnabled ? { color: '#3b82f6' } : {}"><Rank /></el-icon>
           </el-button>
@@ -107,7 +107,7 @@
       </div>
       <div class="toolbar-right">
         <el-tag v-if="selectedCount > 0" type="info" size="small" style="margin-right:8px">
-          已选 {{ selectedCount }}
+          {{ $t('design.selected') }} {{ selectedCount }}
         </el-tag>
         <el-button type="primary" :loading="saving" @click="handleSave">
           <el-icon><Check /></el-icon> {{ $t('design.saveGraph') }}
@@ -129,7 +129,7 @@
               @dragstart="onDragStart($event, nt)"
           >
             <div class="palette-icon" :style="{ background: nt.color }" v-html="nt.icon" />
-            <div class="palette-label">{{ nt.label }}</div>
+            <div class="palette-label">{{ typeLabel(nt.type) }}</div>
           </div>
         </div>
       </div>
@@ -151,33 +151,33 @@
       <div class="property-panel">
         <div class="panel-header">
           <span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            {{ selectedEdgeData ? '连线属性' : selectedNodeData ? '节点属性' : $t('design.properties') }}
+            {{ selectedEdgeData ? $t('design.selectedEdge') : selectedNodeData ? $t('design.selectedNode') : $t('design.properties') }}
             <el-tag v-if="selectedNodeData" size="small" :color="nodeColor(selectedNodeData.nodeType)" style="color:#fff;border:none;margin-left:6px">
               {{ typeLabel(selectedNodeData.nodeType) }}
             </el-tag>
             <el-button v-if="selectedNodeData && canBindComponent(selectedNodeData.nodeType)" size="small" type="primary" plain @click="openBindDialog" style="margin-left:4px">
-              {{ selectedNodeData.componentId ? '重新绑定' : '绑定元件' }}
+              {{ selectedNodeData.componentId ? $t('design.rebind') : $t('design.bindComponent') }}
             </el-button>
           </span>
         </div>
         <!-- 节点属性 -->
         <div v-if="selectedNodeData" class="panel-body">
           <el-form size="small" label-position="top">
-            <el-form-item v-if="canBindComponent(selectedNodeData.nodeType)" label="元件ID">
+            <el-form-item v-if="canBindComponent(selectedNodeData.nodeType)" :label="$t('design.componentId')">
               <el-link v-if="selectedNodeData.componentId" type="primary" :underline="'never'" style="font-family:monospace;cursor:pointer" @click="openCompDetail(selectedNodeData)">
                 {{ selectedNodeData.componentId }}
               </el-link>
-              <span v-else style="color:#bbb;font-size:12px">绑定后自动填充</span>
+              <span v-else style="color:#bbb;font-size:12px">{{ $t('design.autoFill') }}</span>
             </el-form-item>
-            <el-form-item v-if="canBindComponent(selectedNodeData.nodeType)" label="元件名称">
-              <el-input :model-value="selectedNodeData.componentName || ''" disabled placeholder="绑定后自动填充" />
+            <el-form-item v-if="canBindComponent(selectedNodeData.nodeType)" :label="$t('design.componentName')">
+              <el-input :model-value="selectedNodeData.componentName || ''" disabled :placeholder="$t('design.autoFill')" />
             </el-form-item>
-            <el-form-item v-if="canBindComponent(selectedNodeData.nodeType)" label="执行策略">
+            <el-form-item v-if="canBindComponent(selectedNodeData.nodeType)" :label="$t('design.executeStrategy')">
               <el-select v-model="selectedNodeData.executeStrategy" style="width:100%" @change="onDataChange">
-                <el-option label="正常执行" value="NORMAL" />
-                <el-option label="失败重试" value="RETRY_ON_FAILURE" />
-                <el-option label="异常中断" value="STOP_ON_EXCEPTION" />
-                <el-option label="忽略异常" value="IGNORE_EXCEPTION" />
+                <el-option :label="$t('design.strategyNormal')" value="NORMAL" />
+                <el-option :label="$t('design.strategyRetry')" value="RETRY_ON_FAILURE" />
+                <el-option :label="$t('design.strategyStopOnException')" value="STOP_ON_EXCEPTION" />
+                <el-option :label="$t('design.strategyIgnoreException')" value="IGNORE_EXCEPTION" />
               </el-select>
             </el-form-item>
             <!-- 参数解析器链 -->
@@ -190,7 +190,7 @@
                 <el-button text size="small" :disabled="idx === 0" @click="moveParamResolver(idx, -1)" style="padding:0 2px">↑</el-button>
                 <el-button text size="small" :disabled="idx === (selectedNodeData.paramResolvers || []).length - 1" @click="moveParamResolver(idx, 1)" style="padding:0 2px">↓</el-button>
               </div>
-              <el-button size="small" type="primary" plain @click="openBindDialog('resolver')" style="width:100%">+ 添加解析器</el-button>
+              <el-button size="small" type="primary" plain @click="openBindDialog('resolver')" style="width:100%">{{ $t('design.addResolver') }}</el-button>
             </div>
             <!-- 参数校验器 -->
             <div v-if="canBindComponent(selectedNodeData.nodeType)" style="padding:0 0 4px 0;width:100%">
@@ -199,12 +199,12 @@
                 {{ selectedNodeData.paramValidatorName }}
               </el-tag>
               <el-button size="small" type="primary" plain @click="openBindDialog('validator')" style="width:100%">
-                {{ selectedNodeData.paramValidatorId ? '重新绑定' : '+ 绑定' }}
+                {{ selectedNodeData.paramValidatorId ? $t('design.rebind') : $t('design.bindValidator') }}
               </el-button>
             </div>
             <!-- 前置处理器 -->
             <div v-if="canBindComponent(selectedNodeData.nodeType)" style="padding:0 0 8px 0;width:100%">
-              <div style="font-size:12px;color:#606266;margin-bottom:4px">前置处理器</div>
+              <div style="font-size:12px;color:#606266;margin-bottom:4px">{{ $t('design.preProcessor') }}</div>
               <div v-for="(item, idx) in (selectedNodeData.preComponents || [])" :key="idx" style="display:flex;align-items:center;gap:2px;margin-bottom:3px">
                 <el-tag type="info" size="small" closable style="flex:1;overflow:hidden;text-align:left;justify-content:flex-start" @close="removePrePost('pre', idx)">
                   <span style="opacity:0.6;margin-right:2px">{{ idx + 1 }}.</span>{{ item.componentName }}
@@ -212,11 +212,11 @@
                 <el-button text size="small" :disabled="idx === 0" @click="movePrePost('pre', idx, -1)" style="padding:0 2px">↑</el-button>
                 <el-button text size="small" :disabled="idx === (selectedNodeData.preComponents || []).length - 1" @click="movePrePost('pre', idx, 1)" style="padding:0 2px">↓</el-button>
               </div>
-              <el-button size="small" type="primary" plain @click="openBindDialog('pre')" style="width:100%">+ 添加前置</el-button>
+              <el-button size="small" type="primary" plain @click="openBindDialog('pre')" style="width:100%">{{ $t('design.addPre') }}</el-button>
             </div>
             <!-- 后置处理器 -->
             <div v-if="canBindComponent(selectedNodeData.nodeType)" style="padding:0 0 8px 0;width:100%">
-              <div style="font-size:12px;color:#606266;margin-bottom:4px">后置处理器</div>
+              <div style="font-size:12px;color:#606266;margin-bottom:4px">{{ $t('design.postProcessor') }}</div>
               <div v-for="(item, idx) in (selectedNodeData.postComponents || [])" :key="idx" style="display:flex;align-items:center;gap:2px;margin-bottom:3px">
                 <el-tag type="info" size="small" closable style="flex:1;overflow:hidden;text-align:left;justify-content:flex-start" @close="removePrePost('post', idx)">
                   <span style="opacity:0.6;margin-right:2px">{{ idx + 1 }}.</span>{{ item.componentName }}
@@ -224,30 +224,43 @@
                 <el-button text size="small" :disabled="idx === 0" @click="movePrePost('post', idx, -1)" style="padding:0 2px">↑</el-button>
                 <el-button text size="small" :disabled="idx === (selectedNodeData.postComponents || []).length - 1" @click="movePrePost('post', idx, 1)" style="padding:0 2px">↓</el-button>
               </div>
-              <el-button size="small" type="primary" plain @click="openBindDialog('post')" style="width:100%">+ 添加后置</el-button>
+              <el-button size="small" type="primary" plain @click="openBindDialog('post')" style="width:100%">{{ $t('design.addPost') }}</el-button>
             </div>
-            <el-form-item v-if="hasDescription(selectedNodeData.nodeType)" label="执行脚本">
-              <el-input v-model="selectedNodeData.script" type="textarea" :rows="3" placeholder="输入执行脚本..." @input="onDataChange" />
+            <el-form-item v-if="hasDescription(selectedNodeData.nodeType)" :label="$t('design.script')">
+              <el-input v-model="selectedNodeData.script" type="textarea" :rows="3" :placeholder="$t('design.scriptPlaceholder')" @input="onDataChange" />
             </el-form-item>
-            <el-form-item v-if="hasDescription(selectedNodeData.nodeType)" label="描述">
+            <el-form-item v-if="hasDescription(selectedNodeData.nodeType)" :label="$t('design.description')">
               <el-input v-model="selectedNodeData.description" type="textarea" :rows="3" @input="onDataChange" />
             </el-form-item>
+            <!-- 子链节点：子链编码 -->
+            <el-form-item v-if="selectedNodeData.nodeType === 'subchain'" :label="$t('design.subChainCode')">
+              <el-input v-model="selectedNodeData.subChainCode" :placeholder="$t('design.selectChain')" @input="onDataChange" />
+            </el-form-item>
+            <!-- 迭代器节点：数据源 + 迭代项名 -->
+            <template v-if="selectedNodeData.nodeType === 'iterator'">
+              <el-form-item :label="$t('design.iteratorDataSource')">
+                <el-input v-model="selectedNodeData.iteratorDataSource" :placeholder="$t('design.iteratorDataSourcePlaceholder')" @input="onDataChange" />
+              </el-form-item>
+              <el-form-item :label="$t('design.iteratorItemName')">
+                <el-input v-model="selectedNodeData.iteratorItemName" placeholder="item" @input="onDataChange" />
+              </el-form-item>
+            </template>
           </el-form>
         </div>
         <!-- 连线属性 -->
         <div v-else-if="selectedEdgeData" class="panel-body">
           <el-form size="small" label-position="top">
-              <el-form-item label="标签值">
-              <el-select v-if="edgeSourceTagDefs.length > 0" v-model="selectedEdgeData.label" placeholder="选择标签值" @change="onEdgeLabelChange" style="width:100%">
+              <el-form-item :label="$t('design.labelValue')">
+              <el-select v-if="edgeSourceTagDefs.length > 0" v-model="selectedEdgeData.label" :placeholder="$t('design.labelValuePlaceholder')" @change="onEdgeLabelChange" style="width:100%">
                 <el-option v-for="td in edgeSourceTagDefs" :key="td.value" :label="td.name + ' (' + td.value + ')'" :value="td.value" />
               </el-select>
-              <el-input v-else v-model="selectedEdgeData.label" placeholder="双击连线也可编辑" @input="onEdgeLabelChange" />
+              <el-input v-else v-model="selectedEdgeData.label" :placeholder="$t('design.labelPlaceholder')" @input="onEdgeLabelChange" />
             </el-form-item>
-            <el-form-item label="线型">
+            <el-form-item :label="$t('design.lineType')">
               <el-radio-group v-model="selectedEdgeStyle" size="small" @change="onEdgeStyleChange">
-                <el-radio-button value="straight">直线</el-radio-button>
-                <el-radio-button value="polyline">折线</el-radio-button>
-                <el-radio-button value="curve">曲线</el-radio-button>
+                <el-radio-button value="straight">{{ $t('design.straightLine') }}</el-radio-button>
+                <el-radio-button value="polyline">{{ $t('design.polylineLine') }}</el-radio-button>
+                <el-radio-button value="curve">{{ $t('design.curveLine') }}</el-radio-button>
               </el-radio-group>
             </el-form-item>
           </el-form>
@@ -263,23 +276,23 @@
     <teleport to="body">
       <div v-if="contextMenu.visible" class="x6-context-menu" :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }" @click.stop @contextmenu.prevent>
         <div v-if="contextMenu.isNode" class="context-item danger" @click="contextDeleteNode">
-          <el-icon><Delete /></el-icon> 删除节点
+          <el-icon><Delete /></el-icon> {{ $t('design.deleteNode') }}
         </div>
         <div v-if="contextMenu.isNode" class="context-item" @click="contextCopyNode">
-          <el-icon><CopyDocument /></el-icon> 复制节点
+          <el-icon><CopyDocument /></el-icon> {{ $t('design.copyNode') }}
         </div>
         <div v-if="contextMenu.isEdge" class="context-item danger" @click="contextDeleteEdge">
-          <el-icon><Delete /></el-icon> 删除连线
+          <el-icon><Delete /></el-icon> {{ $t('design.deleteEdge') }}
         </div>
         <div v-if="contextMenu.isEdge" class="context-item" @click="contextEditEdgeLabel">
-          <el-icon><Edit /></el-icon> 编辑标签
+          <el-icon><Edit /></el-icon> {{ $t('design.editLabel') }}
         </div>
         <div v-if="contextMenu.isNode || contextMenu.isEdge" class="context-separator" />
         <div class="context-item" @click="contextSelectAll">
-          <el-icon><Select /></el-icon> 全选
+          <el-icon><Select /></el-icon> {{ $t('design.selectAll') }}
         </div>
         <div v-if="!contextMenu.isNode && !contextMenu.isEdge" class="context-item" @click="contextPaste">
-          <el-icon><DocumentAdd /></el-icon> 粘贴
+          <el-icon><DocumentAdd /></el-icon> {{ $t('design.pasteNode') }}
         </div>
       </div>
     </teleport>
@@ -291,7 +304,7 @@
             v-if="inlineEditor.tagDefs.length > 0"
             v-model="inlineEditor.value"
             size="small"
-            placeholder="选择标签值"
+            :placeholder="$t('design.selectTagValue')"
             @change="inlineEditorConfirm"
             @keydown.escape.prevent="inlineEditorCancel"
             @blur="inlineEditorConfirm"
@@ -305,7 +318,7 @@
             ref="inlineInputRef"
             v-model="inlineEditor.value"
             size="small"
-            placeholder="输入标签..."
+            :placeholder="$t('design.inputLabel')"
             @keydown.enter.prevent="inlineEditorConfirm"
             @keydown.escape.prevent="inlineEditorCancel"
             @blur="inlineEditorConfirm"
@@ -314,59 +327,59 @@
     </teleport>
 
     <!-- 绑定元件弹窗 -->
-    <el-dialog v-model="bindDialog.visible" :title="bindDialog.target === 'main' ? '绑定' + bindDialog.typeLabel : '添加' + bindTypeTargetLabel(bindDialog.target)" width="1060px" @close="bindDialog.loading=false">
+    <el-dialog v-model="bindDialog.visible" :title="bindDialog.target === 'main' ? $t('design.bindTitle', { label: bindDialog.typeLabel }) : $t('design.addTitle', { target: bindTypeTargetLabel(bindDialog.target) })" width="1060px" @close="bindDialog.loading=false">
       <div style="margin-bottom:12px;display:flex;gap:8px">
-        <el-input v-model="bindDialog.keyword" :placeholder="'搜索元件名称'" clearable style="width:200px" @keyup.enter="fetchBindList" />
-        <el-select v-model="bindDialog.groupFilter" placeholder="全部分组" clearable style="width:150px" @change="fetchBindList">
+        <el-input v-model="bindDialog.keyword" :placeholder="$t('design.searchComponent')" clearable style="width:200px" @keyup.enter="fetchBindList" />
+        <el-select v-model="bindDialog.groupFilter" :placeholder="$t('design.allGroups')" clearable style="width:150px" @change="fetchBindList">
           <el-option v-for="g in bindGroupOptions" :key="g" :label="g" :value="g" />
         </el-select>
-        <el-button type="primary" @click="fetchBindList">查询</el-button>
+        <el-button type="primary" @click="fetchBindList">{{ $t('design.search') }}</el-button>
       </div>
       <el-table :data="bindFilteredList" v-loading="bindDialog.loading" stripe border height="250" style="width:100%"
                 :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"
                 @row-click="onBindSelect"
       >
-        <el-table-column prop="componentId" label="元件ID" width="170" show-overflow-tooltip>
+        <el-table-column prop="componentId" :label="$t('design.colComponentId')" width="170" show-overflow-tooltip>
           <template #default="{ row }">
             <el-link type="primary" :underline="'never'" style="font-family:monospace;font-weight:500;cursor:pointer" @click.stop="openCompDetail(row)">
               {{ row.componentId }}
             </el-link>
           </template>
         </el-table-column>
-        <el-table-column prop="componentName" label="名称" show-overflow-tooltip min-width="80" />
-        <el-table-column label="类型" width="80" align="center">
+        <el-table-column prop="componentName" :label="$t('design.colName')" show-overflow-tooltip min-width="80" />
+        <el-table-column :label="$t('design.colType')" width="80" align="center">
           <template #default="{ row }">
             <el-tag :type="bindTypeTagType(row.componentType)" size="small">
               {{ bindTypeLabel(row.componentType) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="groupName" label="分组" width="90" show-overflow-tooltip />
-        <el-table-column prop="executorSource" label="来源" width="140" show-overflow-tooltip />
-        <el-table-column label="超时" width="70" align="center">
+        <el-table-column prop="groupName" :label="$t('design.colGroup')" width="90" show-overflow-tooltip />
+        <el-table-column prop="executorSource" :label="$t('design.colSource')" width="140" show-overflow-tooltip />
+        <el-table-column :label="$t('design.colTimeout')" width="70" align="center">
           <template #default="{ row }">{{ row.timeout === -1 ? '-' : row.timeout }}</template>
         </el-table-column>
-        <el-table-column label="异步" width="55" align="center">
+        <el-table-column :label="$t('design.colAsync')" width="55" align="center">
           <template #default="{ row }">
             <el-tag :type="row.async ? 'warning' : 'info'" size="small">
-              {{ row.async ? '是' : '否' }}
+              {{ row.async ? $t('components.yes') : $t('components.no') }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="70" align="center">
+        <el-table-column :label="$t('design.colStatus')" width="70" align="center">
           <template #default="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
-              {{ row.status === 1 ? '在线' : '离线' }}
+              {{ row.status === 1 ? $t('components.online') : $t('components.offline') }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="cachedAt" label="采集时间" width="140" show-overflow-tooltip />
-        <el-table-column label="已选" width="55" align="center">
+        <el-table-column prop="cachedAt" :label="$t('design.colCachedAt')" width="140" show-overflow-tooltip />
+        <el-table-column :label="$t('design.colSelected')" width="55" align="center">
           <template #default="{ row }">
-            <el-tag v-if="bindDialog.selectedIds.includes(row.componentId)" type="success" size="small">已选</el-tag>
+            <el-tag v-if="bindDialog.selectedIds.includes(row.componentId)" type="success" size="small">{{ $t('design.selected') }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="标签" width="100" align="center">
+        <el-table-column :label="$t('design.colTags')" width="100" align="center">
           <template #default="{ row }">
             <el-tag v-if="row.tagDefs && row.tagDefs.length" size="small" type="info">{{ row.tagDefs.length }}</el-tag>
           </template>
@@ -390,50 +403,50 @@
     </el-dialog>
 
     <!-- 元件详情抽屉 -->
-    <el-drawer v-model="compDrawer.visible" title="元件详情" size="500px" destroy-on-close>
+    <el-drawer v-model="compDrawer.visible" :title="$t('design.componentDetail')" size="500px" destroy-on-close>
       <template v-if="compDrawer.data">
         <el-descriptions :column="1" border style="margin-bottom:16px">
-          <el-descriptions-item label="元件ID">
+          <el-descriptions-item :label="$t('design.detailComponentId')">
             <span style="font-family:monospace">{{ compDrawer.data.componentId }}</span>
           </el-descriptions-item>
-          <el-descriptions-item label="元件名称">
+          <el-descriptions-item :label="$t('design.detailComponentName')">
             {{ compDrawer.data.componentName }}
           </el-descriptions-item>
-          <el-descriptions-item label="类型">
+          <el-descriptions-item :label="$t('design.detailType')">
             <el-tag size="small">{{ compDrawer.data.componentType }}</el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="分组" v-if="compDrawer.data.groupName">
+          <el-descriptions-item :label="$t('design.detailGroup')" v-if="compDrawer.data.groupName">
             {{ compDrawer.data.groupName }}
           </el-descriptions-item>
-          <el-descriptions-item label="来源" v-if="compDrawer.data.executorSource">
+          <el-descriptions-item :label="$t('design.detailSource')" v-if="compDrawer.data.executorSource">
             {{ compDrawer.data.executorSource }}
           </el-descriptions-item>
-          <el-descriptions-item label="超时">
+          <el-descriptions-item :label="$t('design.detailTimeout')">
             {{ compDrawer.data.timeout === -1 ? '-' : compDrawer.data.timeout }}
           </el-descriptions-item>
-          <el-descriptions-item label="异步">
+          <el-descriptions-item :label="$t('design.detailAsync')">
             <el-tag :type="compDrawer.data.async ? 'warning' : 'info'" size="small">
-              {{ compDrawer.data.async ? '是' : '否' }}
+              {{ compDrawer.data.async ? $t('components.yes') : $t('components.no') }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="状态">
+          <el-descriptions-item :label="$t('design.detailStatus')">
             <el-tag :type="compDrawer.data.status === 1 ? 'success' : 'info'" size="small">
-              {{ compDrawer.data.status === 1 ? '在线' : '离线' }}
+              {{ compDrawer.data.status === 1 ? $t('components.online') : $t('components.offline') }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="采集时间" v-if="compDrawer.data.cachedAt">
+          <el-descriptions-item :label="$t('design.detailCachedAt')" v-if="compDrawer.data.cachedAt">
             {{ compDrawer.data.cachedAt }}
           </el-descriptions-item>
-          <el-descriptions-item label="描述" v-if="compDrawer.data.description">
+          <el-descriptions-item :label="$t('design.detailDescription')" v-if="compDrawer.data.description">
             {{ compDrawer.data.description }}
           </el-descriptions-item>
         </el-descriptions>
 
         <el-descriptions :column="1" border v-if="compDrawer.data.tagDefs && compDrawer.data.tagDefs.length > 0">
-          <el-descriptions-item label="标签">
+          <el-descriptions-item :label="$t('design.detailTags')">
             <el-table :data="compDrawer.data.tagDefs" border size="small" style="width:100%">
-              <el-table-column label="名称" prop="name" show-overflow-tooltip />
-              <el-table-column label="值" prop="value" show-overflow-tooltip width="140">
+              <el-table-column :label="$t('design.detailTagName')" prop="name" show-overflow-tooltip />
+              <el-table-column :label="$t('design.detailTagValue')" prop="value" show-overflow-tooltip width="140">
                 <template #default="{ row }">
                   <el-tag size="small" type="info">{{ row.value }}</el-tag>
                 </template>
@@ -445,7 +458,7 @@
     </el-drawer>
 
     <!-- 链数据预览弹窗 -->
-    <el-dialog v-model="chainDataDialog.visible" title="链数据预览" width="900px" top="5vh">
+    <el-dialog v-model="chainDataDialog.visible" :title="$t('design.chainDataPreview')" width="900px" top="5vh">
       <div v-if="chainDataDialog.errors.length > 0" style="margin-bottom:12px">
         <el-alert
             v-for="(err, i) in chainDataDialog.errors" :key="i"
@@ -454,7 +467,7 @@
         />
       </div>
       <div v-if="chainDataDialog.success" style="margin-bottom:12px">
-        <el-alert title="校验通过" type="success" show-icon :closable="false" />
+        <el-alert :title="$t('design.validationPassed')" type="success" show-icon :closable="false" />
       </div>
       <el-input
           v-model="chainDataDialog.json"
@@ -728,6 +741,9 @@ const nodeColors: Record<string, string> = {
   multicondition: '#8b5cf6',
   loader: '#06b6d4',
   parser: '#ec4899',
+  script: '#8b5cf6',
+  subchain: '#06b6d4',
+  iterator: '#f97316',
   end: '#6b7280',
 }
 
@@ -738,33 +754,38 @@ const nodeTypes = [
   { type: 'multicondition', label: '选择器元件', color: '#8b5cf6', icon: '<svg viewBox="0 0 14 14"><polygon points="10,0 14,7 10,14 4,14 0,7 4,0" fill="currentColor"/></svg>' },
   { type: 'loader', label: '加载器元件', color: '#06b6d4', icon: '<svg viewBox="0 0 14 14"><path d="M7,0 L14,3 L14,11 L7,14 L0,11 L0,3 Z" fill="currentColor"/></svg>' },
   { type: 'parser', label: '解析器元件', color: '#ec4899', icon: '<svg viewBox="0 0 14 14"><path d="M2,1 L12,1 L12,13 L2,13 Z M4,4 L10,4 M4,7 L10,7 M4,10 L8,10" fill="none" stroke="currentColor" stroke-width="2"/></svg>' },
+  { type: 'script', label: '脚本元件', color: '#8b5cf6', icon: '<svg viewBox="0 0 14 14"><path d="M4,0 L14,0 L14,10 L10,14 L0,14 L0,4 Z M5,5 L9,9 M9,5 L5,9" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' },
+  { type: 'subchain', label: '子链元件', color: '#06b6d4', icon: '<svg viewBox="0 0 14 14"><path d="M2,4 L8,4 L8,10 L2,10 Z M6,7 L12,7 L12,13 L6,13 Z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' },
+  { type: 'iterator', label: '迭代器元件', color: '#f97316', icon: '<svg viewBox="0 0 14 14"><path d="M7,0 L14,7 L7,14 L0,7 Z M10,5 L10,9 M4,5 L4,9" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' },
   { type: 'end', label: '结束', color: '#6b7280', icon: '<svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="7" cy="7" r="2" fill="currentColor"/></svg>' },
 ]
 
 function nodeColor(type: string) { return nodeColors[type] || '#3b82f6' }
 
 function typeLabel(type: string) {
-  return nodeTypes.find(nt => nt.type === type)?.label || type
+  const key = `design.${type}Node`
+  const translated = t(key)
+  return translated !== key ? translated : (nodeTypes.find(nt => nt.type === type)?.label || type)
 }
 
-function hasDescription(type: string) { return type === 'task' || type === 'condition' || type === 'multicondition' || type === 'loader' || type === 'parser' }
+function hasDescription(type: string) { return type === 'task' || type === 'condition' || type === 'multicondition' || type === 'loader' || type === 'parser' || type === 'script' || type === 'subchain' || type === 'iterator' }
 
 // ====== 绑定元件 ======
 
 /** 元件类型标签 */
 function bindTypeLabel(type: string): string {
   const map: Record<string, string> = {
-    EXECUTOR: '执行器',
-    PREDICATE: '判断器',
-    SELECTOR: '选择器',
-    LOADER: '加载器',
-    PARSER: '解析器',
-    PRE_PROCESSOR: '前置器',
-    POST_PROCESSOR: '后置器',
-    PARAM_BINDER: '参数绑定器',
-    PARAM_VALIDATOR: '参数校验器',
+    EXECUTOR: 'components.typeExecutor',
+    PREDICATE: 'components.typePredicate',
+    SELECTOR: 'components.typeSelector',
+    LOADER: 'components.typeLoader',
+    PARSER: 'components.typeParser',
+    PRE_PROCESSOR: 'components.typePreProcessor',
+    POST_PROCESSOR: 'components.typePostProcessor',
+    PARAM_BINDER: 'components.typeParamBinder',
+    PARAM_VALIDATOR: 'components.typeParamValidator',
   }
-  return map[type] || type
+  return map[type] ? t(map[type]) : type
 }
 
 function bindTypeTagType(type: string): string {
@@ -784,12 +805,12 @@ function bindTypeTagType(type: string): string {
 
 function bindTypeTargetLabel(target: string): string {
   const map: Record<string, string> = {
-    pre: '前置处理器',
-    post: '后置处理器',
-    resolver: '参数解析器',
-    validator: '参数校验器',
+    pre: 'design.preProcessor',
+    post: 'design.postProcessor',
+    resolver: 'design.paramResolver',
+    validator: 'components.typeParamValidator',
   }
-  return map[target] || ''
+  return map[target] ? t(map[target]) : ''
 }
 
 /** 节点类型 → 元件类型映射 */
@@ -815,22 +836,22 @@ async function openBindDialog(target: string = 'main') {
   let ct: string
   if (target === 'pre') {
     ct = 'PRE_PROCESSOR'
-    bindDialog.typeLabel = '前置器'
+    bindDialog.typeLabel = t('components.typePreProcessor')
     bindDialog.selectedId = ''
     bindDialog.selectedIds = (selectedNodeData.value.preComponents || []).map((p: any) => p.componentId)
   } else if (target === 'post') {
     ct = 'POST_PROCESSOR'
-    bindDialog.typeLabel = '后置器'
+    bindDialog.typeLabel = t('components.typePostProcessor')
     bindDialog.selectedId = ''
     bindDialog.selectedIds = (selectedNodeData.value.postComponents || []).map((p: any) => p.componentId)
   } else if (target === 'resolver') {
     ct = 'PARAM_BINDER'
-    bindDialog.typeLabel = '参数解析器'
+    bindDialog.typeLabel = t('design.paramResolver')
     bindDialog.selectedId = ''
     bindDialog.selectedIds = (selectedNodeData.value.paramResolvers || []).map((p: any) => p.componentId)
   } else if (target === 'validator') {
     ct = 'PARAM_VALIDATOR'
-    bindDialog.typeLabel = '参数校验器'
+    bindDialog.typeLabel = t('components.typeParamValidator')
     bindDialog.selectedId = selectedNodeData.value.paramValidatorId || ''
     bindDialog.selectedIds = bindDialog.selectedId ? [bindDialog.selectedId] : []
   } else {
@@ -1058,7 +1079,7 @@ function registerShapes() {
     inherit: 'rect',
     attrs: {
       body: { rx: 20, ry: 20, fill: nodeColors.start, stroke: 'none' },
-      label: { text: '开始', fill: '#fff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
+      label: { text: t('design.startNode'), fill: '#fff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
     },
     ports: { groups: { handle: handleGroup }, items: getPorts('start') },
   })
@@ -1071,7 +1092,7 @@ function registerShapes() {
     markup: [{ tagName: 'rect', selector: 'body' }, { tagName: 'text', selector: 'label' }],
     attrs: {
       body: { rx: 20, ry: 20, fill: nodeColors.end, stroke: 'none' },
-      label: { text: '结束', fill: '#fff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
+      label: { text: t('design.endNode'), fill: '#fff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
     },
     ports: { groups: { handle: handleGroup }, items: getPorts('end') },
   })
@@ -1084,7 +1105,7 @@ function registerShapes() {
     markup: [{ tagName: 'rect', selector: 'body' }, { tagName: 'text', selector: 'label' }],
     attrs: {
       body: { rx: 8, ry: 8, fill: nodeColors.task, stroke: 'none' },
-      label: { text: '执行元件', fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
+      label: { text: t('design.taskNode'), fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
     },
     ports: { groups: { handle: handleGroup }, items: getPorts('task') },
   })
@@ -1097,7 +1118,7 @@ function registerShapes() {
     markup: [{ tagName: 'polygon', selector: 'body' }, { tagName: 'text', selector: 'label' }],
     attrs: {
       body: { refPoints: '50,0 100,40 50,80 0,40', fill: nodeColors.condition, stroke: 'none' },
-      label: { text: '判断元件', fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
+      label: { text: t('design.conditionNode'), fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
     },
     ports: { groups: { handle: handleGroup }, items: getPorts('condition') },
   })
@@ -1110,7 +1131,7 @@ function registerShapes() {
     markup: [{ tagName: 'polygon', selector: 'body' }, { tagName: 'text', selector: 'label' }],
     attrs: {
       body: { refPoints: '85,0 120,40 85,80 35,80 0,40 35,0', fill: nodeColors.multicondition, stroke: 'none' },
-      label: { text: '选择器元件', fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
+      label: { text: t('design.multiconditionNode'), fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
     },
     ports: { groups: { handle: handleGroup }, items: getPorts('multicondition') },
   })
@@ -1123,7 +1144,7 @@ function registerShapes() {
     markup: [{ tagName: 'rect', selector: 'body' }, { tagName: 'text', selector: 'label' }],
     attrs: {
       body: { rx: 8, ry: 8, fill: nodeColors.loader, stroke: 'none' },
-      label: { text: '加载器元件', fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
+      label: { text: t('design.loaderNode'), fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
     },
     ports: { groups: { handle: handleGroup }, items: getPorts('loader') },
   })
@@ -1136,9 +1157,48 @@ function registerShapes() {
     markup: [{ tagName: 'rect', selector: 'body' }, { tagName: 'text', selector: 'label' }],
     attrs: {
       body: { rx: 8, ry: 8, fill: nodeColors.parser, stroke: 'none' },
-      label: { text: '解析器元件', fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
+      label: { text: t('design.parserNode'), fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
     },
     ports: { groups: { handle: handleGroup }, items: getPorts('parser') },
+  })
+
+  // --- 脚本元件（紫色圆角矩形） ---
+  reg('flow-script', {
+    inherit: 'rect',
+    width: 160,
+    height: 46,
+    markup: [{ tagName: 'rect', selector: 'body' }, { tagName: 'text', selector: 'label' }],
+    attrs: {
+      body: { rx: 8, ry: 8, fill: nodeColors.script, stroke: 'none' },
+      label: { text: t('design.scriptNode'), fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
+    },
+    ports: { groups: { handle: handleGroup }, items: getPorts('script') },
+  })
+
+  // --- 子链元件（青色胶囊形） ---
+  reg('flow-subchain', {
+    inherit: 'rect',
+    width: 160,
+    height: 46,
+    markup: [{ tagName: 'rect', selector: 'body' }, { tagName: 'text', selector: 'label' }],
+    attrs: {
+      body: { rx: 23, ry: 23, fill: nodeColors.subchain, stroke: 'none' },
+      label: { text: t('design.subchainNode'), fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
+    },
+    ports: { groups: { handle: handleGroup }, items: getPorts('subchain') },
+  })
+
+  // --- 迭代器元件（橙色圆角矩形 + 虚线边框） ---
+  reg('flow-iterator', {
+    inherit: 'rect',
+    width: 160,
+    height: 46,
+    markup: [{ tagName: 'rect', selector: 'body' }, { tagName: 'text', selector: 'label' }],
+    attrs: {
+      body: { rx: 8, ry: 8, fill: nodeColors.iterator, stroke: '#fff', strokeWidth: 2, strokeDasharray: '4,2' },
+      label: { text: t('design.iteratorNode'), fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
+    },
+    ports: { groups: { handle: handleGroup }, items: getPorts('iterator') },
   })
 }
 
@@ -1154,6 +1214,7 @@ function getShapeForType(nodeType: string): string {
   return {
     start: 'flow-start', task: 'flow-task', condition: 'flow-condition',
     multicondition: 'flow-multicondition', loader: 'flow-loader', parser: 'flow-parser',
+    script: 'flow-script', subchain: 'flow-subchain', iterator: 'flow-iterator',
     end: 'flow-end',
   }[nodeType] || 'flow-task'
 }
@@ -1395,7 +1456,7 @@ function onDrop(event: DragEvent) {
   const { type, label } = JSON.parse(raw)
   const shape = getShapeForType(type)
   const pos = graph.clientToLocal(event.clientX, event.clientY)
-  const sizes: Record<string, [number, number]> = { start: [148, 40], task: [160, 46], condition: [100, 80], multicondition: [120, 80], loader: [160, 46], parser: [160, 46], end: [148, 40] }
+  const sizes: Record<string, [number, number]> = { start: [148, 40], task: [160, 46], condition: [100, 80], multicondition: [120, 80], loader: [160, 46], parser: [160, 46], script: [160, 46], subchain: [160, 46], iterator: [160, 46], end: [148, 40] }
   const [w, h] = sizes[type] || [160, 46]
   const node = graph.addNode({
     shape,
@@ -1403,7 +1464,7 @@ function onDrop(event: DragEvent) {
     y: pos.y - h / 2,
     width: w,
     height: h,
-    data: { label, nodeType: type, description: '', preComponents: [], postComponents: [], paramResolvers: [], paramValidatorId: '', paramValidatorName: '', executeStrategy: 'NORMAL' },
+    data: { label, nodeType: type, description: '', preComponents: [], postComponents: [], paramResolvers: [], paramValidatorId: '', paramValidatorName: '', executeStrategy: 'NORMAL', script: '', subChainCode: '', iteratorDataSource: '', iteratorItemName: 'item' },
   })
   updateNodeVisual(node)
 }
@@ -1499,7 +1560,7 @@ function toggleFullscreen() {
 /** 清空画布 */
 function clearCanvas() {
   if (!graph) return
-  ElMessageBox.confirm('确定要清空画布吗？此操作不可撤销。', '确认清空', { confirmButtonText: '清空', cancelButtonText: '取消', type: 'warning' }).then(() => {
+  ElMessageBox.confirm(t('design.clearConfirm'), t('design.clearTitle'), { confirmButtonText: t('design.confirmClear'), cancelButtonText: t('common.cancel'), type: 'warning' }).then(() => {
     graph?.clearCells()
   }).catch(() => {})
 }
@@ -1666,6 +1727,9 @@ function mapNodeType(nodeType: string): string {
     multicondition: 'CONDITION',
     loader: 'NORMAL',
     parser: 'NORMAL',
+    script: 'SCRIPT',
+    subchain: 'SUB_CHAIN',
+    iterator: 'ITERATOR',
   }
   return map[nodeType] || 'NORMAL'
 }
@@ -1694,7 +1758,7 @@ function translateGraphToChain(): any {
         const node: Record<string, any> = {
           id: n.id,
           label: data.label || '',
-          type: typeToComponentType(data.nodeType),
+          type: mapNodeType(data.nodeType),
           component: data.componentId || undefined,
         }
 
@@ -1706,6 +1770,19 @@ function translateGraphToChain(): any {
 
         // 执行脚本
         if (data.script) node.script = data.script
+
+        // 子链编码
+        if (data.subChainCode) node.subChainCode = data.subChainCode
+
+        // 迭代器配置
+        if (data.nodeType === 'iterator') {
+          const icfg: Record<string, any> = {}
+          if (data.iteratorDataSource) icfg.dataSource = data.iteratorDataSource
+          if (data.iteratorItemName && data.iteratorItemName !== 'item') icfg.itemName = data.iteratorItemName
+          if (Object.keys(icfg).length > 0) {
+            node.config = { ...(node.config || {}), ...icfg }
+          }
+        }
 
         // 描述
         if (data.description) node.description = data.description
@@ -1761,13 +1838,13 @@ function translateGraphToChain(): any {
 /** 校验链拓扑 */
 function validateChain(): string[] {
   const errors: string[] = []
-  if (!graph) return ['画布未初始化']
+  if (!graph) return [t('design.canvasNotInit')]
 
   const nodes = graph.getNodes()
   const edges = graph.getEdges()
 
   if (nodes.length < 2) {
-    errors.push('链至少需要 2 个节点（开始 + 结束）')
+    errors.push(t('design.needMinNodes'))
     return errors
   }
 
@@ -1775,16 +1852,16 @@ function validateChain(): string[] {
   const endNodes = nodes.filter(n => n.getData()?.nodeType === 'end')
 
   // 1. 基础 — Start/End 存在性
-  if (startNodes.length === 0) errors.push('缺少「开始」节点')
-  if (endNodes.length === 0) errors.push('缺少「结束」节点')
-  if (startNodes.length > 1) errors.push('流程只能有一个「开始」节点')
+  if (startNodes.length === 0) errors.push(t('design.missingStart'))
+  if (endNodes.length === 0) errors.push(t('design.missingEnd'))
+  if (startNodes.length > 1) errors.push(t('design.multipleStart'))
   if (startNodes.length === 0 || endNodes.length === 0) return errors
 
   // 2. 节点名称不能为空
   nodes.forEach(n => {
     const data = n.getData()
     if (!data?.label || !data.label.trim()) {
-      errors.push(`存在名称为空的节点（ID: ${n.id}）`)
+      errors.push(t('design.nodeNameEmpty', { id: n.id }))
     }
   })
 
@@ -1798,7 +1875,7 @@ function validateChain(): string[] {
   })
   nodes.forEach(n => {
     if (!connectedNodeIds.has(n.id)) {
-      errors.push(`节点「${n.getData()?.label || n.id}」没有任何连线，是孤立节点`)
+      errors.push(t('design.isolatedNode', { label: n.getData()?.label || n.id }))
     }
   })
 
@@ -1817,7 +1894,7 @@ function validateChain(): string[] {
     })
   }
   if (!endNodes.some(en => reachableFromStart.has(en.id))) {
-    errors.push('流程图不完整：从「开始」节点无法到达「结束」节点，中间有断开的路径')
+    errors.push(t('design.pathNotComplete'))
     return errors
   }
 
@@ -1828,7 +1905,7 @@ function validateChain(): string[] {
     if (src && tgt && src === tgt) {
       const node = graph!.getCellById(src)
       const label = (node as any)?.getData?.()?.label || src
-      errors.push(`节点「${label}」存在自环（连线从自己出发又连回自己）`)
+      errors.push(t('design.selfLoop', { label }))
     }
   })
 
@@ -1839,7 +1916,7 @@ function validateChain(): string[] {
     const t = data.nodeType
     if (!bindableTypes.has(t)) return
     if (!data.componentId) {
-      errors.push(`节点「${data.label || n.id}」(${typeLabel(t)}) 未绑定元件`)
+      errors.push(t('design.nodeNotBound', { label: data.label || n.id, type: typeLabel(t) }))
     }
   })
 
@@ -1850,12 +1927,12 @@ function validateChain(): string[] {
     if (t !== 'condition' && t !== 'multicondition') return
     const outgoingEdges = edges.filter(e => e.getSourceCellId() === n.id)
     if (outgoingEdges.length === 0) {
-      errors.push(`条件节点「${data.label || n.id}」没有任何出线，必须至少有一个分支出口`)
+      errors.push(t('design.conditionNoOutEdge', { label: data.label || n.id }))
     }
     outgoingEdges.forEach(e => {
       const labelText = String(e.getLabels()?.[0]?.attrs?.label?.text || '').trim()
       if (!labelText) {
-        errors.push(`条件节点「${data.label || n.id}」的出线缺少标签值（如 true/false）`)
+        errors.push(t('design.conditionMissingLabel', { label: data.label || n.id }))
       }
     })
   })
@@ -1899,7 +1976,7 @@ function detectCycleWarnings(): string[] {
         let cur: string | null = u
         while (cur && cur !== v) { path.push(cur); cur = parent.get(cur) || null }
         path.reverse()
-        found.push(`发现环: ${path.map(id => idToLabel.get(id) || id).join(' → ')} → ${path[0]}`)
+        found.push(t('design.cycleWarning', { path: path.map(id => idToLabel.get(id) || id).join(' → '), start: path[0] }))
       } else if (color.get(v) === 0) {
         parent.set(v, u)
         dfs(v)
@@ -1914,7 +1991,7 @@ function detectCycleWarnings(): string[] {
 /** 显示链数据预览弹窗 */
 function showChainDataDialog() {
   if (!graph) {
-    ElMessage.warning('画布未初始化')
+    ElMessage.warning(t('design.canvasNotInit'))
     return
   }
 
@@ -1976,14 +2053,14 @@ async function loadDesign() {
       }
     }
     // 空设计
-    const start = graph.addNode({ shape: 'flow-start', x: 250, y: 40, width: 148, height: 40, data: { label: '开始', nodeType: 'start' } })
-    const end = graph.addNode({ shape: 'flow-end', x: 250, y: 380, width: 148, height: 40, data: { label: '结束', nodeType: 'end' } })
+    const start = graph.addNode({ shape: 'flow-start', x: 250, y: 40, width: 148, height: 40, data: { label: t('design.startNode'), nodeType: 'start' } })
+    const end = graph.addNode({ shape: 'flow-end', x: 250, y: 380, width: 148, height: 40, data: { label: t('design.endNode'), nodeType: 'end' } })
     updateNodeVisual(start)
     updateNodeVisual(end)
     graph.centerContent()
   } catch (e) {
     console.error(e)
-    ElMessage.error('加载设计失败')
+    ElMessage.error(t('design.loadFailed'))
     router.push('/design')
   }
 }
@@ -1995,7 +2072,7 @@ async function handleSave() {
   // 1. 拓扑校验（阻断）
   const validationErrors = validateChain()
   if (validationErrors.length > 0) {
-    ElMessage.warning('校验不通过:\n' + validationErrors.join('\n'))
+    ElMessage.warning(t('design.validationFailed', { errors: validationErrors.join('\n') }))
     return
   }
 
@@ -2004,7 +2081,7 @@ async function handleSave() {
   if (cycleWarnings.length > 0) {
     try {
       await ElMessageBox.confirm(
-          '流程图存在死环:\n' + cycleWarnings.join('\n') + '\n\n确定继续保存吗？',
+          t('design.cycleConfirm', { warnings: cycleWarnings.join('\n') }),
           t('common.confirm'),
           { confirmButtonText: t('design.saveGraph'), cancelButtonText: t('common.cancel'), type: 'warning' }
       )
@@ -2029,7 +2106,7 @@ async function handleSave() {
     const chain = translateGraphToChain()
     await designApi.saveGraph(designCode, moduleId, JSON.stringify(json), JSON.stringify(chain))
     ElMessage.success(t('design.saveGraphSuccess'))
-  } catch { ElMessage.error('保存失败') }
+  } catch { ElMessage.error(t('design.saveFailed')) }
   finally { saving.value = false }
 }
 

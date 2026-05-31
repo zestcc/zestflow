@@ -4,6 +4,7 @@ import com.zestflow.collector.jdbc.config.CollectorProperties;
 import com.zestflow.collector.model.dto.EventQuery;
 import com.zestflow.collector.model.dto.EventStats;
 import com.zestflow.collector.model.dto.EventStatsQuery;
+import com.zestflow.collector.model.dto.ExecutionTrace;
 import com.zestflow.collector.spi.EventQueryService;
 import com.zestflow.common.model.Result;
 import com.zestflow.common.model.dto.ChainEvent;
@@ -70,6 +71,36 @@ public class CollectorController {
         }
         EventStats stats = eventQueryService.queryStats(query);
         return Result.success(stats);
+    }
+
+    /**
+     * 查询执行轨迹列表（按 executionId 分组）
+     */
+    @PostMapping("/events/executions")
+    public Result<?> queryExecutionTraces(@RequestBody EventQuery query,
+                                           HttpServletRequest request) {
+        if (!checkToken(request)) {
+            return Result.fail(401, "UNAUTHORIZED", "Invalid collector token");
+        }
+        List<ExecutionTrace> list = eventQueryService.queryExecutionTraces(query);
+        long total = eventQueryService.countExecutionTraces(query);
+        return Result.success(new PageResult<>(list, total, query.getPage(), query.getPageSize()));
+    }
+
+    /**
+     * 查询单次执行轨迹详情（含所有事件 + 摘要）
+     */
+    @GetMapping("/events/executions/{executionId}")
+    public Result<?> getExecutionTrace(@PathVariable String executionId,
+                                        HttpServletRequest request) {
+        if (!checkToken(request)) {
+            return Result.fail(401, "UNAUTHORIZED", "Invalid collector token");
+        }
+        ExecutionTrace trace = eventQueryService.getExecutionTrace(executionId);
+        if (trace == null) {
+            return Result.fail(404, "NOT_FOUND", "Execution trace not found");
+        }
+        return Result.success(trace);
     }
 
     /**

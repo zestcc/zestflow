@@ -67,6 +67,11 @@ public class ExecutorProxyService {
         }
     }
 
+    private String buildUrl(String base, String query) {
+        if (query == null || query.isEmpty()) return base;
+        return base + query;
+    }
+
     /**
      * 通过 moduleId 解析到 Executor 地址并执行 GET 请求（不分页，返回数组）
      */
@@ -167,10 +172,10 @@ public class ExecutorProxyService {
             // Executor 返回 4xx，透传响应体
             String respBody = e.getResponseBodyAsString();
             if (respBody != null && !respBody.isBlank()) return respBody;
-            return "{\"code\":500,\"message\":\"" + e.getStatusCode().value() + " " + e.getMessage() + "\"}";
+            return "{\"code\":500,\"message\":\"执行器请求失败\"}";
         } catch (Exception e) {
             log.error("代理请求失败 moduleId={} url={}", moduleId, url, e);
-            return "{\"code\":500,\"message\":\"" + e.getMessage() + "\"}";
+            return "{\"code\":500,\"message\":\"代理请求失败\"}";
         }
     }
 

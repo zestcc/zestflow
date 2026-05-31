@@ -32,7 +32,11 @@ public class ChainEvent implements Serializable {
         NODE_COMPLETED,
         NODE_FAILED,
         NODE_RETRYING,
-        NODE_FALLBACKING
+        NODE_RETRY_EXHAUSTED,
+        NODE_FALLBACK_START,
+        NODE_FALLBACK_SUCCESS,
+        NODE_FALLBACK_FAILED,
+        NODE_TIMEOUT
     }
 
     /** 事件全局唯一 ID（UUID，避免分布式 ID 中心依赖） */
@@ -40,6 +44,9 @@ public class ChainEvent implements Serializable {
 
     /** 事件类型 */
     private EventType eventType;
+
+    /** 执行追踪 ID（一次链执行全局唯一，用于把同一次执行的所有事件聚合为 Trace） */
+    private String executionId;
 
     /** 链实例 ID */
     private String chainId;

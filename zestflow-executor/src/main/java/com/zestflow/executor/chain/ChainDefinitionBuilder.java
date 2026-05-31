@@ -130,66 +130,80 @@ public class ChainDefinitionBuilder {
         if (dto.getNodes() == null) return nodeMap;
 
         for (ChainNodeDTO nodeDTO : dto.getNodes()) {
-            Map<String, Object> cfg = nodeDTO.getConfig() != null ? nodeDTO.getConfig() : Map.of();
-
-            NodeDefinition.NodeDefinitionBuilder builder = NodeDefinition.builder()
-                    .id(nodeDTO.getId())
-                    .label(nodeDTO.getLabel())
-                    .type(nodeDTO.getType() != null ? nodeDTO.getType() : ChainConstants.NODE_TYPE_NORMAL)
-                    .component(nodeDTO.getComponent())
-                    .componentName(nodeDTO.getComponentName())
-                    .groupName(nodeDTO.getGroupName())
-                    .description(nodeDTO.getDescription())
-                    .paramResolvers(nodeDTO.getParamResolvers())
-                    .paramValidator(nodeDTO.getParamValidator())
-                    .preComponents(nodeDTO.getPreComponents())
-                    .postComponents(nodeDTO.getPostComponents())
-                    .script(nodeDTO.getScript())
-                    .subChainCode(nodeDTO.getSubChainCode())
-                    .timeout(parseLongConfig(cfg, "timeout", ChainConstants.DEFAULT_NODE_TIMEOUT_MS))
-                    .retryCount(parseIntConfig(cfg, "retryCount", ChainConstants.DEFAULT_RETRY_COUNT))
-                    .retryInterval(parseLongConfig(cfg, "retryInterval", ChainConstants.DEFAULT_RETRY_INTERVAL_MS))
-                    .async(parseBoolConfig(cfg, "async", false))
-                    .condition(parseStringConfig(cfg, "condition", ""));
-
-            // 重试相关
-            Map<String, Object> retryCfg = parseMapConfig(cfg, "retry");
-            if (!retryCfg.isEmpty()) {
-                builder.retryCount(parseIntConfig(retryCfg, "count", builder.build().getRetryCount()));
-                builder.retryInterval(parseLongConfig(retryCfg, "interval", builder.build().getRetryInterval()));
-                builder.retryBackoff(parseDoubleConfig(retryCfg, "backoff", 1.0));
-                builder.retryFor(new HashSet<>(parseStringListConfig(retryCfg, "retryFor")));
-            }
-
-            // 降级相关
-            Map<String, Object> fallbackCfg = parseMapConfig(cfg, "fallback");
-            if (!fallbackCfg.isEmpty()) {
-                builder.fallbackComponent(parseStringConfig(fallbackCfg, "component", ""));
-                builder.fallbackOn(new HashSet<>(parseStringListConfig(fallbackCfg, "on")));
-            }
-
-            // 熔断相关
-            Map<String, Object> cbCfg = parseMapConfig(cfg, "circuitBreaker");
-            if (!cbCfg.isEmpty()) {
-                builder.circuitBreakerEnabled(parseBoolConfig(cbCfg, "enabled", false));
-                builder.circuitBreakerThreshold(parseIntConfig(cbCfg, "failureThreshold",
-                        ChainConstants.DEFAULT_CIRCUIT_BREAKER_THRESHOLD));
-                builder.circuitBreakerRecoveryMs(parseLongConfig(cbCfg, "recoveryMs",
-                        ChainConstants.DEFAULT_CIRCUIT_BREAKER_RECOVERY_MS));
-            }
-
-            // 迭代器相关
-            if (ChainConstants.NODE_TYPE_ITERATOR.equals(nodeDTO.getType())) {
-                builder.iteratorDataSource(parseStringConfig(cfg, "dataSource", ""));
-                builder.iteratorItemName(parseStringConfig(cfg, "itemName", "item"));
-                if (cfg.containsKey("subNodes")) {
-                    // 暂不递归构建子节点，执行时再解析
-                }
-            }
-
-            nodeMap.put(nodeDTO.getId(), builder.build());
+            nodeMap.put(nodeDTO.getId(), buildNode(nodeDTO));
         }
         return nodeMap;
+    }
+
+    /**
+     * 构建单个节点定义（含递归：迭代器子节点）
+     */
+    private NodeDefinition buildNode(ChainNodeDTO nodeDTO) {
+        Map<String, Object> cfg = nodeDTO.getConfig() != null ? nodeDTO.getConfig() : Map.of();
+
+        NodeDefinition.NodeDefinitionBuilder builder = NodeDefinition.builder()
+                .id(nodeDTO.getId())
+                .label(nodeDTO.getLabel())
+                .type(nodeDTO.getType() != null ? nodeDTO.getType() : ChainConstants.NODE_TYPE_NORMAL)
+                .component(nodeDTO.getComponent())
+                .componentName(nodeDTO.getComponentName())
+                .groupName(nodeDTO.getGroupName())
+                .description(nodeDTO.getDescription())
+                .paramResolvers(nodeDTO.getParamResolvers())
+                .paramValidator(nodeDTO.getParamValidator())
+                .preComponents(nodeDTO.getPreComponents())
+                .postComponents(nodeDTO.getPostComponents())
+                .script(nodeDTO.getScript())
+                .subChainCode(nodeDTO.getSubChainCode())
+                .timeout(parseLongConfig(cfg, "timeout", ChainConstants.DEFAULT_NODE_TIMEOUT_MS))
+                .retryCount(parseIntConfig(cfg, "retryCount", ChainConstants.DEFAULT_RETRY_COUNT))
+                .retryInterval(parseLongConfig(cfg, "retryInterval", ChainConstants.DEFAULT_RETRY_INTERVAL_MS))
+                .async(parseBoolConfig(cfg, "async", false))
+                .condition(parseStringConfig(cfg, "condition", ""));
+
+        // 重试相关
+        Map<String, Object> retryCfg = parseMapConfig(cfg, "retry");
+        if (!retryCfg.isEmpty()) {
+            builder.retryCount(parseIntConfig(retryCfg, "count", builder.build().getRetryCount()));
+            builder.retryInterval(parseLongConfig(retryCfg, "interval", builder.build().getRetryInterval()));
+            builder.retryBackoff(parseDoubleConfig(retryCfg, "backoff", 1.0));
+            builder.retryFor(new HashSet<>(parseStringListConfig(retryCfg, "retryFor")));
+        }
+
+        // 降级相关
+        Map<String, Object> fallbackCfg = parseMapConfig(cfg, "fallback");
+        if (!fallbackCfg.isEmpty()) {
+            builder.fallbackComponent(parseStringConfig(fallbackCfg, "component", ""));
+            builder.fallbackOn(new HashSet<>(parseStringListConfig(fallbackCfg, "on")));
+        }
+
+        // 熔断相关
+        Map<String, Object> cbCfg = parseMapConfig(cfg, "circuitBreaker");
+        if (!cbCfg.isEmpty()) {
+            builder.circuitBreakerEnabled(parseBoolConfig(cbCfg, "enabled", false));
+            builder.circuitBreakerThreshold(parseIntConfig(cbCfg, "failureThreshold",
+                    ChainConstants.DEFAULT_CIRCUIT_BREAKER_THRESHOLD));
+            builder.circuitBreakerRecoveryMs(parseLongConfig(cbCfg, "recoveryMs",
+                    ChainConstants.DEFAULT_CIRCUIT_BREAKER_RECOVERY_MS));
+        }
+
+        // 迭代器相关：递归构建子节点
+        if (ChainConstants.NODE_TYPE_ITERATOR.equals(nodeDTO.getType())) {
+            builder.iteratorDataSource(parseStringConfig(cfg, "dataSource", ""));
+            builder.iteratorItemName(parseStringConfig(cfg, "itemName", ""));
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> subNodeMaps = cfg.containsKey("subNodes")
+                    ? (List<Map<String, Object>>) cfg.get("subNodes") : null;
+            if (subNodeMaps != null && !subNodeMaps.isEmpty()) {
+                List<NodeDefinition> subNodes = subNodeMaps.stream()
+                        .map(map -> MAPPER.convertValue(map, ChainNodeDTO.class))
+                        .map(this::buildNode)
+                        .collect(Collectors.toList());
+                builder.iteratorSubNodes(subNodes);
+            }
+        }
+
+        return builder.build();
     }
 
     private List<ChainDefinition.ChainEdge> buildEdges(ChainDefinitionDTO dto, Map<String, NodeDefinition> nodeMap) {

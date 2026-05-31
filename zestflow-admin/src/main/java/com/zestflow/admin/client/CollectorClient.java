@@ -2,6 +2,7 @@ package com.zestflow.admin.client;
 
 import com.zestflow.admin.client.dto.EventQueryDTO;
 import com.zestflow.admin.client.dto.EventQueryResult;
+import com.zestflow.admin.client.dto.ExecutionTraceResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -37,6 +38,8 @@ public class CollectorClient {
             String url = apiUrl + "/collector/events/query";
             Map<String, Object> requestBody = new HashMap<>();
             requestBody.put("chainId", query.getChainId());
+            requestBody.put("chainName", query.getChainName());
+            requestBody.put("executionId", query.getExecutionId());
             requestBody.put("executorId", query.getExecutorId());
             requestBody.put("appName", query.getAppName());
             requestBody.put("eventTypes", query.getEventTypes());
@@ -53,6 +56,49 @@ public class CollectorClient {
         } catch (Exception e) {
             log.error("查询事件列表失败", e);
             return new EventQueryResult();
+        }
+    }
+
+    /**
+     * 查询执行轨迹列表
+     */
+    public EventQueryResult queryExecutionTraces(EventQueryDTO query) {
+        try {
+            String url = apiUrl + "/collector/events/executions";
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("executionId", query.getExecutionId());
+            requestBody.put("chainName", query.getChainName());
+            requestBody.put("executorId", query.getExecutorId());
+            requestBody.put("appName", query.getAppName());
+            requestBody.put("status", query.getStatus());
+            requestBody.put("page", query.getPage());
+            requestBody.put("pageSize", query.getPageSize());
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, buildHeaders());
+            EventQueryResult result = restTemplate.exchange(url, HttpMethod.POST, entity, EventQueryResult.class).getBody();
+            return result != null ? result : new EventQueryResult();
+        } catch (Exception e) {
+            log.error("查询执行轨迹列表失败", e);
+            return new EventQueryResult();
+        }
+    }
+
+    /**
+     * 查询单次执行轨迹详情
+     */
+    @SuppressWarnings("unchecked")
+    public ExecutionTraceResult getExecutionTrace(String executionId) {
+        try {
+            String url = apiUrl + "/collector/events/executions/" + executionId;
+            HttpEntity<?> entity = new HttpEntity<>(buildHeaders());
+            var response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class).getBody();
+            if (response != null && response.get("data") instanceof Map) {
+                return new ExecutionTraceResult(200, "ok", (Map<String, Object>) response.get("data"));
+            }
+            return new ExecutionTraceResult(404, "not found", null);
+        } catch (Exception e) {
+            log.error("查询执行轨迹详情失败 executionId={}", executionId, e);
+            return new ExecutionTraceResult(500, e.getMessage(), null);
         }
     }
 
