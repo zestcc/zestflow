@@ -35,8 +35,9 @@ public class DemoSceneServiceImpl implements DemoSceneService {
     private String defaultAppCode;
 
     @Override
-    public IPage<DemoSceneVO> queryPage(String keyword, int page, int size) {
+    public IPage<DemoSceneVO> queryPage(String keyword, String appCode, int page, int size) {
         LambdaQueryWrapper<DemoScenePO> wrapper = new LambdaQueryWrapper<DemoScenePO>()
+                .eq(StringUtils.hasText(appCode), DemoScenePO::getAppCode, appCode)
                 .and(StringUtils.hasText(keyword), w -> w
                         .like(DemoScenePO::getName, keyword)
                         .or().like(DemoScenePO::getSceneCode, keyword)
@@ -48,9 +49,10 @@ public class DemoSceneServiceImpl implements DemoSceneService {
     }
 
     @Override
-    public List<DemoSceneVO> listAll() {
+    public List<DemoSceneVO> listAll(String appCode) {
         return sceneMapper.selectList(
                 new LambdaQueryWrapper<DemoScenePO>()
+                        .eq(StringUtils.hasText(appCode), DemoScenePO::getAppCode, appCode)
                         .orderByDesc(DemoScenePO::getCreatedAt))
                 .stream()
                 .map(this::toVO)

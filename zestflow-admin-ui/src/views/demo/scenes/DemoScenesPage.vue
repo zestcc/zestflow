@@ -1,26 +1,26 @@
 <template>
   <div>
     <div class="page-header">
-      <h2>{{ $t('demo.scenes.title') }}</h2>
+      <div class="stats-summary">
+        <span style="font-weight:600;color:#409eff">{{ $t('demo.scenes.total') }} {{ total }}</span>
+        <el-select
+          v-model="currentAppCode"
+          filterable
+          style="width:200px;margin-left:16px"
+          placeholder="选择应用"
+          @change="handleAppChange"
+        >
+          <el-option v-for="m in apps" :key="m.appCode" :label="m.appName || m.appCode" :value="m.appCode" />
+        </el-select>
+        <el-input v-model="keyword" :placeholder="$t('demo.scenes.keywordPlaceholder')" clearable style="width:200px;margin-left:16px" @keyup.enter="handleSearch" />
+        <el-button type="primary" style="margin-left:8px" @click="handleSearch">{{ $t('common.search') }}</el-button>
+        <el-button @click="handleReset">{{ $t('common.reset') }}</el-button>
+      </div>
+      <el-button type="primary" @click="openCreateDialog">{{ $t('demo.scenes.create') }}</el-button>
     </div>
 
-    <!-- 筛选栏 -->
-    <el-card shadow="never" class="filter-card">
-      <el-form inline size="small" @keyup.enter="handleSearch">
-        <el-form-item :label="$t('demo.scenes.keyword')">
-          <el-input v-model="keyword" :placeholder="$t('demo.scenes.keywordPlaceholder')" clearable />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="handleSearch">{{ $t('common.search') }}</el-button>
-          <el-button @click="handleReset">{{ $t('common.reset') }}</el-button>
-          <el-button type="success" @click="openCreateDialog">{{ $t('demo.scenes.create') }}</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
-
     <!-- 表格 -->
-    <el-card shadow="never">
-      <el-table
+    <el-table
         :data="sceneList"
         v-loading="loading"
         :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"
@@ -67,7 +67,6 @@
           @current-change="loadData"
         />
       </div>
-    </el-card>
 
     <!-- 新建/编辑 弹窗 -->
     <el-dialog
@@ -111,7 +110,9 @@
           </el-col>
         </el-row>
         <el-form-item :label="$t('demo.scenes.chainCode')" prop="chainCode">
-          <el-input v-model="form.chainCode" placeholder="CHN_DEMO_xxx" />
+          <el-select v-model="form.chainCode" filterable clearable placeholder="搜索选择链" style="width:100%">
+            <el-option v-for="c in chainOptions" :key="c.code" :label="c.code + ' - ' + c.name" :value="c.code" />
+          </el-select>
         </el-form-item>
         <el-row :gutter="16">
           <el-col :span="12">
@@ -175,6 +176,8 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
+import { executorApi, type AppOption } from '@/api/executor'
+import { chainApi, type ChainVO } from '@/api/chain'
 import {
   queryScenePage, getSceneById, createScene, updateScene, deleteScene,
   type DemoSceneVO, type DemoSceneCreateDTO, type DemoSceneUpdateDTO,
@@ -186,8 +189,11 @@ const loading = ref(false)
 const sceneList = ref<DemoSceneVO[]>([])
 const total = ref(0)
 const page = ref(1)
-const size = ref(20)
+const size = ref(10)
 const keyword = ref('')
+const apps = ref<AppOption[]>([])
+const currentAppCode = ref('')
+const chainOptions = ref<ChainVO[]>([])
 
 // Dialog
 const dialogVisible = ref(false)
@@ -221,10 +227,21 @@ const rules = {
 const detailVisible = ref(false)
 const detailData = ref<DemoSceneVO | null>(null)
 
+async function loadApps() {
+  try {
+    const res: any = await executorApi.listApps()
+    const data = res.data || res
+    apps.value = Array.isArray(data) ? data : []
+    if (apps.value.length > 0 && !currentAppCode.value) {
+      currentAppCode.value = apps.value[0].appCode
+    }
+  } catch { /* ignore */ }
+}
+
 async function loadData() {
   loading.value = true
   try {
-    const res: any = await queryScenePage(keyword.value, page.value, size.value)
+    const res: any = await queryScenePage(keyword.value, currentAppCode.value || undefined, page.value, size.value)
     const data = res.data || res
     sceneList.value = data.records || []
     total.value = data.total || 0
@@ -235,20 +252,30 @@ async function loadData() {
   }
 }
 
+async function loadChainOptions() {
+  if (!currentAppCode.value) { chainOptions.value = []; return }
+  try {
+    const res: any = await chainApi.list({ appCode: currentAppCode.value, page: 1, size: 999 })
+    const data = res.data || res
+    chainOptions.value = data.records || []
+  } catch { chainOptions.value = [] }
+}
+function handleAppChange() { page.value = 1; loadData(); loadChainOptions() }
 function handleSearch() { page.value = 1; loadData() }
-
 function handleReset() { keyword.value = ''; page.value = 1; loadData() }
 
 function openCreateDialog() {
   isEditing.value = false
   editingId.value = null
   Object.assign(form, { ...defaultForm })
+  loadChainOptions()
   dialogVisible.value = true
 }
 
 function openEditDialog(row: DemoSceneVO) {
   isEditing.value = true
   editingId.value = row.id
+  loadChainOptions()
   form.name = row.name
   form.description = row.description || ''
   form.requestPath = row.requestPath
@@ -318,13 +345,12 @@ function formatJson(str: string | null | undefined): string {
   }
 }
 
-onMounted(() => { loadData() })
+onMounted(() => { loadApps(); loadData() })
 </script>
 
 <style scoped>
-.page-header { margin-bottom: 16px; }
-.page-header h2 { margin: 0; font-size: 18px; }
-.filter-card { margin-bottom: 16px; }
+.page-header { margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+.stats-summary { display: flex; align-items: center; font-size: 14px; }
 .pagination-wrap { margin-top: 16px; display: flex; justify-content: flex-end; }
 .detail-json { margin: 0; font-family: monospace; font-size: 12px; white-space: pre-wrap; max-height: 200px; overflow-y: auto; background: #f5f7fa; padding: 8px; border-radius: 4px; }
 .action-btn { padding: 2px 4px; margin-left: 0; }

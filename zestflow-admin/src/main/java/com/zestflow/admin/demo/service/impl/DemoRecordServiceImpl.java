@@ -30,6 +30,7 @@ public class DemoRecordServiceImpl implements DemoRecordService {
                 .eq(StringUtils.hasText(dto.getSceneCode()), DemoRecordPO::getSceneCode, dto.getSceneCode())
                 .eq(StringUtils.hasText(dto.getChainCode()), DemoRecordPO::getChainCode, dto.getChainCode())
                 .eq(dto.getStatus() != null, DemoRecordPO::getStatus, dto.getStatus())
+                .eq(StringUtils.hasText(dto.getAppCode()), DemoRecordPO::getAppCode, dto.getAppCode())
                 .and(StringUtils.hasText(dto.getKeyword()), w -> w
                         .like(DemoRecordPO::getSceneName, dto.getKeyword())
                         .or().like(DemoRecordPO::getSceneCode, dto.getKeyword()))

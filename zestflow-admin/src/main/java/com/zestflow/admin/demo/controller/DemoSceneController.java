@@ -26,14 +26,15 @@ public class DemoSceneController {
     @GetMapping("/page")
     public Result<IPage<DemoSceneVO>> queryPage(
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String appCode,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return Result.success(sceneService.queryPage(keyword, page, size));
+        return Result.success(sceneService.queryPage(keyword, appCode, page, size));
     }
 
     @GetMapping("/list-all")
-    public Result<List<DemoSceneVO>> listAll() {
-        return Result.success(sceneService.listAll());
+    public Result<List<DemoSceneVO>> listAll(@RequestParam(required = false) String appCode) {
+        return Result.success(sceneService.listAll(appCode));
     }
 
     @GetMapping("/{id}")

@@ -112,7 +112,7 @@ class DemoRecordServiceImplTest {
     @Test
     void saveRecord_shouldInsertAndReturnPO() {
         DemoRecordPO po = createTestPO(1L, "SCN001", 1);
-        when(recordMapper.insert(any())).thenReturn(1);
+        when(recordMapper.insert(any(DemoRecordPO.class))).thenReturn(1);
 
         DemoRecordPO saved = recordService.saveRecord(po);
 

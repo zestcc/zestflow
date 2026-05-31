@@ -16,7 +16,15 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Primary;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -27,6 +35,7 @@ import java.util.Map;
  */
 @Slf4j
 @ConditionalOnProperty(prefix = "zestflow.demo", name = "enabled", havingValue = "true", matchIfMissing = false)
+@Primary
 @Service
 @RequiredArgsConstructor
 public class DemoPlaygroundServiceImpl implements DemoPlaygroundService {
@@ -38,6 +47,7 @@ public class DemoPlaygroundServiceImpl implements DemoPlaygroundService {
     private final ExecutorProxyService proxyService;
     private final DemoRateLimiter rateLimiter;
     private final TenantAppContext tenantAppContext;
+    private final RestTemplate restTemplate;
 
     @Value("${zestflow.demo.app-code:demo-app}")
     private String defaultAppCode;
@@ -64,21 +74,45 @@ public class DemoPlaygroundServiceImpl implements DemoPlaygroundService {
         int status = 0;
 
         try {
-            ChainExecuteRequestDTO request = ChainExecuteRequestDTO.builder()
-                    .chainCode(scene.getChainCode())
-                    .params(params)
-                    .source("playground")
-                    .timeoutMs(30_000L)
-                    .build();
+            String requestPath = scene.getRequestPath();
+            // 完整 URL → 直接调用业务端口（如 http://localhost:8080/api/orders/handleApplyAfterSale）
+            if (requestPath != null && (requestPath.startsWith("http://") || requestPath.startsWith("https://"))) {
+                HttpMethod httpMethod = resolveHttpMethod(scene.getRequestMethod());
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                HttpEntity<Map<String, Object>> entity = new HttpEntity<>(params, headers);
+                try {
+                    ResponseEntity<String> response = restTemplate.exchange(
+                            requestPath, httpMethod, entity, String.class);
+                    resultJson = response.getBody();
+                    status = 1;
+                } catch (HttpClientErrorException e) {
+                    // 4xx/5xx 是业务错误，标记为失败并记录错误详情
+                    resultJson = e.getResponseBodyAsString();
+                    if (resultJson == null || resultJson.isBlank()) {
+                        resultJson = "{\"error\":\"HTTP " + e.getStatusCode().value() + "\"}";
+                    }
+                    errorMsg = "业务接口返回 " + e.getStatusCode().value() + ": " + e.getStatusText();
+                    status = 0;
+                }
+                log.info("演示场景直接请求 sceneCode={} method={} url={} status={}", sceneCode, httpMethod, requestPath, status);
+            } else {
+                ChainExecuteRequestDTO request = ChainExecuteRequestDTO.builder()
+                        .chainCode(scene.getChainCode())
+                        .params(params)
+                        .source("playground")
+                        .timeoutMs(30_000L)
+                        .build();
 
-            String body = MAPPER.writeValueAsString(request);
-            resultJson = proxyService.executeOnExecutor(defaultAppCode, "POST", "/execute", body);
-            log.info("演示执行完成 sceneCode={} chainCode={}", sceneCode, scene.getChainCode());
+                String body = MAPPER.writeValueAsString(request);
+                resultJson = proxyService.executeOnExecutor(defaultAppCode, "POST", "/execute", body);
+                log.info("演示执行完成 sceneCode={} chainCode={}", sceneCode, scene.getChainCode());
 
-            ObjectNode resultNode = (ObjectNode) MAPPER.readTree(resultJson);
-            resultJson = MAPPER.writeValueAsString(resultNode);
-            instanceId = resultNode.has("instanceId") ? resultNode.get("instanceId").asText() : "";
-            status = resultNode.has("status") && resultNode.get("status").asInt() >= 4 ? 1 : 0;
+                ObjectNode resultNode = (ObjectNode) MAPPER.readTree(resultJson);
+                resultJson = MAPPER.writeValueAsString(resultNode);
+                instanceId = resultNode.has("instanceId") ? resultNode.get("instanceId").asText() : "";
+                status = resultNode.has("status") && resultNode.get("status").asInt() >= 4 ? 1 : 0;
+            }
 
         } catch (Exception e) {
             log.error("演示执行失败 sceneCode={} chainCode={}", sceneCode, scene.getChainCode(), e);
@@ -152,6 +186,17 @@ public class DemoPlaygroundServiceImpl implements DemoPlaygroundService {
         vo.setChainCode(po.getChainCode());
         vo.setRateLimit(po.getRateLimit());
         return vo;
+    }
+
+    /** 场景 HTTP 方法字符串 → HttpMethod，默认 POST */
+    private static HttpMethod resolveHttpMethod(String method) {
+        if (method == null) return HttpMethod.POST;
+        return switch (method.toUpperCase()) {
+            case "GET" -> HttpMethod.GET;
+            case "PUT" -> HttpMethod.PUT;
+            case "DELETE" -> HttpMethod.DELETE;
+            default -> HttpMethod.POST;
+        };
     }
 
     private String safeWrite(Object obj) {

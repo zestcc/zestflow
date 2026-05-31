@@ -15,12 +15,12 @@ public interface DemoSceneService {
     /**
      * 分页查询场景列表
      */
-    IPage<DemoSceneVO> queryPage(String keyword, int page, int size);
+    IPage<DemoSceneVO> queryPage(String keyword, String appCode, int page, int size);
 
     /**
      * 查询所有可用场景（下拉选择）
      */
-    List<DemoSceneVO> listAll();
+    List<DemoSceneVO> listAll(String appCode);
 
     /**
      * 查询场景详情

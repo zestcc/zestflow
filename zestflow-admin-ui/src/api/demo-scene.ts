@@ -47,13 +47,13 @@ export interface DemoSceneUpdateDTO {
 }
 
 /** 分页查询场景列表 */
-export function queryScenePage(keyword?: string, page = 1, size = 20) {
-  return request.get('/demo/scenes/page', { params: { keyword, page, size } })
+export function queryScenePage(keyword?: string, appCode?: string, page = 1, size = 20) {
+  return request.get('/demo/scenes/page', { params: { keyword, appCode, page, size } })
 }
 
 /** 查询所有场景 */
-export function listAllScenes() {
-  return request.get('/demo/scenes/list-all')
+export function listAllScenes(appCode?: string) {
+  return request.get('/demo/scenes/list-all', { params: { appCode } })
 }
 
 /** 查询场景详情 */

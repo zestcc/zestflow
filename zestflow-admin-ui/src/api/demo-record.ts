@@ -31,6 +31,7 @@ export interface DemoRecordQueryDTO {
   chainCode?: string
   status?: number
   keyword?: string
+  appCode?: string
   startTime?: string
   endTime?: string
   page?: number

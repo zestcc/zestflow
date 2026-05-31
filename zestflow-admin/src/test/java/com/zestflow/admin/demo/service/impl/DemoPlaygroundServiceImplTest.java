@@ -35,6 +35,7 @@ class DemoPlaygroundServiceImplTest {
     void setUp() {
         playgroundService = new DemoPlaygroundServiceImpl(
                 sceneMapper, recordMapper, proxyService, rateLimiter, tenantAppContext);
+        org.springframework.test.util.ReflectionTestUtils.setField(playgroundService, "defaultAppCode", "demo-app");
     }
 
     // ==================== executeScene ====================
@@ -68,7 +69,8 @@ class DemoPlaygroundServiceImplTest {
         when(tenantAppContext.getCurrentTenantId()).thenReturn(1L);
         when(proxyService.executeOnExecutor(anyString(), anyString(), anyString(), anyString()))
                 .thenReturn("{\"instanceId\":\"inst-001\",\"status\":4,\"data\":\"ok\"}");
-        when(recordMapper.insert(any())).thenReturn(1);
+        doAnswer(invocation -> { ((DemoRecordPO) invocation.getArgument(0)).setId(1L); return 1; })
+                .when(recordMapper).insert(any(DemoRecordPO.class));
 
         Map<String, Object> result = playgroundService.executeScene("SCN001", Map.of("msg", "hello"), "10.0.0.1");
 
@@ -86,7 +88,8 @@ class DemoPlaygroundServiceImplTest {
         when(tenantAppContext.getCurrentTenantId()).thenReturn(1L);
         when(proxyService.executeOnExecutor(anyString(), anyString(), anyString(), anyString()))
                 .thenThrow(new RuntimeException("连接超时"));
-        when(recordMapper.insert(any())).thenReturn(1);
+        doAnswer(invocation -> { ((DemoRecordPO) invocation.getArgument(0)).setId(1L); return 1; })
+                .when(recordMapper).insert(any(DemoRecordPO.class));
 
         Map<String, Object> result = playgroundService.executeScene("SCN001", Map.of(), "10.0.0.1");
 

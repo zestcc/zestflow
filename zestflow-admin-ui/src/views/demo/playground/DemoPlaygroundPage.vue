@@ -63,6 +63,15 @@
           <!-- 场景选择 + URL -->
           <div class="pg-url-bar">
             <el-select
+              v-model="currentAppCode"
+              filterable
+              style="width:160px"
+              placeholder="选择应用"
+              @change="handleAppChange"
+            >
+              <el-option v-for="m in apps" :key="m.appCode" :label="m.appName || m.appCode" :value="m.appCode" />
+            </el-select>
+            <el-select
               v-model="selectedSceneCode"
               :placeholder="$t('demo.playground.selectScene')"
               class="pg-scene-select"
@@ -129,7 +138,7 @@
               <div v-show="bodyType === 'json'">
                 <div class="pg-editor-toolbar">
                   <el-button size="small" text @click="formatJson">{{ $t('demo.playground.format') }}</el-button>
-                  <el-button size="small" text @click="resetJson">{{ $t('demo.playground.reset') }}</el-button>
+                  <el-button size="small" text @click="flattenJson">{{ $t('demo.playground.flatten') }}</el-button>
                 </div>
                 <textarea
                   v-model="requestBody"
@@ -277,6 +286,7 @@ import {
   executePlaygroundScene, queryPlaygroundHistory, getPlaygroundHistoryDetail,
   type PlaygroundExecuteResult, type DemoRecordVO,
 } from '@/api/demo-playground'
+import { executorApi, type AppOption } from '@/api/executor'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -296,8 +306,31 @@ const methodTagType = computed(() => {
   return 'info'
 })
 
+// === 应用 ===
+const apps = ref<AppOption[]>([])
+const currentAppCode = ref('')
+
+async function loadApps() {
+  try {
+    const res: any = await executorApi.listApps()
+    const data = res.data || res
+    apps.value = Array.isArray(data) ? data : []
+    if (apps.value.length > 0 && !currentAppCode.value) {
+      currentAppCode.value = apps.value[0].appCode
+    }
+  } catch { /* ignore */ }
+}
+
+function handleAppChange() {
+  loadScenes()
+  loadHistory()
+}
+
 const requestPathDisplay = computed(() => {
   const path = sceneInfo.value?.requestPath || '/execute'
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path
+  }
   return `${baseUrl.value}/api${path}`
 })
 
@@ -365,8 +398,13 @@ function formatJson() {
   }
 }
 
-function resetJson() {
-  requestBody.value = sceneInfo.value?.requestBody || '{\n  \n}'
+function flattenJson() {
+  try {
+    const obj = JSON.parse(requestBody.value)
+    requestBody.value = JSON.stringify(obj)
+  } catch {
+    ElMessage.warning(t('demo.playground.invalidJson'))
+  }
 }
 
 const formatResponseBody = computed(() => {
@@ -420,6 +458,15 @@ async function onSceneChange(sceneCode: string) {
 
   formFields.value = []
   const bt = sceneInfo.value?.bodyType || 'JSON'
+
+  // Format JSON body for editing
+  if (bt === 'JSON' && requestBody.value) {
+    try {
+      const obj = JSON.parse(requestBody.value)
+      requestBody.value = JSON.stringify(obj, null, 2)
+    } catch { /* ignore */ }
+  }
+
   bodyType.value = bt === 'FORM' ? 'form' : bt === 'RAW' ? 'raw' : 'json'
   lastResult.value = null
 }
@@ -439,6 +486,7 @@ async function loadHistory() {
     const res: any = await queryPlaygroundHistory({
       page: currentPage.value,
       size: size.value,
+      appCode: currentAppCode.value || undefined,
     })
     const data = res.data || res
     historyList.value = data.records || []
@@ -447,6 +495,22 @@ async function loadHistory() {
     // silent
   } finally {
     historyLoading.value = false
+  }
+}
+
+async function loadScenes() {
+  try {
+    const data = await listAllScenes(currentAppCode.value || undefined)
+    scenes.value = Array.isArray(data) ? data : []
+    if (scenes.value.length > 0) {
+      selectedSceneCode.value = scenes.value[0].sceneCode
+      await onSceneChange(selectedSceneCode.value)
+    } else {
+      selectedSceneCode.value = ''
+      sceneInfo.value = null
+    }
+  } catch {
+    ElMessage.error(t('demo.playground.loadFailed'))
   }
 }
 
@@ -472,6 +536,12 @@ function loadHistoryToForm() {
   // Load request body
   if (historyDetail.value.requestBody) {
     requestBody.value = historyDetail.value.requestBody
+    if (bodyType.value === 'json') {
+      try {
+        const obj = JSON.parse(requestBody.value)
+        requestBody.value = JSON.stringify(obj, null, 2)
+      } catch { /* ignore */ }
+    }
   }
 
   // Load headers
@@ -513,16 +583,8 @@ function prettyPrintJson(str: string | null | undefined): string {
 
 // === 初始化 ===
 onMounted(async () => {
-  try {
-    const res: any = await listAllScenes()
-    scenes.value = res.data || []
-    if (scenes.value.length > 0) {
-      selectedSceneCode.value = scenes.value[0].sceneCode
-      await onSceneChange(selectedSceneCode.value)
-    }
-  } catch {
-    ElMessage.error(t('demo.playground.loadFailed'))
-  }
+  await loadApps()
+  await loadScenes()
   await loadHistory()
 })
 </script>

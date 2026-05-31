@@ -16,6 +16,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.util.StringUtils;
+
 import java.util.Map;
 
 /**
@@ -74,6 +76,7 @@ public class DemoPlaygroundController {
                         new LambdaQueryWrapper<DemoRecordPO>()
                                 .eq(dto.getSceneId() != null, DemoRecordPO::getSceneId, dto.getSceneId())
                                 .eq(dto.getStatus() != null, DemoRecordPO::getStatus, dto.getStatus())
+                                .eq(StringUtils.hasText(dto.getAppCode()), DemoRecordPO::getAppCode, dto.getAppCode())
                                 .orderByDesc(DemoRecordPO::getCreatedAt))
                         .convert(this::toVO));
     }

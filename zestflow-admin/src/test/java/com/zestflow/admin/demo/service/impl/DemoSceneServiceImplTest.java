@@ -38,6 +38,7 @@ class DemoSceneServiceImplTest {
     @BeforeEach
     void setUp() {
         sceneService = new DemoSceneServiceImpl(sceneMapper, tenantAppContext);
+        org.springframework.test.util.ReflectionTestUtils.setField(sceneService, "defaultAppCode", "demo-app");
     }
 
     // ==================== create ====================
@@ -45,7 +46,7 @@ class DemoSceneServiceImplTest {
     @Test
     void create_shouldGenerateCodeAndSetAuditFields() {
         when(tenantAppContext.getCurrentTenantId()).thenReturn(999L);
-        when(sceneMapper.insert(any())).thenReturn(1);
+        when(sceneMapper.insert(any(DemoScenePO.class))).thenReturn(1);
 
         DemoSceneCreateDTO dto = new DemoSceneCreateDTO();
         dto.setName("测试场景");
@@ -76,7 +77,7 @@ class DemoSceneServiceImplTest {
     @Test
     void create_shouldUseDefaultRateLimit_whenNotProvided() {
         when(tenantAppContext.getCurrentTenantId()).thenReturn(1L);
-        when(sceneMapper.insert(any())).thenReturn(1);
+        when(sceneMapper.insert(any(DemoScenePO.class))).thenReturn(1);
 
         DemoSceneCreateDTO dto = new DemoSceneCreateDTO();
         dto.setName("默认限流");
@@ -131,7 +132,7 @@ class DemoSceneServiceImplTest {
     void update_shouldModifyFields() {
         DemoScenePO existing = createTestPO(1L, "SCN001");
         when(sceneMapper.selectById(1L)).thenReturn(existing);
-        when(sceneMapper.updateById(any())).thenReturn(1);
+        when(sceneMapper.updateById(any(DemoScenePO.class))).thenReturn(1);
         when(sceneMapper.selectById(1L)).thenReturn(existing); // same PO ref
 
         DemoSceneUpdateDTO dto = new DemoSceneUpdateDTO();
@@ -173,7 +174,7 @@ class DemoSceneServiceImplTest {
         poPage.setTotal(1);
         when(sceneMapper.selectPage(any(Page.class), any())).thenReturn(poPage);
 
-        IPage<DemoSceneVO> result = sceneService.queryPage(null, 1, 10);
+        IPage<DemoSceneVO> result = sceneService.queryPage(null, null, 1, 10);
 
         assertThat(result.getRecords()).hasSize(1);
         assertThat(result.getTotal()).isEqualTo(1);
@@ -187,7 +188,7 @@ class DemoSceneServiceImplTest {
         poPage.setTotal(0);
         when(sceneMapper.selectPage(any(Page.class), any())).thenReturn(poPage);
 
-        IPage<DemoSceneVO> result = sceneService.queryPage("关键字", 1, 10);
+        IPage<DemoSceneVO> result = sceneService.queryPage("关键字", null, 1, 10);
 
         assertThat(result.getRecords()).isEmpty();
         // verify keyword was passed to query wrapper
@@ -204,7 +205,7 @@ class DemoSceneServiceImplTest {
         when(sceneMapper.selectList(any())).thenReturn(
                 List.of(createTestPO(1L, "SCN001"), createTestPO(2L, "SCN002")));
 
-        List<DemoSceneVO> list = sceneService.listAll();
+        List<DemoSceneVO> list = sceneService.listAll(null);
 
         assertThat(list).hasSize(2);
     }

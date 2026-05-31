@@ -14,6 +14,7 @@ public class DemoRecordQueryDTO {
     private String chainCode;
     private Integer status;
     private String keyword;
+    private String appCode;
     private String startTime;
     private String endTime;
     private int page = 1;

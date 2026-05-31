@@ -126,28 +126,28 @@ class DemoSceneControllerTest {
 
     @Test
     void queryPage_shouldReturnPagedResults() {
-        var result = controller.queryPage(null, 1, 20);
+        var result = controller.queryPage(null, null, 1, 20);
 
         assertThat(result.getCode()).isEqualTo(200);
-        verify(sceneService).queryPage(null, 1, 20);
+        verify(sceneService).queryPage(null, null, 1, 20);
     }
 
     @Test
     void queryPage_shouldSearchByKeyword() {
-        var result = controller.queryPage("test", 1, 10);
+        var result = controller.queryPage("test", null, 1, 10);
 
         assertThat(result.getCode()).isEqualTo(200);
-        verify(sceneService).queryPage("test", 1, 10);
+        verify(sceneService).queryPage("test", null, 1, 10);
     }
 
     // ==================== listAll ====================
 
     @Test
     void listAll_shouldReturnList() {
-        var result = controller.listAll();
+        var result = controller.listAll(null);
 
         assertThat(result.getCode()).isEqualTo(200);
-        verify(sceneService).listAll();
+        verify(sceneService).listAll(null);
     }
 
     private DemoSceneVO createTestVO() {

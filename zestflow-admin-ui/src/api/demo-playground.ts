@@ -1,6 +1,7 @@
 import request from './index'
 import type { DemoSceneVO } from './demo-scene'
 import type { DemoRecordVO } from './demo-record'
+export type { DemoRecordVO }
 
 export interface PlaygroundExecuteResult {
   code: number
