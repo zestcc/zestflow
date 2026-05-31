@@ -264,6 +264,26 @@ CREATE TABLE `zestflow_admin`.`sys_dict_data` (
     KEY `idx_type_code` (`type_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='字典数据表';
 
+-- 2026-05-31：试验场执行记录表
+CREATE TABLE IF NOT EXISTS `zestflow_admin`.`playground_log` (
+    `id`               BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键',
+    `scene_id`         VARCHAR(64)  NOT NULL                 COMMENT '场景标识',
+    `scene_name`       VARCHAR(128) DEFAULT NULL             COMMENT '场景名称',
+    `chain_code`       VARCHAR(64)  NOT NULL                 COMMENT '链编码',
+    `request_ip`       VARCHAR(64)  DEFAULT NULL             COMMENT '请求IP（仅入库，不展示）',
+    `request_headers`  TEXT         DEFAULT NULL             COMMENT '自定义请求头 JSON',
+    `params`           TEXT         DEFAULT NULL             COMMENT '请求参数 JSON',
+    `result`           TEXT         DEFAULT NULL             COMMENT '执行结果 JSON',
+    `instance_id`      VARCHAR(128) DEFAULT NULL             COMMENT '链执行实例 ID',
+    `status`           TINYINT      DEFAULT 0                COMMENT '状态：0-失败 1-成功',
+    `cost_ms`          BIGINT       DEFAULT NULL             COMMENT '耗时（毫秒）',
+    `error_msg`        VARCHAR(500) DEFAULT NULL             COMMENT '错误信息',
+    `created_at`       DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_created_at` (`created_at`),
+    KEY `idx_scene_id` (`scene_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='试验场执行记录表';
+
 -- ==================== 日志库（zestflow_test_log） ====================
 
 CREATE TABLE `zestflow_test_log`.`chain_event` (

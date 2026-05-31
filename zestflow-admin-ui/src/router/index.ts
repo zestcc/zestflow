@@ -73,6 +73,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '设计编辑器' },
       },
       {
+        path: 'playground',
+        name: 'Playground',
+        component: () => import('@/views/playground/PlaygroundPage.vue'),
+        meta: { title: '试验场' },
+      },
+      {
         path: 'components',
         name: 'Components',
         component: () => import('@/views/components/ComponentsPage.vue'),
