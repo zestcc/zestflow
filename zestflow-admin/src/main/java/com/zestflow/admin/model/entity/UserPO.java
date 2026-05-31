@@ -26,6 +26,10 @@ public class UserPO {
 
     private Integer mustChangePassword;
 
+    private Long tenantId;
+
+    private String createdBy;
+
     @TableField(value = "updated_by", fill = FieldFill.INSERT_UPDATE)
     private String updatedBy;
 

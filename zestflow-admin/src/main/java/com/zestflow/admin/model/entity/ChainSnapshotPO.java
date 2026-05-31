@@ -26,6 +26,19 @@ public class ChainSnapshotPO {
     @TableField("published_by")
     private String publishedBy;
 
+    private Long tenantId;
+
+    @TableField("app_code")
+    private String appCode;
+
+    private String createdBy;
+
+    @TableField(value = "updated_by", fill = FieldFill.INSERT_UPDATE)
+    private String updatedBy;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
+
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private LocalDateTime updatedAt;
 }

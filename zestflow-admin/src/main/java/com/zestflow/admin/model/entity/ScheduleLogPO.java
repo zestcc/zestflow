@@ -36,6 +36,18 @@ public class ScheduleLogPO {
 
     private LocalDateTime triggeredAt;
 
+    private Long tenantId;
+
+    private String appCode;
+
+    private String createdBy;
+
+    @TableField(value = "updated_by", fill = FieldFill.INSERT_UPDATE)
+    private String updatedBy;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
+
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private LocalDateTime updatedAt;
 }

@@ -6,6 +6,7 @@ import com.zestflow.admin.model.entity.CollectorRegistryPO;
 import com.zestflow.admin.model.vo.CollectorRegistryVO;
 import com.zestflow.admin.repository.CollectorRegistryMapper;
 import com.zestflow.admin.service.CollectorRegistryService;
+import com.zestflow.admin.service.TenantAppContext;
 import com.zestflow.common.constant.RegistryConstants;
 import com.zestflow.common.exception.BizException;
 import com.zestflow.common.model.dto.HeartbeatDTO;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -25,6 +27,7 @@ import java.util.stream.Collectors;
 public class CollectorRegistryServiceImpl implements CollectorRegistryService {
 
     private final CollectorRegistryMapper collectorRegistryMapper;
+    private final TenantAppContext tenantAppContext;
 
     // ==================== 注册/心跳/下线（供 CollectorRegistrar 调用） ====================
 
@@ -120,10 +123,13 @@ public class CollectorRegistryServiceImpl implements CollectorRegistryService {
 
     @Override
     public List<CollectorRegistryVO> listAll() {
-        List<CollectorRegistryPO> list = collectorRegistryMapper.selectList(
-                new LambdaQueryWrapper<CollectorRegistryPO>()
-                        .orderByDesc(CollectorRegistryPO::getLastHeartbeat)
-        );
+        Set<String> accessibleCodes = tenantAppContext.getCurrentUserAppCodes();
+        LambdaQueryWrapper<CollectorRegistryPO> wrapper = new LambdaQueryWrapper<>();
+        if (accessibleCodes != null && !accessibleCodes.isEmpty()) {
+            wrapper.in(CollectorRegistryPO::getAppCode, accessibleCodes);
+        }
+        wrapper.orderByDesc(CollectorRegistryPO::getLastHeartbeat);
+        List<CollectorRegistryPO> list = collectorRegistryMapper.selectList(wrapper);
         return list.stream().map(this::enrichVO).collect(Collectors.toList());
     }
 

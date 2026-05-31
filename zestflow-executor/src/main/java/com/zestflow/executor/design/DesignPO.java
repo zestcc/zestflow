@@ -17,6 +17,8 @@ public class DesignPO {
     private Integer status;
     private String graphData;
     private String chainData;
+    private Long tenantId;
+    private String appCode;
     private String createdBy;
     private String updatedBy;
     private String createdAt;

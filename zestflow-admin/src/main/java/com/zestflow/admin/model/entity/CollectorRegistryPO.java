@@ -1,5 +1,6 @@
 package com.zestflow.admin.model.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -40,7 +41,16 @@ public class CollectorRegistryPO {
     /** 最后心跳时间 */
     private LocalDateTime lastHeartbeat;
 
+    private Long tenantId;
+
+    private String createdBy;
+
+    @TableField(value = "updated_by", fill = FieldFill.INSERT_UPDATE)
     private String updatedBy;
+
+    @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
+
+    @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
 }

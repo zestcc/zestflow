@@ -19,6 +19,8 @@ public class ChainVersionPO {
     private String designCode;
     private String graphData;
     private String chainData;
+    private Long tenantId;
+    private String appCode;
     private String createdBy;
     private String createdAt;
 }

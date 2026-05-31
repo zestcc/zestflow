@@ -1,7 +1,9 @@
 package com.zestflow.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.model.dto.ScheduleCreateDTO;
 import com.zestflow.admin.model.dto.ScheduleUpdateDTO;
@@ -15,6 +17,7 @@ import com.zestflow.admin.repository.ScheduleLogMapper;
 import com.zestflow.admin.repository.ScheduleMapper;
 import com.zestflow.admin.schedule.ExecutorClient;
 import com.zestflow.admin.schedule.RouteStrategy;
+import com.zestflow.admin.service.TenantAppContext;
 import com.zestflow.common.constant.RegistryConstants;
 import com.zestflow.common.exception.BizException;
 import com.zestflow.common.model.dto.ChainExecuteResultDTO;
@@ -27,7 +30,9 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -43,6 +48,7 @@ class ScheduleServiceImplTest {
     @Mock private ExecutorRegistryMapper executorRegistryMapper;
     @Mock private ExecutorClient executorClient;
     @Mock private RouteStrategy routeStrategy;
+    @Mock private TenantAppContext tenantAppContext;
 
     private ScheduleServiceImpl scheduleService;
 
@@ -51,12 +57,18 @@ class ScheduleServiceImplTest {
         when(routeStrategy.name()).thenReturn("round_robin");
         scheduleService = new ScheduleServiceImpl(
                 scheduleMapper, scheduleLogMapper,
-                executorRegistryMapper, executorClient, List.of(routeStrategy)
+                executorRegistryMapper, executorClient,
+                tenantAppContext, List.of(routeStrategy)
         );
     }
 
+    // ==================== CRUD ====================
+
     @Test
     void createSchedule() {
+        when(tenantAppContext.getCurrentTenantId()).thenReturn(1L);
+        when(tenantAppContext.getCurrentUserAppCodes()).thenReturn(Set.of("app-a"));
+
         ScheduleCreateDTO dto = new ScheduleCreateDTO();
         dto.setChainCode("chain-test");
         dto.setChainName("测试链");
@@ -69,7 +81,26 @@ class ScheduleServiceImplTest {
         assertThat(vo.getChainCode()).isEqualTo("chain-test");
         assertThat(vo.getCron()).isEqualTo("0 */5 * * * ?");
         assertThat(vo.getCreatedBy()).isEqualTo("admin");
-        verify(scheduleMapper).insert(any(SchedulePO.class));
+        verify(scheduleMapper).insert(org.mockito.ArgumentMatchers.<SchedulePO>argThat(po ->
+                po.getTenantId() == 1L && "app-a".equals(po.getAppCode())));
+    }
+
+    @Test
+    void createSchedule_noAppCodeAssigned() {
+        when(tenantAppContext.getCurrentTenantId()).thenReturn(1L);
+        when(tenantAppContext.getCurrentUserAppCodes()).thenReturn(Collections.emptySet());
+
+        ScheduleCreateDTO dto = new ScheduleCreateDTO();
+        dto.setChainCode("chain-test");
+        dto.setChainName("测试链");
+        dto.setCron("0 */5 * * * ?");
+
+        ScheduleVO vo = scheduleService.create(dto, "admin");
+
+        assertThat(vo.getChainCode()).isEqualTo("chain-test");
+        // appCode 应为 null（超管创建时无显式 appCode）
+        verify(scheduleMapper).insert(org.mockito.ArgumentMatchers.<SchedulePO>argThat(po ->
+                po.getAppCode() == null && po.getTenantId() == 1L));
     }
 
     @Test
@@ -140,23 +171,46 @@ class ScheduleServiceImplTest {
         verify(scheduleMapper).updateById(po);
     }
 
-    @Test
-    @SuppressWarnings("unchecked")
-    void listSchedules() {
-        when(scheduleMapper.selectPage(any(), any(Wrapper.class)))
-                .thenAnswer(invocation -> {
-                    IPage<SchedulePO> page = mock(IPage.class);
-                    when(page.getRecords()).thenReturn(List.of());
-                    when(page.getCurrent()).thenReturn(1L);
-                    when(page.getSize()).thenReturn(10L);
-                    when(page.getTotal()).thenReturn(0L);
-                    return page;
-                });
+    // ==================== list（含 app_code 过滤） ====================
 
-        IPage<ScheduleVO> result = scheduleService.list(null, null, 1, 10);
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
+    void list_superAdmin_noAppFilter() {
+        when(tenantAppContext.getCurrentUserAppCodes()).thenReturn(Collections.emptySet());
+        IPage<SchedulePO> page = mock(IPage.class);
+        when(page.getRecords()).thenReturn(List.of());
+        when(page.getCurrent()).thenReturn(1L);
+        when(page.getSize()).thenReturn(20L);
+        when(page.getTotal()).thenReturn(0L);
+        when(scheduleMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class)))
+                .thenAnswer(invocation -> page);
+
+        IPage<ScheduleVO> result = scheduleService.list(null, null, 1, 20);
 
         assertThat(result).isNotNull();
+        // 验证不过滤 app_code
+        verify(scheduleMapper).selectPage(any(), any(LambdaQueryWrapper.class));
     }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
+    void list_normalUser_filtersByAppCode() {
+        when(tenantAppContext.getCurrentUserAppCodes()).thenReturn(Set.of("app-a", "app-b"));
+        IPage<SchedulePO> page = mock(IPage.class);
+        when(page.getRecords()).thenReturn(List.of());
+        when(page.getCurrent()).thenReturn(1L);
+        when(page.getSize()).thenReturn(20L);
+        when(page.getTotal()).thenReturn(0L);
+        when(scheduleMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class)))
+                .thenAnswer(invocation -> page);
+
+        IPage<ScheduleVO> result = scheduleService.list(null, null, 1, 20);
+
+        assertThat(result).isNotNull();
+        verify(scheduleMapper).selectPage(any(), any(LambdaQueryWrapper.class));
+    }
+
+    // ==================== trigger ====================
 
     @Test
     void triggerSuccess() {
@@ -201,5 +255,52 @@ class ScheduleServiceImplTest {
 
         assertThat(logVO.getStatus()).isEqualTo(2); // failed
         assertThat(logVO.getErrorMessage()).contains("无可用在线执行器");
+    }
+
+    @Test
+    void trigger_routeReturnsNull() {
+        SchedulePO schedule = new SchedulePO();
+        schedule.setId(1L);
+        schedule.setChainCode("chain-test");
+        schedule.setRouteStrategy("round_robin");
+        when(scheduleMapper.selectById(1L)).thenReturn(schedule);
+
+        ExecutorRegistryPO executor = new ExecutorRegistryPO();
+        executor.setExecutorId("e1");
+        executor.setExecutorHost("192.168.1.1");
+        executor.setExecutorPort(9999);
+        when(executorRegistryMapper.selectList(any())).thenReturn(List.of(executor));
+        when(routeStrategy.select(anyList(), anyString())).thenReturn(null);
+
+        ScheduleLogVO logVO = scheduleService.trigger(1L);
+
+        assertThat(logVO.getStatus()).isEqualTo(2);
+        assertThat(logVO.getErrorMessage()).contains("路由策略未选中执行器");
+    }
+
+    // ==================== listLogs ====================
+
+    @Test
+    void listLogs_withScheduleId() {
+        when(scheduleLogMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class)))
+                .thenAnswer(invocation -> {
+                    Page<ScheduleLogVO> page = new Page<>(1, 20);
+                    page.setRecords(Collections.emptyList());
+                    return page;
+                });
+
+        IPage<ScheduleLogVO> result = scheduleService.listLogs(1L, null, 1, 20);
+
+        assertThat(result).isNotNull();
+    }
+
+    @Test
+    void listLogs_withStatusFilter() {
+        when(scheduleLogMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class)))
+                .thenAnswer(invocation -> new Page<>(1, 20));
+
+        IPage<ScheduleLogVO> result = scheduleService.listLogs(null, 2, 1, 20);
+
+        assertThat(result).isNotNull();
     }
 }

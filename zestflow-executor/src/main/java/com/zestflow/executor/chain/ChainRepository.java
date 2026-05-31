@@ -23,6 +23,8 @@ public class ChainRepository {
         po.setStatus(rs.getInt("status"));
         po.setDesignCode(rs.getString("design_code"));
         try { po.setVersion(rs.getInt("version")); } catch (Exception ignored) {}
+        try { po.setAppCode(rs.getString("app_code")); } catch (Exception ignored) {}
+        try { po.setTenantId(rs.getLong("tenant_id")); } catch (Exception ignored) {}
         po.setCreatedBy(rs.getString("created_by"));
         po.setUpdatedBy(rs.getString("updated_by"));
         po.setCreatedAt(rs.getString("created_at"));
@@ -63,9 +65,9 @@ public class ChainRepository {
         String code = CodeGenerator.generate("CHN");
         String now = LocalDateTime.now().format(DTF);
         String creator = updatedBy != null ? updatedBy : (appCode != null ? appCode : "");
-        jdbc.update("INSERT INTO zf_chain(code, name, description, status, version, created_by, updated_by, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?)",
+        jdbc.update("INSERT INTO zf_chain(code, name, description, status, version, app_code, tenant_id, created_by, updated_by, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                 code, name, description, status != null ? status : 1, 1,
-                creator, creator, now, now);
+                appCode, 1L, creator, creator, now, now);
         log.info("链创建成功 code={} name={} createdBy={}", code, name, creator);
         return get(code);
     }
@@ -138,6 +140,8 @@ public class ChainRepository {
         po.setDesignCode(rs.getString("design_code"));
         po.setGraphData(rs.getString("graph_data"));
         po.setChainData(rs.getString("chain_data"));
+        try { po.setAppCode(rs.getString("app_code")); } catch (Exception ignored) {}
+        try { po.setTenantId(rs.getLong("tenant_id")); } catch (Exception ignored) {}
         po.setCreatedBy(rs.getString("created_by"));
         po.setCreatedAt(rs.getString("created_at"));
         return po;
@@ -159,9 +163,11 @@ public class ChainRepository {
     public void saveVersionSnapshot(String chainCode, int version, String designCode,
                                      String graphData, String chainData, String createdBy) {
         String now = LocalDateTime.now().format(DTF);
-        jdbc.update("INSERT INTO zf_chain_version(chain_code, version, design_code, graph_data, chain_data, created_by, created_at) VALUES(?,?,?,?,?,?,?)",
+        ChainPO cur = get(chainCode);
+        String appCode = cur != null ? cur.getAppCode() : null;
+        jdbc.update("INSERT INTO zf_chain_version(chain_code, version, design_code, graph_data, chain_data, app_code, tenant_id, created_by, created_at) VALUES(?,?,?,?,?,?,?,?,?)",
                 chainCode, version, designCode, graphData, chainData,
-                createdBy != null ? createdBy : "", now);
+                appCode, 1L, createdBy != null ? createdBy : "", now);
         log.info("版本快照已保存 chainCode={} version={}", chainCode, version);
     }
 

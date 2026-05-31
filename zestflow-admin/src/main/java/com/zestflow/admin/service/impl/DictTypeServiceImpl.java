@@ -15,6 +15,7 @@ import com.zestflow.admin.model.vo.DictTypeVO;
 import com.zestflow.admin.repository.DictDataMapper;
 import com.zestflow.admin.repository.DictTypeMapper;
 import com.zestflow.admin.service.DictTypeService;
+import com.zestflow.admin.service.TenantAppContext;
 import com.zestflow.common.exception.BizException;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -35,6 +37,7 @@ public class DictTypeServiceImpl implements DictTypeService {
 
     private final DictTypeMapper dictTypeMapper;
     private final DictDataMapper dictDataMapper;
+    private final TenantAppContext tenantAppContext;
 
     /** 本地缓存：typeCode → DictDataVO list */
     private final Map<String, List<DictDataVO>> dictDataCache = new ConcurrentHashMap<>();
@@ -135,6 +138,11 @@ public class DictTypeServiceImpl implements DictTypeService {
             wrapper.and(w -> w.like(DictTypePO::getCode, keyword)
                     .or().like(DictTypePO::getName, keyword));
         }
+        // 非超管：系统级（app_code IS NULL）+ 有权限的应用级字典
+        Set<String> accessibleCodes = tenantAppContext.getCurrentUserAppCodes();
+        if (accessibleCodes != null && !accessibleCodes.isEmpty()) {
+            wrapper.and(w -> w.isNull(DictTypePO::getAppCode).or().in(DictTypePO::getAppCode, accessibleCodes));
+        }
         wrapper.orderByAsc(DictTypePO::getSort).orderByDesc(DictTypePO::getCreatedAt);
 
         IPage<DictTypePO> poPage = dictTypeMapper.selectPage(new Page<>(page, size), wrapper);
@@ -150,9 +158,22 @@ public class DictTypeServiceImpl implements DictTypeService {
         if (po == null) {
             throw new BizException(ErrorCode.DICT_TYPE_NOT_FOUND);
         }
+        // 校验 appCode 可见性：非空 appCode 需在用户可访问范围内
+        checkAppCodeAccessible(po.getAppCode());
         DictTypeVO vo = toTypeVO(po);
         vo.setDataList(listDataByCode(code));
         return vo;
+    }
+
+    /**
+     * 校验当前用户是否有权限访问指定 appCode 的字典
+     */
+    private void checkAppCodeAccessible(String appCode) {
+        if (appCode == null) return; // 系统级字典全员可见
+        Set<String> accessibleCodes = tenantAppContext.getCurrentUserAppCodes();
+        if (accessibleCodes != null && !accessibleCodes.isEmpty() && !accessibleCodes.contains(appCode)) {
+            throw new BizException(ErrorCode.PERMISSION_DENIED);
+        }
     }
 
     @Override

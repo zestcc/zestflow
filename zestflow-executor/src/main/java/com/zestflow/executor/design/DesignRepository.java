@@ -25,6 +25,8 @@ public class DesignRepository {
         po.setStatus(rs.getInt("status"));
         po.setGraphData(rs.getString("graph_data"));
         try { po.setChainData(rs.getString("chain_data")); } catch (Exception ignored) {}
+        try { po.setAppCode(rs.getString("app_code")); } catch (Exception ignored) {}
+        try { po.setTenantId(rs.getLong("tenant_id")); } catch (Exception ignored) {}
         po.setCreatedBy(rs.getString("created_by"));
         po.setUpdatedBy(rs.getString("updated_by"));
         po.setCreatedAt(rs.getString("created_at"));
@@ -40,6 +42,8 @@ public class DesignRepository {
         po.setDescription(rs.getString("description"));
         po.setStatus(rs.getInt("status"));
         po.setDesignCode(rs.getString("design_code"));
+        try { po.setAppCode(rs.getString("app_code")); } catch (Exception ignored) {}
+        try { po.setTenantId(rs.getLong("tenant_id")); } catch (Exception ignored) {}
         po.setCreatedBy(rs.getString("created_by"));
         po.setUpdatedBy(rs.getString("updated_by"));
         po.setCreatedAt(rs.getString("created_at"));
@@ -82,9 +86,9 @@ public class DesignRepository {
         String code = CodeGenerator.generate("DSN");
         String now = LocalDateTime.now().format(DTF);
         String creator = updatedBy != null ? updatedBy : (appCode != null ? appCode : "");
-        jdbc.update("INSERT INTO zf_design(code, name, description, designer, status, graph_data, chain_data, created_by, updated_by, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+        jdbc.update("INSERT INTO zf_design(code, name, description, designer, status, graph_data, chain_data, app_code, tenant_id, created_by, updated_by, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 code, name, description, designer, 1, graphData, chainData,
-                creator, creator, now, now);
+                appCode, 1L, creator, creator, now, now);
         log.info("设计创建成功 code={} name={} createdBy={}", code, name, creator);
         return get(code);
     }

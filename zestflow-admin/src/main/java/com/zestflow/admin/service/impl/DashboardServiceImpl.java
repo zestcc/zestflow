@@ -10,6 +10,7 @@ import com.zestflow.admin.model.entity.ExecutorRegistryPO;
 import com.zestflow.admin.model.vo.DashboardStatsVO;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import com.zestflow.admin.service.DashboardService;
+import com.zestflow.admin.service.TenantAppContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -30,6 +32,7 @@ public class DashboardServiceImpl implements DashboardService {
     private final ExecutorRegistryMapper executorRegistryMapper;
     private final ExecutorProxyService proxyService;
     private final CollectorClient collectorClient;
+    private final TenantAppContext tenantAppContext;
 
     @Override
     public DashboardStatsVO getStats() {
@@ -68,6 +71,12 @@ public class DashboardServiceImpl implements DashboardService {
         List<String> appCodes = distinctApps.stream()
                 .map(ExecutorRegistryPO::getAppCode)
                 .collect(Collectors.toList());
+
+        // 非超管按 appCode 过滤可见应用
+        Set<String> accessibleCodes = tenantAppContext.getCurrentUserAppCodes();
+        if (accessibleCodes != null && !accessibleCodes.isEmpty()) {
+            appCodes = appCodes.stream().filter(accessibleCodes::contains).collect(Collectors.toList());
+        }
 
         for (String appCode : appCodes) {
             if (appCode == null || appCode.isBlank()) continue;

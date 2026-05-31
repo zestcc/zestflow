@@ -1,7 +1,13 @@
 package com.zestflow.admin.controller;
 
 import com.zestflow.admin.client.ExecutorProxyService;
+import com.zestflow.admin.constant.ErrorCode;
+import com.zestflow.admin.service.PermissionService;
+import com.zestflow.admin.util.SecurityUtils;
+import com.zestflow.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -13,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 public class ComponentController {
 
     private final ExecutorProxyService proxyService;
+    private final PermissionService permissionService;
 
     @GetMapping
     public String list(
@@ -24,6 +31,7 @@ public class ComponentController {
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size) {
         if (appCode != null && !appCode.isBlank()) {
+            requireAppPermission(appCode, "APP_VIEWER");
             String query = "?executorId=" + (executorId != null ? executorId : "")
                     + "&keyword=" + (keyword != null ? keyword : "")
                     + "&status=" + (status != null ? status : "")
@@ -36,6 +44,7 @@ public class ComponentController {
 
     @GetMapping("/stats")
     public String stats(@RequestParam String appCode) {
+        requireAppPermission(appCode, "APP_VIEWER");
         String baseUrl = proxyService.resolveExecutorBaseUrl(appCode);
         if (baseUrl == null) {
             return "{\"total\":0,\"active\":0,\"offline\":0}";
@@ -44,7 +53,6 @@ public class ComponentController {
         try {
             com.fasterxml.jackson.databind.JsonNode root = new com.fasterxml.jackson.databind.ObjectMapper().readTree(json);
             int total = root.has("total") ? root.get("total").asInt() : 0;
-            // 统计活跃数
             int active = 0;
             if (root.has("records")) {
                 for (com.fasterxml.jackson.databind.JsonNode rec : root.get("records")) {
@@ -55,6 +63,19 @@ public class ComponentController {
             return "{\"total\":" + total + ",\"active\":" + active + ",\"offline\":" + offline + "}";
         } catch (Exception e) {
             return "{\"total\":0,\"active\":0,\"offline\":0}";
+        }
+    }
+
+    private void requireAppPermission(String appCode, String requiredRole) {
+        if (appCode == null || appCode.isBlank()) return;
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            throw new BizException(ErrorCode.UNAUTHORIZED);
+        }
+        if (SecurityUtils.isSuperAdmin(auth)) return;
+        Long userId = SecurityUtils.getUserId(auth);
+        if (userId == null || !permissionService.hasAppPermission(userId, appCode, requiredRole)) {
+            throw new BizException(ErrorCode.PERMISSION_DENIED);
         }
     }
 }

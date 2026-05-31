@@ -18,6 +18,7 @@ public class MyMetaObjectHandler implements MetaObjectHandler {
     public void insertFill(MetaObject metaObject) {
         this.strictInsertFill(metaObject, "createdAt", LocalDateTime::now, LocalDateTime.class);
         this.strictInsertFill(metaObject, "updatedAt", LocalDateTime::now, LocalDateTime.class);
+        fillCreatedBy(metaObject);
         fillUpdatedBy(metaObject);
     }
 
@@ -25,6 +26,19 @@ public class MyMetaObjectHandler implements MetaObjectHandler {
     public void updateFill(MetaObject metaObject) {
         this.strictUpdateFill(metaObject, "updatedAt", LocalDateTime::now, LocalDateTime.class);
         fillUpdatedBy(metaObject);
+    }
+
+    private void fillCreatedBy(MetaObject metaObject) {
+        try {
+            String username = SecurityUtils.getCurrentUsername();
+            if (username != null) {
+                this.setFieldValByName("createdBy", username, metaObject);
+            } else {
+                this.setFieldValByName("createdBy", systemUser, metaObject);
+            }
+        } catch (Exception ignored) {
+            this.setFieldValByName("createdBy", systemUser, metaObject);
+        }
     }
 
     private void fillUpdatedBy(MetaObject metaObject) {

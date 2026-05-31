@@ -18,6 +18,7 @@ import com.zestflow.admin.repository.ScheduleMapper;
 import com.zestflow.admin.schedule.ExecutorClient;
 import com.zestflow.admin.schedule.RouteStrategy;
 import com.zestflow.admin.service.ScheduleService;
+import com.zestflow.admin.service.TenantAppContext;
 import com.zestflow.common.constant.RegistryConstants;
 import com.zestflow.common.exception.BizException;
 import com.zestflow.common.model.dto.ChainExecuteResultDTO;
@@ -30,6 +31,7 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -41,6 +43,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     private final ScheduleLogMapper scheduleLogMapper;
     private final ExecutorRegistryMapper executorRegistryMapper;
     private final ExecutorClient executorClient;
+    private final TenantAppContext tenantAppContext;
     private final List<RouteStrategy> routeStrategies;
 
     @Override
@@ -52,6 +55,11 @@ public class ScheduleServiceImpl implements ScheduleService {
         if (keyword != null && !keyword.isBlank()) {
             wrapper.and(w -> w.like(SchedulePO::getChainCode, keyword)
                     .or().like(SchedulePO::getChainName, keyword));
+        }
+        // 非超管按 appCode 过滤
+        Set<String> accessibleCodes = tenantAppContext.getCurrentUserAppCodes();
+        if (accessibleCodes != null && !accessibleCodes.isEmpty()) {
+            wrapper.in(SchedulePO::getAppCode, accessibleCodes);
         }
         wrapper.orderByDesc(SchedulePO::getCreatedAt);
 
@@ -82,6 +90,12 @@ public class ScheduleServiceImpl implements ScheduleService {
         po.setStatus(1);
         po.setRemark(dto.getRemark());
         po.setCreatedBy(username);
+        po.setTenantId(tenantAppContext.getCurrentTenantId());
+        // 自动关联用户首个可访问应用（若无显式 appCode）
+        Set<String> accessibleCodes = tenantAppContext.getCurrentUserAppCodes();
+        if (accessibleCodes != null && !accessibleCodes.isEmpty()) {
+            po.setAppCode(accessibleCodes.iterator().next());
+        }
 
         scheduleMapper.insert(po);
 

@@ -7,6 +7,7 @@ import com.zestflow.admin.model.entity.ExecutorRegistryPO;
 import com.zestflow.admin.model.vo.ExecutorRegistryVO;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import com.zestflow.admin.service.ExecutorRegistryService;
+import com.zestflow.admin.service.TenantAppContext;
 import com.zestflow.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -23,13 +25,17 @@ import java.util.stream.Collectors;
 public class ExecutorRegistryServiceImpl implements ExecutorRegistryService {
 
     private final ExecutorRegistryMapper executorRegistryMapper;
+    private final TenantAppContext tenantAppContext;
 
     @Override
     public List<ExecutorRegistryVO> listAll() {
-        List<ExecutorRegistryPO> list = executorRegistryMapper.selectList(
-                new LambdaQueryWrapper<ExecutorRegistryPO>()
-                        .orderByDesc(ExecutorRegistryPO::getLastHeartbeat)
-        );
+        Set<String> accessibleCodes = tenantAppContext.getCurrentUserAppCodes();
+        LambdaQueryWrapper<ExecutorRegistryPO> wrapper = new LambdaQueryWrapper<>();
+        if (accessibleCodes != null && !accessibleCodes.isEmpty()) {
+            wrapper.in(ExecutorRegistryPO::getAppCode, accessibleCodes);
+        }
+        wrapper.orderByDesc(ExecutorRegistryPO::getLastHeartbeat);
+        List<ExecutorRegistryPO> list = executorRegistryMapper.selectList(wrapper);
         return list.stream().map(this::toVO).collect(Collectors.toList());
     }
 

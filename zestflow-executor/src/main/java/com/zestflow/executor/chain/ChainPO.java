@@ -16,6 +16,8 @@ public class ChainPO {
     private Integer status;
     private String designCode;
     private Integer version;
+    private Long tenantId;
+    private String appCode;
     private String createdBy;
     private String updatedBy;
     private String createdAt;

@@ -7,10 +7,16 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.zestflow.admin.client.ExecutorProxyService;
 import com.zestflow.admin.client.ExecutorProxyService.BroadcastResult;
 import com.zestflow.admin.client.ExecutorProxyService.ExecutorResult;
+import com.zestflow.admin.constant.ErrorCode;
+import com.zestflow.admin.service.PermissionService;
+import com.zestflow.admin.util.SecurityUtils;
+import com.zestflow.common.exception.BizException;
 import com.zestflow.common.model.event.ChainEventType;
 import com.zestflow.common.model.event.PublishEventDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import org.springframework.scheduling.annotation.Scheduled;
@@ -33,6 +39,7 @@ public class ChainController {
     private static final ConcurrentHashMap<String, int[]> PUBLISH_PROGRESS = new ConcurrentHashMap<>();
 
     private final ExecutorProxyService proxyService;
+    private final PermissionService permissionService;
 
     @GetMapping
     public String listByAppCode(
@@ -41,6 +48,7 @@ public class ChainController {
             @RequestParam(required = false) Integer status,
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size) {
+        requireAppPermission(appCode, "APP_VIEWER");
         String query = "?keyword=" + (keyword != null ? keyword : "")
                 + "&status=" + (status != null ? status : "")
                 + "&page=" + page + "&size=" + size;
@@ -90,6 +98,7 @@ public class ChainController {
 
     @GetMapping("/active-codes")
     public String fetchActiveCodes(@RequestParam String appCode) {
+        requireAppPermission(appCode, "APP_VIEWER");
         return proxyService.getArrayFromExecutor(appCode, "/api/chains/active-codes", null);
     }
 
@@ -98,6 +107,7 @@ public class ChainController {
      */
     @GetMapping("/code/{code}")
     public String fetchChainDefinition(@PathVariable String code, @RequestParam String appCode) {
+        requireAppPermission(appCode, "APP_VIEWER");
         ObjectNode defNode = MAPPER.createObjectNode();
         try {
             String chainJson = proxyService.getFromExecutor(appCode, "/api/chains/" + code, null);
@@ -178,23 +188,29 @@ public class ChainController {
 
     @GetMapping("/{code}")
     public String getByCode(@PathVariable String code, @RequestParam String appCode) {
+        requireAppPermission(appCode, "APP_VIEWER");
         return proxyService.getFromExecutor(appCode, "/api/chains/" + code, null);
     }
 
     @PostMapping
     public String create(@RequestBody String bodyJson) {
+        String appCode = extractAppCode(bodyJson);
+        requireAppPermission(appCode, "APP_EDITOR");
         String enriched = injectUpdatedBy(bodyJson);
-        return proxyService.executeOnExecutor(extractAppCode(bodyJson), "POST", "/api/chains", enriched);
+        return proxyService.executeOnExecutor(appCode, "POST", "/api/chains", enriched);
     }
 
     @PutMapping("/{code}")
     public String update(@PathVariable String code, @RequestBody String bodyJson) {
+        String appCode = extractAppCode(bodyJson);
+        requireAppPermission(appCode, "APP_EDITOR");
         String enriched = injectUpdatedBy(bodyJson);
-        return proxyService.executeOnExecutor(extractAppCode(bodyJson), "PUT", "/api/chains/" + code, enriched);
+        return proxyService.executeOnExecutor(appCode, "PUT", "/api/chains/" + code, enriched);
     }
 
     @DeleteMapping("/{code}")
     public String delete(@PathVariable String code, @RequestParam String appCode) {
+        requireAppPermission(appCode, "APP_ADMIN");
         String username = com.zestflow.admin.util.SecurityUtils.getCurrentUsername();
         String query = username != null ? "?updatedBy=" + username : "";
         return proxyService.executeOnExecutor(appCode, "DELETE", "/api/chains/" + code + query, null);
@@ -202,6 +218,7 @@ public class ChainController {
 
     @PutMapping("/{code}/status")
     public String toggleStatus(@PathVariable String code, @RequestParam String appCode) {
+        requireAppPermission(appCode, "APP_EDITOR");
         String body = "{\"appCode\":\"" + appCode + "\"}";
         String enriched = injectUpdatedBy(body);
         return proxyService.executeOnExecutor(appCode, "PUT", "/api/chains/" + code + "/status", enriched);
@@ -209,6 +226,7 @@ public class ChainController {
 
     @PostMapping("/{code}/publish")
     public String publish(@PathVariable String code, @RequestParam String appCode) {
+        requireAppPermission(appCode, "APP_ADMIN");
         java.util.List<String> executorUrls = proxyService.resolveAllExecutorUrls(appCode);
         if (executorUrls.isEmpty()) {
             return "{\"code\":400,\"message\":\"该应用无可用执行器\",\"total\":0,\"success\":0}";
@@ -347,14 +365,17 @@ public class ChainController {
 
     @GetMapping("/{code}/versions")
     public String listVersions(@PathVariable String code, @RequestParam String appCode) {
+        requireAppPermission(appCode, "APP_VIEWER");
         return proxyService.getFromExecutor(appCode, "/api/chains/" + code + "/versions", null);
     }
 
     @PostMapping("/{code}/rollback/{version}")
     public String rollback(@PathVariable String code, @PathVariable Integer version,
                             @RequestBody String bodyJson) {
+        String appCode = extractAppCode(bodyJson);
+        requireAppPermission(appCode, "APP_ADMIN");
         String enriched = injectUpdatedBy(bodyJson);
-        return proxyService.executeOnExecutor(extractAppCode(bodyJson), "POST",
+        return proxyService.executeOnExecutor(appCode, "POST",
                 "/api/chains/" + code + "/rollback/" + version, enriched);
     }
 
@@ -378,6 +399,27 @@ public class ChainController {
             return MAPPER.writeValueAsString(node);
         } catch (Exception e) {
             return bodyJson;
+        }
+    }
+
+    /**
+     * 校验当前用户对指定 appCode 的访问权限，无权限则抛异常
+     */
+    private void requireAppPermission(String appCode, String requiredRole) {
+        if (appCode == null || appCode.isBlank()) {
+            return; // 无 appCode 的请求不做权限校验（系统级操作）
+        }
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            throw new BizException(ErrorCode.UNAUTHORIZED);
+        }
+        // 超管跳过
+        if (SecurityUtils.isSuperAdmin(auth)) {
+            return;
+        }
+        Long userId = SecurityUtils.getUserId(auth);
+        if (userId == null || !permissionService.hasAppPermission(userId, appCode, requiredRole)) {
+            throw new BizException(ErrorCode.PERMISSION_DENIED);
         }
     }
 }

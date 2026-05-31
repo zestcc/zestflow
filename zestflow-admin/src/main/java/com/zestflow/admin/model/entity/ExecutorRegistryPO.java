@@ -29,6 +29,10 @@ public class ExecutorRegistryPO {
 
     private LocalDateTime lastHeartbeat;
 
+    private Long tenantId;
+
+    private String createdBy;
+
     @TableField(value = "updated_by", fill = FieldFill.INSERT_UPDATE)
     private String updatedBy;
 

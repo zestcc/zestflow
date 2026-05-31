@@ -44,6 +44,7 @@ zestflow:
   upload:
     avatar-dir: uploads/avatars
   admin:
+    tenant-id: 1
     system-user: sys
     default-user:
       username: admin

@@ -28,6 +28,10 @@ public class SchedulePO {
 
     private String remark;
 
+    private Long tenantId;
+
+    private String appCode;
+
     private String createdBy;
 
     @TableField(value = "updated_by", fill = FieldFill.INSERT_UPDATE)

@@ -28,6 +28,13 @@ public class DictDataPO {
 
     private String remark;
 
+    private Long tenantId;
+
+    @TableField("app_code")
+    private String appCode;
+
+    private String createdBy;
+
     @TableField(value = "updated_by", fill = FieldFill.INSERT_UPDATE)
     private String updatedBy;
 
