@@ -6,6 +6,12 @@ export interface DashboardStatsVO {
   healthyExecutors: number
   errorExecutors: number
   offlineExecutors: number
+  totalChains: number
+  enabledChains: number
+  totalDesigns: number
+  todayExecutions: number
+  avgExecutionMs: number
+  successRate: number
 }
 
 export const dashboardApi = {

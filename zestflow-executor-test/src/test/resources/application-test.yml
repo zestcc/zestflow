@@ -1,0 +1,40 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: test-executor
+  # 主数据源 — 业务数据库（H2 内存模式）
+  datasource:
+    url: jdbc:h2:mem:test_business;DB_CLOSE_DELAY=-1;MODE=MySQL
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+  # 日志数据源 — 事件存储（H2 内存模式）
+  log-datasource:
+    url: jdbc:h2:mem:test_log;DB_CLOSE_DELAY=-1;MODE=MySQL
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  # 禁用 Flyway
+  flyway:
+    enabled: false
+  # H2 web console
+  h2:
+    console:
+      enabled: true
+
+# 禁用执行器自动注册（E2E 测试不需要连接 Admin）
+zestflow:
+  executor:
+    admin-addresses:
+    module-code: test-executor
+    host: localhost
+    port: 0
+    event:
+      queue-capacity: 8192
+      batch-size: 200
+      batch-max-wait-ms: 200

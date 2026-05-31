@@ -11,6 +11,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.LinkedHashMap;
 
 /**
  * Collector HTTP 客户端 — Admin 通过此客户端从 Collector 查询事件数据
@@ -99,6 +100,29 @@ public class CollectorClient {
         } catch (Exception e) {
             log.error("查询执行轨迹详情失败 executionId={}", executionId, e);
             return new ExecutionTraceResult(500, e.getMessage(), null);
+        }
+    }
+
+    /**
+     * 查询事件聚合统计
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> queryStats(Long startTime, Long endTime) {
+        try {
+            String url = apiUrl + "/collector/events/stats";
+            Map<String, Object> requestBody = new LinkedHashMap<>();
+            if (startTime != null) requestBody.put("startTime", startTime);
+            if (endTime != null) requestBody.put("endTime", endTime);
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, buildHeaders());
+            Map<String, Object> response = restTemplate.exchange(url, HttpMethod.POST, entity, Map.class).getBody();
+            if (response != null && response.get("data") instanceof Map) {
+                return (Map<String, Object>) response.get("data");
+            }
+            return Map.of();
+        } catch (Exception e) {
+            log.error("查询事件统计失败", e);
+            return Map.of();
         }
     }
 

@@ -8,6 +8,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 链执行事件 Mapper
@@ -94,4 +95,27 @@ public interface ChainEventMapper extends BaseMapper<ChainEventPO> {
      */
     @Select("SELECT * FROM chain_event WHERE execution_id = #{executionId} ORDER BY timestamp ASC")
     List<ChainEventPO> selectByExecutionId(@Param("executionId") String executionId);
+
+    /**
+     * 聚合统计：总事件数、平均耗时、成功/失败/超时数
+     */
+    @Select({
+            "<script>",
+            "SELECT",
+            "  COUNT(*) AS totalCount,",
+            "  AVG(CASE WHEN e.event_type IN ('CHAIN_COMPLETED','CHAIN_FAILED','CHAIN_TIMEOUT')",
+            "       THEN e.cost_ms ELSE NULL END) AS avgCostMs,",
+            "  SUM(CASE WHEN e.event_type = 'CHAIN_COMPLETED' THEN 1 ELSE 0 END) AS successCount,",
+            "  SUM(CASE WHEN e.event_type IN ('CHAIN_FAILED','CHAIN_TIMEOUT') THEN 1 ELSE 0 END) AS failCount",
+            "FROM chain_event e",
+            "WHERE 1=1",
+            "<if test='query.startTime != null'>",
+            "  AND e.timestamp &gt;= #{query.startTime}",
+            "</if>",
+            "<if test='query.endTime != null'>",
+            "  AND e.timestamp &lt;= #{query.endTime}",
+            "</if>",
+            "</script>"
+    })
+    Map<String, Object> selectAggregatedStats(@Param("query") com.zestflow.collector.model.dto.EventStatsQuery query);
 }

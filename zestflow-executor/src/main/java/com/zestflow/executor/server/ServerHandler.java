@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.zestflow.collector.model.dto.EventQuery;
+import com.zestflow.collector.model.dto.EventStatsQuery;
+import com.zestflow.collector.spi.EventQueryService;
 import com.zestflow.common.model.dto.ChainEvent;
 import com.zestflow.common.model.dto.ChainExecuteRequestDTO;
 import com.zestflow.common.model.dto.ChainExecuteResultDTO;
@@ -46,6 +49,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
     private final ChainLoader chainLoader;
 
     private EventPublisher eventPublisher;
+    private EventQueryService eventQueryService;
 
     public ServerHandler(ChainExecutionEngine chainExecutionEngine, ChainRepository chainRepo, DesignRepository designRepo) {
         this(chainExecutionEngine, chainRepo, designRepo, null, null);
@@ -129,6 +133,18 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
         // 设计 CRUD
         if (uri.startsWith("/api/designs")) {
             return dispatchDesignRoutes(ctx, method, uri, body);
+        }
+
+        // 采集器事件查询
+        if (uri.startsWith("/collector/events")) {
+            return dispatchCollectorRoutes(ctx, method, uri, body);
+        }
+
+        // 采集器健康检查
+        if ("/collector/health".equals(uri) && method == HttpMethod.GET) {
+            writeResponse(ctx, HttpResponseStatus.OK,
+                    "{\"code\":200,\"message\":\"ok\"}");
+            return true;
         }
 
         return false;
@@ -230,6 +246,9 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
             }
             if ("status".equals(action) && method == HttpMethod.PUT) {
                 return handleToggleDesignStatus(ctx, code, body);
+            }
+            if ("bindable".equals(action) && method == HttpMethod.GET) {
+                return handleGetBindable(ctx, code);
             }
             if ("bindings".equals(action) && method == HttpMethod.GET) {
                 return handleGetBindings(ctx, code);
@@ -484,6 +503,25 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
     }
 
     // ==================== 绑定处理 ====================
+
+    /**
+     * 获取可选绑定的链列表（排除已绑定的链）
+     */
+    private boolean handleGetBindable(ChannelHandlerContext ctx, String designCode) throws Exception {
+        List<ChainPO> allChains = chainRepo.list(null, null);
+        List<ChainPO> boundChains = designRepo.getBindings(designCode);
+        Set<String> boundCodes = boundChains.stream().map(ChainPO::getCode).filter(Objects::nonNull).collect(Collectors.toSet());
+        List<ChainPO> bindable = allChains.stream()
+                .filter(c -> !boundCodes.contains(c.getCode()))
+                .collect(Collectors.toList());
+        log.info("查询可选绑定 designCode={} all={} bound={} bindable={}", designCode, allChains.size(), boundChains.size(), bindable.size());
+        ArrayNode arr = MAPPER.createArrayNode();
+        for (ChainPO c : bindable) {
+            arr.add(chainToJson(c));
+        }
+        writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(arr));
+        return true;
+    }
 
     private boolean handleGetBindings(ChannelHandlerContext ctx, String designCode) throws Exception {
         List<ChainPO> bindings = designRepo.getBindings(designCode);
@@ -815,6 +853,155 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
             writeResponse(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR,
                     "{\"code\":500,\"message\":\"" + e.getMessage() + "\"}");
         }
+    }
+
+    // ==================== 采集器事件查询路由 ====================
+
+    private boolean dispatchCollectorRoutes(ChannelHandlerContext ctx, HttpMethod method, String uri, String body) throws Exception {
+        if (eventQueryService == null) {
+            writeResponse(ctx, HttpResponseStatus.SERVICE_UNAVAILABLE,
+                    "{\"code\":503,\"message\":\"EventQueryService 不可用\"}");
+            return true;
+        }
+
+        String[] parts = uri.split("/");
+        // /collector/events/query → ["", "collector", "events", "query"]
+        // /collector/events/stats → ["", "collector", "events", "stats"]
+        // /collector/events/executions → ["", "collector", "events", "executions"]
+        // /collector/events/{eventId} → ["", "collector", "events", "EVENTID"]
+
+        if (parts.length == 4) {
+            String action = stripQuery(parts[3]);
+            if ("query".equals(action) && method == HttpMethod.POST) {
+                return handleEventQuery(ctx, body);
+            }
+            if ("stats".equals(action) && method == HttpMethod.POST) {
+                return handleEventStats(ctx, body);
+            }
+            if ("executions".equals(action) && method == HttpMethod.POST) {
+                return handleExecutionTraces(ctx, body);
+            }
+        }
+
+        if (parts.length == 5 && "executions".equals(parts[3]) && method == HttpMethod.GET) {
+            return handleGetExecutionTrace(ctx, stripQuery(parts[4]));
+        }
+
+        if (parts.length == 4 && method == HttpMethod.GET) {
+            return handleGetEvent(ctx, stripQuery(parts[3]));
+        }
+
+        return false;
+    }
+
+    private boolean handleEventQuery(ChannelHandlerContext ctx, String body) throws Exception {
+        EventQuery query = MAPPER.readValue(body, EventQuery.class);
+        List<ChainEvent> list = eventQueryService.queryEvents(query);
+        long total = eventQueryService.countEvents(query);
+
+        ArrayNode listArr = MAPPER.createArrayNode();
+        for (ChainEvent e : list) {
+            listArr.add(eventToJson(e));
+        }
+        ObjectNode data = MAPPER.createObjectNode();
+        data.set("list", listArr);
+        data.put("total", total);
+        data.put("page", query.getPage());
+        data.put("pageSize", query.getPageSize());
+
+        ObjectNode root = MAPPER.createObjectNode();
+        root.put("code", 200);
+        root.put("message", "ok");
+        root.set("data", data);
+        writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(root));
+        return true;
+    }
+
+    private boolean handleGetEvent(ChannelHandlerContext ctx, String eventId) throws Exception {
+        ChainEvent event = eventQueryService.getById(eventId);
+        if (event == null) {
+            writeResponse(ctx, HttpResponseStatus.NOT_FOUND,
+                    "{\"code\":404,\"message\":\"NOT_FOUND\",\"data\":null}");
+            return true;
+        }
+        ObjectNode root = MAPPER.createObjectNode();
+        root.put("code", 200);
+        root.put("message", "ok");
+        root.set("data", eventToJson(event));
+        writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(root));
+        return true;
+    }
+
+    private boolean handleEventStats(ChannelHandlerContext ctx, String body) throws Exception {
+        EventStatsQuery query = MAPPER.readValue(body, EventStatsQuery.class);
+        com.zestflow.collector.model.dto.EventStats stats = eventQueryService.queryStats(query);
+
+        ObjectNode root = MAPPER.createObjectNode();
+        root.put("code", 200);
+        root.put("message", "ok");
+        root.set("data", MAPPER.valueToTree(stats));
+        writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(root));
+        return true;
+    }
+
+    private boolean handleExecutionTraces(ChannelHandlerContext ctx, String body) throws Exception {
+        EventQuery query = MAPPER.readValue(body, EventQuery.class);
+        List<com.zestflow.collector.model.dto.ExecutionTrace> list = eventQueryService.queryExecutionTraces(query);
+        long total = eventQueryService.countExecutionTraces(query);
+
+        ArrayNode listArr = MAPPER.createArrayNode();
+        for (com.zestflow.collector.model.dto.ExecutionTrace t : list) {
+            listArr.add(MAPPER.valueToTree(t));
+        }
+        ObjectNode data = MAPPER.createObjectNode();
+        data.set("list", listArr);
+        data.put("total", total);
+        data.put("page", query.getPage());
+        data.put("pageSize", query.getPageSize());
+
+        ObjectNode root = MAPPER.createObjectNode();
+        root.put("code", 200);
+        root.put("message", "ok");
+        root.set("data", data);
+        writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(root));
+        return true;
+    }
+
+    private boolean handleGetExecutionTrace(ChannelHandlerContext ctx, String executionId) throws Exception {
+        com.zestflow.collector.model.dto.ExecutionTrace trace = eventQueryService.getExecutionTrace(executionId);
+        if (trace == null) {
+            writeResponse(ctx, HttpResponseStatus.NOT_FOUND,
+                    "{\"code\":404,\"message\":\"NOT_FOUND\",\"data\":null}");
+            return true;
+        }
+        ObjectNode root = MAPPER.createObjectNode();
+        root.put("code", 200);
+        root.put("message", "ok");
+        root.set("data", MAPPER.valueToTree(trace));
+        writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(root));
+        return true;
+    }
+
+    /** ChainEvent → ObjectNode JSON */
+    private ObjectNode eventToJson(ChainEvent e) {
+        ObjectNode node = MAPPER.createObjectNode();
+        node.put("eventId", e.getEventId() != null ? e.getEventId() : "");
+        node.put("eventType", e.getEventType() != null ? e.getEventType().name() : "");
+        node.put("executionId", e.getExecutionId() != null ? e.getExecutionId() : "");
+        node.put("chainId", e.getChainId() != null ? e.getChainId() : "");
+        node.put("chainName", e.getChainName() != null ? e.getChainName() : "");
+        node.put("nodeId", e.getNodeId() != null ? e.getNodeId() : "");
+        node.put("nodeName", e.getNodeName() != null ? e.getNodeName() : "");
+        node.put("executorId", e.getExecutorId() != null ? e.getExecutorId() : "");
+        node.put("appName", e.getAppName() != null ? e.getAppName() : "");
+        node.put("params", e.getParams() != null ? e.getParams() : "");
+        node.put("result", e.getResult() != null ? e.getResult() : "");
+        node.put("errorMessage", e.getErrorMessage() != null ? e.getErrorMessage() : "");
+        node.put("costMs", e.getCostMs() != null ? e.getCostMs() : 0);
+        node.put("status", e.getStatus() != null ? e.getStatus() : 0);
+        node.put("timestamp", e.getTimestamp());
+        node.put("metadata", e.getMetadata() != null ? e.getMetadata() : "");
+        return node;
     }
 
     // ==================== 工具方法 ====================

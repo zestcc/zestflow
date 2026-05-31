@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>
  * <ul>
  *   <li>data: 核心数据总线，节点间传递</li>
+ *   <li>typedData: 类型化数据，元件方法可按类型直接注入</li>
  *   <li>headers: 请求头（来源：Admin 调用时的请求头）</li>
  *   <li>metadata: 元数据（实例 ID、链编码、时间戳等，不序列化到事件）</li>
  * </ul>
@@ -26,6 +27,9 @@ public class ChainContext {
     /** 核心数据总线 */
     private final Map<String, Object> data;
 
+    /** 类型化数据（按 Class 索引，供元件参数注入） */
+    private final Map<Class<?>, Object> typedData;
+
     /** 请求头 */
     private final Map<String, Object> headers;
 
@@ -39,9 +43,38 @@ public class ChainContext {
         this.instanceId = instanceId;
         this.chainCode = chainCode;
         this.data = new ConcurrentHashMap<>(initialData != null ? initialData : Map.of());
+        this.typedData = new ConcurrentHashMap<>();
         this.headers = new ConcurrentHashMap<>();
         this.metadata = new ConcurrentHashMap<>();
         this.startTime = System.currentTimeMillis();
+    }
+
+    // ==================== 类型化数据（供元件参数按类型注入） ====================
+
+    /**
+     * 注册类型化对象到上下文。
+     * 元件方法声明对应类型参数时，由 ContextTypeResolver 自动注入。
+     */
+    public void register(Object bean) {
+        if (bean != null) {
+            typedData.put(bean.getClass(), bean);
+        }
+    }
+
+    /**
+     * 按类型获取注册的对象，支持超类/接口兜底匹配。
+     */
+    @SuppressWarnings("unchecked")
+    public <T> T getTyped(Class<T> type) {
+        Object val = typedData.get(type);
+        if (val != null) return (T) val;
+        // 超类/接口兜底
+        for (Map.Entry<Class<?>, Object> entry : typedData.entrySet()) {
+            if (type.isAssignableFrom(entry.getKey())) {
+                return (T) entry.getValue();
+            }
+        }
+        return null;
     }
 
     // ==================== 基础存取 ====================
@@ -157,6 +190,13 @@ public class ChainContext {
      */
     public Map<String, Object> snapshot() {
         return Collections.unmodifiableMap(new HashMap<>(data));
+    }
+
+    /**
+     * 获取类型化数据快照（用于执行结果回传）
+     */
+    public Map<Class<?>, Object> typedSnapshot() {
+        return new HashMap<>(typedData);
     }
 
     /**

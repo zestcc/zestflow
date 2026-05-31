@@ -16,4 +16,14 @@ public class DashboardStatsVO {
     private long healthyExecutors;
     private long errorExecutors;
     private long offlineExecutors;
+
+    // 链 & 设计统计
+    private long totalChains;
+    private long enabledChains;
+    private long totalDesigns;
+
+    // 执行统计
+    private long todayExecutions;
+    private double avgExecutionMs;
+    private double successRate;
 }

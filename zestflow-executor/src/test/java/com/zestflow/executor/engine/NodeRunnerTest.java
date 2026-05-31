@@ -160,7 +160,7 @@ class NodeRunnerTest {
     void conditionSatisfiedExecutesMainWithPrePost() {
         NodeDefinition nodeDef = NodeDefinition.builder()
                 .id("n1").type(ChainConstants.NODE_TYPE_CONDITION).component("main")
-                .condition("skip=false")
+                .condition("true")
                 .preComponents(List.of(new ComponentRef("pre1", null)))
                 .postComponents(List.of(new ComponentRef("post1", null)))
                 .build();

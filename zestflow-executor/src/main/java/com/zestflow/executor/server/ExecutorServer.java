@@ -1,5 +1,6 @@
 package com.zestflow.executor.server;
 
+import com.zestflow.collector.spi.EventQueryService;
 import com.zestflow.common.constant.RegistryConstants;
 import com.zestflow.executor.chain.ChainLoader;
 import com.zestflow.executor.chain.ChainRepository;
@@ -32,16 +33,26 @@ public class ExecutorServer {
     private Channel channel;
 
     public ExecutorServer(int port, EventPublisher eventPublisher) {
-        this(port, null, eventPublisher, null, null, null, null);
+        this(port, null, eventPublisher, null, null, null, null, null);
     }
 
     public ExecutorServer(int port, ChainExecutionEngine engine, EventPublisher eventPublisher,
                           ChainRepository chainRepo, DesignRepository designRepo,
                           ComponentScanner componentScanner, ChainLoader chainLoader) {
+        this(port, engine, eventPublisher, chainRepo, designRepo, componentScanner, chainLoader, null);
+    }
+
+    public ExecutorServer(int port, ChainExecutionEngine engine, EventPublisher eventPublisher,
+                          ChainRepository chainRepo, DesignRepository designRepo,
+                          ComponentScanner componentScanner, ChainLoader chainLoader,
+                          EventQueryService eventQueryService) {
         this.port = port;
         this.serverHandler = new ServerHandler(engine, chainRepo, designRepo, componentScanner, chainLoader);
         if (eventPublisher != null) {
             this.serverHandler.setEventPublisher(eventPublisher);
+        }
+        if (eventQueryService != null) {
+            this.serverHandler.setEventQueryService(eventQueryService);
         }
     }
 

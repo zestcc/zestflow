@@ -12,7 +12,7 @@
 
     <artifactId>zestflow-starter</artifactId>
     <version>${zestflow-starter.version}</version>
-    <packaging>pom</packaging>
+    <packaging>jar</packaging>
 
     <name>ZestFlow :: Starter</name>
     <description>一键引入包 — 聚合 executor + collector-jdbc，业务方零配置引入</description>

@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -53,26 +54,21 @@ public class JdbcEventQueryService implements EventQueryService {
 
     @Override
     public EventStats queryStats(EventStatsQuery query) {
-        LambdaQueryWrapper<ChainEventPO> wrapper = new LambdaQueryWrapper<>();
-        if (StringUtils.isNotBlank(query.getAppName())) {
-            wrapper.eq(ChainEventPO::getAppName, query.getAppName());
-        }
-        if (StringUtils.isNotBlank(query.getExecutorId())) {
-            wrapper.eq(ChainEventPO::getExecutorId, query.getExecutorId());
-        }
-        if (StringUtils.isNotBlank(query.getChainId())) {
-            wrapper.eq(ChainEventPO::getChainId, query.getChainId());
-        }
-        if (query.getStartTime() != null) {
-            wrapper.ge(ChainEventPO::getTimestamp, query.getStartTime());
-        }
-        if (query.getEndTime() != null) {
-            wrapper.le(ChainEventPO::getTimestamp, query.getEndTime());
-        }
+        Map<String, Object> agg = chainEventMapper.selectAggregatedStats(query);
+        Number totalCount = (Number) agg.getOrDefault("totalCount", 0L);
+        Number avgCostMs = (Number) agg.getOrDefault("avgCostMs", 0D);
+        Number successCount = (Number) agg.getOrDefault("successCount", 0L);
+        Number failCount = (Number) agg.getOrDefault("failCount", 0L);
 
-        long totalCount = chainEventMapper.selectCount(wrapper);
+        long sc = successCount.longValue();
+        long fc = failCount.longValue();
+        double successRate = (sc + fc) > 0 ? (double) sc / (sc + fc) * 100.0 : 0.0;
+
         return EventStats.builder()
-                .totalCount(totalCount)
+                .totalCount(totalCount.longValue())
+                .avgCostMs(avgCostMs.doubleValue())
+                .successRate(successRate)
+                .failCount(fc)
                 .build();
     }
 

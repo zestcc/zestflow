@@ -1,6 +1,7 @@
 package com.zestflow.executor.registry;
 
 import com.zestflow.collector.spi.EventCollector;
+import com.zestflow.collector.spi.EventQueryService;
 import com.zestflow.executor.chain.*;
 import com.zestflow.executor.engine.*;
 import com.zestflow.executor.event.AsyncEventPublisher;
@@ -42,9 +43,10 @@ public class ExecutorAutoConfig {
                                           ChainRepository chainRepo,
                                           DesignRepository designRepo,
                                           ComponentScanner componentScanner,
-                                          ChainLoader chainLoader) {
+                                          ChainLoader chainLoader,
+                                          java.util.Optional<EventQueryService> eventQueryService) {
         return new ExecutorServer(properties.getPort(), chainExecutionEngine, eventPublisher.orElse(null),
-                chainRepo, designRepo, componentScanner, chainLoader);
+                chainRepo, designRepo, componentScanner, chainLoader, eventQueryService.orElse(null));
     }
 
     @Bean

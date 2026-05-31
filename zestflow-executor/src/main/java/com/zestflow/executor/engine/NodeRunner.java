@@ -24,6 +24,7 @@ import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.List;
@@ -414,6 +415,29 @@ public class NodeRunner {
     }
 
     private boolean evaluateCondition(String condition, ChainContext context) {
-        return true;
+        if (condition == null || condition.isEmpty()) {
+            return true;
+        }
+        try {
+            String expr = condition.trim();
+            if (expr.startsWith("${") && expr.endsWith("}")) {
+                expr = expr.substring(2, expr.length() - 1);
+            }
+            ScriptEngine engine = new ScriptEngineManager().getEngineByName("groovy");
+            if (engine == null) {
+                log.warn("Groovy 引擎不可用，条件表达式视为 true condition={}", condition);
+                return true;
+            }
+            Bindings bindings = engine.createBindings();
+            Map<String, Object> snapshot = context.snapshot();
+            for (Map.Entry<String, Object> entry : snapshot.entrySet()) {
+                bindings.put(entry.getKey(), entry.getValue());
+            }
+            Object result = engine.eval(expr, bindings);
+            return Boolean.TRUE.equals(result);
+        } catch (Exception e) {
+            log.error("条件表达式评估失败 condition={}", condition, e);
+            return false;
+        }
     }
 }

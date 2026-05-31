@@ -47,6 +47,12 @@ public class BizServices {
         return Map.of("bizCode", "006", "bizStatus", "done");
     }
 
+    @ZestExecute(value = "fallback001", name = "降级处理001", description = "降级兜底处理", timeout = 2000)
+    public Map<String, Object> fallback001(ChainContext ctx) {
+        ctx.put("fallbackResult", "fallback_done");
+        return Map.of("fallbackCode", "F001", "fallbackStatus", "done");
+    }
+
     @ZestExecute(value = "biz007", name = "业务服务007", description = "业务服务任务007", timeout = 2000)
     public Map<String, Object> biz007(ChainContext ctx) {
         ctx.put("bizResult007", "done");

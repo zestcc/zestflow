@@ -5,6 +5,9 @@ import com.zestflow.executor.chain.ChainDefinition.ChainEdge;
 import com.zestflow.executor.chain.NodeDefinition;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.script.Bindings;
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
 import java.util.*;
 
 /**
@@ -149,15 +152,22 @@ public class DagSorter {
         }
 
         try {
-            // 支持简单模式：${result.status} == 'PASS'
             String expr = condition.trim();
             if (expr.startsWith("${") && expr.endsWith("}")) {
                 expr = expr.substring(2, expr.length() - 1);
             }
 
-            // 暂时返回 true（运行时条件评估将在后续迭代完善）
-            log.debug("条件表达式（暂未实现动态评估）condition={}", condition);
-            return true;
+            ScriptEngine engine = new ScriptEngineManager().getEngineByName("groovy");
+            if (engine == null) {
+                log.warn("Groovy 引擎不可用，条件表达式视为 true condition={}", condition);
+                return true;
+            }
+            Bindings bindings = engine.createBindings();
+            for (Map.Entry<String, Object> entry : data.entrySet()) {
+                bindings.put(entry.getKey(), entry.getValue());
+            }
+            Object result = engine.eval(expr, bindings);
+            return Boolean.TRUE.equals(result);
 
         } catch (Exception e) {
             log.warn("条件表达式评估失败 condition={}", condition, e);

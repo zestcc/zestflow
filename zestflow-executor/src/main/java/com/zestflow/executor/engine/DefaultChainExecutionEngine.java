@@ -80,7 +80,16 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
     }
 
     @Override
-    public ChainExecuteResultDTO execute(String chainCode, Map<String, Object> params) {
+    public ChainExecuteResultDTO execute(String chainCode, Object... args) {
+        return doExecute(chainCode, null, args);
+    }
+
+    @Override
+    public ChainExecuteResultDTO execute(String chainCode, Map<String, Object> params, Object... args) {
+        return doExecute(chainCode, params, args);
+    }
+
+    private ChainExecuteResultDTO doExecute(String chainCode, Map<String, Object> params, Object... typedArgs) {
         long startTime = System.currentTimeMillis();
         log.info("链执行开始 chainCode={}", chainCode);
 
@@ -97,6 +106,16 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
         // 2. 创建实例
         ChainInstance instance = new ChainInstance(definition, params);
         instanceManager.register(instance);
+
+        // 3. 注册类型化参数到上下文
+        if (typedArgs != null) {
+            ChainContext ctx = instance.getContext();
+            for (Object arg : typedArgs) {
+                if (arg != null) {
+                    ctx.register(arg);
+                }
+            }
+        }
 
         try {
             ChainContext context = instance.getContext();
@@ -165,6 +184,7 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
                     .status(stateMachine.current())
                     .costMs(costMs)
                     .resultData(context.snapshot())
+                    .resultTypedData(context.typedSnapshot())
                     .nodeResults(allNodeResults)
                     .build();
 
@@ -188,8 +208,8 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
     }
 
     @Override
-    public CompletableFuture<ChainExecuteResultDTO> executeAsync(String chainCode, Map<String, Object> params) {
-        return CompletableFuture.supplyAsync(() -> execute(chainCode, params), forkJoinPool);
+    public CompletableFuture<ChainExecuteResultDTO> executeAsync(String chainCode, Object... args) {
+        return CompletableFuture.supplyAsync(() -> execute(chainCode, args), forkJoinPool);
     }
 
     @Override
