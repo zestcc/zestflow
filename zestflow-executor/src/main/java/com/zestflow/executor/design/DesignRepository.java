@@ -41,7 +41,7 @@ public class DesignRepository {
         po.setName(rs.getString("name"));
         po.setDescription(rs.getString("description"));
         po.setStatus(rs.getInt("status"));
-        po.setDesignCode(rs.getString("design_code"));
+        try { po.setDesignCode(rs.getString("design_code")); } catch (Exception ignored) {}
         try { po.setAppCode(rs.getString("app_code")); } catch (Exception ignored) {}
         try { po.setTenantId(rs.getLong("tenant_id")); } catch (Exception ignored) {}
         po.setCreatedBy(rs.getString("created_by"));
@@ -143,7 +143,7 @@ public class DesignRepository {
 
     public List<ChainPO> getBindings(String designCode) {
         return jdbc.query(
-                "SELECT c.* FROM zf_chain c INNER JOIN zf_design_binding b ON c.code = b.chain_code WHERE b.design_code = ? ORDER BY c.updated_at DESC",
+                "SELECT c.*, b.design_code FROM zf_chain c INNER JOIN zf_design_binding b ON c.code = b.chain_code WHERE b.design_code = ? ORDER BY c.updated_at DESC",
                 CHAIN_ROW_MAPPER, designCode);
     }
 
@@ -154,10 +154,10 @@ public class DesignRepository {
         int updated = jdbc.update("INSERT INTO zf_design_binding(design_code, chain_code) VALUES(?,?)",
                 designCode, chainCode);
         if (updated == 0) return false;
-        // 更新链的 designCode 和状态
+        // 更新链状态为未发布
         String now = LocalDateTime.now().format(DTF);
-        jdbc.update("UPDATE zf_chain SET design_code=?, status=2, updated_by=?, updated_at=? WHERE code=?",
-                designCode, updatedBy != null ? updatedBy : "", now, chainCode);
+        jdbc.update("UPDATE zf_chain SET status=2, updated_by=?, updated_at=? WHERE code=?",
+                updatedBy != null ? updatedBy : "", now, chainCode);
         log.info("设计绑定成功 designCode={} chainCode={} updatedBy={}", designCode, chainCode, updatedBy);
         return true;
     }
@@ -166,9 +166,9 @@ public class DesignRepository {
         int updated = jdbc.update("DELETE FROM zf_design_binding WHERE design_code=? AND chain_code=?",
                 designCode, chainCode);
         if (updated == 0) return false;
-        // 清除链的 designCode
+        // 更新链状态
         String now = LocalDateTime.now().format(DTF);
-        jdbc.update("UPDATE zf_chain SET design_code=NULL, updated_by=?, updated_at=? WHERE code=?",
+        jdbc.update("UPDATE zf_chain SET updated_by=?, updated_at=? WHERE code=?",
                 updatedBy != null ? updatedBy : "", now, chainCode);
         log.info("设计解绑成功 designCode={} chainCode={} updatedBy={}", designCode, chainCode, updatedBy);
         return true;

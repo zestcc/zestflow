@@ -31,12 +31,13 @@ public class LoggingInterceptor implements ChainInterceptor, NodeInterceptor {
 
     @Override
     public void beforeNode(NodeDefinition node, ChainContext ctx) {
-        log.debug("[NODE] 开始执行 nodeId={} component={}", node.getId(), node.getComponent());
+        log.info("[NODE] 开始执行 nodeId={} component={}", node.getId(), node.getComponent());
     }
 
     @Override
     public void afterNode(NodeDefinition node, ChainContext ctx, Object result) {
-        log.debug("[NODE] 执行完成 nodeId={}", node.getId());
+        log.info("[NODE] 执行完成 nodeId={} cost={}ms",
+                node.getId(), System.currentTimeMillis() - ctx.getStartTime());
     }
 
     @Override

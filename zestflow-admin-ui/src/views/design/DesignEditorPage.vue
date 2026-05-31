@@ -156,7 +156,7 @@
               {{ typeLabel(selectedNodeData.nodeType) }}
             </el-tag>
             <el-button v-if="selectedNodeData && canBindComponent(selectedNodeData.nodeType)" size="small" type="primary" plain @click="openBindDialog" style="margin-left:4px">
-              {{ selectedNodeData.componentId ? $t('design.rebind') : $t('design.bindComponent') }}
+              {{ $t('design.bindComponent') }}
             </el-button>
           </span>
         </div>
@@ -196,7 +196,7 @@
                 {{ selectedNodeData.paramValidatorName }}
               </el-tag>
               <el-button size="small" type="primary" plain @click="openBindDialog('validator')" style="width:100%">
-                {{ selectedNodeData.paramValidatorId ? $t('design.rebind') : $t('design.bindValidator') }}
+                {{ $t('design.bindComponent') }}
               </el-button>
             </div>
             <!-- 前置处理器 -->
@@ -249,7 +249,7 @@
           <el-form size="small" label-position="top">
               <el-form-item :label="$t('design.labelValue')">
               <el-select v-if="edgeSourceTagDefs.length > 0" v-model="selectedEdgeData.label" :placeholder="$t('design.labelValuePlaceholder')" @change="onEdgeLabelChange" style="width:100%">
-                <el-option v-for="td in edgeSourceTagDefs" :key="td.value" :label="td.name + ' (' + td.value + ')'" :value="td.value" />
+                <el-option v-for="td in edgeSourceTagDefs" :key="td.name" :label="td.name + ' (' + td.value + ')'" :value="td.name" />
               </el-select>
               <el-input v-else v-model="selectedEdgeData.label" :placeholder="$t('design.labelPlaceholder')" @input="onEdgeLabelChange" />
             </el-form-item>
@@ -308,7 +308,7 @@
             ref="inlineInputRef"
             popper-class="inline-editor-popper"
         >
-          <el-option v-for="td in inlineEditor.tagDefs" :key="td.value" :label="td.name + ' (' + td.value + ')'" :value="td.value" />
+          <el-option v-for="td in inlineEditor.tagDefs" :key="td.value" :label="td.name + ' (' + td.value + ')'" :value="td.name" />
         </el-select>
         <el-input
             v-else
@@ -410,7 +410,7 @@
             {{ compDrawer.data.componentName }}
           </el-descriptions-item>
           <el-descriptions-item :label="$t('design.detailType')">
-            <el-tag size="small">{{ compDrawer.data.componentType }}</el-tag>
+            <el-tag size="small">{{ bindTypeLabel(compDrawer.data.componentType) }}</el-tag>
           </el-descriptions-item>
           <el-descriptions-item :label="$t('design.detailGroup')" v-if="compDrawer.data.groupName">
             {{ compDrawer.data.groupName }}
@@ -496,8 +496,6 @@ import { Export } from '@antv/x6-plugin-export'
 import { designApi } from '@/api/design'
 import { componentApi } from '@/api/component'
 import { executorApi } from '@/api/executor'
-import { dictApi } from '@/api/dict'
-import type { DictDataVO } from '@/api/dict'
 import {
   ArrowLeft, Check, Pointer, Back, Right,
   CopyDocument, DocumentAdd,
@@ -533,7 +531,12 @@ const panModeEnabled = ref(false)
 const endpointHandles = ref<{ side: 'source' | 'target'; x: number; y: number }[]>([])
 let draggingEp: { side: 'source' | 'target' } | null = null
 
-const executeStrategyOptions = ref<DictDataVO[]>([])
+const executeStrategyOptions = computed(() => [
+  { value: 'NORMAL', label: t('design.strategyNormal') },
+  { value: 'RETRY_ON_FAILURE', label: t('design.strategyRetry') },
+  { value: 'STOP_ON_EXCEPTION', label: t('design.strategyStopOnException') },
+  { value: 'IGNORE_EXCEPTION', label: t('design.strategyIgnoreException') },
+])
 
 // 绑定元件弹窗状态
 const bindDialog = reactive({
@@ -626,21 +629,14 @@ function showInlineEditor(x: number, y: number, value: string, target: any, isEd
 
 function setEdgeLabelSafe(edge: any, text: string) {
   if (!text) { edge.setLabels([]); return }
-  const labels = edge.getLabels()
-  if (labels[0]) {
-    if (!labels[0].attrs) labels[0].attrs = {}
-    if (!labels[0].attrs.label) labels[0].attrs.label = {}
-    labels[0].attrs.label.text = text
-    edge.setLabels(labels)
-  } else {
-    edge.setLabels([{
-      attrs: {
-        labelBg: { fill: '#fff', rx: 4, ry: 4, stroke: '#e2e8f0', strokeWidth: 1, pointerEvents: 'auto', cursor: 'move' },
-        label: { text, fill: '#475569', fontSize: 12, textAnchor: 'middle', textVerticalAnchor: 'middle', refX: '50%', pointerEvents: 'auto', cursor: 'move' },
-      },
-      position: { distance: 0.5 },
-    }])
-  }
+  // 一律创建新对象，确保 X6 检测到变更触发重绘
+  edge.setLabels([{
+    attrs: {
+      labelBg: { fill: '#fff', rx: 4, ry: 4, stroke: '#e2e8f0', strokeWidth: 1, pointerEvents: 'auto', cursor: 'move' },
+      label: { text, fill: '#475569', fontSize: 12, textAnchor: 'middle', textVerticalAnchor: 'middle', refX: '50%', pointerEvents: 'auto', cursor: 'move' },
+    },
+    position: { distance: 0.5 },
+  }])
 }
 
 function inlineEditorConfirm() {
@@ -1057,16 +1053,20 @@ function getPorts(type: string) {
 function showPorts(node: Node) {
   const nodeType = node.getData()?.nodeType || 'task'
   const color = nodeColors[nodeType] || '#3b82f6'
-  node.getPorts().forEach(p => {
-    node.setPortProp((p as any).id, 'attrs/circle/stroke-opacity', 1)
-    node.setPortProp((p as any).id, 'attrs/circle/fill-opacity', 0.3)
-    node.setPortProp((p as any).id, 'attrs/circle/stroke', color)
-    node.setPortProp((p as any).id, 'attrs/circle/fill', '#fff')
+  graph?.batchUpdate(() => {
+    node.getPorts().forEach(p => {
+      node.setPortProp((p as any).id, 'attrs/circle/stroke-opacity', 1)
+      node.setPortProp((p as any).id, 'attrs/circle/fill-opacity', 0.3)
+      node.setPortProp((p as any).id, 'attrs/circle/stroke', color)
+      node.setPortProp((p as any).id, 'attrs/circle/fill', '#fff')
+    })
   })
 }
 function hidePorts(node: Node) {
-  node.getPorts().forEach(p => node.setPortProp((p as any).id, 'attrs/circle/stroke-opacity', 0))
-  node.getPorts().forEach(p => node.setPortProp((p as any).id, 'attrs/circle/fill-opacity', 0))
+  graph?.batchUpdate(() => {
+    node.getPorts().forEach(p => node.setPortProp((p as any).id, 'attrs/circle/stroke-opacity', 0))
+    node.getPorts().forEach(p => node.setPortProp((p as any).id, 'attrs/circle/fill-opacity', 0))
+  })
 }
 
 // ====== 注册 X6 原生形状 ======
@@ -1477,10 +1477,9 @@ function onDataChange() {
   }
 }
 
-function onEdgeLabelChange() {
+function onEdgeLabelChange(val: string) {
   if (selectedCell && selectedEdgeData.value) {
-    const text = selectedEdgeData.value.label || ''
-    setEdgeLabelSafe(selectedCell, text)
+    setEdgeLabelSafe(selectedCell, val || '')
   }
 }
 
@@ -1914,18 +1913,18 @@ function validateChain(): string[] {
   const bindableTypes = new Set(['task', 'condition', 'multicondition', 'loader', 'parser'])
   nodes.forEach(n => {
     const data = n.getData() || {}
-    const t = data.nodeType
-    if (!bindableTypes.has(t)) return
+    const nodeType = data.nodeType
+    if (!bindableTypes.has(nodeType)) return
     if (!data.componentId) {
-      errors.push(t('design.nodeNotBound', { label: data.label || n.id, type: typeLabel(t) }))
+      errors.push(t('design.nodeNotBound', { label: data.label || n.id, type: typeLabel(nodeType) }))
     }
   })
 
   // 5. 条件节点出线检查
   nodes.forEach(n => {
     const data = n.getData() || {}
-    const t = data.nodeType
-    if (t !== 'condition' && t !== 'multicondition') return
+    const nodeType = data.nodeType
+    if (nodeType !== 'condition' && nodeType !== 'multicondition') return
     const outgoingEdges = edges.filter(e => e.getSourceCellId() === n.id)
     if (outgoingEdges.length === 0) {
       errors.push(t('design.conditionNoOutEdge', { label: data.label || n.id }))
@@ -2120,7 +2119,6 @@ onMounted(async () => {
   await nextTick()
   initGraph()
   await loadDesign()
-  dictApi.getDictData('execute_strategy').then(data => { executeStrategyOptions.value = data })
 })
 
 onBeforeUnmount(() => {

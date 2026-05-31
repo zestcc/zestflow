@@ -4,7 +4,7 @@ import { getFeatures } from '@/api/system'
 
 export const useAppStore = defineStore('app', () => {
   const sidebarCollapsed = ref(false)
-  const playgroundEnabled = ref(false)
+  const demoEnabled = ref(false)
 
   function toggleSidebar() {
     sidebarCollapsed.value = !sidebarCollapsed.value
@@ -13,11 +13,11 @@ export const useAppStore = defineStore('app', () => {
   async function fetchFeatures() {
     try {
       const res: any = await getFeatures()
-      playgroundEnabled.value = res.playground?.enabled === true
+      demoEnabled.value = res.demo?.enabled === true
     } catch {
-      playgroundEnabled.value = false
+      demoEnabled.value = false
     }
   }
 
-  return { sidebarCollapsed, playgroundEnabled, toggleSidebar, fetchFeatures }
+  return { sidebarCollapsed, demoEnabled, toggleSidebar, fetchFeatures }
 })

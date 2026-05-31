@@ -576,6 +576,10 @@ log.error("链执行失败 chainId={} nodeId={}", chainId, nodeId, e);
 3. **DDL 脚本 + 实时库同步** — 新建迁移脚本后，重启应用由 Flyway 自动执行。如果迁移脚本包含存量数据迁移，需手动在数据库上执行确认。
 4. **默认值双重保障** — 新增字段的默认值同时在 DDL（`DEFAULT xxx`）和 Service 层代码中设置，避免空指针。
 5. **未正式发布前可删表重建** — 当前无正式用户（没有 v1 版本），所有数据库可随时 `DROP TABLE` 后由 Flyway 重新创建。需要表结构变更时，直接修改 `init.sql` 或最新迁移脚本 <code>V{n}__xxx.sql</code>，通知后执行 Flyway clean + migrate 即可。
+6. **种子数据放 initData.sql，禁止 Java 代码播种（强制，2026-05-31 立规）** — 所有演示/测试用种子数据必须放在 `db/initData.sql` 中，严禁在 `ApplicationRunner`、`@PostConstruct` 或任何 Java 代码路径中执行 INSERT 播种。`init.sql` 只包含 DDL（建表、索引），`initData.sql` 只包含 DML（INSERT）。两条规则必须遵守：
+   - **所有表引用必须携带数据库前缀**：`zestflow_admin.xxx`、`zestflow_test_bussiness.xxx`，禁止无前缀裸表名
+   - **幂等性**：所有 INSERT 使用 `INSERT IGNORE INTO`，确保重复执行不产生重复数据
+   - **初始化流程**：先执行 `init.sql` 建表，再执行 `initData.sql` 灌数据
 
 ### 数据审计规范（强制，2026-05 立规）
 
@@ -603,8 +607,24 @@ log.error("链执行失败 chainId={} nodeId={}", chainId, nodeId, e);
 `is_deleted`  TINYINT      DEFAULT 0     COMMENT '删除标记（0-未删 1-已删）'
 ```
 
-- `created_at`/`updated_at`：使用 `LocalDateTime.now().format("yyyy-MM-dd HH:mm:ss")` 字符串格式（兼容 Executor 端 H2/MySQL）
+- Admin 库（`zestflow_admin`）的 `created_at`/`updated_at` 使用 `DATETIME` 类型 + `DEFAULT CURRENT_TIMESTAMP`
+- Executor 业务库的 `created_at`/`updated_at` 使用 `VARCHAR(32)` 字符串格式（兼容 H2/MySQL），格式 `"yyyy-MM-dd HH:mm:ss"`
 - `is_deleted`：所有 DELETE 操作改为 UPDATE `is_deleted=1`，查询列表和详情时过滤 `is_deleted = 0`
+- 硬删除例外场景允许真实 DELETE：关联关系表、日志/事件表、临时表/缓存表
+
+#### 多租户 & 应用隔离字段（强制）
+
+所有业务表必须包含以下隔离字段：
+
+```sql
+`tenant_id`  BIGINT      DEFAULT 1     COMMENT '租户ID',
+`app_code`   VARCHAR(50) DEFAULT NULL  COMMENT '应用编码'
+```
+
+- `tenant_id`：MyBatis-Plus `MetaObjectHandler` 自动填充，Service 层通过 `TenantAppContext.getCurrentTenantId()` 获取
+- `app_code`：Service 层在 `insert` 时手动设置（MetaObjectHandler 无法自动填充），从配置 `zestflow.demo.app-code` 或当前用户上下文获取
+- 当前实现为单租户模式，`tenant_id` 默认 `1`，预留未来多租户扩展
+- 示例：`DemoSceneServiceImpl.create()` 中 `po.setTenantId(tenantAppContext.getCurrentTenantId())` + `po.setAppCode(defaultAppCode)`
 
 #### 展示规范
 
@@ -895,6 +915,29 @@ CREATE TABLE IF NOT EXISTS `chain_event` (
 | 2026-05 | 前置/后置处理器内项目标签左对齐（`text-align:left; justify-content:flex-start`）|
 | 2026-05 | 工具栏紧凑模式（`gap:8px`、分隔线 `margin:0 4px`、`padding:6px 12px`），去掉节点连线统计、置顶/置底 |
 | 2026-05 | 禁止 AI 擅自使用 `git checkout` / `git reset --hard` 等破坏性命令 |
+| 2026-06 | `ExecutorProperties` 新增 `EnvironmentAware` + `@PostConstruct` 默认值解析（appCode→spring.application.name→"default"，host→自动探测内网 IPv4）|
+| 2026-06 | `NodeRunner` 事件发布修复：`chainId` 改为 chainCode、`nodeId` 改为 component code（fallback X6 UUID）、增加 `appCode`/`params`/`result` 字段、`toJsonString` 序列化 helper |
+| 2026-06 | `DefaultChainExecutionEngine` 事件发布修复：`chainId` 改为 chainCode、增加 `appCode`/`params`/`result`；STOP 策略时从失败节点提取 `errorMessage` 注入结果 |
+| 2026-06 | `LoggingInterceptor` 节点日志级别从 DEBUG 改为 INFO |
+| 2026-06 | `ChainEvent` 公共模型 + `ChainEventPO` 新增 `appCode` 字段；所有 INSERT/SELECT/映射全链路同步 |
+| 2026-06 | `ExecutionTrace` 新增 `appCode` 字段 |
+| 2026-06 | `chain_event` 表 DDL 新增 `app_code` 列；`chain_id`/`node_id` 注释改为「编码」|
+
+## 进行中工作
+
+### 事件系统全面修复（2026-06-01 会话）
+
+**已完成代码修改（未部署验证）：**
+- ExecutorProperties 默认值解析（appCode/appName/host）
+- NodeRunner/DefaultChainExecutionEngine 事件发布：chainId/nodeId 改用 code、补 appCode/params/result/errorMessage
+- chain_event 表加 app_code 列
+- 前端日志详情抽屉展示 appCode/params/result
+
+**需要在新机器上做的：**
+1. 同步数据库：`ALTER TABLE zestflow_test_log.chain_event ADD COLUMN app_code VARCHAR(64) DEFAULT NULL COMMENT '应用编码' AFTER executor_id;`
+2. 编译安装：`mvn install -pl zestflow-executor -am -DskipTests && mvn package -pl zestflow-executor-test -am -DskipTests`
+3. 启动测试应用（端口 8081）
+4. 验证：POST `/api/orders/handleApplyAfterSale` → 检查 chain_event 表数据（app_code 非空、params/result 有值、cost_ms > 0）
 
 ## 工作原则
 

@@ -260,6 +260,21 @@ public class OrderController {
                 .orderId(result.getInstanceId()).status(statusText(result.getStatus())).costMs(result.getCostMs()).build());
     }
 
+    @PostMapping("/handleApplyAfterSale")
+    public Result<OrderResponse> handleApplyAfterSale(@RequestBody Map<String, Object> params) {
+        String chainCode = params.getOrDefault("chainCode", "CHN_DEMO_AFTER_SALE").toString();
+        var result = orch.loadFromDbAndExecute(chainCode, params);
+
+        OrderResponse resp = OrderResponse.builder()
+                .orderId(result.getInstanceId())
+                .status(statusText(result.getStatus()))
+                .costMs(result.getCostMs() != null ? result.getCostMs() : 0L)
+                .errorMessage(result.getErrorMessage())
+                .nodeResults(result.getNodeResults().stream().map(nr -> nr.getNodeId() + ":" + nr.getStatus()).collect(Collectors.toList()))
+                .build();
+        return Result.success(resp);
+    }
+
     // ==================== 辅助 ====================
 
     private Map<String, Object> buildOrderParams(OrderRequest req) {

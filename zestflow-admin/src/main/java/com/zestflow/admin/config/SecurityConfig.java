@@ -34,7 +34,8 @@ public class SecurityConfig {
                 .requestMatchers("/auth/**", "/uploads/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/registry/**").permitAll()
                 .requestMatchers(HttpMethod.DELETE, "/registry/**").permitAll()
-                .requestMatchers("/playground/**").permitAll()
+                .requestMatchers("/demo/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/chains/sync").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

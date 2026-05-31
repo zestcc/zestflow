@@ -63,6 +63,9 @@ public class ChainEvent implements Serializable {
     /** 执行器 ID（appCode@host:port） */
     private String executorId;
 
+    /** 应用编码 */
+    private String appCode;
+
     /** 应用名（分组标识） */
     private String appName;
 

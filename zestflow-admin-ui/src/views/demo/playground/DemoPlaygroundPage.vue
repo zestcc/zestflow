@@ -4,9 +4,9 @@
     <div class="pg-header">
       <div class="pg-header-left">
         <el-icon :size="22" color="#409eff"><Connection /></el-icon>
-        <h2>{{ $t('playground.title') }}</h2>
+        <h2>{{ $t('demo.playground.title') }}</h2>
       </div>
-      <el-tag type="warning" size="small" effect="plain">{{ $t('playground.modeTag') }}</el-tag>
+      <el-tag type="warning" size="small" effect="plain">{{ $t('demo.playground.modeTag') }}</el-tag>
     </div>
 
     <!-- 主内容区 -->
@@ -14,7 +14,7 @@
       <!-- 左栏：历史记录 -->
       <div class="pg-history">
         <div class="pg-panel-title">
-          <span>{{ $t('playground.history') }}</span>
+          <span>{{ $t('demo.playground.history') }}</span>
           <el-tag size="small" type="info">{{ totalHistory }}</el-tag>
         </div>
         <div class="pg-history-list" v-loading="historyLoading">
@@ -26,11 +26,7 @@
             @click="loadHistoryDetail(item)"
           >
             <div class="history-item-top">
-              <el-tag
-                :type="item.status === 1 ? 'success' : 'danger'"
-                size="small"
-                class="history-status"
-              >
+              <el-tag :type="item.status === 1 ? 'success' : 'danger'" size="small" class="history-status">
                 {{ item.status === 1 ? '✓' : '✗' }}
               </el-tag>
               <span class="history-scene">{{ item.sceneName }}</span>
@@ -41,7 +37,7 @@
               <span class="history-cost">{{ item.costMs }}ms</span>
             </div>
           </div>
-          <el-empty v-if="!historyLoading && historyList.length === 0" :description="$t('playground.noHistory')" />
+          <el-empty v-if="!historyLoading && historyList.length === 0" :description="$t('demo.playground.noHistory')" />
         </div>
         <div class="pg-history-pager" v-if="totalHistory > size">
           <el-pagination
@@ -62,21 +58,22 @@
       <div class="pg-workspace">
         <!-- 请求区 -->
         <div class="pg-section">
-          <div class="pg-panel-title">{{ $t('playground.request') }}</div>
+          <div class="pg-panel-title">{{ $t('demo.playground.request') }}</div>
 
           <!-- 场景选择 + URL -->
           <div class="pg-url-bar">
             <el-select
-              v-model="selectedScene"
-              :placeholder="$t('playground.selectScene')"
+              v-model="selectedSceneCode"
+              :placeholder="$t('demo.playground.selectScene')"
               class="pg-scene-select"
+              filterable
               @change="onSceneChange"
             >
               <el-option
                 v-for="s in scenes"
-                :key="s.id"
+                :key="s.sceneCode"
                 :label="s.name"
-                :value="s.id"
+                :value="s.sceneCode"
               >
                 <div class="scene-option">
                   <span>{{ s.name }}</span>
@@ -84,49 +81,35 @@
                 </div>
               </el-option>
             </el-select>
-            <el-tag type="primary" size="small" class="pg-method-tag">POST</el-tag>
-            <div class="pg-url-display">{{ baseUrl }}/api/playground/execute/{{ selectedScene || '{scene}' }}</div>
+            <el-tag :type="methodTagType" size="small" class="pg-method-tag">
+              {{ sceneInfo?.requestMethod || 'POST' }}
+            </el-tag>
+            <div class="pg-url-display">{{ requestPathDisplay }}</div>
           </div>
 
           <!-- 场景描述 -->
-          <div class="pg-scene-desc" v-if="currentScene">
+          <div class="pg-scene-desc" v-if="sceneInfo">
             <el-icon><InfoFilled /></el-icon>
-            <span class="pg-desc-text">{{ currentScene.description }}</span>
+            <span class="pg-desc-text">{{ sceneInfo.description }}</span>
             <el-tag size="small" type="info" class="pg-chain-tag">
-              {{ $t('playground.chainCode') }}: {{ chainCode }}
+              {{ $t('demo.playground.chainCode') }}: {{ sceneInfo.chainCode }}
             </el-tag>
           </div>
 
           <!-- 自定义请求头 -->
           <div class="pg-section-block">
             <div class="pg-block-header" @click="headersExpanded = !headersExpanded">
-              <span>{{ $t('playground.headers') }}</span>
+              <span>{{ $t('demo.playground.headers') }}</span>
               <el-icon :class="{ rotated: headersExpanded }"><ArrowRight /></el-icon>
             </div>
             <div v-show="headersExpanded" class="pg-block-body">
               <div v-for="(h, i) in customHeaders" :key="i" class="pg-header-row">
-                <el-input
-                  v-model="h.key"
-                  :placeholder="$t('playground.headerKey')"
-                  size="small"
-                  class="pg-header-key"
-                />
-                <el-input
-                  v-model="h.value"
-                  :placeholder="$t('playground.headerValue')"
-                  size="small"
-                  class="pg-header-value"
-                />
-                <el-button
-                  type="danger"
-                  :icon="Delete"
-                  size="small"
-                  circle
-                  @click="customHeaders.splice(i, 1)"
-                />
+                <el-input v-model="h.key" :placeholder="$t('demo.playground.headerKey')" size="small" class="pg-header-key" />
+                <el-input v-model="h.value" :placeholder="$t('demo.playground.headerValue')" size="small" class="pg-header-value" />
+                <el-button type="danger" :icon="Delete" size="small" circle @click="customHeaders.splice(i, 1)" />
               </div>
               <el-button size="small" :icon="Plus" @click="addHeader" class="pg-add-header-btn">
-                {{ $t('playground.addHeader') }}
+                {{ $t('demo.playground.addHeader') }}
               </el-button>
             </div>
           </div>
@@ -134,7 +117,7 @@
           <!-- 请求体 -->
           <div class="pg-section-block">
             <div class="pg-block-header">
-              <span>{{ $t('playground.body') }}</span>
+              <span>{{ $t('demo.playground.body') }}</span>
               <el-radio-group v-model="bodyType" size="small" class="pg-body-type">
                 <el-radio-button value="json">JSON</el-radio-button>
                 <el-radio-button value="form">Form</el-radio-button>
@@ -145,13 +128,13 @@
               <!-- JSON 编辑器 -->
               <div v-show="bodyType === 'json'">
                 <div class="pg-editor-toolbar">
-                  <el-button size="small" text @click="formatJson">{{ $t('playground.format') }}</el-button>
-                  <el-button size="small" text @click="resetJson">{{ $t('playground.reset') }}</el-button>
+                  <el-button size="small" text @click="formatJson">{{ $t('demo.playground.format') }}</el-button>
+                  <el-button size="small" text @click="resetJson">{{ $t('demo.playground.reset') }}</el-button>
                 </div>
                 <textarea
                   v-model="requestBody"
                   class="pg-code-editor"
-                  :placeholder="$t('playground.bodyPlaceholder')"
+                  :placeholder="$t('demo.playground.bodyPlaceholder')"
                   spellcheck="false"
                   rows="8"
                 />
@@ -159,12 +142,12 @@
               <!-- Form 编辑器 -->
               <div v-show="bodyType === 'form'">
                 <div v-for="(f, i) in formFields" :key="i" class="pg-form-row">
-                  <el-input v-model="f.key" :placeholder="$t('playground.formKey')" size="small" class="pg-form-key" />
-                  <el-input v-model="f.value" :placeholder="$t('playground.formValue')" size="small" class="pg-form-value" />
+                  <el-input v-model="f.key" :placeholder="$t('demo.playground.formKey')" size="small" class="pg-form-key" />
+                  <el-input v-model="f.value" :placeholder="$t('demo.playground.formValue')" size="small" class="pg-form-value" />
                   <el-button type="danger" :icon="Delete" size="small" circle @click="formFields.splice(i, 1)" />
                 </div>
                 <el-button size="small" :icon="Plus" @click="formFields.push({ key: '', value: '' })">
-                  {{ $t('playground.addField') }}
+                  {{ $t('demo.playground.addField') }}
                 </el-button>
               </div>
               <!-- Raw 编辑器 -->
@@ -172,7 +155,7 @@
                 <textarea
                   v-model="requestRawBody"
                   class="pg-code-editor"
-                  :placeholder="$t('playground.rawPlaceholder')"
+                  :placeholder="$t('demo.playground.rawPlaceholder')"
                   spellcheck="false"
                   rows="8"
                 />
@@ -187,33 +170,29 @@
               :icon="VideoPlay"
               size="large"
               :loading="executing"
-              :disabled="!selectedScene"
+              :disabled="!selectedSceneCode"
               @click="handleExecute"
             >
-              {{ $t('playground.execute') }}
+              {{ $t('demo.playground.execute') }}
             </el-button>
             <el-button
-              :icon="Delete"
+              :icon="Refresh"
               size="large"
-              :disabled="historyList.length === 0"
-              @click="handleClearHistory"
+              :disabled="!selectedHistoryId"
+              @click="loadHistoryToForm"
             >
-              {{ $t('playground.clearHistory') }}
+              {{ $t('demo.playground.retry') }}
             </el-button>
           </div>
         </div>
 
         <!-- 响应区 -->
         <div class="pg-section pg-response-section">
-          <div class="pg-panel-title">{{ $t('playground.response') }}</div>
+          <div class="pg-panel-title">{{ $t('demo.playground.response') }}</div>
 
           <!-- 响应摘要 -->
           <div class="pg-response-summary" v-if="lastResult">
-            <el-tag
-              :type="lastResult.status === 1 ? 'success' : 'danger'"
-              size="default"
-              class="pg-response-status"
-            >
+            <el-tag :type="lastResult.status === 1 ? 'success' : 'danger'" size="default" class="pg-response-status">
               {{ lastResult.status === 1 ? 'Success' : 'Failed' }}
             </el-tag>
             <span class="pg-response-stat">
@@ -226,7 +205,7 @@
             </span>
           </div>
           <div class="pg-response-empty" v-else>
-            <el-empty :description="$t('playground.noResponse')" />
+            <el-empty :description="$t('demo.playground.noResponse')" />
           </div>
 
           <!-- 响应体 -->
@@ -234,10 +213,10 @@
             <pre class="pg-response-body"><code>{{ formatResponseBody }}</code></pre>
             <div class="pg-response-actions">
               <el-button size="small" :icon="Link" @click="goToLogs(lastResult.instanceId)" :disabled="!lastResult.instanceId">
-                {{ $t('playground.viewLogs') }}
+                {{ $t('demo.playground.viewLogs') }}
               </el-button>
               <el-button size="small" :icon="CopyDocument" @click="copyResponse">
-                {{ $t('playground.copy') }}
+                {{ $t('demo.playground.copy') }}
               </el-button>
             </div>
           </div>
@@ -245,27 +224,38 @@
           <!-- 历史明细详情 -->
           <div v-if="historyDetail" class="pg-history-detail">
             <el-divider />
-            <div class="pg-panel-title">{{ $t('playground.historyDetail') }}</div>
+            <div class="pg-panel-title">{{ $t('demo.playground.historyDetail') }}</div>
             <div class="pg-detail-grid">
               <div class="pg-detail-item">
-                <label>{{ $t('playground.scene') }}:</label>
+                <label>{{ $t('demo.playground.scene') }}:</label>
                 <span>{{ historyDetail.sceneName }}</span>
               </div>
               <div class="pg-detail-item">
-                <label>{{ $t('playground.chainCode') }}:</label>
+                <label>{{ $t('demo.playground.chainCode') }}:</label>
                 <span>{{ historyDetail.chainCode }}</span>
               </div>
               <div class="pg-detail-item">
-                <label>{{ $t('playground.instanceId') }}:</label>
+                <label>{{ $t('demo.playground.instanceId') }}:</label>
                 <el-button size="small" link @click="goToLogs(historyDetail.instanceId)">
                   {{ historyDetail.instanceId || '-' }}
                 </el-button>
               </div>
-              <div class="pg-detail-item" v-if="historyDetail.requestHeaders && Object.keys(historyDetail.requestHeaders).length">
-                <label>{{ $t('playground.headers') }}:</label>
-                <pre class="pg-detail-json">{{ JSON.stringify(historyDetail.requestHeaders, null, 2) }}</pre>
+              <div class="pg-detail-item" v-if="historyDetail.requestHeaders && historyDetail.requestHeaders !== 'null'">
+                <label>{{ $t('demo.playground.headers') }}:</label>
+                <pre class="pg-detail-json">{{ prettyPrintJson(historyDetail.requestHeaders) }}</pre>
+              </div>
+              <div class="pg-detail-item" v-if="historyDetail.requestBody">
+                <label>{{ $t('demo.playground.requestBody') }}:</label>
+                <pre class="pg-detail-json">{{ prettyPrintJson(historyDetail.requestBody) }}</pre>
+              </div>
+              <div class="pg-detail-item" v-if="historyDetail.responseBody">
+                <label>{{ $t('demo.playground.responseBody') }}:</label>
+                <pre class="pg-detail-json">{{ prettyPrintJson(historyDetail.responseBody) }}</pre>
               </div>
             </div>
+            <el-button size="small" type="primary" @click="loadHistoryToForm">
+              {{ $t('demo.playground.loadToForm') }}
+            </el-button>
           </div>
         </div>
       </div>
@@ -280,19 +270,36 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import {
   Connection, VideoPlay, Plus, Delete, ArrowRight, InfoFilled,
-  Timer, WarningFilled, Link, CopyDocument,
+  Timer, WarningFilled, Link, CopyDocument, Refresh,
 } from '@element-plus/icons-vue'
-import { listScenes, executeScene, queryHistory, getHistoryDetail, type SceneInfo, type ExecuteResult, type HistoryItem } from '@/api/playground'
+import { listAllScenes, getSceneByCode, type DemoSceneVO } from '@/api/demo-scene'
+import {
+  executePlaygroundScene, queryPlaygroundHistory, getPlaygroundHistoryDetail,
+  type PlaygroundExecuteResult, type DemoRecordVO,
+} from '@/api/demo-playground'
 
 const { t } = useI18n()
 const router = useRouter()
 
 // === 场景 ===
-const scenes = ref<SceneInfo[]>([])
-const selectedScene = ref('')
-const currentScene = computed(() => scenes.value.find(s => s.id === selectedScene.value))
-const chainCode = computed(() => currentScene.value?.id ? `CHN_DEMO_${currentScene.value.id.toUpperCase()}` : '')
+const scenes = ref<DemoSceneVO[]>([])
+const selectedSceneCode = ref('')
+const sceneInfo = ref<DemoSceneVO | null>(null)
 const baseUrl = ref(window.location.origin)
+
+const methodTagType = computed(() => {
+  const m = sceneInfo.value?.requestMethod
+  if (m === 'POST') return 'success'
+  if (m === 'GET') return 'primary'
+  if (m === 'PUT') return 'warning'
+  if (m === 'DELETE') return 'danger'
+  return 'info'
+})
+
+const requestPathDisplay = computed(() => {
+  const path = sceneInfo.value?.requestPath || '/execute'
+  return `${baseUrl.value}/api${path}`
+})
 
 // === 请求体 ===
 const bodyType = ref<'json' | 'form' | 'raw'>('json')
@@ -310,11 +317,11 @@ function addHeader() {
 
 // === 执行 ===
 const executing = ref(false)
-const lastResult = ref<ExecuteResult | null>(null)
+const lastResult = ref<PlaygroundExecuteResult | null>(null)
 const executeError = ref('')
 
 async function handleExecute() {
-  if (!selectedScene.value) return
+  if (!selectedSceneCode.value) return
   executing.value = true
   executeError.value = ''
   lastResult.value = null
@@ -325,7 +332,7 @@ async function handleExecute() {
       try {
         params = JSON.parse(requestBody.value)
       } catch {
-        ElMessage.warning(t('playground.invalidJson'))
+        ElMessage.warning(t('demo.playground.invalidJson'))
         executing.value = false
         return
       }
@@ -338,12 +345,7 @@ async function handleExecute() {
       params = { raw: requestRawBody.value }
     }
 
-    const headers: Record<string, string> = {}
-    for (const h of customHeaders.value) {
-      if (h.key) headers[h.key] = h.value
-    }
-
-    const res = await executeScene(selectedScene.value, params, headers)
+    const res: any = await executePlaygroundScene(selectedSceneCode.value, params)
     lastResult.value = res.data || res
     await loadHistory()
   } catch (e: any) {
@@ -359,13 +361,12 @@ function formatJson() {
     const obj = JSON.parse(requestBody.value)
     requestBody.value = JSON.stringify(obj, null, 2)
   } catch {
-    ElMessage.warning(t('playground.invalidJson'))
+    ElMessage.warning(t('demo.playground.invalidJson'))
   }
 }
 
 function resetJson() {
-  const dp = currentScene.value?.defaultParams
-  requestBody.value = dp ? JSON.stringify(dp, null, 2) : '{\n  \n}'
+  requestBody.value = sceneInfo.value?.requestBody || '{\n  \n}'
 }
 
 const formatResponseBody = computed(() => {
@@ -379,7 +380,7 @@ const formatResponseBody = computed(() => {
 
 function copyResponse() {
   navigator.clipboard.writeText(formatResponseBody.value)
-  ElMessage.success(t('playground.copied'))
+  ElMessage.success(t('demo.playground.copied'))
 }
 
 function goToLogs(instanceId: string) {
@@ -389,32 +390,58 @@ function goToLogs(instanceId: string) {
 }
 
 // === 场景切换 ===
-function onSceneChange(sceneId: string) {
-  const scene = scenes.value.find(s => s.id === sceneId)
-  if (scene?.defaultParams) {
-    requestBody.value = JSON.stringify(scene.defaultParams, null, 2)
+async function onSceneChange(sceneCode: string) {
+  sceneInfo.value = null
+  try {
+    const res: any = await getSceneByCode(sceneCode)
+    sceneInfo.value = res.data || res
+  } catch {
+    const s = scenes.value.find(x => x.sceneCode === sceneCode)
+    sceneInfo.value = s || null
   }
+
+  // Auto-fill from scene template
+  if (sceneInfo.value?.requestBody) {
+    requestBody.value = sceneInfo.value.requestBody
+  } else {
+    requestBody.value = '{\n  \n}'
+  }
+
+  // Parse headers from scene template
   customHeaders.value = []
+  if (sceneInfo.value?.requestHeaders) {
+    try {
+      const hdrs = JSON.parse(sceneInfo.value.requestHeaders)
+      for (const [k, v] of Object.entries(hdrs)) {
+        customHeaders.value.push({ key: k, value: String(v) })
+      }
+    } catch { /* ignore */ }
+  }
+
   formFields.value = []
-  bodyType.value = 'json'
+  const bt = sceneInfo.value?.bodyType || 'JSON'
+  bodyType.value = bt === 'FORM' ? 'form' : bt === 'RAW' ? 'raw' : 'json'
   lastResult.value = null
 }
 
 // === 历史 ===
-const historyList = ref<HistoryItem[]>([])
+const historyList = ref<DemoRecordVO[]>([])
 const totalHistory = ref(0)
 const currentPage = ref(1)
 const size = ref(20)
 const historyLoading = ref(false)
 const selectedHistoryId = ref<number | null>(null)
-const historyDetail = ref<HistoryItem | null>(null)
+const historyDetail = ref<DemoRecordVO | null>(null)
 
 async function loadHistory() {
   historyLoading.value = true
   try {
-    const res = await queryHistory(currentPage.value, size.value)
+    const res: any = await queryPlaygroundHistory({
+      page: currentPage.value,
+      size: size.value,
+    })
     const data = res.data || res
-    historyList.value = data.list || []
+    historyList.value = data.records || []
     totalHistory.value = data.total || 0
   } catch {
     // silent
@@ -423,21 +450,48 @@ async function loadHistory() {
   }
 }
 
-async function loadHistoryDetail(item: HistoryItem) {
+async function loadHistoryDetail(item: DemoRecordVO) {
   selectedHistoryId.value = item.id
   try {
-    const res = await getHistoryDetail(item.id)
+    const res: any = await getPlaygroundHistoryDetail(item.id)
     historyDetail.value = res.data || res
   } catch {
     historyDetail.value = item
   }
 }
 
-function handleClearHistory() {
-  // 仅清空选中状态
-  selectedHistoryId.value = null
-  historyDetail.value = null
-  lastResult.value = null
+function loadHistoryToForm() {
+  if (!historyDetail.value) return
+
+  // Load scene
+  if (historyDetail.value.sceneCode) {
+    selectedSceneCode.value = historyDetail.value.sceneCode
+    onSceneChange(historyDetail.value.sceneCode)
+  }
+
+  // Load request body
+  if (historyDetail.value.requestBody) {
+    requestBody.value = historyDetail.value.requestBody
+  }
+
+  // Load headers
+  customHeaders.value = []
+  if (historyDetail.value.requestHeaders) {
+    try {
+      const hdrs = JSON.parse(historyDetail.value.requestHeaders)
+      for (const [k, v] of Object.entries(hdrs)) {
+        customHeaders.value.push({ key: k, value: String(v) })
+      }
+    } catch { /* ignore */ }
+  }
+
+  // Load body type
+  if (historyDetail.value.bodyType) {
+    const bt = historyDetail.value.bodyType
+    bodyType.value = bt === 'FORM' ? 'form' : bt === 'RAW' ? 'raw' : 'json'
+  }
+
+  ElMessage.success(t('demo.playground.loadedToForm'))
 }
 
 // === 工具 ===
@@ -448,23 +502,26 @@ function formatTime(dateStr: string) {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
-function formatDate(dateStr: string) {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+function prettyPrintJson(str: string | null | undefined): string {
+  if (!str || str === 'null') return '-'
+  try {
+    return JSON.stringify(JSON.parse(str), null, 2)
+  } catch {
+    return str
+  }
 }
 
 // === 初始化 ===
 onMounted(async () => {
   try {
-    const res = await listScenes()
+    const res: any = await listAllScenes()
     scenes.value = res.data || []
     if (scenes.value.length > 0) {
-      selectedScene.value = scenes.value[0].id
-      onSceneChange(selectedScene.value)
+      selectedSceneCode.value = scenes.value[0].sceneCode
+      await onSceneChange(selectedSceneCode.value)
     }
   } catch {
-    ElMessage.error(t('playground.loadFailed'))
+    ElMessage.error(t('demo.playground.loadFailed'))
   }
   await loadHistory()
 })
@@ -478,7 +535,6 @@ onMounted(async () => {
   gap: 12px;
 }
 
-/* 顶栏 */
 .pg-header {
   display: flex;
   align-items: center;
@@ -496,7 +552,6 @@ onMounted(async () => {
   font-weight: 600;
 }
 
-/* 主体 */
 .pg-body {
   display: flex;
   gap: 12px;
@@ -504,7 +559,6 @@ onMounted(async () => {
   min-height: 0;
 }
 
-/* 左栏：历史 */
 .pg-history {
   width: 300px;
   min-width: 260px;
@@ -537,61 +591,22 @@ onMounted(async () => {
   border: 1px solid transparent;
   transition: all 0.15s;
 }
-.pg-history-item:hover {
-  background: #f5f7fa;
-}
-.pg-history-item.active {
-  background: #ecf5ff;
-  border-color: #b3d8ff;
-}
+.pg-history-item:hover { background: #f5f7fa; }
+.pg-history-item.active { background: #ecf5ff; border-color: #b3d8ff; }
 .history-item-top {
   display: flex;
   align-items: center;
   gap: 6px;
   margin-bottom: 4px;
 }
-.history-status {
-  padding: 0 4px;
-  min-width: 24px;
-  text-align: center;
-}
-.history-scene {
-  font-size: 13px;
-  font-weight: 500;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.history-time {
-  font-size: 11px;
-  color: #909399;
-  white-space: nowrap;
-}
-.history-item-bottom {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-left: 30px;
-}
-.history-chain {
-  font-size: 12px;
-  color: #606266;
-  font-family: monospace;
-}
-.history-cost {
-  font-size: 12px;
-  color: #909399;
-  font-family: monospace;
-}
-.pg-history-pager {
-  padding: 8px 16px;
-  border-top: 1px solid #e4e7ed;
-  display: flex;
-  justify-content: center;
-}
+.history-status { padding: 0 4px; min-width: 24px; text-align: center; }
+.history-scene { font-size: 13px; font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-time { font-size: 11px; color: #909399; white-space: nowrap; }
+.history-item-bottom { display: flex; align-items: center; justify-content: space-between; padding-left: 30px; }
+.history-chain { font-size: 12px; color: #606266; font-family: monospace; }
+.history-cost { font-size: 12px; color: #909399; font-family: monospace; }
+.pg-history-pager { padding: 8px 16px; border-top: 1px solid #e4e7ed; display: flex; justify-content: center; }
 
-/* 右栏工作区 */
 .pg-workspace {
   flex: 1;
   display: flex;
@@ -620,212 +635,80 @@ onMounted(async () => {
   min-height: 200px;
 }
 
-/* URL 栏 */
 .pg-url-bar {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 8px;
 }
-.pg-scene-select {
-  width: 220px;
-}
-.scene-option {
-  display: flex;
-  flex-direction: column;
-}
-.scene-option-desc {
-  font-size: 11px;
-  color: #909399;
-}
-.pg-method-tag {
-  font-weight: 700;
-  font-family: monospace;
-}
+.pg-scene-select { width: 220px; }
+.scene-option { display: flex; flex-direction: column; }
+.scene-option-desc { font-size: 11px; color: #909399; }
+.pg-method-tag { font-weight: 700; font-family: monospace; }
 .pg-url-display {
-  font-size: 13px;
-  color: #606266;
-  font-family: monospace;
-  flex: 1;
-  padding: 6px 10px;
-  background: #f5f7fa;
-  border-radius: 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 13px; color: #606266; font-family: monospace;
+  flex: 1; padding: 6px 10px; background: #f5f7fa; border-radius: 4px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-/* 场景描述 */
 .pg-scene-desc {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  background: #fdf6ec;
-  border-radius: 4px;
-  margin-bottom: 12px;
-  font-size: 13px;
-  color: #606266;
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 12px; background: #fdf6ec; border-radius: 4px;
+  margin-bottom: 12px; font-size: 13px; color: #606266;
 }
-.pg-desc-text {
-  flex: 1;
-}
-.pg-chain-tag {
-  flex-shrink: 0;
-}
+.pg-desc-text { flex: 1; }
+.pg-chain-tag { flex-shrink: 0; }
 
-/* 区块折叠 */
 .pg-section-block {
-  margin-bottom: 12px;
-  border: 1px solid #e4e7ed;
-  border-radius: 6px;
-  overflow: hidden;
+  margin-bottom: 12px; border: 1px solid #e4e7ed; border-radius: 6px; overflow: hidden;
 }
 .pg-block-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  background: #fafafa;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  user-select: none;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; background: #fafafa; cursor: pointer;
+  font-size: 13px; font-weight: 500; user-select: none;
 }
-.pg-block-header .el-icon {
-  transition: transform 0.2s;
-}
-.pg-block-header .el-icon.rotated {
-  transform: rotate(90deg);
-}
-.pg-block-body {
-  padding: 8px 12px;
-}
-.pg-body-type .el-radio-button__inner {
-  padding: 4px 12px;
-  font-size: 12px;
-}
+.pg-block-header .el-icon { transition: transform 0.2s; }
+.pg-block-header .el-icon.rotated { transform: rotate(90deg); }
+.pg-block-body { padding: 8px 12px; }
+.pg-body-type .el-radio-button__inner { padding: 4px 12px; font-size: 12px; }
 
-/* 请求头行 */
-.pg-header-row,
-.pg-form-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
+.pg-header-row, .pg-form-row {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
 }
-.pg-header-key,
-.pg-form-key {
-  width: 200px;
-}
-.pg-header-value,
-.pg-form-value {
-  flex: 1;
-}
-.pg-add-header-btn {
-  margin-top: 4px;
-}
+.pg-header-key, .pg-form-key { width: 200px; }
+.pg-header-value, .pg-form-value { flex: 1; }
+.pg-add-header-btn { margin-top: 4px; }
 
-/* 代码编辑器 */
 .pg-code-editor {
-  width: 100%;
-  min-height: 140px;
+  width: 100%; min-height: 140px;
   font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  padding: 10px 12px;
-  border: 1px solid #e4e7ed;
-  border-radius: 4px;
-  resize: vertical;
-  background: #fafafa;
-  color: #303133;
-  outline: none;
-  transition: border-color 0.2s;
+  font-size: 13px; line-height: 1.6; padding: 10px 12px;
+  border: 1px solid #e4e7ed; border-radius: 4px; resize: vertical;
+  background: #fafafa; color: #303133; outline: none; transition: border-color 0.2s;
 }
-.pg-code-editor:focus {
-  border-color: #409eff;
-}
-.pg-editor-toolbar {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 6px;
-}
+.pg-code-editor:focus { border-color: #409eff; }
+.pg-editor-toolbar { display: flex; gap: 4px; margin-bottom: 6px; }
 
-/* 动作按钮 */
-.pg-actions {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
+.pg-actions { display: flex; gap: 12px; align-items: center; }
 
-/* 响应区 */
 .pg-response-summary {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 10px 12px;
-  background: #f5f7fa;
-  border-radius: 6px;
-  margin-bottom: 12px;
+  display: flex; align-items: center; gap: 16px;
+  padding: 10px 12px; background: #f5f7fa; border-radius: 6px; margin-bottom: 12px;
 }
-.pg-response-status {
-  font-weight: 600;
-}
-.pg-response-stat {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 13px;
-  color: #606266;
-}
-.pg-response-empty {
-  margin: 20px 0;
-}
+.pg-response-status { font-weight: 600; }
+.pg-response-stat { display: flex; align-items: center; gap: 4px; font-size: 13px; color: #606266; }
+.pg-response-empty { margin: 20px 0; }
 
-/* 响应体 */
 .pg-response-body {
-  background: #1e1e1e;
-  color: #d4d4d4;
-  padding: 14px 16px;
-  border-radius: 6px;
+  background: #1e1e1e; color: #d4d4d4; padding: 14px 16px; border-radius: 6px;
   font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 13px;
-  line-height: 1.5;
-  overflow-x: auto;
-  max-height: 260px;
-  overflow-y: auto;
+  font-size: 13px; line-height: 1.5; overflow-x: auto; max-height: 260px; overflow-y: auto;
 }
-.pg-response-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-}
+.pg-response-actions { display: flex; gap: 8px; margin-top: 10px; }
 
-/* 历史详情 */
-.pg-history-detail {
-  margin-top: 8px;
-}
-.pg-detail-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px 16px;
-  padding: 8px 0;
-}
-.pg-detail-item label {
-  font-size: 12px;
-  color: #909399;
-  margin-right: 6px;
-}
-.pg-detail-item span {
-  font-size: 13px;
-}
-.pg-detail-json {
-  margin: 4px 0 0;
-  font-family: monospace;
-  font-size: 12px;
-  background: #f5f7fa;
-  padding: 6px 8px;
-  border-radius: 4px;
-  white-space: pre-wrap;
-}
+.pg-history-detail { margin-top: 8px; }
+.pg-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; padding: 8px 0; }
+.pg-detail-item label { font-size: 12px; color: #909399; margin-right: 6px; }
+.pg-detail-item span { font-size: 13px; }
+.pg-detail-json { margin: 4px 0 0; font-family: monospace; font-size: 12px; background: #f5f7fa; padding: 6px 8px; border-radius: 4px; white-space: pre-wrap; }
 </style>

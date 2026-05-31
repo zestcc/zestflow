@@ -1,5 +1,8 @@
 package com.zestflow.executor.engine;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zestflow.common.constant.ChainConstants;
 import com.zestflow.common.model.dto.ChainEvent;
 import com.zestflow.common.model.dto.ChainExecuteResultDTO;
@@ -56,8 +59,13 @@ public class NodeRunner {
 
     /** 执行器标识（appCode@host:port） */
     private final String executorId;
+    /** 应用编码 */
+    private final String appCode;
     /** 应用名 */
     private final String appName;
+
+    private static final ObjectMapper JSON_MAPPER = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     /**
      * 清除指定节点的熔断器状态（链热加载时调用，防止旧熔断状态污染新链）
@@ -90,6 +98,7 @@ public class NodeRunner {
         this.retryExecutor = retryExecutor;
         this.chainManager = chainManager;
         this.executorId = properties.getAppCode() + "@" + properties.getHost() + ":" + properties.getPort();
+        this.appCode = properties.getAppCode();
         this.appName = properties.getAppName() != null ? properties.getAppName() : properties.getAppCode();
     }
 
@@ -117,7 +126,7 @@ public class NodeRunner {
                 if (!cb.tryAcquire()) {
                     log.warn("熔断器断开，请求被拒绝 nodeId={}", nodeId);
                     stateMachine.transit(ChainConstants.NODE_FAILED);
-                    publishNodeEvent(ChainEvent.EventType.NODE_FAILED, nodeDef, context, 0L, 0, "熔断器已断开");
+                    publishNodeEvent(ChainEvent.EventType.NODE_FAILED, nodeDef, context, 0L, 0, "熔断器已断开", null, null);
                     return NodeResultDTO.builder()
                             .nodeId(nodeId)
                             .status(ChainConstants.NODE_FAILED)
@@ -126,8 +135,10 @@ public class NodeRunner {
                 }
             }
 
+            stateMachine.transit(ChainConstants.NODE_READY);
             stateMachine.transit(ChainConstants.NODE_RUNNING);
-            publishNodeEvent(ChainEvent.EventType.NODE_STARTED, nodeDef, context, null, null, null);
+            publishNodeEvent(ChainEvent.EventType.NODE_STARTED, nodeDef, context, null, null, null,
+                    toJsonString(context.snapshot()), null);
 
             // 拦截器前置
             interceptorChain.beforeNode(nodeDef, context);
@@ -147,7 +158,8 @@ public class NodeRunner {
 
             stateMachine.transit(ChainConstants.NODE_SUCCESS);
             long costMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
-            publishNodeEvent(ChainEvent.EventType.NODE_COMPLETED, nodeDef, context, costMs, 1, null);
+            publishNodeEvent(ChainEvent.EventType.NODE_COMPLETED, nodeDef, context, costMs, 1, null,
+                    null, toJsonString(result));
             log.debug("节点执行成功 nodeId={} cost={}ms", nodeId, costMs);
 
             return NodeResultDTO.builder()
@@ -175,7 +187,7 @@ public class NodeRunner {
             recordCircuitBreakerFailure(nodeDef, nodeId);
 
             stateMachine.transit(ChainConstants.NODE_FAILED);
-            publishNodeEvent(ChainEvent.EventType.NODE_FAILED, nodeDef, context, costMs, 0, e.getMessage());
+            publishNodeEvent(ChainEvent.EventType.NODE_FAILED, nodeDef, context, costMs, 0, e.getMessage(), null, null);
 
             return NodeResultDTO.builder()
                     .nodeId(nodeId)
@@ -326,7 +338,7 @@ public class NodeRunner {
 
     private NodeResultDTO handleRetry(NodeDefinition nodeDef, ChainContext context,
                                        NodeStateMachine stateMachine, long startTime) {
-        publishNodeEvent(ChainEvent.EventType.NODE_RETRYING, nodeDef, context, null, null, null);
+        publishNodeEvent(ChainEvent.EventType.NODE_RETRYING, nodeDef, context, null, null, null, null, null);
 
         boolean retried = retryExecutor.executeWithRetry(
                 nodeDef, context,
@@ -337,7 +349,7 @@ public class NodeRunner {
         if (retried) {
             stateMachine.transit(ChainConstants.NODE_SUCCESS);
             // retry 成功后不会回到 try 块的成功路径，此处补发完成事件
-            publishNodeEvent(ChainEvent.EventType.NODE_COMPLETED, nodeDef, context, costMs, 1, null);
+            publishNodeEvent(ChainEvent.EventType.NODE_COMPLETED, nodeDef, context, costMs, 1, null, null, null);
 
             if (nodeDef.isCircuitBreakerEnabled()) {
                 SimpleCircuitBreaker cb = circuitBreakers.get(nodeDef.getId());
@@ -363,14 +375,14 @@ public class NodeRunner {
 
     private NodeResultDTO handleFallback(NodeDefinition nodeDef, ChainContext context,
                                           NodeStateMachine stateMachine, long startTime, Throwable cause) {
-        publishNodeEvent(ChainEvent.EventType.NODE_FALLBACK_START, nodeDef, context, null, null, null);
+        publishNodeEvent(ChainEvent.EventType.NODE_FALLBACK_START, nodeDef, context, null, null, null, null, null);
         long costMs = 0;
 
         try {
             lifecycleExecutor.executeFallback(nodeDef, context, cause);
             costMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
             // 降级成功后不会回到 try 块的成功路径，此处补发完成事件
-            publishNodeEvent(ChainEvent.EventType.NODE_FALLBACK_SUCCESS, nodeDef, context, costMs, 1, null);
+            publishNodeEvent(ChainEvent.EventType.NODE_FALLBACK_SUCCESS, nodeDef, context, costMs, 1, null, null, null);
             return NodeResultDTO.builder()
                     .nodeId(nodeDef.getId())
                     .status(ChainConstants.NODE_SUCCESS)
@@ -379,7 +391,7 @@ public class NodeRunner {
         } catch (Exception fallbackError) {
             log.error("降级执行失败 nodeId={}", nodeDef.getId(), fallbackError);
             stateMachine.transit(ChainConstants.NODE_FAILED);
-            publishNodeEvent(ChainEvent.EventType.NODE_FALLBACK_FAILED, nodeDef, context, costMs, 0, fallbackError.getMessage());
+            publishNodeEvent(ChainEvent.EventType.NODE_FALLBACK_FAILED, nodeDef, context, costMs, 0, fallbackError.getMessage(), null, null);
             return NodeResultDTO.builder()
                     .nodeId(nodeDef.getId())
                     .status(ChainConstants.NODE_FAILED)
@@ -396,22 +408,36 @@ public class NodeRunner {
     }
 
     private void publishNodeEvent(ChainEvent.EventType eventType, NodeDefinition nodeDef,
-                                   ChainContext context, Long costMs, Integer status, String errorMessage) {
+                                   ChainContext context, Long costMs, Integer status, String errorMessage,
+                                   String params, String result) {
         eventPublisher.publish(ChainEvent.builder()
                 .eventId(UUID.randomUUID().toString())
                 .eventType(eventType)
                 .executionId(context.getInstanceId())
-                .chainId(context.getInstanceId())
+                .chainId(context.getChainCode())
                 .chainName(context.getChainCode())
-                .nodeId(nodeDef.getId())
+                .nodeId(nodeDef.getComponent() != null ? nodeDef.getComponent() : nodeDef.getId())
                 .nodeName(nodeDef.getLabel())
                 .executorId(executorId)
+                .appCode(appCode)
                 .appName(appName)
+                .params(params)
+                .result(result)
                 .costMs(costMs)
                 .status(status)
                 .errorMessage(errorMessage)
                 .timestamp(System.currentTimeMillis())
                 .build());
+    }
+
+    private static String toJsonString(Object obj) {
+        if (obj == null) return null;
+        try {
+            return JSON_MAPPER.writeValueAsString(obj);
+        } catch (JsonProcessingException e) {
+            log.warn("序列化事件数据失败", e);
+            return null;
+        }
     }
 
     private boolean evaluateCondition(String condition, ChainContext context) {

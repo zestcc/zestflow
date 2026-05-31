@@ -54,7 +54,7 @@ $RECYCLE.BIN/
 *~
 
 # ====== Logs ======
-logs/
+/logs/
 *.log
 
 # ====== Node.js（前端 admin 模块预留） ======

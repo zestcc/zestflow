@@ -1,10 +1,14 @@
 package com.zestflow.executor.engine;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zestflow.common.constant.ChainConstants;
 import com.zestflow.common.model.dto.ChainEvent;
 import com.zestflow.common.model.dto.ChainExecuteResultDTO;
 import com.zestflow.common.model.dto.NodeResultDTO;
 import com.zestflow.executor.chain.ChainDefinition;
+import com.zestflow.executor.chain.ChainLoader;
 import com.zestflow.executor.chain.ChainManager;
 import com.zestflow.executor.chain.NodeDefinition;
 import com.zestflow.executor.context.ChainContext;
@@ -17,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
@@ -41,19 +46,30 @@ import java.util.stream.Collectors;
 public class DefaultChainExecutionEngine implements ChainExecutionEngine {
 
     private final ChainManager chainManager;
+    private ChainLoader chainLoader;
     private final DagSorter dagSorter;
     private final NodeRunner nodeRunner;
     private final ChainInstanceManager instanceManager;
     private final EventPublisher eventPublisher;
     private final InterceptorChain interceptorChain;
     private final ExecutorProperties properties;
+    private final String appCode;
+
+    private static final ObjectMapper JSON_MAPPER = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+    /** Setter 注入 ChainLoader（setter 打破循环依赖：engine → loader → nodeRunner → engine） */
+    public void setChainLoader(ChainLoader chainLoader) {
+        this.chainLoader = chainLoader;
+    }
 
     /** 并行执行线程池 */
     private final ForkJoinPool forkJoinPool = new ForkJoinPool(
             Math.min(Runtime.getRuntime().availableProcessors() * 2, 16));
 
-    public DefaultChainExecutionEngine(ChainManager chainManager, DagSorter dagSorter,
-                                       NodeRunner nodeRunner, ChainInstanceManager instanceManager,
+    public DefaultChainExecutionEngine(ChainManager chainManager,
+                                       DagSorter dagSorter, NodeRunner nodeRunner,
+                                       ChainInstanceManager instanceManager,
                                        EventPublisher eventPublisher, InterceptorChain interceptorChain,
                                        ExecutorProperties properties) {
         this.chainManager = chainManager;
@@ -63,6 +79,7 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
         this.eventPublisher = eventPublisher;
         this.interceptorChain = interceptorChain;
         this.properties = properties;
+        this.appCode = properties.getAppCode();
     }
 
     /** 关闭 ForkJoinPool + 清理过期实例，释放线程资源 */
@@ -93,8 +110,15 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
         long startTime = System.currentTimeMillis();
         log.info("链执行开始 chainCode={}", chainCode);
 
-        // 1. 获取链定义
+        // 1. 获取链定义（自动从 DB 加载未注册的链）
         ChainDefinition definition = chainManager.get(chainCode);
+        if (definition == null) {
+            log.info("链定义未在内存中找到，尝试从 DB 加载 chainCode={}", chainCode);
+            var loadResult = chainLoader.reloadChainLocal(chainCode, null, null);
+            if (loadResult.isSuccess()) {
+                definition = chainManager.get(chainCode);
+            }
+        }
         if (definition == null) {
             return ChainExecuteResultDTO.builder()
                     .chainCode(chainCode)
@@ -158,6 +182,15 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
                         .anyMatch(r -> r.getStatus() == ChainConstants.NODE_FAILED);
                 if (hasFailed && ChainConstants.ERROR_STRATEGY_STOP.equals(definition.getErrorStrategy())) {
                     log.warn("节点执行失败，终止链执行 chainCode={}", chainCode);
+                    // 从失败节点提取错误信息
+                    String nodeError = layerResults.stream()
+                            .filter(r -> r.getStatus() == ChainConstants.NODE_FAILED)
+                            .map(NodeResultDTO::getErrorMessage)
+                            .filter(Objects::nonNull)
+                            .findFirst().orElse(null);
+                    if (nodeError != null) {
+                        instance.getContext().put("_errorMessage", nodeError);
+                    }
                     stateMachine.transit(ChainConstants.CHAIN_FAILED);
                     break;
                 }
@@ -178,11 +211,13 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
             log.info("链执行完成 chainCode={} status={} cost={}ms nodes={}",
                     chainCode, stateMachine.current(), costMs, allNodeResults.size());
 
+            String errorMsg = (String) context.get("_errorMessage");
             return ChainExecuteResultDTO.builder()
                     .instanceId(instance.getInstanceId())
                     .chainCode(chainCode)
                     .status(stateMachine.current())
                     .costMs(costMs)
+                    .errorMessage(errorMsg)
                     .resultData(context.snapshot())
                     .resultTypedData(context.typedSnapshot())
                     .nodeResults(allNodeResults)
@@ -231,19 +266,32 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
      * 发布链级事件
      */
     private void publishChainEvent(ChainEvent.EventType eventType, String chainCode, ChainInstance instance) {
-        String instanceId = instance.getInstanceId();
+        ChainContext context = instance.getContext();
         eventPublisher.publish(ChainEvent.builder()
                 .eventId(UUID.randomUUID().toString())
                 .eventType(eventType)
-                .executionId(instanceId)
-                .chainId(instanceId)
+                .executionId(instance.getInstanceId())
+                .chainId(chainCode)
                 .chainName(chainCode)
                 .executorId(properties.getAppCode() + "@" + properties.getHost() + ":" + properties.getPort())
+                .appCode(appCode)
                 .appName(properties.getAppName())
+                .params(toJsonString(context != null ? context.snapshot() : null))
+                .result(toJsonString(context != null ? context.snapshot() : null))
                 .timestamp(System.currentTimeMillis())
                 .costMs(instance.elapsed())
                 .status(eventType == ChainEvent.EventType.CHAIN_COMPLETED ? 1 : 0)
                 .build());
+    }
+
+    private static String toJsonString(Object obj) {
+        if (obj == null) return null;
+        try {
+            return JSON_MAPPER.writeValueAsString(obj);
+        } catch (JsonProcessingException e) {
+            log.warn("序列化事件数据失败", e);
+            return null;
+        }
     }
 
     private List<NodeResultDTO> executeLayer(List<String> nodeIds,

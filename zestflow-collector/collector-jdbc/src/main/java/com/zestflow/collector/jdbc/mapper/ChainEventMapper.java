@@ -22,12 +22,12 @@ public interface ChainEventMapper extends BaseMapper<ChainEventPO> {
     @Insert({
             "<script>",
             "INSERT IGNORE INTO chain_event(event_id, event_type, execution_id, chain_id, chain_name,",
-            "  node_id, node_name, executor_id, app_name, params, result,",
+            "  node_id, node_name, executor_id, app_code, app_name, params, result,",
             "  error_message, cost_ms, status, timestamp, metadata, create_time)",
             "VALUES ",
             "<foreach collection='list' item='e' separator=','>",
             "  (#{e.eventId}, #{e.eventType}, #{e.executionId}, #{e.chainId}, #{e.chainName},",
-            "   #{e.nodeId}, #{e.nodeName}, #{e.executorId}, #{e.appName}, #{e.params}, #{e.result},",
+            "   #{e.nodeId}, #{e.nodeName}, #{e.executorId}, #{e.appCode}, #{e.appName}, #{e.params}, #{e.result},",
             "   #{e.errorMessage}, #{e.costMs}, #{e.status}, #{e.timestamp}, #{e.metadata}, NOW())",
             "</foreach>",
             "</script>"
@@ -43,6 +43,7 @@ public interface ChainEventMapper extends BaseMapper<ChainEventPO> {
             "  ANY_VALUE(e.chain_name) AS chainName,",
             "  ANY_VALUE(e.executor_id) AS executorId,",
             "  ANY_VALUE(e.app_name) AS appName,",
+            "  ANY_VALUE(e.app_code) AS appCode,",
             "  MIN(e.timestamp) AS timestamp,",
             "  MAX(CASE WHEN e.event_type IN ('CHAIN_COMPLETED','CHAIN_FAILED','CHAIN_TIMEOUT')",
             "       THEN e.cost_ms ELSE NULL END) AS costMs,",

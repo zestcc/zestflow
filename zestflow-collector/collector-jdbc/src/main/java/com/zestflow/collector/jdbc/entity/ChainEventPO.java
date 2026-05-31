@@ -46,6 +46,9 @@ public class ChainEventPO {
     /** 执行器 ID */
     private String executorId;
 
+    /** 应用编码 */
+    private String appCode;
+
     /** 应用名 */
     private String appName;
 

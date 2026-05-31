@@ -24,10 +24,24 @@
         <el-icon><EditPen /></el-icon>
         <span>{{ $t('layout.design') }}</span>
       </el-menu-item>
-      <el-menu-item index="/playground" v-if="appStore.playgroundEnabled">
-        <el-icon><VideoPlay /></el-icon>
-        <span>{{ $t('layout.playground') }}</span>
-      </el-menu-item>
+      <el-sub-menu index="/demo" v-if="appStore.demoEnabled">
+        <template #title>
+          <el-icon><VideoPlay /></el-icon>
+          <span>{{ $t('layout.demo') }}</span>
+        </template>
+        <el-menu-item index="/demo/scenes">
+          <el-icon><Collection /></el-icon>
+          <span>{{ $t('layout.demoScenes') }}</span>
+        </el-menu-item>
+        <el-menu-item index="/demo/records">
+          <el-icon><Document /></el-icon>
+          <span>{{ $t('layout.demoRecords') }}</span>
+        </el-menu-item>
+        <el-menu-item index="/demo/playground">
+          <el-icon><MagicStick /></el-icon>
+          <span>{{ $t('layout.playground') }}</span>
+        </el-menu-item>
+      </el-sub-menu>
       <el-menu-item index="/components">
         <el-icon><Grid /></el-icon>
         <span>{{ $t('layout.components') }}</span>
@@ -75,7 +89,7 @@ import { onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import {
-  Odometer, Connection, EditPen, VideoPlay, Grid, Timer, Document, Monitor, Collection, User, UserFilled, Tools, List,
+  Odometer, Connection, EditPen, VideoPlay, Grid, Timer, Document, Monitor, Collection, User, UserFilled, Tools, List, MagicStick,
 } from '@element-plus/icons-vue'
 
 defineProps<{ collapsed: boolean }>()

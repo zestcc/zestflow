@@ -340,15 +340,15 @@ public class ChainController {
         log.info("链发布完成 code={} appCode={} publishId={} success={}/{}",
                 code, appCode, publishId, reloadResult.getSuccess(), reloadResult.getTotal());
 
-        ObjectNode result = MAPPER.createObjectNode();
-        result.put("code", reloadResult.isAllSuccess() && reloadResult.getTotal() > 0 ? 200 : 207);
-        result.put("publishId", publishId);
-        result.put("message", reloadResult.isAllSuccess()
+        ObjectNode data = MAPPER.createObjectNode();
+        data.put("code", reloadResult.isAllSuccess() && reloadResult.getTotal() > 0 ? 200 : 207);
+        data.put("publishId", publishId);
+        data.put("message", reloadResult.isAllSuccess()
                 ? "发布成功"
                 : String.format("发布完成: %d/%d 成功", reloadResult.getSuccess(), reloadResult.getTotal()));
-        result.put("total", reloadResult.getTotal());
-        result.put("success", reloadResult.getSuccess());
-        ArrayNode details = result.putArray("details");
+        data.put("total", reloadResult.getTotal());
+        data.put("success", reloadResult.getSuccess());
+        ArrayNode details = data.putArray("details");
         for (ExecutorResult r : reloadResult.getResults()) {
             ObjectNode detail = MAPPER.createObjectNode();
             detail.put("url", r.getUrl());
@@ -356,6 +356,11 @@ public class ChainController {
             detail.put("message", r.getMessage());
             details.add(detail);
         }
+
+        ObjectNode result = MAPPER.createObjectNode();
+        result.put("code", 200);
+        result.put("message", "success");
+        result.set("data", data);
         try {
             return MAPPER.writeValueAsString(result);
         } catch (Exception e) {

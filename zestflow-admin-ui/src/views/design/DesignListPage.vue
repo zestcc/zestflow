@@ -14,27 +14,18 @@
         >
           <el-option v-for="m in apps" :key="m.appCode" :label="m.appName || m.appCode" :value="m.appCode" />
         </el-select>
+        <el-input v-model="filter.keyword" :placeholder="$t('design.name')" clearable style="width:200px;margin-left:16px" @keyup.enter="handleSearch" />
+        <el-select v-model="filter.status" :placeholder="$t('design.total')" clearable style="width:100px;margin-left:8px">
+          <el-option :label="$t('design.enabled')" :value="1" />
+          <el-option :label="$t('design.disabled')" :value="0" />
+        </el-select>
+        <el-button type="primary" style="margin-left:8px" @click="handleSearch">{{ $t('design.search') }}</el-button>
+        <el-button @click="handleReset">{{ $t('design.reset') }}</el-button>
       </div>
       <el-button type="primary" @click="openCreate">
         {{ $t('design.createDesign') }}
       </el-button>
     </div>
-
-    <el-form :model="filter" inline size="default" style="margin-bottom:12px">
-      <el-form-item :label="$t('design.name')">
-        <el-input v-model="filter.keyword" :placeholder="$t('design.name')" clearable style="width:200px" @keyup.enter="handleSearch" />
-      </el-form-item>
-      <el-form-item :label="$t('design.status')">
-        <el-select v-model="filter.status" :placeholder="$t('design.total')" clearable style="width:100px">
-          <el-option :label="$t('design.enabled')" :value="1" />
-          <el-option :label="$t('design.disabled')" :value="0" />
-        </el-select>
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" @click="handleSearch">{{ $t('design.search') }}</el-button>
-        <el-button @click="handleReset">{{ $t('design.reset') }}</el-button>
-      </el-form-item>
-    </el-form>
 
     <el-table
       :data="designList"
@@ -43,9 +34,9 @@
       style="width:100%"
       :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"
     >
-      <el-table-column prop="code" :label="$t('design.code')" width="160">
+      <el-table-column prop="code" :label="$t('design.code')" width="160" show-overflow-tooltip>
         <template #default="{ row }">
-          <span style="color:#409eff;cursor:pointer;font-family:monospace;font-weight:600" @click="openDesignDetail(row)">{{ row.code }}</span>
+          <span style="color:#409eff;cursor:pointer;font-family:monospace;font-weight:600;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" @click="openDesignDetail(row)">{{ row.code }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="name" :label="$t('design.name')" show-overflow-tooltip min-width="140" />
@@ -175,7 +166,12 @@
     <el-drawer v-model="designDrawerVisible" title="设计详情" :size="520" destroy-on-close>
       <template v-if="currentDesignDetail">
         <div style="padding:0 8px">
-          <div style="font-size:20px;font-weight:600;color:#303133;margin-bottom:12px">{{ currentDesignDetail.name }}</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div style="font-size:20px;font-weight:600;color:#303133">{{ currentDesignDetail.name }}</div>
+            <el-button type="primary" size="small" @click="handleDesign(currentDesignDetail)">
+              {{ $t('design.editDesign') }}
+            </el-button>
+          </div>
           <el-descriptions :column="1" border size="small">
             <el-descriptions-item label="编码">
               <el-tag size="small" style="font-family:monospace">{{ currentDesignDetail.code }}</el-tag>

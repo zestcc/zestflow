@@ -108,6 +108,13 @@ public class BizOrchestrationService {
         return loadAndExecute(code, nodes, edges, params, Map.of());
     }
 
+    /**
+     * 从数据库加载链定义并执行（引擎内部自动处理加载）
+     */
+    public ChainExecuteResultDTO loadFromDbAndExecute(String chainCode, Map<String, Object> params) {
+        return chainExecutionEngine.execute(chainCode, params != null ? params : Map.of());
+    }
+
     // ==================== 订单场景链定义 ====================
 
     /**

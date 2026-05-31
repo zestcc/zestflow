@@ -18,6 +18,7 @@ export interface ExecutionTrace {
   executionId: string
   chainName: string
   executorId: string
+  appCode: string
   appName: string
   startTime: number
   endTime: number
@@ -40,6 +41,7 @@ export interface ChainEvent {
   nodeId: string
   nodeName: string
   executorId: string
+  appCode: string
   appName: string
   params: string
   result: string

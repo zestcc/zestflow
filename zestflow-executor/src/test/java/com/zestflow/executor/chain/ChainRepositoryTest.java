@@ -77,7 +77,7 @@ class ChainRepositoryTest {
         assertThat(args[2]).isEqualTo("DSN001");
         assertThat(args[3]).isEqualTo("{}");
         assertThat(args[4]).isEqualTo("[]");
-        assertThat(args[5]).isEqualTo("admin");
+        assertThat(args[7]).isEqualTo("admin");
     }
 
     // ==================== listVersionSnapshots ====================
@@ -151,7 +151,7 @@ class ChainRepositoryTest {
     // ==================== rollbackToVersion ====================
 
     @Test
-    void rollbackToVersionUpdatesChainAndRestoresDesign() {
+    void rollbackToVersionUpdatesBindingAndRestoresDesign() {
         ChainPO existing = ChainPO.builder()
                 .code("CHN001").name("test").status(4).designCode("DSN001")
                 .version(3).updatedBy("admin").build();
@@ -159,7 +159,7 @@ class ChainRepositoryTest {
         // Mock getVersionSnapshot — use spy on real object
         ChainVersionPO snapshot = ChainVersionPO.builder()
                 .id(1L).chainCode("CHN001").version(2)
-                .designCode("DSN001").graphData("{\"old\":true}").chainData("[\"old\"]")
+                .designCode("DSN_OLD").graphData("{\"old\":true}").chainData("[\"old\"]")
                 .createdBy("admin").build();
 
         ChainRepository spy = spy(repo);
@@ -168,15 +168,25 @@ class ChainRepositoryTest {
 
         spy.rollbackToVersion("CHN001", 2, "sys");
 
-        // Verify chain update: design_code reset, status=2
+        // Verify old binding deleted
+        verify(jdbc).update(
+                argThat(sql -> sql.contains("DELETE FROM zf_design_binding")),
+                eq("CHN001"));
+
+        // Verify new binding inserted
+        verify(jdbc).update(
+                argThat(sql -> sql.contains("INSERT INTO zf_design_binding")),
+                eq("DSN_OLD"), eq("CHN001"));
+
+        // Verify chain status reset to 2 (no design_code set)
         verify(jdbc).update(
                 argThat(sql -> sql.contains("UPDATE zf_chain") && sql.contains("status = 2")),
-                eq("DSN001"), eq("sys"), anyString(), eq("CHN001"));
+                eq("sys"), anyString(), eq("CHN001"));
 
         // Verify design restore
         verify(jdbc).update(
                 argThat(sql -> sql.contains("UPDATE zf_design")),
-                eq("{\"old\":true}"), eq("[\"old\"]"), eq("sys"), anyString(), eq("DSN001"));
+                eq("{\"old\":true}"), eq("[\"old\"]"), eq("sys"), anyString(), eq("DSN_OLD"));
     }
 
     @Test

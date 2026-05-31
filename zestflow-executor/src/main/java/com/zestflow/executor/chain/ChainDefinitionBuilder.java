@@ -83,9 +83,8 @@ public class ChainDefinitionBuilder {
         if (chainDataJson != null && !chainDataJson.isEmpty()) {
             try {
                 ChainDefinitionDTO dto = MAPPER.readValue(chainDataJson, ChainDefinitionDTO.class);
-                if (dto.getCode() == null || dto.getCode().isEmpty()) {
-                    dto.setCode(chainCode);
-                }
+                // 始终以 chainCode 参数为准（chainData JSON 中可能包含设计编码而非链编码）
+                dto.setCode(chainCode);
                 if (dto.getVersion() == null) {
                     dto.setVersion(version != null ? version : 1);
                 }
@@ -111,9 +110,8 @@ public class ChainDefinitionBuilder {
     public ChainDefinitionDTO parseJson(String chainCode, Integer version, String graphDataJson) {
         try {
             ChainDefinitionDTO dto = MAPPER.readValue(graphDataJson, ChainDefinitionDTO.class);
-            if (dto.getCode() == null || dto.getCode().isEmpty()) {
-                dto.setCode(chainCode);
-            }
+            // 始终以 chainCode 参数为准（graphData JSON 中可能包含设计编码而非链编码）
+            dto.setCode(chainCode);
             if (dto.getVersion() == null) {
                 dto.setVersion(version != null ? version : 1);
             }

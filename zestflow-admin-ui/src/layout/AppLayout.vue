@@ -8,6 +8,7 @@
         <AppHeader @toggle-sidebar="appStore.toggleSidebar" />
       </el-header>
       <el-main>
+        <div v-if="!route.meta?.hideTitle" class="page-title">{{ route.meta?.title || '' }}</div>
         <router-view />
       </el-main>
     </el-container>
@@ -16,8 +17,11 @@
 
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { useUserStore } from '@/stores/user'
+
+const route = useRoute()
 import AppSidebar from './AppSidebar.vue'
 import AppHeader from './AppHeader.vue'
 
@@ -53,5 +57,14 @@ onMounted(() => {
   background-color: #f0f2f5;
   padding: 20px;
   overflow-y: auto;
+}
+
+.page-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e4e7ed;
 }
 </style>

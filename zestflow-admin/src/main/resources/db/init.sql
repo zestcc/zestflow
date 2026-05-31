@@ -153,12 +153,12 @@ CREATE TABLE `zestflow_admin`.`component` (
 
 -- ==================== 业务库（zestflow_test_bussiness） ====================
 
+-- 2026-05-31：移除 design_code 列，改由 zf_design_binding 表维护设计↔链关系
 CREATE TABLE `zestflow_test_bussiness`.`zf_chain` (
     `code`        VARCHAR(64)  NOT NULL PRIMARY KEY,
     `name`        VARCHAR(128) NOT NULL DEFAULT '',
     `description` VARCHAR(500) DEFAULT NULL,
     `status`      TINYINT      NOT NULL DEFAULT 1   COMMENT '0-停用 1-未设计 2-未发布 3-发布中 4-已发布',
-    `design_code` VARCHAR(64)  DEFAULT NULL,
     `version`     INT          NOT NULL DEFAULT 1   COMMENT '当前发布版本号',
     `created_by`  VARCHAR(64)  DEFAULT NULL         COMMENT '创建人',
     `updated_by`  VARCHAR(64)  DEFAULT NULL         COMMENT '最后修改人',
@@ -264,25 +264,64 @@ CREATE TABLE `zestflow_admin`.`sys_dict_data` (
     KEY `idx_type_code` (`type_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='字典数据表';
 
--- 2026-05-31：试验场执行记录表
-CREATE TABLE IF NOT EXISTS `zestflow_admin`.`playground_log` (
+-- 2026-05-31：演示场景定义表 — 替代 application.yml 配置，DB 驱动 CRUD
+CREATE TABLE `zestflow_admin`.`demo_scene` (
     `id`               BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键',
-    `scene_id`         VARCHAR(64)  NOT NULL                 COMMENT '场景标识',
-    `scene_name`       VARCHAR(128) DEFAULT NULL             COMMENT '场景名称',
-    `chain_code`       VARCHAR(64)  NOT NULL                 COMMENT '链编码',
-    `request_ip`       VARCHAR(64)  DEFAULT NULL             COMMENT '请求IP（仅入库，不展示）',
-    `request_headers`  TEXT         DEFAULT NULL             COMMENT '自定义请求头 JSON',
-    `params`           TEXT         DEFAULT NULL             COMMENT '请求参数 JSON',
-    `result`           TEXT         DEFAULT NULL             COMMENT '执行结果 JSON',
+    `scene_code`       VARCHAR(64)  NOT NULL                 COMMENT '场景编码（SCN{yMMdd}{6位序号}）',
+    `name`             VARCHAR(128) NOT NULL                 COMMENT '场景名称',
+    `description`      VARCHAR(500) DEFAULT NULL             COMMENT '场景描述',
+    `request_path`     VARCHAR(256) NOT NULL                 COMMENT '请求路径',
+    `request_method`   VARCHAR(10)  NOT NULL DEFAULT 'POST'  COMMENT '请求方法',
+    `request_headers`  TEXT         DEFAULT NULL             COMMENT '默认请求头 JSON',
+    `body_type`        VARCHAR(10)  NOT NULL DEFAULT 'JSON'  COMMENT '请求体类型',
+    `request_body`     TEXT         DEFAULT NULL             COMMENT '请求体模板',
+    `response_example` TEXT         DEFAULT NULL             COMMENT '响应示例 JSON',
+    `chain_code`       VARCHAR(64)  NOT NULL                 COMMENT '关联链编码',
+    `rate_limit`       INT          DEFAULT 30               COMMENT '每 IP 每分钟限流数',
+    `tenant_id`        BIGINT       DEFAULT 1                COMMENT '租户ID',
+    `app_code`         VARCHAR(50)  DEFAULT NULL             COMMENT '应用编码',
+    `created_by`       VARCHAR(64)  DEFAULT NULL             COMMENT '创建人',
+    `updated_by`       VARCHAR(64)  DEFAULT NULL             COMMENT '最后修改人',
+    `created_at`       DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at`       DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_scene_code` (`scene_code`),
+    KEY `idx_chain_code` (`chain_code`),
+    KEY `idx_app_code` (`app_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='演示场景定义表';
+
+-- 2026-05-31：演示执行记录表 — 替代 playground_log
+CREATE TABLE `zestflow_admin`.`demo_record` (
+    `id`               BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键',
+    `scene_id`         BIGINT       DEFAULT NULL             COMMENT '关联场景ID',
+    `scene_name`       VARCHAR(128) DEFAULT NULL             COMMENT '场景名称（冗余）',
+    `scene_code`       VARCHAR(64)  DEFAULT NULL             COMMENT '场景编码（冗余）',
+    `request_method`   VARCHAR(10)  NOT NULL DEFAULT 'POST'  COMMENT '请求方法',
+    `request_path`     VARCHAR(256) NOT NULL                 COMMENT '请求路径',
+    `request_headers`  TEXT         DEFAULT NULL             COMMENT '请求头 JSON',
+    `body_type`        VARCHAR(10)  DEFAULT NULL             COMMENT '请求体类型',
+    `request_body`     TEXT         DEFAULT NULL             COMMENT '请求体 JSON',
+    `response_status`  INT          DEFAULT NULL             COMMENT 'HTTP 响应状态码',
+    `response_body`    TEXT         DEFAULT NULL             COMMENT '响应体 JSON',
+    `response_headers` TEXT         DEFAULT NULL             COMMENT '响应头 JSON',
+    `chain_code`       VARCHAR(64)  DEFAULT NULL             COMMENT '关联链编码',
     `instance_id`      VARCHAR(128) DEFAULT NULL             COMMENT '链执行实例 ID',
-    `status`           TINYINT      DEFAULT 0                COMMENT '状态：0-失败 1-成功',
+    `status`           TINYINT      DEFAULT 0                COMMENT '执行状态：0-失败 1-成功',
     `cost_ms`          BIGINT       DEFAULT NULL             COMMENT '耗时（毫秒）',
     `error_msg`        VARCHAR(500) DEFAULT NULL             COMMENT '错误信息',
+    `request_ip`       VARCHAR(64)  DEFAULT NULL             COMMENT '请求IP（仅入库，API 不返回）',
+    `tenant_id`        BIGINT       DEFAULT 1                COMMENT '租户ID',
+    `app_code`         VARCHAR(50)  DEFAULT NULL             COMMENT '应用编码',
+    `created_by`       VARCHAR(64)  DEFAULT NULL             COMMENT '创建人',
+    `updated_by`       VARCHAR(64)  DEFAULT NULL             COMMENT '最后修改人',
     `created_at`       DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at`       DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
+    KEY `idx_scene_id` (`scene_id`),
     KEY `idx_created_at` (`created_at`),
-    KEY `idx_scene_id` (`scene_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='试验场执行记录表';
+    KEY `idx_status` (`status`),
+    KEY `idx_chain_code` (`chain_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='演示执行记录表';
 
 -- ==================== 日志库（zestflow_test_log） ====================
 
@@ -291,11 +330,12 @@ CREATE TABLE `zestflow_test_log`.`chain_event` (
     `event_id`      VARCHAR(64)  NOT NULL                 COMMENT '事件全局唯一 ID（UUID）',
     `event_type`    VARCHAR(32)  NOT NULL                 COMMENT '事件类型',
     `execution_id`  VARCHAR(64)  DEFAULT NULL             COMMENT '执行追踪 ID（同一次链执行的所有事件共享）',
-    `chain_id`      VARCHAR(64)  DEFAULT NULL             COMMENT '链实例 ID',
+    `chain_id`      VARCHAR(64)  DEFAULT NULL             COMMENT '链编码',
     `chain_name`    VARCHAR(128) DEFAULT NULL             COMMENT '链名称',
-    `node_id`       VARCHAR(64)  DEFAULT NULL             COMMENT '节点实例 ID',
+    `node_id`       VARCHAR(64)  DEFAULT NULL             COMMENT '节点编码',
     `node_name`     VARCHAR(128) DEFAULT NULL             COMMENT '节点名称',
     `executor_id`   VARCHAR(128) DEFAULT NULL             COMMENT '执行器 ID',
+    `app_code`      VARCHAR(64)  DEFAULT NULL             COMMENT '应用编码',
     `app_name`      VARCHAR(64)  DEFAULT NULL             COMMENT '应用名',
     `params`        TEXT         DEFAULT NULL             COMMENT '执行入参 JSON',
     `result`        TEXT         DEFAULT NULL             COMMENT '执行结果 JSON',

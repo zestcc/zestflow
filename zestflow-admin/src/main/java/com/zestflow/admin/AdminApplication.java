@@ -7,7 +7,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableScheduling
-@MapperScan({"com.zestflow.admin.repository", "com.zestflow.admin.playground"})
+@MapperScan({"com.zestflow.admin.repository", "com.zestflow.admin.demo.repository"})
 public class AdminApplication {
 
     public static void main(String[] args) {

@@ -1,18 +1,60 @@
 package com.zestflow.executor.registry;
 
 import com.zestflow.common.constant.RegistryConstants;
+import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.EnvironmentAware;
+import org.springframework.core.env.Environment;
+
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.util.Collections;
 
 @Data
 @ConfigurationProperties(prefix = "zestflow.executor")
-public class ExecutorProperties {
+public class ExecutorProperties implements EnvironmentAware {
 
     /** 应用编码（为空则使用 spring.application.name） */
     private String appCode;
 
     /** 应用名称（为空则默认等于 appCode） */
     private String appName;
+
+    private Environment environment;
+
+    public void setEnvironment(Environment environment) {
+        this.environment = environment;
+    }
+
+    @PostConstruct
+    public void init() {
+        if (appCode == null || appCode.isEmpty()) {
+            appCode = environment != null ? environment.getProperty("spring.application.name", "default") : "default";
+        }
+        if (appName == null || appName.isEmpty()) {
+            appName = appCode;
+        }
+        if (host == null || host.isEmpty()) {
+            host = detectLocalHost();
+        }
+    }
+
+    /** 自动探测本机内网 IPv4 */
+    private static String detectLocalHost() {
+        try {
+            return Collections.list(NetworkInterface.getNetworkInterfaces()).stream()
+                    .flatMap(iface -> Collections.list(iface.getInetAddresses()).stream())
+                    .filter(addr -> addr instanceof Inet4Address)
+                    .filter(addr -> !addr.isLoopbackAddress())
+                    .map(InetAddress::getHostAddress)
+                    .findFirst()
+                    .orElse("127.0.0.1");
+        } catch (Exception e) {
+            return "127.0.0.1";
+        }
+    }
 
     /** Admin 服务地址，多个用逗号分隔，如 http://localhost:8080 */
     private String adminAddresses = "http://localhost:8080";

@@ -23,8 +23,8 @@ public class SystemController {
      */
     @GetMapping("/features")
     public Map<String, Object> getFeatures() {
-        boolean playgroundEnabled = "true".equalsIgnoreCase(
-                environment.getProperty("zestflow.playground.enabled", "false"));
-        return Map.of("playground", Map.of("enabled", playgroundEnabled));
+        boolean demoEnabled = "true".equalsIgnoreCase(
+                environment.getProperty("zestflow.demo.enabled", "false"));
+        return Map.of("demo", Map.of("enabled", demoEnabled));
     }
 }

@@ -21,7 +21,7 @@ public class ChainRepository {
         po.setName(rs.getString("name"));
         po.setDescription(rs.getString("description"));
         po.setStatus(rs.getInt("status"));
-        po.setDesignCode(rs.getString("design_code"));
+        try { po.setDesignCode(rs.getString("design_code")); } catch (Exception ignored) {}
         try { po.setVersion(rs.getInt("version")); } catch (Exception ignored) {}
         try { po.setAppCode(rs.getString("app_code")); } catch (Exception ignored) {}
         try { po.setTenantId(rs.getLong("tenant_id")); } catch (Exception ignored) {}
@@ -39,25 +39,38 @@ public class ChainRepository {
         this.jdbc = jdbcTemplate;
     }
 
+    /**
+     * 从绑定表查询链的设计编码
+     */
+    public String getDesignCode(String chainCode) {
+        List<String> codes = jdbc.query(
+                "SELECT design_code FROM zf_design_binding WHERE chain_code = ?",
+                (rs, rowNum) -> rs.getString("design_code"), chainCode);
+        return codes.isEmpty() ? null : codes.get(0);
+    }
+
     public List<ChainPO> list(String keyword, Integer status) {
-        StringBuilder sql = new StringBuilder("SELECT * FROM zf_chain WHERE is_deleted = 0");
+        StringBuilder sql = new StringBuilder(
+                "SELECT c.*, b.design_code FROM zf_chain c LEFT JOIN zf_design_binding b ON c.code = b.chain_code WHERE c.is_deleted = 0");
         List<Object> args = new ArrayList<>();
         if (keyword != null && !keyword.isBlank()) {
-            sql.append(" AND (name LIKE ? OR code LIKE ?)");
+            sql.append(" AND (c.name LIKE ? OR c.code LIKE ?)");
             String kw = "%" + keyword + "%";
             args.add(kw);
             args.add(kw);
         }
         if (status != null) {
-            sql.append(" AND status = ?");
+            sql.append(" AND c.status = ?");
             args.add(status);
         }
-        sql.append(" ORDER BY updated_at DESC");
+        sql.append(" ORDER BY c.updated_at DESC");
         return jdbc.query(sql.toString(), ROW_MAPPER, args.toArray());
     }
 
     public ChainPO get(String code) {
-        List<ChainPO> list = jdbc.query("SELECT * FROM zf_chain WHERE code = ? AND is_deleted = 0", ROW_MAPPER, code);
+        List<ChainPO> list = jdbc.query(
+                "SELECT c.*, b.design_code FROM zf_chain c LEFT JOIN zf_design_binding b ON c.code = b.chain_code WHERE c.code = ? AND c.is_deleted = 0",
+                ROW_MAPPER, code);
         return list.isEmpty() ? null : list.get(0);
     }
 
@@ -98,7 +111,7 @@ public class ChainRepository {
     public ChainPO toggleStatus(String code, String updatedBy) {
         ChainPO cur = get(code);
         if (cur == null) return null;
-        boolean hasDesign = cur.getDesignCode() != null && !cur.getDesignCode().isEmpty();
+        boolean hasDesign = getDesignCode(code) != null;
         int newStatus;
         if (cur.getStatus() == 0) {
             newStatus = hasDesign ? 2 : 1;
@@ -112,21 +125,10 @@ public class ChainRepository {
         return get(code);
     }
 
-    public void updateDesignCode(String code, String designCode, String updatedBy) {
-        String now = LocalDateTime.now().format(DTF);
-        jdbc.update("UPDATE zf_chain SET design_code=?, updated_by=?, updated_at=? WHERE code=?",
-                designCode, updatedBy != null ? updatedBy : "", now, code);
-    }
-
-    public void updateStatusAndDesignCode(String code, int status, String designCode, String updatedBy) {
-        String now = LocalDateTime.now().format(DTF);
-        jdbc.update("UPDATE zf_chain SET status=?, design_code=?, updated_by=?, updated_at=? WHERE code=?",
-                status, designCode, updatedBy != null ? updatedBy : "", now, code);
-    }
-
     /** 回退绑定链的发布状态（graphData 修改时触发） */
     public void resetBoundChainStatus(String designCode, String updatedBy) {
-        jdbc.update("UPDATE zf_chain SET status = 2, updated_by = ?, updated_at = ? WHERE design_code = ? AND status IN (3, 4)",
+        jdbc.update("UPDATE zf_chain c INNER JOIN zf_design_binding b ON c.code = b.chain_code" +
+                        " SET c.status = 2, c.updated_by = ?, c.updated_at = ? WHERE b.design_code = ? AND c.status IN (3, 4)",
                 updatedBy != null ? updatedBy : "", LocalDateTime.now().format(DTF), designCode);
     }
 
@@ -189,7 +191,7 @@ public class ChainRepository {
     }
 
     /**
-     * 回滚到指定版本：用快照数据覆盖当前链的 design_code，重置 status=2（未发布）
+     * 回滚到指定版本：用快照数据更新绑定关系和设计数据，重置 status=2（未发布）
      *
      * @return 回滚后的 ChainPO，或 null（快照/链不存在）
      */
@@ -202,11 +204,18 @@ public class ChainRepository {
         String now = LocalDateTime.now().format(DTF);
         String updater = updatedBy != null ? updatedBy : cur.getUpdatedBy();
 
-        // 回退设计编码、重置状态为未发布
-        jdbc.update("UPDATE zf_chain SET design_code = ?, status = 2, updated_by = ?, updated_at = ? WHERE code = ?",
-                snapshot.getDesignCode(), updater, now, code);
+        // 更新绑定关系指向快照版本的设计
+        jdbc.update("DELETE FROM zf_design_binding WHERE chain_code = ?", code);
+        if (snapshot.getDesignCode() != null && !snapshot.getDesignCode().isEmpty()) {
+            jdbc.update("INSERT INTO zf_design_binding(design_code, chain_code) VALUES(?,?)",
+                    snapshot.getDesignCode(), code);
+        }
 
-        // 同时回写快照的 graphData/chainData 到设计表
+        // 重置状态为未发布
+        jdbc.update("UPDATE zf_chain SET status = 2, updated_by = ?, updated_at = ? WHERE code = ?",
+                updater, now, code);
+
+        // 回写快照的 graphData/chainData 到设计表
         if (snapshot.getDesignCode() != null && !snapshot.getDesignCode().isEmpty()) {
             jdbc.update("UPDATE zf_design SET graph_data = ?, chain_data = ?, updated_by = ?, updated_at = ? WHERE code = ?",
                     snapshot.getGraphData(), snapshot.getChainData(), updater, now, snapshot.getDesignCode());

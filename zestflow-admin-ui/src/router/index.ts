@@ -46,7 +46,7 @@ const routes: RouteRecordRaw[] = [
         path: 'chains',
         name: 'Chains',
         component: () => import('@/views/chains/ChainsPage.vue'),
-        meta: { title: '链管理' },
+        meta: { title: '执行链管理' },
       },
       {
         path: 'chains/create',
@@ -73,10 +73,22 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '设计编辑器' },
       },
       {
-        path: 'playground',
-        name: 'Playground',
-        component: () => import('@/views/playground/PlaygroundPage.vue'),
-        meta: { title: '试验场' },
+        path: 'demo/scenes',
+        name: 'DemoScenes',
+        component: () => import('@/views/demo/scenes/DemoScenesPage.vue'),
+        meta: { title: '演示场景' },
+      },
+      {
+        path: 'demo/records',
+        name: 'DemoRecords',
+        component: () => import('@/views/demo/records/DemoRecordsPage.vue'),
+        meta: { title: '演示记录' },
+      },
+      {
+        path: 'demo/playground',
+        name: 'DemoPlayground',
+        component: () => import('@/views/demo/playground/DemoPlaygroundPage.vue'),
+        meta: { title: '试验场', hideTitle: true },
       },
       {
         path: 'components',

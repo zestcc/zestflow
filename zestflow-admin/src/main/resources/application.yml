@@ -50,42 +50,11 @@ zestflow:
       username: admin
       password: admin123
       email: admin@zestflow.com
-  playground:
-    # 开关：true 启用演示调试功能，false 关闭（默认关闭）
+  demo:
+    # 开关：true 启用系统演示功能（含演示场景、演示记录、试验场），false 关闭（默认关闭）
     enabled: true
     # 演示链所属应用编码（Executor 注册时使用的 appCode）
     app-code: demo-app
-    # 每 IP 每分钟允许的最大请求数
-    rate-limit: 30
-    # 演示场景定义
-    scenes:
-      - id: hello
-        name: Hello World
-        chain-code: CHN_DEMO_HELLO
-        description: 3 节点最小链路，体验链执行全流程
-        default-params:
-          message: "Hello ZestFlow"
-      - id: order
-        name: 订单处理
-        chain-code: CHN_DEMO_ORDER
-        description: 含条件分支的订单处理链路，展示分支能力
-        default-params:
-          orderId: "ORD001"
-          amount: "99.90"
-          userId: "U10086"
-      - id: payment
-        name: 支付全流程
-        chain-code: CHN_DEMO_PAYMENT
-        description: 12 节点支付链路，展示全链路可观测
-        default-params:
-          orderId: "ORD002"
-          amount: "299.00"
-      - id: stress-50
-        name: 50 步压力链
-        chain-code: CHN_DEMO_STRESS_50
-        description: 50 个串行节点，展示极端链路执行效果
-        default-params:
-          input: "stress-test"
   collector:
     api-url: http://localhost:8081
     access-token: ''

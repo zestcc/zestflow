@@ -211,10 +211,12 @@ public class ExecutorAutoConfig {
                                                              ChainInstanceManager instanceManager,
                                                              EventPublisher eventPublisher,
                                                              InterceptorChain interceptorChain,
-                                                             ExecutorProperties properties) {
+                                                             ExecutorProperties properties,
+                                                             ChainLoader chainLoader) {
         DefaultChainExecutionEngine engine = new DefaultChainExecutionEngine(chainManager, dagSorter, nodeRunner,
                 instanceManager, eventPublisher, interceptorChain, properties);
-        // setter 注入打破循环依赖：NodeRunner → ChainExecutionEngine → NodeRunner
+        // setter 注入打破循环依赖：NodeRunner → ChainExecutionEngine, ChainExecutionEngine → ChainLoader
+        engine.setChainLoader(chainLoader);
         nodeRunner.setChainExecutionEngine(engine);
         return engine;
     }
