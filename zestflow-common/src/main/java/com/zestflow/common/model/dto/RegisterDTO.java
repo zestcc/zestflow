@@ -18,23 +18,21 @@ public class RegisterDTO implements Serializable {
     /** 执行器唯一标识 */
     private String executorId;
 
-    /** 应用名（分组标识） */
-    private String appName;
-
     /** 主机地址 */
     private String host;
 
     /** 端口 */
     private int port;
 
-    /** 模块编码 */
-    private String moduleCode;
+    /** 应用编码（分组标识） */
+    private String appCode;
 
-    /** 模块名称（为空则默认等于 moduleCode） */
-    private String moduleName;
+    /** 应用名称（为空则默认等于 appCode） */
+    private String appName = "";
 
     /** 扩展元数据 JSON */
     private String metadata;
+
 
     /** 该执行器提供的所有 @ZestExecute 元件清单 */
     private java.util.List<ComponentDTO> components;

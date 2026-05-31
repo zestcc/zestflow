@@ -77,11 +77,11 @@ public class DesignRepository {
         return list.isEmpty() ? null : list.get(0);
     }
 
-    public DesignPO create(String name, String description, String designer, String moduleCode, String graphData,
+    public DesignPO create(String name, String description, String designer, String appCode, String graphData,
                            String chainData, String updatedBy) {
         String code = CodeGenerator.generate("DSN");
         String now = LocalDateTime.now().format(DTF);
-        String creator = updatedBy != null ? updatedBy : (moduleCode != null ? moduleCode : "");
+        String creator = updatedBy != null ? updatedBy : (appCode != null ? appCode : "");
         jdbc.update("INSERT INTO zf_design(code, name, description, designer, status, graph_data, chain_data, created_by, updated_by, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                 code, name, description, designer, 1, graphData, chainData,
                 creator, creator, now, now);

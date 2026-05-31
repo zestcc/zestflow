@@ -1,0 +1,43 @@
+# ============================================================
+# ZestFlow Collector JDBC 默认配置
+# 引入 collector-jdbc 依赖后自动生效，业务项目可在自己的
+# application.yml 中覆盖以下任意属性。
+# ============================================================
+zestflow:
+  collector:
+    # 认证令牌（Admin 查询时需携带，留空不校验）
+    access-token:
+    # 批量写入每批大小
+    batch-size: 200
+    # 批量写入最大间隔（毫秒）
+    batch-max-wait-ms: 500
+    # 采集线程池大小
+    pool-size: 1
+    # 采集队列容量
+    queue-capacity: 8192
+    # 是否启用磁盘降级（队列满时写入本地文件）
+    disk-fallback-enabled: false
+    # 磁盘降级目录
+    disk-fallback-dir: ./collector-fallback
+
+    # ---- 事件库数据源（可选，不配置则复用业务主数据源） ----
+    # datasource:
+    #   url: jdbc:mysql://localhost:3306/zestflow_log?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    #   username: root
+    #   password: 123456
+    #   driver-class-name: com.mysql.cj.jdbc.Driver
+
+    # ---- 注册配置（向 Admin 注册采集器自身） ----
+    registry:
+      # Admin 服务地址，多个用逗号分隔
+      admin-addresses: http://localhost:8080
+      # Admin 认证令牌
+      access-token:
+      # 采集器 Host（为空则自动探测本机 IP）
+      host:
+      # 采集器 Port（默认 9998）
+      port: 9998
+      # 心跳间隔（秒）
+      heartbeat-interval: 30
+      # 注册/心跳请求超时（毫秒）
+      timeout-ms: 5000

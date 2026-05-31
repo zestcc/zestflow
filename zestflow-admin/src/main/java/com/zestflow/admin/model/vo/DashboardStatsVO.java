@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class DashboardStatsVO {
 
-    private long totalModules;
+    private long totalApps;
     private long totalExecutors;
     private long healthyExecutors;
     private long errorExecutors;

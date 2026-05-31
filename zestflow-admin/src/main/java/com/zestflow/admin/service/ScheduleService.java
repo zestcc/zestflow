@@ -8,7 +8,7 @@ import com.zestflow.admin.model.vo.ScheduleVO;
 
 public interface ScheduleService {
 
-    IPage<ScheduleVO> list(Long moduleId, String keyword, Integer status, Integer page, Integer size);
+    IPage<ScheduleVO> list(String keyword, Integer status, Integer page, Integer size);
 
     ScheduleVO getById(Long id);
 

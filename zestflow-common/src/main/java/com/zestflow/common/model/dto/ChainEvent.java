@@ -60,7 +60,7 @@ public class ChainEvent implements Serializable {
     /** 节点名称（非节点级事件时为空） */
     private String nodeName;
 
-    /** 执行器 ID（moduleCode@host:port） */
+    /** 执行器 ID（appCode@host:port） */
     private String executorId;
 
     /** 应用名（分组标识） */

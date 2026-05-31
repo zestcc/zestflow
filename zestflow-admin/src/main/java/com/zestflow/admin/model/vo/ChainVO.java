@@ -16,7 +16,6 @@ public class ChainVO {
     private Long id;
     private String code;
     private String name;
-    private Long moduleId;
     private Integer status;
     private String description;
     private String designCode;

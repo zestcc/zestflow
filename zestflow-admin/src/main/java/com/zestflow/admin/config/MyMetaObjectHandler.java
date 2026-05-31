@@ -3,12 +3,16 @@ package com.zestflow.admin.config;
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
 import com.zestflow.admin.util.SecurityUtils;
 import org.apache.ibatis.reflection.MetaObject;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 
 @Component
 public class MyMetaObjectHandler implements MetaObjectHandler {
+
+    @Value("${zestflow.admin.system-user:sys}")
+    private String systemUser;
 
     @Override
     public void insertFill(MetaObject metaObject) {
@@ -28,9 +32,11 @@ public class MyMetaObjectHandler implements MetaObjectHandler {
             String username = SecurityUtils.getCurrentUsername();
             if (username != null) {
                 this.setFieldValByName("updatedBy", username, metaObject);
+            } else {
+                this.setFieldValByName("updatedBy", systemUser, metaObject);
             }
         } catch (Exception ignored) {
-            // 无登录上下文（如 Executor 注册心跳），不设置更新人
+            this.setFieldValByName("updatedBy", systemUser, metaObject);
         }
     }
 }

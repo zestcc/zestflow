@@ -5,17 +5,14 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zestflow.admin.constant.ErrorCode;
 
-import com.zestflow.admin.model.dto.AssignModuleRoleDTO;
 import com.zestflow.admin.model.dto.UserCreateDTO;
 import com.zestflow.admin.model.dto.UserUpdateDTO;
-import com.zestflow.admin.model.entity.ModulePO;
 import com.zestflow.admin.model.entity.RolePO;
-import com.zestflow.admin.model.entity.UserModuleRolePO;
+import com.zestflow.admin.model.entity.UserAppRolePO;
 import com.zestflow.admin.model.entity.UserPO;
 import com.zestflow.admin.model.vo.UserManageVO;
-import com.zestflow.admin.repository.ModuleMapper;
 import com.zestflow.admin.repository.RoleMapper;
-import com.zestflow.admin.repository.UserModuleRoleMapper;
+import com.zestflow.admin.repository.UserAppRoleMapper;
 import com.zestflow.admin.repository.UserMapper;
 import com.zestflow.admin.service.UserManageService;
 import com.zestflow.common.exception.BizException;
@@ -38,9 +35,8 @@ import java.util.stream.Collectors;
 public class UserManageServiceImpl implements UserManageService {
 
     private final UserMapper userMapper;
-    private final ModuleMapper moduleMapper;
+    private final UserAppRoleMapper userAppRoleMapper;
     private final RoleMapper roleMapper;
-    private final UserModuleRoleMapper userModuleRoleMapper;
     private final PasswordEncoder passwordEncoder;
 
     private static final String PASSWORD_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
@@ -55,22 +51,18 @@ public class UserManageServiceImpl implements UserManageService {
         }
 
         List<Long> userIds = users.stream().map(UserPO::getId).collect(Collectors.toList());
-        List<UserModuleRolePO> assignments = userModuleRoleMapper.selectList(
-                new LambdaQueryWrapper<UserModuleRolePO>().in(UserModuleRolePO::getUserId, userIds)
+        List<UserAppRolePO> assignments = userAppRoleMapper.selectList(
+                new LambdaQueryWrapper<UserAppRolePO>().in(UserAppRolePO::getUserId, userIds)
         );
-        Map<Long, List<UserModuleRolePO>> assignmentMap = assignments.stream()
-                .collect(Collectors.groupingBy(UserModuleRolePO::getUserId));
-
-        List<ModulePO> allModules = moduleMapper.selectList(null);
-        Map<Long, ModulePO> moduleMap = allModules.stream()
-                .collect(Collectors.toMap(ModulePO::getId, m -> m));
+        Map<Long, List<UserAppRolePO>> assignmentMap = assignments.stream()
+                .collect(Collectors.groupingBy(UserAppRolePO::getUserId));
 
         List<RolePO> allRoles = roleMapper.selectList(null);
         Map<Long, RolePO> roleMap = allRoles.stream()
                 .collect(Collectors.toMap(RolePO::getId, r -> r));
 
         return users.stream()
-                .map(user -> toManageVO(user, assignmentMap.getOrDefault(user.getId(), Collections.emptyList()), moduleMap, roleMap))
+                .map(user -> toManageVO(user, assignmentMap.getOrDefault(user.getId(), Collections.emptyList()), roleMap))
                 .collect(Collectors.toList());
     }
 
@@ -88,20 +80,17 @@ public class UserManageServiceImpl implements UserManageService {
         }
 
         List<Long> userIds = poPage.getRecords().stream().map(UserPO::getId).collect(Collectors.toList());
-        List<UserModuleRolePO> assignments = userModuleRoleMapper.selectList(
-                new LambdaQueryWrapper<UserModuleRolePO>().in(UserModuleRolePO::getUserId, userIds)
+        List<UserAppRolePO> assignments = userAppRoleMapper.selectList(
+                new LambdaQueryWrapper<UserAppRolePO>().in(UserAppRolePO::getUserId, userIds)
         );
-        Map<Long, List<UserModuleRolePO>> assignmentMap = assignments.stream()
-                .collect(Collectors.groupingBy(UserModuleRolePO::getUserId));
+        Map<Long, List<UserAppRolePO>> assignmentMap = assignments.stream()
+                .collect(Collectors.groupingBy(UserAppRolePO::getUserId));
 
-        List<ModulePO> allModules = moduleMapper.selectList(null);
-        Map<Long, ModulePO> moduleMap = allModules.stream()
-                .collect(Collectors.toMap(ModulePO::getId, m -> m));
         List<RolePO> allRoles = roleMapper.selectList(null);
         Map<Long, RolePO> roleMap = allRoles.stream()
                 .collect(Collectors.toMap(RolePO::getId, r -> r));
 
-        return poPage.convert(user -> toManageVO(user, assignmentMap.getOrDefault(user.getId(), Collections.emptyList()), moduleMap, roleMap));
+        return poPage.convert(user -> toManageVO(user, assignmentMap.getOrDefault(user.getId(), Collections.emptyList()), roleMap));
     }
 
     @Override
@@ -111,16 +100,14 @@ public class UserManageServiceImpl implements UserManageService {
             throw new BizException(ErrorCode.USER_NOT_FOUND);
         }
 
-        List<UserModuleRolePO> assignments = userModuleRoleMapper.selectList(
-                new LambdaQueryWrapper<UserModuleRolePO>().eq(UserModuleRolePO::getUserId, id)
+        List<UserAppRolePO> assignments = userAppRoleMapper.selectList(
+                new LambdaQueryWrapper<UserAppRolePO>().eq(UserAppRolePO::getUserId, id)
         );
 
-        Map<Long, ModulePO> moduleMap = moduleMapper.selectList(null).stream()
-                .collect(Collectors.toMap(ModulePO::getId, m -> m));
         Map<Long, RolePO> roleMap = roleMapper.selectList(null).stream()
                 .collect(Collectors.toMap(RolePO::getId, r -> r));
 
-        return toManageVO(user, assignments, moduleMap, roleMap);
+        return toManageVO(user, assignments, roleMap);
     }
 
     @Override
@@ -207,8 +194,8 @@ public class UserManageServiceImpl implements UserManageService {
         if (user == null) {
             throw new BizException(ErrorCode.USER_NOT_FOUND);
         }
-        userModuleRoleMapper.delete(
-                new LambdaQueryWrapper<UserModuleRolePO>().eq(UserModuleRolePO::getUserId, id)
+        userAppRoleMapper.delete(
+                new LambdaQueryWrapper<UserAppRolePO>().eq(UserAppRolePO::getUserId, id)
         );
         userMapper.deleteById(id);
         log.info("用户删除成功 userId={} username={}", id, user.getUsername());
@@ -231,51 +218,47 @@ public class UserManageServiceImpl implements UserManageService {
     }
 
     @Override
-    public void assignModuleRole(AssignModuleRoleDTO dto) {
-        UserPO user = userMapper.selectById(dto.getUserId());
+    public void assignAppRole(Long userId, String appCode, Long roleId) {
+        UserPO user = userMapper.selectById(userId);
         if (user == null) {
             throw new BizException(ErrorCode.USER_NOT_FOUND);
         }
-        moduleMapper.selectById(dto.getModuleId());
-        if (moduleMapper.selectById(dto.getModuleId()) == null) {
-            throw new BizException(ErrorCode.MODULE_NOT_FOUND);
-        }
-        if (roleMapper.selectById(dto.getRoleId()) == null) {
+        if (roleMapper.selectById(roleId) == null) {
             throw new BizException(ErrorCode.ROLE_NOT_FOUND);
         }
 
-        UserModuleRolePO existing = userModuleRoleMapper.selectOne(
-                new LambdaQueryWrapper<UserModuleRolePO>()
-                        .eq(UserModuleRolePO::getUserId, dto.getUserId())
-                        .eq(UserModuleRolePO::getModuleId, dto.getModuleId())
+        UserAppRolePO existing = userAppRoleMapper.selectOne(
+                new LambdaQueryWrapper<UserAppRolePO>()
+                        .eq(UserAppRolePO::getUserId, userId)
+                        .eq(UserAppRolePO::getAppCode, appCode)
                         .last("LIMIT 1")
         );
 
         if (existing != null) {
-            existing.setRoleId(dto.getRoleId());
+            existing.setRoleId(roleId);
             existing.setUpdatedAt(LocalDateTime.now());
-            userModuleRoleMapper.updateById(existing);
-            log.info("用户模块角色更新 userId={} moduleId={} roleId={}", dto.getUserId(), dto.getModuleId(), dto.getRoleId());
+            userAppRoleMapper.updateById(existing);
+            log.info("用户应用角色更新 userId={} appCode={} roleId={}", userId, appCode, roleId);
         } else {
-            UserModuleRolePO assignment = new UserModuleRolePO();
-            assignment.setUserId(dto.getUserId());
-            assignment.setModuleId(dto.getModuleId());
-            assignment.setRoleId(dto.getRoleId());
+            UserAppRolePO assignment = new UserAppRolePO();
+            assignment.setUserId(userId);
+            assignment.setAppCode(appCode);
+            assignment.setRoleId(roleId);
             assignment.setCreatedAt(LocalDateTime.now());
             assignment.setUpdatedAt(LocalDateTime.now());
-            userModuleRoleMapper.insert(assignment);
-            log.info("用户模块角色分配 userId={} moduleId={} roleId={}", dto.getUserId(), dto.getModuleId(), dto.getRoleId());
+            userAppRoleMapper.insert(assignment);
+            log.info("用户应用角色分配 userId={} appCode={} roleId={}", userId, appCode, roleId);
         }
     }
 
     @Override
-    public void removeModuleRole(Long userId, Long moduleId) {
-        userModuleRoleMapper.delete(
-                new LambdaQueryWrapper<UserModuleRolePO>()
-                        .eq(UserModuleRolePO::getUserId, userId)
-                        .eq(UserModuleRolePO::getModuleId, moduleId)
+    public void removeAppRole(Long userId, String appCode) {
+        userAppRoleMapper.delete(
+                new LambdaQueryWrapper<UserAppRolePO>()
+                        .eq(UserAppRolePO::getUserId, userId)
+                        .eq(UserAppRolePO::getAppCode, appCode)
         );
-        log.info("用户模块角色移除 userId={} moduleId={}", userId, moduleId);
+        log.info("用户应用角色移除 userId={} appCode={}", userId, appCode);
     }
 
     private String generateRandomPassword() {
@@ -286,16 +269,13 @@ public class UserManageServiceImpl implements UserManageService {
         return sb.toString();
     }
 
-    private UserManageVO toManageVO(UserPO user, List<UserModuleRolePO> assignments,
-                                     Map<Long, ModulePO> moduleMap, Map<Long, RolePO> roleMap) {
-        List<UserManageVO.ModuleRoleAssignmentVO> roleVOs = assignments.stream()
+    private UserManageVO toManageVO(UserPO user, List<UserAppRolePO> assignments,
+                                     Map<Long, RolePO> roleMap) {
+        List<UserManageVO.AppRoleAssignmentVO> roleVOs = assignments.stream()
                 .map(a -> {
-                    ModulePO module = moduleMap.get(a.getModuleId());
                     RolePO role = roleMap.get(a.getRoleId());
-                    return UserManageVO.ModuleRoleAssignmentVO.builder()
-                            .moduleId(a.getModuleId())
-                            .moduleCode(module != null ? module.getCode() : null)
-                            .moduleName(module != null ? module.getName() : null)
+                    return UserManageVO.AppRoleAssignmentVO.builder()
+                            .appCode(a.getAppCode())
                             .roleId(a.getRoleId())
                             .roleCode(role != null ? role.getCode() : null)
                             .roleName(role != null ? role.getName() : null)
@@ -310,7 +290,7 @@ public class UserManageServiceImpl implements UserManageService {
                 .avatar(user.getAvatar())
                 .status(user.getStatus())
                 .isSuperAdmin(user.getIsSuperAdmin())
-                .moduleRoles(roleVOs)
+                .appRoles(roleVOs)
                 .mustChangePassword(user.getMustChangePassword())
                 .updatedBy(user.getUpdatedBy())
                 .createdAt(user.getCreatedAt())

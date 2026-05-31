@@ -25,16 +25,14 @@ public class UserManageVO {
     private String updatedBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    private List<ModuleRoleAssignmentVO> moduleRoles;
+    private List<AppRoleAssignmentVO> appRoles;
 
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class ModuleRoleAssignmentVO {
-        private Long moduleId;
-        private String moduleCode;
-        private String moduleName;
+    public static class AppRoleAssignmentVO {
+        private String appCode;
         private Long roleId;
         private String roleCode;
         private String roleName;

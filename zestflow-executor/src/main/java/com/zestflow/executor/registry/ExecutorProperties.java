@@ -8,11 +8,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "zestflow.executor")
 public class ExecutorProperties {
 
-    /** 模块编码（为空则使用 spring.application.name） */
-    private String moduleCode;
+    /** 应用编码（为空则使用 spring.application.name） */
+    private String appCode;
 
-    /** 模块名称（为空则默认等于 moduleCode） */
-    private String moduleName;
+    /** 应用名称（为空则默认等于 appCode） */
+    private String appName;
 
     /** Admin 服务地址，多个用逗号分隔，如 http://localhost:8080 */
     private String adminAddresses = "http://localhost:8080";

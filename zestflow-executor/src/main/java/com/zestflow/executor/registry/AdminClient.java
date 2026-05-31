@@ -100,11 +100,11 @@ public class AdminClient {
     /**
      * 获取模块下所有活跃链的 code 列表
      */
-    public List<String> fetchActiveChainCodes(String moduleCode) {
+    public List<String> fetchActiveChainCodes(String appCode) {
         List<String> adminList = parseAddresses();
         for (String adminUrl : adminList) {
             try {
-                String url = adminUrl + "/api/chains/active-codes?moduleCode=" + moduleCode;
+                String url = adminUrl + "/api/chains/active-codes?appCode=" + appCode;
                 HttpEntity<Void> entity = new HttpEntity<>(buildHeaders());
                 ResponseEntity<Result<List<String>>> resp = restTemplate.exchange(
                         url, HttpMethod.GET, entity, RESULT_LIST_STRING_TYPE);

@@ -9,13 +9,13 @@
         <el-tag type="primary" size="small" effect="dark" style="margin-left:6px">{{ $t('chains.publishing') }} {{ stats.publishing }}</el-tag>
         <el-tag type="success" size="small" style="margin-left:6px">{{ $t('chains.published') }} {{ stats.published }}</el-tag>
         <el-select
-          v-model="currentModuleId"
+          v-model="currentAppCode"
           filterable
           style="width:200px;margin-left:16px"
-          :placeholder="$t('chains.selectModule')"
+          :placeholder="$t('chains.selectApp')"
           @change="handleModuleChange"
         >
-          <el-option v-for="m in modules" :key="m.id" :label="m.name" :value="m.id" />
+          <el-option v-for="m in modules" :key="m.appCode" :label="m.appName || m.appCode" :value="m.appCode" />
         </el-select>
       </div>
       <el-button type="primary" @click="openCreate">{{ $t('chains.createChain') }}</el-button>
@@ -70,7 +70,7 @@
       <el-table-column prop="designCode" label="设计编码" width="160">
         <template #default="{ row }">
           <span v-if="!row.designCode" style="color:#c0c4cc">-</span>
-          <span v-else style="color:#409eff;cursor:pointer" @click="openDesignDetail(row.designCode, row.moduleId)">{{ row.designCode }}</span>
+          <span v-else style="color:#409eff;cursor:pointer" @click="openDesignDetail(row.designCode, row.appCode)">{{ row.designCode }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="description" :label="$t('chains.description')" show-overflow-tooltip min-width="160" />
@@ -105,9 +105,9 @@
     <!-- 新建链弹窗 -->
     <el-dialog v-model="createDialogVisible" :title="$t('chains.createChain')" width="500px" :close-on-click-modal="false">
       <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="100px" @submit.prevent>
-        <el-form-item :label="$t('chains.module')" prop="moduleId">
-          <el-select v-model="createForm.moduleId" filterable style="width:100%" :placeholder="$t('chains.selectModule')">
-            <el-option v-for="m in modules" :key="m.id" :label="m.name" :value="m.id" />
+        <el-form-item :label="$t('chains.app')" prop="appCode">
+          <el-select v-model="createForm.appCode" filterable style="width:100%" :placeholder="$t('chains.selectApp')">
+            <el-option v-for="m in modules" :key="m.appCode" :label="m.appName || m.appCode" :value="m.appCode" />
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('chains.name')" prop="name">
@@ -160,7 +160,7 @@
           </template>
         </el-table-column>
       </el-table>
-      <el-empty v-if="!designLoading && designList.length === 0" :image-size="60" description="该模块下暂无设计，请先新增设计" />
+      <el-empty v-if="!designLoading && designList.length === 0" :image-size="60" description="该应用下暂无设计，请先新建设计" />
       <template #footer>
         <el-button @click="designListDialogVisible = false">取消</el-button>
         <el-button :disabled="!selectedDesignCode" type="primary" :loading="bindingDesign" @click="confirmBindDesign">确定绑定</el-button>
@@ -171,10 +171,10 @@
     <!-- 新增设计弹窗（复用公共组件） -->
     <CreateDesignDialog
       v-model:visible="createDesignDialogVisible"
-      :module-options="modules"
-      :default-module-id="currentChainForDesign?.moduleId"
+      :app-options="modules"
+      :default-app-code="currentChainForDesign?.appCode"
       :default-name="currentChainForDesign ? currentChainForDesign.name + t('design.design') : ''"
-      :disable-module="true"
+      :disable-app-select="true"
       append-to-body
       @saved="onDesignCreated"
     >
@@ -199,14 +199,14 @@
                 {{ statusLabel(currentChainDetail.status) }}
               </el-tag>
             </el-descriptions-item>
-            <el-descriptions-item label="模块">
-              {{ moduleNameMap[currentChainDetail.moduleId] || '-' }}
+            <el-descriptions-item label="应用">
+              {{ appNameMap[currentChainDetail.appCode] || '-' }}
             </el-descriptions-item>
             <el-descriptions-item label="描述">
               {{ currentChainDetail.description || '-' }}
             </el-descriptions-item>
             <el-descriptions-item label="关联设计">
-              <span v-if="currentChainDetail.designCode" style="color:#409eff;cursor:pointer" @click="openDesignDetail(currentChainDetail.designCode, currentChainDetail.moduleId)">{{ currentChainDetail.designCode }}</span>
+              <span v-if="currentChainDetail.designCode" style="color:#409eff;cursor:pointer" @click="openDesignDetail(currentChainDetail.designCode, currentChainDetail.appCode)">{{ currentChainDetail.designCode }}</span>
               <span v-else style="color:#c0c4cc">-</span>
             </el-descriptions-item>
             <el-descriptions-item label="创建人">{{ currentChainDetail.createdBy || '-' }}</el-descriptions-item>
@@ -235,8 +235,8 @@
             <el-descriptions-item label="设计者">
               {{ currentDesignDetail.designer || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="模块">
-              {{ moduleNameMap[currentDesignDetail.moduleId] || '-' }}
+            <el-descriptions-item label="应用">
+              {{ appNameMap[currentDesignDetail.appCode] || '-' }}
             </el-descriptions-item>
             <el-descriptions-item label="描述">
               {{ currentDesignDetail.description || '-' }}
@@ -297,7 +297,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { chainApi, type ChainCreateDTO } from '@/api/chain'
-import { moduleApi, type ModuleVO } from '@/api/module'
+import { executorApi, type AppOption } from '@/api/executor'
 import { designApi, type DesignVO } from '@/api/design'
 import CreateDesignDialog from '@/components/CreateDesignDialog.vue'
 
@@ -315,8 +315,8 @@ function statusLabel(status: number): string {
 
 
 const loading = ref(false)
-const modules = ref<ModuleVO[]>([])
-const currentModuleId = ref<number | undefined>(undefined)
+const modules = ref<AppOption[]>([])
+const currentAppCode = ref<string>('')
 const chainList = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -333,9 +333,9 @@ const stats = computed(() => {
   return { disabled, notDesigned, unpublished, publishing, published }
 })
 
-const moduleNameMap = computed(() => {
-  const map: Record<number, string> = {}
-  modules.value.forEach(m => { map[m.id] = m.name })
+const appNameMap = computed(() => {
+  const map: Record<string, string> = {}
+  modules.value.forEach(m => { map[m.appCode] = m.appName || m.appCode })
   return map
 })
 
@@ -352,11 +352,11 @@ function openChainDetail(row: any) {
 const designDrawerVisible = ref(false)
 const currentDesignDetail = ref<any>(null)
 const designDetailLoading = ref(false)
-async function openDesignDetail(designCode: string, moduleId: number) {
+async function openDesignDetail(designCode: string, appCode: string) {
   designDetailLoading.value = true
   designDrawerVisible.value = true
   try {
-    currentDesignDetail.value = await designApi.getByCode(designCode, moduleId)
+    currentDesignDetail.value = await designApi.getByCode(designCode, appCode)
   } catch {
     currentDesignDetail.value = null
   } finally {
@@ -366,19 +366,19 @@ async function openDesignDetail(designCode: string, moduleId: number) {
 
 async function fetchModules() {
   try {
-    modules.value = await moduleApi.list()
-    if (modules.value.length > 0 && !currentModuleId.value) {
-      currentModuleId.value = modules.value[0].id
+    modules.value = await executorApi.listApps()
+    if (modules.value.length > 0 && !currentAppCode.value) {
+      currentAppCode.value = modules.value[0].appCode
     }
   } catch { /* ignore */ }
 }
 
 async function fetchList() {
-  if (!currentModuleId.value) return
+  if (!currentAppCode.value) return
   loading.value = true
   try {
     const res = await chainApi.list({
-      moduleId: currentModuleId.value,
+      appCode: currentAppCode.value,
       keyword: filter.value.keyword || undefined,
       status: filter.value.status,
       page: page.value,
@@ -399,14 +399,14 @@ function handleReset() { filter.value = { keyword: '', status: undefined }; page
 const createDialogVisible = ref(false)
 const createSubmitting = ref(false)
 const createFormRef = ref<any>(null)
-const createForm = ref({ name: '', description: '', moduleId: undefined as number | undefined })
+const createForm = ref({ name: '', description: '', appCode: '' })
 const createRules = {
   name: [{ required: true, message: () => t('validation.required', { field: t('chains.name') }), trigger: 'blur' }],
-  moduleId: [{ required: true, message: () => t('chains.selectModule'), trigger: 'change' }],
+  appCode: [{ required: true, message: () => t('chains.selectModule'), trigger: 'change' }],
 }
 
 function openCreate() {
-  createForm.value = { name: '', description: '', moduleId: currentModuleId.value }
+  createForm.value = { name: '', description: '', appCode: currentAppCode.value }
   createDialogVisible.value = true
 }
 
@@ -418,8 +418,8 @@ async function handleCreate() {
     const res = await chainApi.create({
       name: createForm.value.name,
       description: createForm.value.description || undefined,
-      moduleId: createForm.value.moduleId!,
-    } as ChainCreateDTO)
+      appCode: createForm.value.appCode,
+    })
     ElMessage.success(t('chains.createChain') + '成功，' + t('chains.code') + '：' + res.code)
     createDialogVisible.value = false
     await fetchList()
@@ -431,7 +431,7 @@ const editDialogVisible = ref(false)
 const editSubmitting = ref(false)
 const editFormRef = ref<any>(null)
 const editingCode = ref<string | null>(null)
-const editingModuleId = ref<number>(0)
+const editingAppCode = ref<string>('')
 const editForm = ref({ name: '', description: '' })
 const editRules = {
   name: [{ required: true, message: () => t('validation.required', { field: t('chains.name') }), trigger: 'blur' }],
@@ -439,7 +439,7 @@ const editRules = {
 
 function openEdit(row: any) {
   editingCode.value = row.code
-  editingModuleId.value = row.moduleId
+  editingAppCode.value = row.appCode
   editForm.value = { name: row.name, description: row.description || '' }
   editDialogVisible.value = true
 }
@@ -449,7 +449,7 @@ async function handleEdit() {
   if (!valid || !editingCode.value) return
   editSubmitting.value = true
   try {
-    await chainApi.update(editingCode.value, { name: editForm.value.name, description: editForm.value.description || undefined, moduleId: editingModuleId.value })
+    await chainApi.update(editingCode.value, { name: editForm.value.name, description: editForm.value.description || undefined, appCode: editingAppCode.value })
     ElMessage.success(t('common.edit') + '成功')
     editDialogVisible.value = false
     await fetchList()
@@ -458,7 +458,7 @@ async function handleEdit() {
 
 async function handleToggleStatus(row: any) {
   try {
-    await chainApi.toggleStatus(row.code, row.moduleId)
+    await chainApi.toggleStatus(row.code, row.appCode)
     ElMessage.success(row.status === 0 ? t('chains.enableSuccess') : t('chains.disableSuccess'))
     fetchList()
   } catch {
@@ -471,7 +471,7 @@ function handleDelete(row: any) {
   ElMessageBox.confirm(t('chains.deleteConfirm', { name: row.name }), t('common.delete'),
     { confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel'), type: 'warning' }
   ).then(async () => {
-    await chainApi.delete(row.code, row.moduleId)
+    await chainApi.delete(row.code, row.appCode)
     ElMessage.success(t('chains.deleteSuccess'))
     await fetchList()
   }).catch(() => {})
@@ -492,7 +492,7 @@ async function openDesignDialog(row: any) {
   designListDialogVisible.value = true
   designLoading.value = true
   try {
-    const res = await designApi.list({ moduleId: row.moduleId, page: 1, size: 999 })
+    const res = await designApi.list({ appCode: row.appCode, page: 1, size: 999 })
     designList.value = res.records || []
   } finally {
     designLoading.value = false
@@ -512,7 +512,7 @@ async function confirmBindDesign() {
 
   bindingDesign.value = true
   try {
-    await designApi.bind(selectedDesignCode.value, currentChainForDesign.value.code, currentChainForDesign.value.moduleId)
+    await designApi.bind(selectedDesignCode.value, currentChainForDesign.value.code, currentChainForDesign.value.appCode)
     ElMessage.success(t('chains.bindSuccess'))
     designListDialogVisible.value = false
     fetchList()
@@ -525,7 +525,7 @@ async function confirmUnbind() {
   if (!currentChainForDesign.value?.designCode || !currentChainForDesign.value?.code) return
   bindingDesign.value = true
   try {
-    await designApi.unbind(currentChainForDesign.value.designCode, currentChainForDesign.value.code, currentChainForDesign.value.moduleId)
+    await designApi.unbind(currentChainForDesign.value.designCode, currentChainForDesign.value.code, currentChainForDesign.value.appCode)
     ElMessage.success(t('chains.unbindSuccess'))
     designListDialogVisible.value = false
     fetchList()
@@ -559,11 +559,11 @@ async function handleSaveThenDesign(handleSave: () => Promise<any>) {
 
 function goToDesign(design: DesignVO) {
   if (!currentChainForDesign.value) return
-  designApi.bind(design.code, currentChainForDesign.value.code, currentChainForDesign.value.moduleId).then(() => {
+  designApi.bind(design.code, currentChainForDesign.value.code, currentChainForDesign.value.appCode).then(() => {
     ElMessage.success(t('chains.createAndBindSuccess'))
     createDesignDialogVisible.value = false
     designListDialogVisible.value = false
-    router.push({ name: 'DesignEditor', params: { id: design.code }, query: { moduleId: design.moduleId } })
+    router.push({ name: 'DesignEditor', params: { id: design.code }, query: { appCode: design.appCode } })
   }).catch(() => ElMessage.error(t('chains.operationFailed')))
 }
 
@@ -571,7 +571,7 @@ function onDesignCreated(design: DesignVO) {
   lastCreatedDesign.value = design
   ElMessage.success(t('chains.saveSuccess'))
   if (currentChainForDesign.value) {
-    designApi.list({ moduleId: currentChainForDesign.value.moduleId, page: 1, size: 999 }).then(res => {
+    designApi.list({ appCode: currentChainForDesign.value.appCode, page: 1, size: 999 }).then(res => {
       designList.value = res.records || []
     })
   }
@@ -593,7 +593,7 @@ async function handlePublish(row: any) {
   publishing.value = true
   publishDialogVisible.value = true
   try {
-    const res = await chainApi.publish(row.code, row.moduleId)
+    const res = await chainApi.publish(row.code, row.appCode)
     publishResults.value = res.details || []
     const total = res.total || 0
     const success = res.success || 0

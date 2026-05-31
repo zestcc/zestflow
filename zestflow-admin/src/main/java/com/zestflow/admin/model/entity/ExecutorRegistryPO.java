@@ -12,10 +12,13 @@ public class ExecutorRegistryPO {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    private Long moduleId;
-
     private String executorId;
 
+    /** 应用编码（分组标识） */
+    @TableField("app_code")
+    private String appCode;
+
+    /** 应用名称 */
     private String appName;
 
     private String executorHost;

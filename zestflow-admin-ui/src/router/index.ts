@@ -93,8 +93,14 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'executors',
         name: 'Executors',
-        component: () => import('@/views/settings/ModuleManagePage.vue'),
+        component: () => import('@/views/executors/ExecutorsPage.vue'),
         meta: { title: '执行器列表' },
+      },
+      {
+        path: 'collectors',
+        name: 'Collectors',
+        component: () => import('@/views/collectors/CollectorsPage.vue'),
+        meta: { title: '采集器列表' },
       },
       {
         path: 'settings',
@@ -114,6 +120,12 @@ const routes: RouteRecordRaw[] = [
             name: 'UserManage',
             component: () => import('@/views/settings/UserManagePage.vue'),
             meta: { title: '用户管理' },
+          },
+          {
+            path: 'dict-types',
+            name: 'DictTypes',
+            component: () => import('@/views/settings/DictTypesPage.vue'),
+            meta: { title: '字典管理' },
           },
         ],
       },

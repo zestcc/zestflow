@@ -58,7 +58,6 @@ class ScheduleServiceImplTest {
     @Test
     void createSchedule() {
         ScheduleCreateDTO dto = new ScheduleCreateDTO();
-        dto.setModuleId(10L);
         dto.setChainCode("chain-test");
         dto.setChainName("测试链");
         dto.setCron("0 */5 * * * ?");
@@ -154,7 +153,7 @@ class ScheduleServiceImplTest {
                     return page;
                 });
 
-        IPage<ScheduleVO> result = scheduleService.list(null, null, null, 1, 10);
+        IPage<ScheduleVO> result = scheduleService.list(null, null, 1, 10);
 
         assertThat(result).isNotNull();
     }
@@ -163,7 +162,6 @@ class ScheduleServiceImplTest {
     void triggerSuccess() {
         SchedulePO schedule = new SchedulePO();
         schedule.setId(1L);
-        schedule.setModuleId(10L);
         schedule.setChainCode("chain-test");
         schedule.setRouteStrategy("round_robin");
         when(scheduleMapper.selectById(1L)).thenReturn(schedule);
@@ -196,7 +194,6 @@ class ScheduleServiceImplTest {
         SchedulePO schedule = new SchedulePO();
         schedule.setId(1L);
         schedule.setChainCode("chain-test");
-        schedule.setModuleId(10L);
         when(scheduleMapper.selectById(1L)).thenReturn(schedule);
         when(executorRegistryMapper.selectList(any())).thenReturn(List.of());
 

@@ -54,7 +54,7 @@ public class NodeRunner {
     /** 熔断器缓存：nodeId → CircuitBreaker */
     private final ConcurrentHashMap<String, SimpleCircuitBreaker> circuitBreakers = new ConcurrentHashMap<>();
 
-    /** 执行器标识（moduleCode@host:port） */
+    /** 执行器标识（appCode@host:port） */
     private final String executorId;
     /** 应用名 */
     private final String appName;
@@ -89,8 +89,8 @@ public class NodeRunner {
         this.lifecycleExecutor = lifecycleExecutor;
         this.retryExecutor = retryExecutor;
         this.chainManager = chainManager;
-        this.executorId = properties.getModuleCode() + "@" + properties.getHost() + ":" + properties.getPort();
-        this.appName = properties.getModuleName() != null ? properties.getModuleName() : properties.getModuleCode();
+        this.executorId = properties.getAppCode() + "@" + properties.getHost() + ":" + properties.getPort();
+        this.appName = properties.getAppName() != null ? properties.getAppName() : properties.getAppCode();
     }
 
     /**

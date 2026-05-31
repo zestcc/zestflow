@@ -14,10 +14,8 @@ import java.time.LocalDateTime;
 public class ExecutorRegistryVO {
 
     private Long id;
-    private Long moduleId;
-    private String moduleCode;
-    private String moduleName;
     private String executorId;
+    private String appCode;
     private String appName;
     private String executorHost;
     private Integer executorPort;

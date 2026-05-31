@@ -1,30 +1,25 @@
 package com.zestflow.admin.model.vo;
 
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class ModuleVO {
+public class DictTypeVO {
 
     private Long id;
     private String code;
     private String name;
     private String description;
     private Integer status;
-    private String owner;
-    private Integer sortOrder;
-    private Integer executorTotal;
-    private Integer executorHealthy;
-    private Integer executorError;
-    private Integer executorOffline;
+    private Integer sort;
     private String updatedBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    /** 该类型下的字典数据列表（仅 getByCode 返回时填充） */
+    private List<DictDataVO> dataList;
 }

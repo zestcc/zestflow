@@ -1,0 +1,68 @@
+# ============================================================
+# ZestFlow Executor 默认配置
+# 引入 zestflow-executor 依赖后自动生效，业务项目可在自己的
+# application.yml 中覆盖以下任意属性。
+# ============================================================
+zestflow:
+  executor:
+    # 应用编码（为空则使用 spring.application.name）
+    app-code:
+    # 应用名称（为空则默认等于 app-code）
+    app-name:
+    # Admin 服务地址，多个用逗号分隔
+    admin-addresses: http://localhost:8080
+    # 认证令牌（与 Admin 端共享）
+    access-token:
+    # 心跳间隔（秒）
+    heartbeat-interval: 30
+    # 执行器暴露的 Host（为空则自动探测本机 IP）
+    host:
+    # 执行器暴露的 Port（Netty 服务端端口）
+    port: 9999
+    # 注册/心跳请求超时（毫秒）
+    timeout-ms: 5000
+
+    # ---- 数据源（可选，不配置则复用业务主数据源） ----
+    # datasource:
+    #   url: jdbc:mysql://localhost:3306/zestflow_executor?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    #   username: root
+    #   password: 123456
+    #   driver-class-name: com.mysql.cj.jdbc.Driver
+
+    # ---- 事件采集配置 ----
+    event:
+      # 事件缓冲队列容量
+      queue-capacity: 8192
+      # 批量提交大小
+      batch-size: 200
+      # 批量提交最大等待时间（毫秒）
+      batch-max-wait-ms: 500
+      # 熔断阈值（连续失败次数，0 表示不熔断）
+      circuit-breaker-threshold: 10
+      # 熔断冷却时间（毫秒）
+      circuit-breaker-cooldown-ms: 30000
+      # 是否启用磁盘降级
+      disk-fallback-enabled: false
+      # 磁盘降级目录
+      disk-fallback-dir: ./collector-fallback
+
+    # ---- 链执行配置 ----
+    chain:
+      # 链加载重试次数
+      load-retry-times: 3
+      # 链加载重试间隔（毫秒）
+      load-retry-interval-ms: 5000
+      # 是否启用自动热更新
+      auto-reload: true
+      # 热更新检查间隔（毫秒）
+      reload-check-interval-ms: 60000
+      # 同层并行节点数上限
+      parallel-threshold: 3
+      # 数据持久化目录
+      data-dir: ./zestflow-data
+      # 链默认超时（毫秒）
+      default-timeout-ms: 60000
+      # 节点默认重试次数
+      node-default-retry-count: 0
+      # 节点默认重试间隔（毫秒）
+      node-default-retry-interval-ms: 1000

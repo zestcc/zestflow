@@ -2,9 +2,7 @@ package com.zestflow.admin.service.impl;
 
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
-import com.zestflow.admin.model.entity.ModulePO;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
-import com.zestflow.admin.repository.ModuleMapper;
 import com.zestflow.common.constant.RegistryConstants;
 import com.zestflow.common.exception.BizException;
 import com.zestflow.common.model.dto.HeartbeatDTO;
@@ -26,15 +24,13 @@ import static org.mockito.Mockito.*;
 class RegistryServiceImplTest {
 
     @Mock private ExecutorRegistryMapper executorRegistryMapper;
-    @Mock private ModuleMapper moduleMapper;
     @Captor private ArgumentCaptor<ExecutorRegistryPO> registryCaptor;
-    @Captor private ArgumentCaptor<ModulePO> moduleCaptor;
 
     private RegistryServiceImpl registryService;
 
     @BeforeEach
     void setUp() {
-        registryService = new RegistryServiceImpl(executorRegistryMapper, moduleMapper);
+        registryService = new RegistryServiceImpl(executorRegistryMapper);
     }
 
     @Test
@@ -45,19 +41,8 @@ class RegistryServiceImplTest {
         dto.setExecutorId("executor-1");
         dto.setHost("192.168.1.1");
         dto.setPort(9999);
-        dto.setAppName("test-app");
-        dto.setModuleCode("test-module");
-        dto.setModuleName("测试模块");
-
-        // 模块不存在 → 自动创建
-        when(moduleMapper.selectOne(any())).thenReturn(null);
-        ModulePO createdModule = new ModulePO();
-        createdModule.setId(100L);
-        doAnswer(invocation -> {
-            ModulePO m = invocation.getArgument(0);
-            m.setId(100L);
-            return 1;
-        }).when(moduleMapper).insert(any(ModulePO.class));
+        dto.setAppCode("test-app");
+        dto.setAppName("测试应用");
 
         registryService.register(dto);
 
@@ -66,7 +51,8 @@ class RegistryServiceImplTest {
         assertThat(inserted.getExecutorId()).isEqualTo("executor-1");
         assertThat(inserted.getExecutorHost()).isEqualTo("192.168.1.1");
         assertThat(inserted.getStatus()).isEqualTo(RegistryConstants.STATUS_ONLINE);
-        assertThat(inserted.getModuleId()).isEqualTo(100L);
+        assertThat(inserted.getAppCode()).isEqualTo("test-app");
+        assertThat(inserted.getAppName()).isEqualTo("测试应用");
     }
 
     @Test
@@ -74,19 +60,14 @@ class RegistryServiceImplTest {
         ExecutorRegistryPO existing = new ExecutorRegistryPO();
         existing.setId(1L);
         existing.setExecutorId("executor-1");
-        existing.setModuleId(100L);
+        existing.setAppCode("test-app");
         when(executorRegistryMapper.selectOne(any())).thenReturn(existing);
-
-        // 模块已存在
-        ModulePO module = new ModulePO();
-        module.setId(100L);
-        when(moduleMapper.selectOne(any())).thenReturn(module);
 
         RegisterDTO dto = new RegisterDTO();
         dto.setExecutorId("executor-1");
         dto.setHost("192.168.1.2");
         dto.setPort(9998);
-        dto.setModuleCode("test-module");
+        dto.setAppCode("test-app");
 
         registryService.register(dto);
 

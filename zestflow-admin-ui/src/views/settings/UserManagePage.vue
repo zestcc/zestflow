@@ -59,9 +59,9 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column :label="$t('settings.assignedModules')" width="120" align="center">
+      <el-table-column :label="$t('settings.assignedApps')" width="120" align="center">
         <template #default="{ row }">
-          {{ row.moduleRoles?.length || 0 }}
+          {{ row.appRoles?.length || 0 }}
         </template>
       </el-table-column>
       <el-table-column :label="$t('common.actions')" width="230" fixed="right">
@@ -69,8 +69,8 @@
           <el-button text type="primary" size="small" class="action-btn" @click="openEdit(row)">
             {{ $t('common.edit') }}
           </el-button>
-          <el-button text type="primary" size="small" class="action-btn" @click="openAssignModules(row)">
-            {{ $t('settings.assignModules') }}
+          <el-button text type="primary" size="small" class="action-btn" @click="openAssignApps(row)">
+            {{ $t('settings.assignApps') }}
           </el-button>
           <el-button text type="primary" size="small" class="action-btn" @click="handleResetPassword(row)">
             {{ $t('settings.resetPassword') }}
@@ -176,10 +176,10 @@
       </template>
     </el-dialog>
 
-    <!-- 分配模块角色弹窗 -->
+    <!-- 分配应用角色弹窗 -->
     <el-dialog
       v-model="assignDialogVisible"
-      :title="$t('settings.assignModules')"
+      :title="$t('settings.assignApps')"
       width="600px"
       :close-on-click-modal="false"
     >
@@ -189,9 +189,9 @@
           {{ assignTargetUser.email }}
         </el-tag>
       </div>
-      <el-table :data="assignModules" stripe border style="width: 100%; margin-top: 12px" :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}">
-        <el-table-column prop="moduleName" :label="$t('settings.moduleName')" />
-        <el-table-column prop="roleName" :label="$t('settings.moduleRole')" />
+      <el-table :data="assignApps" stripe border style="width: 100%; margin-top: 12px" :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}">
+        <el-table-column prop="appName" :label="$t('settings.appName')" show-overflow-tooltip />
+        <el-table-column prop="roleName" :label="$t('settings.appRole')" />
         <el-table-column :label="$t('common.actions')" width="80" align="center">
           <template #default="{ row, $index }">
             <el-button text type="danger" size="small" @click="handleRemoveAssignment($index)">
@@ -216,17 +216,17 @@
       :close-on-click-modal="false"
     >
       <el-form ref="assignFormRef" :model="assignForm" :rules="assignRules" label-width="100px">
-        <el-form-item :label="$t('settings.moduleName')" prop="moduleId">
-          <el-select v-model="assignForm.moduleId" filterable style="width: 100%" :placeholder="$t('settings.selectModule')">
+        <el-form-item :label="$t('settings.appName')" prop="appCode">
+          <el-select v-model="assignForm.appCode" filterable style="width: 100%" :placeholder="$t('settings.selectApp')">
             <el-option
-              v-for="m in availableModuleOptions"
-              :key="m.id"
-              :label="m.name"
-              :value="m.id"
+              v-for="m in availableAppOptions"
+              :key="m.appCode"
+              :label="m.appName || m.appCode"
+              :value="m.appCode"
             />
           </el-select>
         </el-form-item>
-        <el-form-item :label="$t('settings.moduleRole')" prop="roleId">
+        <el-form-item :label="$t('settings.appRole')" prop="roleId">
           <el-select v-model="assignForm.roleId" filterable style="width: 100%" :placeholder="$t('settings.selectRole')">
             <el-option
               v-for="r in roleOptions"
@@ -259,9 +259,9 @@ const userStore = useUserStore()
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { userManageApi, roleApi } from '@/api/user-manage'
-import { moduleApi } from '@/api/module'
-import type { UserManageVO, UserUpdateDTO, RoleVO, AssignModuleRoleDTO } from '@/api/user-manage'
-import type { ModuleVO } from '@/api/module'
+import { executorApi } from '@/api/executor'
+import type { UserManageVO, UserUpdateDTO, RoleVO } from '@/api/user-manage'
+import type { AppOption } from '@/api/executor'
 
 const { t } = useI18n()
 
@@ -322,24 +322,25 @@ const resultPassword = ref('')
 const resetResultVisible = ref(false)
 const resetResultPassword = ref('')
 
-// 分配模块角色
+// 分配应用角色
 const assignDialogVisible = ref(false)
 const assignTargetUser = ref<UserManageVO | null>(null)
-const assignModules = ref<{ moduleId: number; moduleName: string; roleId: number; roleName: string; defaultEntry?: boolean }[]>([])
+const assignApps = ref<{ appCode: string; appName: string; roleId: number; roleName: string; defaultEntry?: boolean }[]>([])
 
 // 添加分配
 const addAssignDialogVisible = ref(false)
 const assignSubmitting = ref(false)
 const assignFormRef = ref<any>(null)
 const roleOptions = ref<RoleVO[]>([])
-const assignForm = ref({ moduleId: undefined as number | undefined, roleId: undefined as number | undefined })
+const assignForm = ref({ appCode: undefined as string | undefined, roleId: undefined as number | undefined })
 const assignRules = {
-  moduleId: [{ required: true, message: () => t('settings.selectModule'), trigger: 'change' }],
+  appCode: [{ required: true, message: () => t('settings.selectApp'), trigger: 'change' }],
   roleId: [{ required: true, message: () => t('settings.selectRole'), trigger: 'change' }],
 }
 
-// 未分配的模块选项（过滤掉已分配的）
-const availableModuleOptions = ref<ModuleVO[]>([])
+// 未分配的应用选项（过滤掉已分配的）
+const availableAppOptions = ref<AppOption[]>([])
+const appMap = ref<Record<string, string>>({})
 
 async function fetchList() {
   loading.value = true
@@ -428,29 +429,44 @@ function handleDelete(row: UserManageVO) {
   }).catch(() => {})
 }
 
-async function openAssignModules(row: UserManageVO) {
+function resolveAppName(appCode: string): string {
+  return appMap.value[appCode] || appCode
+}
+
+async function openAssignApps(row: UserManageVO) {
   assignTargetUser.value = row
-  assignModules.value = (row.moduleRoles || []).map(r => ({
-    moduleId: r.moduleId,
-    moduleName: r.moduleName,
+
+  // 构建 appCode → appName 映射
+  try {
+    const apps = await executorApi.listApps()
+    appMap.value = {}
+    for (const a of apps) {
+      appMap.value[a.appCode] = a.appName || a.appCode
+    }
+  } catch {
+    appMap.value = {}
+  }
+
+  assignApps.value = (row.appRoles || []).map(r => ({
+    appCode: r.appCode,
+    appName: resolveAppName(r.appCode),
     roleId: r.roleId,
     roleName: r.roleName,
-    defaultEntry: false,
   }))
 
-  // 超级管理员默认拥有所有模块权限（未持久化的默认条目）
+  // 超级管理员默认拥有所有应用权限（未持久化的默认条目）
   if (row.isSuperAdmin === 1) {
     try {
-      const [allModules, allRoles] = await Promise.all([moduleApi.list(), roleApi.list()])
-      const adminRole = allRoles.find(r => r.code === 'MODULE_ADMIN')
-      const assignedIds = new Set(assignModules.value.map(m => m.moduleId))
-      for (const m of allModules) {
-        if (!assignedIds.has(m.id)) {
-          assignModules.value.push({
-            moduleId: m.id,
-            moduleName: m.name,
+      const allRoles = await roleApi.list()
+      const adminRole = allRoles.find(r => r.code === 'APP_ADMIN')
+      const assignedIds = new Set(assignApps.value.map(a => a.appCode))
+      for (const appCode of Object.keys(appMap.value)) {
+        if (!assignedIds.has(appCode)) {
+          assignApps.value.push({
+            appCode,
+            appName: appMap.value[appCode],
             roleId: adminRole?.id ?? -1,
-            roleName: adminRole?.name ?? '模块管理员',
+            roleName: adminRole?.name ?? '应用管理员',
             defaultEntry: true,
           })
         }
@@ -462,13 +478,13 @@ async function openAssignModules(row: UserManageVO) {
 }
 
 async function openAddAssignment() {
-  assignForm.value = { moduleId: undefined, roleId: undefined }
+  assignForm.value = { appCode: undefined, roleId: undefined }
   try {
-    const [modules, roles] = await Promise.all([moduleApi.list(), roleApi.list()])
+    const [apps, roles] = await Promise.all([executorApi.listApps(), roleApi.list()])
     roleOptions.value = roles
-    // 过滤掉已分配的模块
-    const assignedIds = new Set(assignModules.value.map(m => m.moduleId))
-    availableModuleOptions.value = modules.filter(m => !assignedIds.has(m.id))
+    // 过滤掉已分配的应用
+    const assignedIds = new Set(assignApps.value.map(a => a.appCode))
+    availableAppOptions.value = apps.filter(a => !assignedIds.has(a.appCode))
   } catch {
     return
   }
@@ -481,19 +497,18 @@ async function handleAddAssignment() {
   if (!assignTargetUser.value) return
   assignSubmitting.value = true
   try {
-    const dto: AssignModuleRoleDTO = {
+    await userManageApi.assignAppRole({
       userId: assignTargetUser.value.id,
-      moduleId: assignForm.value.moduleId!,
+      appCode: assignForm.value.appCode!,
       roleId: assignForm.value.roleId!,
-    }
-    await userManageApi.assignModuleRole(dto)
+    })
     ElMessage.success(t('settings.assignSuccess'))
     addAssignDialogVisible.value = false
     // 刷新分配列表
     const updated = await userManageApi.getById(assignTargetUser.value.id)
-    assignModules.value = (updated.moduleRoles || []).map(r => ({
-      moduleId: r.moduleId,
-      moduleName: r.moduleName,
+    assignApps.value = (updated.appRoles || []).map(r => ({
+      appCode: r.appCode,
+      appName: resolveAppName(r.appCode),
       roleId: r.roleId,
       roleName: r.roleName,
     }))
@@ -507,23 +522,23 @@ async function handleAddAssignment() {
 
 async function handleRemoveAssignment(index: number) {
   if (!assignTargetUser.value) return
-  const item = assignModules.value[index]
+  const item = assignApps.value[index]
 
-  // 默认条目（超级管理员默认全模块）只从本地移除，不调 API
-  if ((item as any).defaultEntry) {
-    assignModules.value.splice(index, 1)
+  // 默认条目（超级管理员默认全应用）只从本地移除，不调 API
+  if (item.defaultEntry) {
+    assignApps.value.splice(index, 1)
     return
   }
 
   try {
-    await userManageApi.removeModuleRole(assignTargetUser.value.id, item.moduleId)
+    await userManageApi.removeAppRole(assignTargetUser.value.id, item.appCode)
     ElMessage.success(t('settings.deleteSuccess'))
-    assignModules.value.splice(index, 1)
+    assignApps.value.splice(index, 1)
     // 同步更新 userList
     const idx = userList.value.findIndex(u => u.id === assignTargetUser.value!.id)
     if (idx !== -1) {
-      userList.value[idx].moduleRoles = userList.value[idx].moduleRoles?.filter(
-        r => r.moduleId !== item.moduleId,
+      userList.value[idx].appRoles = userList.value[idx].appRoles?.filter(
+        r => r.appCode !== item.appCode,
       )
     }
   } catch {}

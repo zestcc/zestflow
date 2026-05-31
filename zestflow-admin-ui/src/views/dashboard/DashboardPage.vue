@@ -39,14 +39,14 @@
       </el-col>
     </el-row>
 
-    <!-- 模块 & 链 & 设计概览 -->
-    <h3 class="section-title">{{ $t('dashboard.modules') }}</h3>
+    <!-- 应用 & 链 & 设计概览 -->
+    <h3 class="section-title">{{ $t('dashboard.apps') }}</h3>
     <el-row :gutter="20" class="cards">
       <el-col :span="6">
         <el-card shadow="hover">
           <div class="card-item">
-            <div class="card-value">{{ stats.totalModules }}</div>
-            <div class="card-label">{{ $t('dashboard.totalModules') }}</div>
+            <div class="card-value">{{ stats.totalApps }}</div>
+            <div class="card-label">{{ $t('dashboard.totalApps') }}</div>
           </div>
         </el-card>
       </el-col>
@@ -144,7 +144,7 @@ import { queryExecutionTraces } from '@/api/logs'
 import type { DashboardStatsVO } from '@/api/dashboard'
 
 const stats = ref<DashboardStatsVO>({
-  totalModules: 0,
+  totalApps: 0,
   totalExecutors: 0,
   healthyExecutors: 0,
   errorExecutors: 0,

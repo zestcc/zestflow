@@ -59,10 +59,10 @@ public class ChainRepository {
         return list.isEmpty() ? null : list.get(0);
     }
 
-    public ChainPO create(String name, String description, String moduleCode, Integer status, String updatedBy) {
+    public ChainPO create(String name, String description, String appCode, Integer status, String updatedBy) {
         String code = CodeGenerator.generate("CHN");
         String now = LocalDateTime.now().format(DTF);
-        String creator = updatedBy != null ? updatedBy : (moduleCode != null ? moduleCode : "");
+        String creator = updatedBy != null ? updatedBy : (appCode != null ? appCode : "");
         jdbc.update("INSERT INTO zf_chain(code, name, description, status, version, created_by, updated_by, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?)",
                 code, name, description, status != null ? status : 1, 1,
                 creator, creator, now, now);

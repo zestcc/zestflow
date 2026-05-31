@@ -32,6 +32,10 @@
         <el-icon><Monitor /></el-icon>
         <span>{{ $t('layout.executors') }}</span>
       </el-menu-item>
+      <el-menu-item index="/collectors">
+        <el-icon><Collection /></el-icon>
+        <span>{{ $t('layout.collectors') }}</span>
+      </el-menu-item>
       <el-menu-item index="/schedules">
         <el-icon><Timer /></el-icon>
         <span>{{ $t('layout.schedules') }}</span>
@@ -53,6 +57,10 @@
           <el-icon><UserFilled /></el-icon>
           <span>{{ $t('settings.userManage') }}</span>
         </el-menu-item>
+        <el-menu-item index="/settings/dict-types">
+          <el-icon><List /></el-icon>
+          <span>{{ $t('layout.dictTypes') }}</span>
+        </el-menu-item>
       </el-sub-menu>
     </el-menu>
   </div>
@@ -61,7 +69,7 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
 import {
-  Odometer, Connection, EditPen, Grid, Timer, Document, Monitor, User, UserFilled, Tools,
+  Odometer, Connection, EditPen, Grid, Timer, Document, Monitor, Collection, User, UserFilled, Tools, List,
 } from '@element-plus/icons-vue'
 
 defineProps<{ collapsed: boolean }>()

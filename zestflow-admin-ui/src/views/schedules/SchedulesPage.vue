@@ -8,9 +8,9 @@
     <!-- 筛选栏 -->
     <el-card shadow="never" class="filter-card">
       <el-form :inline="true" :model="query" size="default">
-        <el-form-item :label="$t('schedules.module')">
-          <el-select v-model="query.moduleId" :placeholder="$t('schedules.module')" clearable style="width:200px">
-            <el-option v-for="m in modules" :key="m.id" :label="m.name" :value="m.id" />
+        <el-form-item :label="$t('schedules.app')">
+          <el-select v-model="query.appCode" :placeholder="$t('schedules.app')" clearable style="width:200px">
+            <el-option v-for="m in modules" :key="m.appCode" :label="m.appName || m.appCode" :value="m.appCode" />
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('schedules.keyword')">
@@ -90,11 +90,6 @@
       :close-on-click-modal="false"
     >
       <el-form ref="formRef" :model="form" :rules="rules" label-width="120px">
-        <el-form-item v-if="!isEditing" :label="$t('schedules.module')" prop="moduleId">
-          <el-select v-model="form.moduleId" :placeholder="$t('design.selectModule')" filterable style="width:100%" @change="onModuleChangeForChain">
-            <el-option v-for="m in modules" :key="m.id" :label="m.name" :value="m.id" />
-          </el-select>
-        </el-form-item>
         <el-form-item v-if="!isEditing" :label="$t('schedules.chainCode')" prop="chainCode">
           <el-select v-model="form.chainCode" :placeholder="$t('schedules.selectChain')" filterable style="width:100%" @change="onChainSelect">
             <el-option
@@ -113,9 +108,7 @@
         </el-form-item>
         <el-form-item :label="$t('schedules.routeStrategy')">
           <el-select v-model="form.routeStrategy" style="width:200px">
-            <el-option label="Round Robin" value="round_robin" />
-            <el-option label="Hash" value="hash" />
-            <el-option label="Random" value="random" />
+            <el-option v-for="item in routeStrategyOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('schedules.remark')">
@@ -181,14 +174,18 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { scheduleApi, type ScheduleVO, type ScheduleCreateDTO, type ScheduleUpdateDTO, type ScheduleLogVO } from '@/api/schedule'
 import { chainApi, type ChainVO } from '@/api/chain'
-import { moduleApi, type ModuleVO } from '@/api/module'
+import { executorApi, type AppOption } from '@/api/executor'
+import { dictApi } from '@/api/dict'
+import type { DictDataVO } from '@/api/dict'
 
 const { t } = useI18n()
 
+const routeStrategyOptions = ref<DictDataVO[]>([])
+
 const list = ref<ScheduleVO[]>([])
 const total = ref(0)
-const query = reactive({ moduleId: undefined as number | undefined, keyword: undefined as string | undefined, status: undefined as number | undefined, page: 1, size: 20 })
-const modules = ref<ModuleVO[]>([])
+const query = reactive({ appCode: undefined as string | undefined, keyword: undefined as string | undefined, status: undefined as number | undefined, page: 1, size: 20 })
+const modules = ref<AppOption[]>([])
 
 const stats = computed(() => {
   const total = list.value.length
@@ -203,11 +200,10 @@ const isEditing = ref(false)
 const editingId = ref<number | null>(null)
 const submitting = ref(false)
 const formRef = ref<any>(null)
-const form = reactive({ moduleId: 0, chainCode: '', chainName: '', cron: '', routeStrategy: 'round_robin', remark: '' })
+const form = reactive({ chainCode: '', chainName: '', cron: '', routeStrategy: 'round_robin', remark: '' })
 const chainOptions = ref<ChainVO[]>([])
 
 const rules: Record<string, any[]> = {
-  moduleId: [{ required: true, message: t('design.selectModule'), trigger: 'change' }],
   chainCode: [{ required: true, message: t('schedules.selectChain'), trigger: 'change' }],
   cron: [{ required: true, message: t('validation.required', { field: t('schedules.cron') }), trigger: 'blur' }],
 }
@@ -227,29 +223,28 @@ function statusText(status: number): string {
 }
 
 async function fetchList() {
-  const res = await scheduleApi.list({ moduleId: query.moduleId, keyword: query.keyword, status: query.status, page: query.page, size: query.size })
+  const res = await scheduleApi.list({ keyword: query.keyword, status: query.status, page: query.page, size: query.size })
   list.value = res.records || []
   total.value = res.total || 0
 }
 
 async function search() { query.page = 1; fetchList() }
-function resetSearch() { query.moduleId = undefined; query.keyword = undefined; query.status = undefined; query.page = 1; fetchList() }
+function resetSearch() { query.appCode = undefined; query.keyword = undefined; query.status = undefined; query.page = 1; fetchList() }
 
 async function fetchModules() {
   try {
-    modules.value = await moduleApi.list()
+    modules.value = await executorApi.listApps()
   } catch { modules.value = [] }
 }
 
-async function fetchChains(moduleId: number) {
+async function fetchChains(appCode: string) {
   try {
-    const res = await chainApi.list({ moduleId, page: 1, size: 999 })
+    const res = await chainApi.list({ appCode, page: 1, size: 999 })
     chainOptions.value = res.records || []
   } catch { chainOptions.value = [] }
 }
 
 function resetForm() {
-  form.moduleId = 0
   form.chainCode = ''
   form.chainName = ''
   form.cron = ''
@@ -257,14 +252,10 @@ function resetForm() {
   form.remark = ''
 }
 
-function onModuleChangeForChain() {
+function onModuleChangeForChain(appCode: string) {
   form.chainCode = ''
   form.chainName = ''
-  if (form.moduleId) {
-    fetchChains(form.moduleId)
-  } else {
-    chainOptions.value = []
-  }
+  fetchChains(appCode)
 }
 
 function onChainSelect(code: string) {
@@ -276,6 +267,7 @@ async function showCreate() {
   isEditing.value = false
   editingId.value = null
   resetForm()
+  fetchChains('')
   dialogVisible.value = true
 }
 
@@ -299,7 +291,7 @@ async function handleSave() {
       const dto: ScheduleUpdateDTO = { cron: form.cron, routeStrategy: form.routeStrategy, remark: form.remark }
       await scheduleApi.update(editingId.value, dto)
     } else {
-      const dto: ScheduleCreateDTO = { moduleId: form.moduleId, chainCode: form.chainCode, chainName: form.chainName, cron: form.cron, routeStrategy: form.routeStrategy, remark: form.remark }
+      const dto: ScheduleCreateDTO = { chainCode: form.chainCode, chainName: form.chainName, cron: form.cron, routeStrategy: form.routeStrategy, remark: form.remark }
       await scheduleApi.create(dto)
     }
     dialogVisible.value = false
@@ -347,6 +339,7 @@ async function fetchLogs() {
 onMounted(async () => {
   await fetchModules()
   fetchList()
+  dictApi.getDictData('route_strategy').then(data => { routeStrategyOptions.value = data })
 })
 </script>
 

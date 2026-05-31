@@ -8,9 +8,9 @@
         <el-form-item :label="$t('chains.name')" prop="name">
           <el-input v-model="form.name" maxlength="100" autocomplete="off" />
         </el-form-item>
-        <el-form-item :label="$t('chains.module')" prop="moduleId">
-          <el-select v-model="form.moduleId" filterable style="width:100%" :placeholder="$t('chains.selectModule')">
-            <el-option v-for="m in modules" :key="m.id" :label="m.name" :value="m.id" />
+        <el-form-item :label="$t('chains.app')" prop="appCode">
+          <el-select v-model="form.appCode" filterable style="width:100%" :placeholder="$t('chains.selectApp')">
+            <el-option v-for="m in modules" :key="m.appCode" :label="m.appName || m.appCode" :value="m.appCode" />
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('chains.description')" prop="description">
@@ -31,34 +31,34 @@ import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { chainApi, type ChainCreateDTO } from '@/api/chain'
-import { moduleApi, type ModuleVO } from '@/api/module'
+import { executorApi, type AppOption } from '@/api/executor'
 
 const { t } = useI18n()
 const router = useRouter()
 
-const modules = ref<ModuleVO[]>([])
+const modules = ref<AppOption[]>([])
 const formRef = ref<any>(null)
 const submitting = ref(false)
-const form = ref({ name: '', moduleId: undefined as number | undefined, description: '' })
+const form = ref({ name: '', appCode: '', description: '' })
 const rules = {
   name: [{ required: true, message: () => t('validation.required', { field: t('chains.name') }), trigger: 'blur' }],
-  moduleId: [{ required: true, message: () => t('chains.selectModule'), trigger: 'change' }],
+  appCode: [{ required: true, message: () => t('chains.selectModule'), trigger: 'change' }],
 }
 
 onMounted(async () => {
   try {
-    modules.value = await moduleApi.list()
+    modules.value = await executorApi.listApps()
   } catch { /* ignore */ }
 })
 
 async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
-  if (!valid || !form.value.moduleId) return
+  if (!valid || !form.value.appCode) return
   submitting.value = true
   try {
     const res = await chainApi.create({
       name: form.value.name,
-      moduleId: form.value.moduleId,
+      appCode: form.value.appCode,
       description: form.value.description || undefined,
     } as ChainCreateDTO)
     ElMessage.success(t('chains.createChain') + '成功，' + t('chains.code') + '：' + res.code)

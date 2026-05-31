@@ -44,11 +44,8 @@ public class ScheduleServiceImpl implements ScheduleService {
     private final List<RouteStrategy> routeStrategies;
 
     @Override
-    public IPage<ScheduleVO> list(Long moduleId, String keyword, Integer status, Integer page, Integer size) {
+    public IPage<ScheduleVO> list(String keyword, Integer status, Integer page, Integer size) {
         LambdaQueryWrapper<SchedulePO> wrapper = new LambdaQueryWrapper<>();
-        if (moduleId != null) {
-            wrapper.eq(SchedulePO::getModuleId, moduleId);
-        }
         if (status != null) {
             wrapper.eq(SchedulePO::getStatus, status);
         }
@@ -77,7 +74,6 @@ public class ScheduleServiceImpl implements ScheduleService {
     @Transactional(rollbackFor = Exception.class)
     public ScheduleVO create(ScheduleCreateDTO dto, String username) {
         SchedulePO po = new SchedulePO();
-        po.setModuleId(dto.getModuleId());
         po.setChainCode(dto.getChainCode());
         po.setChainName(dto.getChainName());
         po.setCron(dto.getCron());
@@ -166,7 +162,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         LocalDateTime now = LocalDateTime.now();
 
         // 1. 查找在线执行器
-        List<ExecutorRegistryPO> onlineExecutors = findOnlineExecutors(schedule.getModuleId());
+        List<ExecutorRegistryPO> onlineExecutors = findOnlineExecutors();
 
         ScheduleLogPO logPo = new ScheduleLogPO();
         logPo.setScheduleId(schedule.getId());
@@ -178,7 +174,7 @@ public class ScheduleServiceImpl implements ScheduleService {
 
         if (onlineExecutors.isEmpty()) {
             logPo.setStatus(2);
-            logPo.setErrorMessage("无可用在线执行器 moduleId=" + schedule.getModuleId());
+            logPo.setErrorMessage("无可用在线执行器");
             logPo.setCostMs(System.currentTimeMillis() - startTime);
             scheduleLogMapper.insert(logPo);
             log.warn("调度触发失败，无在线执行器 scheduleId={}", schedule.getId());
@@ -226,11 +222,9 @@ public class ScheduleServiceImpl implements ScheduleService {
         return toLogVO(logPo);
     }
 
-    List<ExecutorRegistryPO> findOnlineExecutors(Long moduleId) {
-        if (moduleId == null) return Collections.emptyList();
+    List<ExecutorRegistryPO> findOnlineExecutors() {
         return executorRegistryMapper.selectList(
                 new LambdaQueryWrapper<ExecutorRegistryPO>()
-                        .eq(ExecutorRegistryPO::getModuleId, moduleId)
                         .eq(ExecutorRegistryPO::getStatus, RegistryConstants.STATUS_ONLINE)
         );
     }
@@ -259,7 +253,6 @@ public class ScheduleServiceImpl implements ScheduleService {
                 .chainId(po.getChainId())
                 .chainCode(po.getChainCode())
                 .chainName(po.getChainName())
-                .moduleId(po.getModuleId())
                 .cron(po.getCron())
                 .routeStrategy(po.getRouteStrategy())
                 .params(po.getParams())

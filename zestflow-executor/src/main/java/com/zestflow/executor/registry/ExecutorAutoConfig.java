@@ -26,6 +26,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.env.Environment;
 import org.springframework.web.client.RestTemplate;
 
@@ -34,6 +36,7 @@ import java.util.List;
 
 @AutoConfiguration
 @EnableConfigurationProperties(ExecutorProperties.class)
+@Import(ExecutorDataSourceConfig.class)
 public class ExecutorAutoConfig {
 
     @Bean(initMethod = "start", destroyMethod = "stop")
@@ -61,7 +64,8 @@ public class ExecutorAutoConfig {
     }
 
     @Bean
-    public AdminClient adminClient(RestTemplate restTemplate, ExecutorProperties properties) {
+    public AdminClient adminClient(@Qualifier("zestflowRestTemplate") RestTemplate restTemplate,
+                                    ExecutorProperties properties) {
         return new AdminClient(restTemplate, properties);
     }
 
@@ -248,12 +252,12 @@ public class ExecutorAutoConfig {
     // ==================== 数据访问 ====================
 
     @Bean
-    public ChainRepository chainRepository(org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
+    public ChainRepository chainRepository(@Qualifier("executorJdbcTemplate") org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
         return new ChainRepository(jdbcTemplate);
     }
 
     @Bean
-    public DesignRepository designRepository(org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
+    public DesignRepository designRepository(@Qualifier("executorJdbcTemplate") org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
         return new DesignRepository(jdbcTemplate);
     }
 

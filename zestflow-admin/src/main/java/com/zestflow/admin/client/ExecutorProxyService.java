@@ -5,9 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
-import com.zestflow.admin.model.entity.ModulePO;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
-import com.zestflow.admin.repository.ModuleMapper;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -36,19 +34,18 @@ public class ExecutorProxyService {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final RestTemplate restTemplate;
-    private final ModuleMapper moduleMapper;
     private final ExecutorRegistryMapper executorRegistryMapper;
 
     /**
-     * 通过 moduleId 解析到 Executor 地址并执行 GET 请求
+     * 通过 appCode 解析到 Executor 地址并执行 GET 请求
      *
-     * @param moduleId 模块 ID
-     * @param path     Executor API 路径，如 /api/chains
-     * @param query    查询参数字符串（含 ?），如 "?keyword=xx&status=1&page=1&size=10"
+     * @param appCode 应用编码
+     * @param path    Executor API 路径，如 /api/chains
+     * @param query   查询参数字符串（含 ?），如 "?keyword=xx&status=1&page=1&size=10"
      * @return 等价的空数据 JSON（executor 不可达时）
      */
-    public String getFromExecutor(Long moduleId, String path, String query) {
-        String baseUrl = resolveExecutorBaseUrl(moduleId);
+    public String getFromExecutor(String appCode, String path, String query) {
+        String baseUrl = resolveExecutorBaseUrl(appCode);
         if (baseUrl == null) {
             return emptyPage();
         }
@@ -56,13 +53,12 @@ public class ExecutorProxyService {
         try {
             String json = restTemplate.getForObject(url, String.class);
             if (json == null) return emptyPage();
-            String executorSource = baseUrl.replace("http://", "");
-            return enrichWithModuleId(json, moduleId, executorSource);
+            return enrichWithAppCode(json, appCode, baseUrl.replace("http://", ""));
         } catch (ResourceAccessException e) {
-            log.warn("Executor 不可达 moduleId={} url={}", moduleId, url);
+            log.warn("Executor 不可达 appCode={} url={}", appCode, url);
             return emptyPage();
         } catch (Exception e) {
-            log.error("代理 GET 请求失败 moduleId={} url={}", moduleId, url, e);
+            log.error("代理 GET 请求失败 appCode={} url={}", appCode, url, e);
             return emptyPage();
         }
     }
@@ -73,10 +69,10 @@ public class ExecutorProxyService {
     }
 
     /**
-     * 通过 moduleId 解析到 Executor 地址并执行 GET 请求（不分页，返回数组）
+     * 通过 appCode 解析到 Executor 地址并执行 GET 请求（不分页，返回数组）
      */
-    public String getArrayFromExecutor(Long moduleId, String path, String query) {
-        String url = resolveExecutorUrl(moduleId, path, query);
+    public String getArrayFromExecutor(String appCode, String path, String query) {
+        String url = resolveExecutorUrl(appCode, path, query);
         if (url == null) {
             return "[]";
         }
@@ -86,21 +82,21 @@ public class ExecutorProxyService {
             // 尝试解析为分页格式，提取 records
             JsonNode root = MAPPER.readTree(json);
             if (root.has("records")) {
-                enrichRecords(root.get("records"), moduleId);
+                enrichRecords(root.get("records"), appCode);
                 return MAPPER.writeValueAsString(root.get("records"));
             }
             return json;
         } catch (ResourceAccessException e) {
-            log.warn("Executor 不可达 moduleId={}", moduleId);
+            log.warn("Executor 不可达 appCode={}", appCode);
             return "[]";
         } catch (Exception e) {
-            log.error("代理 GET 请求失败 moduleId={}", moduleId, e);
+            log.error("代理 GET 请求失败 appCode={}", appCode, e);
             return "[]";
         }
     }
 
     /**
-     * 通过 Executor 地址直接 GET（不经过 moduleId 解析）
+     * 通过 Executor 地址直接 GET（不经过 appCode 解析）
      */
     public String getDirect(String host, int port, String path, String query) {
         try {
@@ -134,10 +130,10 @@ public class ExecutorProxyService {
     }
 
     /**
-     * 通过 moduleId 解析到 Executor 并执行 POST/PUT/DELETE
+     * 通过 appCode 解析到 Executor 并执行 POST/PUT/DELETE
      */
-    public String executeOnExecutor(Long moduleId, String method, String path, String body) {
-        String url = resolveExecutorUrl(moduleId, path, null);
+    public String executeOnExecutor(String appCode, String method, String path, String body) {
+        String url = resolveExecutorUrl(appCode, path, null);
         if (url == null) {
             return "{\"code\":500,\"message\":\"无可用执行器\"}";
         }
@@ -164,9 +160,9 @@ public class ExecutorProxyService {
                 default:
                     return "{\"code\":405,\"message\":\"不支持的请求方法\"}";
             }
-            return enrichWithModuleId(json, moduleId);
+            return enrichWithAppCode(json, appCode);
         } catch (ResourceAccessException e) {
-            log.warn("Executor 不可达 moduleId={} url={}", moduleId, url);
+            log.warn("Executor 不可达 appCode={} url={}", appCode, url);
             return "{\"code\":500,\"message\":\"执行器不可达\"}";
         } catch (org.springframework.web.client.HttpClientErrorException e) {
             // Executor 返回 4xx，透传响应体
@@ -174,59 +170,60 @@ public class ExecutorProxyService {
             if (respBody != null && !respBody.isBlank()) return respBody;
             return "{\"code\":500,\"message\":\"执行器请求失败\"}";
         } catch (Exception e) {
-            log.error("代理请求失败 moduleId={} url={}", moduleId, url, e);
+            log.error("代理请求失败 appCode={} url={}", appCode, url, e);
             return "{\"code\":500,\"message\":\"代理请求失败\"}";
         }
     }
 
     /**
-     * 通过 moduleId 查找可用的 Executor 地址
+     * 通过 appCode 查找可用的 Executor 地址
      *
      * @return URL 基础地址，如 http://192.168.1.10:9999
      */
-    public String resolveExecutorBaseUrl(Long moduleId) {
-        ModulePO module = moduleMapper.selectById(moduleId);
-        if (module == null) {
-            log.warn("模块不存在 moduleId={}", moduleId);
+    public String resolveExecutorBaseUrl(String appCode) {
+        if (appCode == null || appCode.isBlank()) {
+            log.warn("appCode 为空");
             return null;
         }
         List<ExecutorRegistryPO> executors = executorRegistryMapper.selectList(
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ExecutorRegistryPO>()
-                        .eq(ExecutorRegistryPO::getModuleId, moduleId)
+                        .eq(ExecutorRegistryPO::getAppCode, appCode)
                         .eq(ExecutorRegistryPO::getStatus, 1) // 只选在线
                         .last("LIMIT 1"));
         if (executors.isEmpty()) {
-            log.warn("模块无可用执行器 moduleId={}", moduleId);
+            log.warn("应用无可用执行器 appCode={}", appCode);
             return null;
         }
         ExecutorRegistryPO executor = executors.get(0);
         return "http://" + executor.getExecutorHost() + ":" + executor.getExecutorPort();
     }
 
-    private String resolveExecutorUrl(Long moduleId, String path, String query) {
-        String baseUrl = resolveExecutorBaseUrl(moduleId);
+    private String resolveExecutorUrl(String appCode, String path, String query) {
+        String baseUrl = resolveExecutorBaseUrl(appCode);
         if (baseUrl == null) return null;
         return baseUrl + path + (query != null ? query : "");
     }
 
     /**
-     * 给分页 JSON 的每条记录补充 moduleId 字段
+     * 给分页 JSON 的每条记录补充 appCode 和 executorSource 字段
      */
-    private String enrichWithModuleId(String json, Long moduleId) {
-        return enrichWithModuleId(json, moduleId, null);
+    private String enrichWithAppCode(String json, String appCode) {
+        return enrichWithAppCode(json, appCode, null);
     }
 
-    private String enrichWithModuleId(String json, Long moduleId, String executorSource) {
+    private String enrichWithAppCode(String json, String appCode, String executorSource) {
         if (json == null) return emptyPage();
         try {
             JsonNode root = MAPPER.readTree(json);
             if (root.has("records")) {
-                enrichRecords(root.get("records"), moduleId, executorSource);
+                enrichRecords(root.get("records"), appCode, executorSource);
                 return MAPPER.writeValueAsString(root);
             }
             // 单条记录
             if (root.isObject() && !root.has("records")) {
-                ((ObjectNode) root).put("moduleId", moduleId);
+                if (appCode != null) {
+                    ((ObjectNode) root).put("appCode", appCode);
+                }
                 if (executorSource != null) {
                     ((ObjectNode) root).put("executorSource", executorSource);
                 }
@@ -240,21 +237,23 @@ public class ExecutorProxyService {
             }
             return json;
         } catch (Exception e) {
-            log.warn("JSON 补充 moduleId 失败", e);
+            log.warn("JSON 补充 appCode 失败", e);
             return json;
         }
     }
 
-    private void enrichRecords(JsonNode records, Long moduleId) {
-        enrichRecords(records, moduleId, null);
+    private void enrichRecords(JsonNode records, String appCode) {
+        enrichRecords(records, appCode, null);
     }
 
-    private void enrichRecords(JsonNode records, Long moduleId, String executorSource) {
+    private void enrichRecords(JsonNode records, String appCode, String executorSource) {
         if (records == null || !records.isArray()) return;
         String now = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         for (JsonNode record : records) {
             if (record.isObject()) {
-                ((ObjectNode) record).put("moduleId", moduleId);
+                if (appCode != null) {
+                    ((ObjectNode) record).put("appCode", appCode);
+                }
                 if (executorSource != null) {
                     ((ObjectNode) record).put("executorSource", executorSource);
                 }
@@ -299,17 +298,16 @@ public class ExecutorProxyService {
     }
 
     /**
-     * 获取模块下所有在线执行器的 HTTP 基础地址
+     * 获取应用下所有在线执行器的 HTTP 基础地址
      */
-    public List<String> resolveAllExecutorUrls(Long moduleId) {
-        ModulePO module = moduleMapper.selectById(moduleId);
-        if (module == null) {
-            log.warn("模块不存在 moduleId={}", moduleId);
+    public List<String> resolveAllExecutorUrls(String appCode) {
+        if (appCode == null || appCode.isBlank()) {
+            log.warn("appCode 为空");
             return List.of();
         }
         List<ExecutorRegistryPO> executors = executorRegistryMapper.selectList(
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ExecutorRegistryPO>()
-                        .eq(ExecutorRegistryPO::getModuleId, moduleId)
+                        .eq(ExecutorRegistryPO::getAppCode, appCode)
                         .eq(ExecutorRegistryPO::getStatus, 1));
         return executors.stream()
                 .map(e -> "http://" + e.getExecutorHost() + ":" + e.getExecutorPort())
@@ -317,16 +315,16 @@ public class ExecutorProxyService {
     }
 
     /**
-     * 向模块下所有在线执行器广播请求，并行调用，单执行器超时 30s，不阻塞其他执行器。
+     * 向应用下所有在线执行器广播请求，并行调用，单执行器超时 30s，不阻塞其他执行器。
      * <p>
      * 使用 CompletableFuture.supplyAsync 发起并行请求，每个任务独立超时，
      * 所有请求完成后汇总结果。一个执行器超时或失败不影响其他执行器。
      */
-    public BroadcastResult broadcastToExecutors(Long moduleId, String method, String path, String body) {
-        List<String> urls = resolveAllExecutorUrls(moduleId);
+    public BroadcastResult broadcastToExecutors(String appCode, String method, String path, String body) {
+        List<String> urls = resolveAllExecutorUrls(appCode);
         if (urls.isEmpty()) {
-            log.warn("广播失败：模块下无在线执行器 moduleId={}", moduleId);
-            return BroadcastResult.fail("该模块无可用执行器");
+            log.warn("广播失败：应用下无在线执行器 appCode={}", appCode);
+            return BroadcastResult.fail("该应用无可用执行器");
         }
 
         int total = urls.size();

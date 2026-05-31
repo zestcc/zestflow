@@ -1,15 +1,14 @@
 package com.zestflow.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zestflow.admin.client.CollectorClient;
 import com.zestflow.admin.client.ExecutorProxyService;
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
-import com.zestflow.admin.model.entity.ModulePO;
 import com.zestflow.admin.model.vo.DashboardStatsVO;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
-import com.zestflow.admin.repository.ModuleMapper;
 import com.zestflow.admin.service.DashboardService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +18,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -27,14 +27,19 @@ public class DashboardServiceImpl implements DashboardService {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    private final ModuleMapper moduleMapper;
     private final ExecutorRegistryMapper executorRegistryMapper;
     private final ExecutorProxyService proxyService;
     private final CollectorClient collectorClient;
 
     @Override
     public DashboardStatsVO getStats() {
-        long totalModules = moduleMapper.selectCount(null);
+        // 统计应用数：从 executor_registry 按 app_code 去重
+        long totalApps = executorRegistryMapper.selectCount(
+                new QueryWrapper<ExecutorRegistryPO>()
+                        .isNotNull("app_code")
+                        .ne("app_code", "")
+                        .select("DISTINCT app_code")
+        );
 
         long totalExecutors = executorRegistryMapper.selectCount(null);
         long healthyExecutors = executorRegistryMapper.selectCount(
@@ -47,42 +52,54 @@ public class DashboardServiceImpl implements DashboardService {
                 new LambdaQueryWrapper<ExecutorRegistryPO>().eq(ExecutorRegistryPO::getStatus, 0)
         );
 
-        // 链 & 设计统计：遍历有在线执行器的模块，汇总 counts
+        // 链 & 设计统计：遍历有在线执行器的应用，汇总 counts
         long totalChains = 0;
         long enabledChains = 0;
         long totalDesigns = 0;
 
-        List<ModulePO> modules = moduleMapper.selectList(null);
-        for (ModulePO module : modules) {
+        // 从 executor_registry 获取所有不同的 appCode
+        List<ExecutorRegistryPO> distinctApps = executorRegistryMapper.selectList(
+                new QueryWrapper<ExecutorRegistryPO>()
+                        .select("DISTINCT app_code, app_name")
+                        .isNotNull("app_code")
+                        .ne("app_code", "")
+                        .orderByAsc("app_code")
+        );
+        List<String> appCodes = distinctApps.stream()
+                .map(ExecutorRegistryPO::getAppCode)
+                .collect(Collectors.toList());
+
+        for (String appCode : appCodes) {
+            if (appCode == null || appCode.isBlank()) continue;
+
             long online = executorRegistryMapper.selectCount(
                     new LambdaQueryWrapper<ExecutorRegistryPO>()
-                            .eq(ExecutorRegistryPO::getModuleId, module.getId())
+                            .eq(ExecutorRegistryPO::getAppCode, appCode)
                             .eq(ExecutorRegistryPO::getStatus, 1));
             if (online == 0) continue;
 
             // 获取链总数（page=1&size=1 只取 total）
-            String chainJson = proxyService.getFromExecutor(module.getId(), "/api/chains", "?page=1&size=1");
-            String designJson = proxyService.getFromExecutor(module.getId(), "/api/designs", "?page=1&size=1");
+            String chainJson = proxyService.getFromExecutor(appCode, "/api/chains", "?page=1&size=1");
+            String designJson = proxyService.getFromExecutor(appCode, "/api/designs", "?page=1&size=1");
 
             try {
                 if (chainJson != null) {
                     JsonNode chainRoot = MAPPER.readTree(chainJson);
                     totalChains += chainRoot.path("total").asLong(0);
-                    // 不需要再查一次 enabled 列表，此处精确统计
                 }
             } catch (Exception e) {
-                log.warn("解析链统计失败 moduleId={}", module.getId(), e);
+                log.warn("解析链统计失败 appCode={}", appCode, e);
             }
 
-            // 获取启用链数（status=2/4 视为已启用）
-            String enabledJson = proxyService.getFromExecutor(module.getId(), "/api/chains", "?page=1&size=1&status=4");
+            // 获取启用链数（status=4 视为已启用）
+            String enabledJson = proxyService.getFromExecutor(appCode, "/api/chains", "?page=1&size=1&status=4");
             try {
                 if (enabledJson != null) {
                     JsonNode enabledRoot = MAPPER.readTree(enabledJson);
                     enabledChains += enabledRoot.path("total").asLong(0);
                 }
             } catch (Exception e) {
-                log.warn("解析启用链统计失败 moduleId={}", module.getId(), e);
+                log.warn("解析启用链统计失败 appCode={}", appCode, e);
             }
 
             try {
@@ -91,7 +108,7 @@ public class DashboardServiceImpl implements DashboardService {
                     totalDesigns += designRoot.path("total").asLong(0);
                 }
             } catch (Exception e) {
-                log.warn("解析设计统计失败 moduleId={}", module.getId(), e);
+                log.warn("解析设计统计失败 appCode={}", appCode, e);
             }
         }
 
@@ -114,7 +131,7 @@ public class DashboardServiceImpl implements DashboardService {
         }
 
         DashboardStatsVO vo = DashboardStatsVO.builder()
-                .totalModules(totalModules)
+                .totalApps(totalApps)
                 .totalExecutors(totalExecutors)
                 .healthyExecutors(healthyExecutors)
                 .errorExecutors(errorExecutors)
@@ -127,8 +144,8 @@ public class DashboardServiceImpl implements DashboardService {
                 .successRate(successRate)
                 .build();
 
-        log.info("仪表盘统计数据: totalChains={} enabledChains={} totalDesigns={} todayExec={} avgMs={} rate={}%",
-                totalChains, enabledChains, totalDesigns, todayExecutions,
+        log.info("仪表盘统计数据: totalApps={} totalChains={} enabledChains={} totalDesigns={} todayExec={} avgMs={} rate={}%",
+                totalApps, totalChains, enabledChains, totalDesigns, todayExecutions,
                 String.format("%.1f", avgExecutionMs), String.format("%.1f", successRate));
 
         return vo;

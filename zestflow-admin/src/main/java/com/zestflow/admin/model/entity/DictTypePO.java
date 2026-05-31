@@ -6,17 +6,24 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("user_module_role")
-public class UserModuleRolePO {
+@TableName("sys_dict_type")
+public class DictTypePO {
 
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    private Long userId;
+    private String code;
 
-    private Long moduleId;
+    private String name;
 
-    private Long roleId;
+    private String description;
+
+    private Integer status;
+
+    private Integer sort;
+
+    @TableField(value = "updated_by", fill = FieldFill.INSERT_UPDATE)
+    private String updatedBy;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;

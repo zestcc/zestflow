@@ -13,12 +13,6 @@ spring:
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
-  # 日志数据源 — 事件存储（H2 内存模式）
-  log-datasource:
-    url: jdbc:h2:mem:test_log;DB_CLOSE_DELAY=-1;MODE=MySQL
-    username: sa
-    password:
-    driver-class-name: org.h2.Driver
   # 禁用 Flyway
   flyway:
     enabled: false
@@ -27,9 +21,14 @@ spring:
     console:
       enabled: true
 
-# 禁用执行器自动注册（E2E 测试不需要连接 Admin）
+# 数据源配置
 zestflow:
   executor:
+    datasource:
+      url: jdbc:h2:mem:test_business;DB_CLOSE_DELAY=-1;MODE=MySQL
+      username: sa
+      password:
+      driver-class-name: org.h2.Driver
     admin-addresses:
     module-code: test-executor
     host: localhost
@@ -38,3 +37,9 @@ zestflow:
       queue-capacity: 8192
       batch-size: 200
       batch-max-wait-ms: 200
+  collector:
+    datasource:
+      url: jdbc:h2:mem:test_log;DB_CLOSE_DELAY=-1;MODE=MySQL
+      username: sa
+      password:
+      driver-class-name: org.h2.Driver

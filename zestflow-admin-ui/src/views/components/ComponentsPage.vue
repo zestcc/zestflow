@@ -6,13 +6,13 @@
         <el-tag type="success" size="small" style="margin-left:8px">{{ $t('components.active') }} {{ statsObj.active }}</el-tag>
         <el-tag type="info" size="small">{{ $t('components.offline') }} {{ statsObj.offline }}</el-tag>
         <el-select
-          v-model="currentModuleId"
+          v-model="currentAppCode"
           filterable
           style="width:200px;margin-left:16px"
-          :placeholder="$t('components.selectModule')"
+          :placeholder="$t('components.selectApp')"
           @change="handleModuleChange"
         >
-          <el-option v-for="m in modules" :key="m.id" :label="m.name" :value="m.id" />
+          <el-option v-for="m in modules" :key="m.appCode" :label="m.appName || m.appCode" :value="m.appCode" />
         </el-select>
       </div>
     </div>
@@ -28,16 +28,8 @@
         </el-select>
       </el-form-item>
       <el-form-item :label="$t('components.componentType')">
-        <el-select v-model="filter.componentType" clearable style="width:120px" :placeholder="$t('common.all')">
-          <el-option :label="$t('components.typeExecutor')" value="EXECUTOR" />
-          <el-option :label="$t('components.typePredicate')" value="PREDICATE" />
-          <el-option :label="$t('components.typeSelector')" value="SELECTOR" />
-          <el-option :label="$t('components.typeLoader')" value="LOADER" />
-          <el-option :label="$t('components.typeParser')" value="PARSER" />
-          <el-option :label="$t('components.typePreProcessor')" value="PRE_PROCESSOR" />
-          <el-option :label="$t('components.typePostProcessor')" value="POST_PROCESSOR" />
-          <el-option :label="$t('components.typeParamBinder')" value="PARAM_BINDER" />
-          <el-option :label="$t('components.typeParamValidator')" value="PARAM_VALIDATOR" />
+        <el-select v-model="filter.componentType" clearable style="width:130px" :placeholder="$t('common.all')">
+          <el-option v-for="item in componentTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
         </el-select>
       </el-form-item>
       <el-form-item>
@@ -166,8 +158,12 @@
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { componentApi } from '@/api/component'
+import { dictApi } from '@/api/dict'
+import type { DictDataVO } from '@/api/dict'
 
 const { t } = useI18n()
+
+const componentTypeOptions = ref<DictDataVO[]>([])
 
 function typeLabel(type: string): string {
   const map: Record<string, string> = {
@@ -199,16 +195,15 @@ function typeTagType(type: string): string {
   return map[type] || 'info'
 }
 import type { ComponentVO } from '@/api/component'
-import { moduleApi } from '@/api/module'
-import type { ModuleVO } from '@/api/module'
+import { executorApi, type AppOption } from '@/api/executor'
 
 const loading = ref(false)
 const componentList = ref<ComponentVO[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
-const modules = ref<ModuleVO[]>([])
-const currentModuleId = ref<number>(0)
+const modules = ref<AppOption[]>([])
+const currentAppCode = ref<string>('')
 
 const drawerVisible = ref(false)
 const selectedComp = ref<ComponentVO | null>(null)
@@ -227,9 +222,9 @@ const filter = ref({
 const statsObj = ref({ total: 0, active: 0, offline: 0 })
 
 async function fetchStats() {
-  if (!currentModuleId.value) return
+  if (!currentAppCode.value) return
   try {
-    const res = await componentApi.stats({ moduleId: currentModuleId.value })
+    const res = await componentApi.stats({ appCode: currentAppCode.value })
     statsObj.value = res
   } catch {
     // stats 不影响列表展示
@@ -237,11 +232,11 @@ async function fetchStats() {
 }
 
 async function fetchList() {
-  if (!currentModuleId.value) { componentList.value = []; total.value = 0; return }
+  if (!currentAppCode.value) { componentList.value = []; total.value = 0; return }
   loading.value = true
   try {
     const res = await componentApi.list({
-      moduleId: currentModuleId.value,
+      appCode: currentAppCode.value,
       keyword: filter.value.keyword || undefined,
       status: filter.value.status === '' ? undefined : (filter.value.status as number),
       componentType: filter.value.componentType || undefined,
@@ -275,12 +270,13 @@ async function handleModuleChange() {
 }
 
 onMounted(async () => {
-  modules.value = await moduleApi.list()
+  modules.value = await executorApi.listApps()
   if (modules.value.length > 0) {
-    currentModuleId.value = modules.value[0].id
+    currentAppCode.value = modules.value[0].appCode
     await handleModuleChange()
   }
   await fetchStats()
+  dictApi.getDictData('component_type').then(data => { componentTypeOptions.value = data })
 })
 </script>
 

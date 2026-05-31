@@ -4,7 +4,6 @@ export interface ScheduleVO {
   id: number
   chainCode: string
   chainName: string
-  moduleId: number
   cron: string
   routeStrategy: string
   params?: string
@@ -17,7 +16,6 @@ export interface ScheduleVO {
 }
 
 export interface ScheduleCreateDTO {
-  moduleId: number
   chainCode: string
   chainName: string
   cron: string
@@ -52,7 +50,7 @@ export interface ScheduleLogVO {
 }
 
 export const scheduleApi = {
-  list(params: { moduleId?: number; keyword?: string; status?: number; page?: number; size?: number }) {
+  list(params: { keyword?: string; status?: number; page?: number; size?: number }) {
     return http.get<{ records: ScheduleVO[]; total: number; current: number; size: number }>('/schedules', { params })
   },
 

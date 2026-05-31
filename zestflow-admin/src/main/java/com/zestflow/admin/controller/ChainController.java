@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.*;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,14 +29,14 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ChainController {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    /** 发布进度缓存 chainCode:moduleId → [publishedCount, totalCount] */
+    /** 发布进度缓存 chainCode → [publishedCount, totalCount] */
     private static final ConcurrentHashMap<String, int[]> PUBLISH_PROGRESS = new ConcurrentHashMap<>();
 
     private final ExecutorProxyService proxyService;
 
     @GetMapping
-    public String listByModuleId(
-            @RequestParam Long moduleId,
+    public String listByAppCode(
+            @RequestParam String appCode,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Integer status,
             @RequestParam(defaultValue = "1") Integer page,
@@ -45,24 +44,24 @@ public class ChainController {
         String query = "?keyword=" + (keyword != null ? keyword : "")
                 + "&status=" + (status != null ? status : "")
                 + "&page=" + page + "&size=" + size;
-        String json = proxyService.getFromExecutor(moduleId, "/api/chains", query);
-        return enrichProgress(json, moduleId);
+        String json = proxyService.getFromExecutor(appCode, "/api/chains", query);
+        return enrichProgress(json, appCode);
     }
 
-    /** 注入进度信息：已发布执行器数 / 模块总执行器数 */
-    private String enrichProgress(String json, Long moduleId) {
+    /** 注入进度信息：已发布执行器数 / 应用总执行器数 */
+    private String enrichProgress(String json, String appCode) {
         if (json == null) return json;
         try {
-            int totalExecutors = proxyService.resolveAllExecutorUrls(moduleId).size();
+            int totalExecutors = proxyService.resolveAllExecutorUrls(appCode).size();
             JsonNode root = MAPPER.readTree(json);
             if (root.has("records")) {
                 for (JsonNode record : root.get("records")) {
                     if (record.isObject()) {
-                        injectProgress((ObjectNode) record, moduleId, totalExecutors);
+                        injectProgress((ObjectNode) record, appCode, totalExecutors);
                     }
                 }
             } else if (root.isObject() && root.has("code")) {
-                injectProgress((ObjectNode) root, moduleId, totalExecutors);
+                injectProgress((ObjectNode) root, appCode, totalExecutors);
             }
             return MAPPER.writeValueAsString(root);
         } catch (Exception e) {
@@ -71,12 +70,12 @@ public class ChainController {
         }
     }
 
-    private void injectProgress(ObjectNode node, Long moduleId, int totalExecutors) {
+    private void injectProgress(ObjectNode node, String appCode, int totalExecutors) {
         String code = node.has("code") ? node.get("code").asText() : "";
         int status = node.has("status") ? node.get("status").asInt() : 0;
         // 优先从发布缓存读取
         int publishedCount = 0;
-        int[] cached = PUBLISH_PROGRESS.get(code + ":" + moduleId);
+        int[] cached = PUBLISH_PROGRESS.get(code);
         if (cached != null) {
             publishedCount = cached[0];
             totalExecutors = cached[1];
@@ -90,18 +89,18 @@ public class ChainController {
     }
 
     @GetMapping("/active-codes")
-    public String fetchActiveCodes(@RequestParam Long moduleId) {
-        return proxyService.getArrayFromExecutor(moduleId, "/api/chains/active-codes", null);
+    public String fetchActiveCodes(@RequestParam String appCode) {
+        return proxyService.getArrayFromExecutor(appCode, "/api/chains/active-codes", null);
     }
 
     /**
      * 获取链的完整定义（含设计数据），供 Executor 拉取热加载
      */
     @GetMapping("/code/{code}")
-    public String fetchChainDefinition(@PathVariable String code, @RequestParam Long moduleId) {
+    public String fetchChainDefinition(@PathVariable String code, @RequestParam String appCode) {
         ObjectNode defNode = MAPPER.createObjectNode();
         try {
-            String chainJson = proxyService.getFromExecutor(moduleId, "/api/chains/" + code, null);
+            String chainJson = proxyService.getFromExecutor(appCode, "/api/chains/" + code, null);
             if (chainJson == null || chainJson.contains("\"code\":404")) {
                 return "{\"code\":404,\"message\":\"链不存在\"}";
             }
@@ -110,7 +109,7 @@ public class ChainController {
             String designCode = chainNode.has("designCode") ? chainNode.get("designCode").asText() : "";
             defNode.put("designCode", designCode);
             if (!designCode.isEmpty()) {
-                String designJson = proxyService.getFromExecutor(moduleId, "/api/designs/" + designCode, null);
+                String designJson = proxyService.getFromExecutor(appCode, "/api/designs/" + designCode, null);
                 if (designJson != null) {
                     JsonNode designNode = MAPPER.readTree(designJson);
                     if (designNode.has("graphData")) {
@@ -178,51 +177,51 @@ public class ChainController {
     }
 
     @GetMapping("/{code}")
-    public String getByCode(@PathVariable String code, @RequestParam Long moduleId) {
-        return proxyService.getFromExecutor(moduleId, "/api/chains/" + code, null);
+    public String getByCode(@PathVariable String code, @RequestParam String appCode) {
+        return proxyService.getFromExecutor(appCode, "/api/chains/" + code, null);
     }
 
     @PostMapping
     public String create(@RequestBody String bodyJson) {
         String enriched = injectUpdatedBy(bodyJson);
-        return proxyService.executeOnExecutor(extractModuleId(bodyJson), "POST", "/api/chains", enriched);
+        return proxyService.executeOnExecutor(extractAppCode(bodyJson), "POST", "/api/chains", enriched);
     }
 
     @PutMapping("/{code}")
     public String update(@PathVariable String code, @RequestBody String bodyJson) {
         String enriched = injectUpdatedBy(bodyJson);
-        return proxyService.executeOnExecutor(extractModuleId(bodyJson), "PUT", "/api/chains/" + code, enriched);
+        return proxyService.executeOnExecutor(extractAppCode(bodyJson), "PUT", "/api/chains/" + code, enriched);
     }
 
     @DeleteMapping("/{code}")
-    public String delete(@PathVariable String code, @RequestParam Long moduleId) {
+    public String delete(@PathVariable String code, @RequestParam String appCode) {
         String username = com.zestflow.admin.util.SecurityUtils.getCurrentUsername();
         String query = username != null ? "?updatedBy=" + username : "";
-        return proxyService.executeOnExecutor(moduleId, "DELETE", "/api/chains/" + code + query, null);
+        return proxyService.executeOnExecutor(appCode, "DELETE", "/api/chains/" + code + query, null);
     }
 
     @PutMapping("/{code}/status")
-    public String toggleStatus(@PathVariable String code, @RequestParam Long moduleId) {
-        String body = "{\"moduleId\":" + moduleId + "}";
+    public String toggleStatus(@PathVariable String code, @RequestParam String appCode) {
+        String body = "{\"appCode\":\"" + appCode + "\"}";
         String enriched = injectUpdatedBy(body);
-        return proxyService.executeOnExecutor(moduleId, "PUT", "/api/chains/" + code + "/status", enriched);
+        return proxyService.executeOnExecutor(appCode, "PUT", "/api/chains/" + code + "/status", enriched);
     }
 
     @PostMapping("/{code}/publish")
-    public String publish(@PathVariable String code, @RequestParam Long moduleId) {
-        java.util.List<String> executorUrls = proxyService.resolveAllExecutorUrls(moduleId);
+    public String publish(@PathVariable String code, @RequestParam String appCode) {
+        java.util.List<String> executorUrls = proxyService.resolveAllExecutorUrls(appCode);
         if (executorUrls.isEmpty()) {
-            return "{\"code\":400,\"message\":\"该模块无可用执行器\",\"total\":0,\"success\":0}";
+            return "{\"code\":400,\"message\":\"该应用无可用执行器\",\"total\":0,\"success\":0}";
         }
 
         String graphData = null;
         String chainData = null;
         try {
-            String chainJson = proxyService.getFromExecutor(moduleId, "/api/chains/" + code, null);
+            String chainJson = proxyService.getFromExecutor(appCode, "/api/chains/" + code, null);
             JsonNode chainNode = MAPPER.readTree(chainJson);
             String designCode = chainNode.has("designCode") ? chainNode.get("designCode").asText() : null;
             if (designCode != null && !designCode.isEmpty()) {
-                String designJson = proxyService.getFromExecutor(moduleId, "/api/designs/" + designCode, null);
+                String designJson = proxyService.getFromExecutor(appCode, "/api/designs/" + designCode, null);
                 JsonNode designNode = MAPPER.readTree(designJson);
                 if (designNode.has("graphData")) {
                     graphData = designNode.get("graphData").asText();
@@ -240,7 +239,6 @@ public class ChainController {
                 .publishId(publishId)
                 .eventType(ChainEventType.PUBLISH_REQUESTED)
                 .chainCode(code)
-                .moduleId(moduleId)
                 .graphData(graphData)
                 .chainData(chainData)
                 .totalExecutors(executorUrls.size())
@@ -256,12 +254,12 @@ public class ChainController {
         String rollbackGraphData = null;
         String rollbackChainData = null;
         try {
-            String chainJson = proxyService.getFromExecutor(moduleId, "/api/chains/" + code, null);
+            String chainJson = proxyService.getFromExecutor(appCode, "/api/chains/" + code, null);
             if (chainJson != null) {
                 JsonNode chainNode = MAPPER.readTree(chainJson);
                 String designCode = chainNode.has("designCode") ? chainNode.get("designCode").asText() : null;
                 if (designCode != null && !designCode.isEmpty()) {
-                    String designJson = proxyService.getFromExecutor(moduleId, "/api/designs/" + designCode, null);
+                    String designJson = proxyService.getFromExecutor(appCode, "/api/designs/" + designCode, null);
                     if (designJson != null) {
                         JsonNode designNode = MAPPER.readTree(designJson);
                         if (designNode.has("graphData"))
@@ -276,7 +274,7 @@ public class ChainController {
         }
 
         BroadcastResult reloadResult = proxyService.broadcastToExecutors(
-                moduleId, "PUT", "/api/chains/" + code + "/reload", eventBody);
+                appCode, "PUT", "/api/chains/" + code + "/reload", eventBody);
 
         // 部分失败时回滚已成功的执行器
         if (!reloadResult.isAllSuccess() && reloadResult.getSuccess() > 0 && rollbackGraphData != null) {
@@ -286,7 +284,6 @@ public class ChainController {
                     .publishId("rollback-" + publishId)
                     .eventType(ChainEventType.PUBLISH_ROLLBACK)
                     .chainCode(code)
-                    .moduleId(moduleId)
                     .graphData(rollbackGraphData)
                     .chainData(rollbackChainData)
                     .totalExecutors(reloadResult.getSuccess())
@@ -299,7 +296,7 @@ public class ChainController {
                 for (ExecutorResult r : reloadResult.getResults()) {
                     if (r.isOk()) {
                         try {
-                            proxyService.executeOnExecutor(moduleId, "PUT",
+                            proxyService.executeOnExecutor(appCode, "PUT",
                                     "/api/chains/" + code + "/reload", rollbackBody);
                             log.info("回滚成功 executor={}", r.getUrl());
                         } catch (Exception re) {
@@ -313,17 +310,17 @@ public class ChainController {
         }
 
         // 缓存发布进度
-        PUBLISH_PROGRESS.put(code + ":" + moduleId,
+        PUBLISH_PROGRESS.put(code,
                 new int[]{reloadResult.getSuccess(), reloadResult.getTotal()});
 
         if (reloadResult.isAllSuccess() && reloadResult.getTotal() > 0) {
-            String statusPayload = "{\"status\":4,\"moduleId\":" + moduleId + "}";
-            proxyService.executeOnExecutor(moduleId, "PUT", "/api/chains/" + code, statusPayload);
-            log.info("链发布成功 code={} moduleId={}", code, moduleId);
+            String statusPayload = "{\"status\":4,\"appCode\":\"" + appCode + "\"}";
+            proxyService.executeOnExecutor(appCode, "PUT", "/api/chains/" + code, statusPayload);
+            log.info("链发布成功 code={} appCode={}", code, appCode);
         }
 
-        log.info("链发布完成 code={} moduleId={} publishId={} success={}/{}",
-                code, moduleId, publishId, reloadResult.getSuccess(), reloadResult.getTotal());
+        log.info("链发布完成 code={} appCode={} publishId={} success={}/{}",
+                code, appCode, publishId, reloadResult.getSuccess(), reloadResult.getTotal());
 
         ObjectNode result = MAPPER.createObjectNode();
         result.put("code", reloadResult.isAllSuccess() && reloadResult.getTotal() > 0 ? 200 : 207);
@@ -349,23 +346,23 @@ public class ChainController {
     }
 
     @GetMapping("/{code}/versions")
-    public String listVersions(@PathVariable String code, @RequestParam Long moduleId) {
-        return proxyService.getFromExecutor(moduleId, "/api/chains/" + code + "/versions", null);
+    public String listVersions(@PathVariable String code, @RequestParam String appCode) {
+        return proxyService.getFromExecutor(appCode, "/api/chains/" + code + "/versions", null);
     }
 
     @PostMapping("/{code}/rollback/{version}")
     public String rollback(@PathVariable String code, @PathVariable Integer version,
                             @RequestBody String bodyJson) {
         String enriched = injectUpdatedBy(bodyJson);
-        return proxyService.executeOnExecutor(extractModuleId(bodyJson), "POST",
+        return proxyService.executeOnExecutor(extractAppCode(bodyJson), "POST",
                 "/api/chains/" + code + "/rollback/" + version, enriched);
     }
 
-    private Long extractModuleId(String bodyJson) {
+    private String extractAppCode(String bodyJson) {
         try {
             JsonNode json = MAPPER.readTree(bodyJson);
-            if (json.has("moduleId") && !json.get("moduleId").isNull()) {
-                return json.get("moduleId").asLong();
+            if (json.has("appCode") && !json.get("appCode").isNull()) {
+                return json.get("appCode").asText();
             }
         } catch (Exception ignored) {}
         return null;

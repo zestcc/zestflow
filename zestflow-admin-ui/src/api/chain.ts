@@ -4,7 +4,6 @@ import type { AxiosRequestConfig } from 'axios'
 export interface ChainVO {
   code: string
   name: string
-  moduleId: number
   status: number
   description?: string
   designCode?: string
@@ -12,27 +11,29 @@ export interface ChainVO {
   updatedBy?: string
   createdAt: string
   updatedAt: string
+  publishedCount?: number
+  totalExecutors?: number
 }
 
 export interface ChainCreateDTO {
   name: string
-  moduleId: number
+  appCode: string
   description?: string
 }
 
 export interface ChainUpdateDTO {
   name?: string
   description?: string
-  moduleId?: number
+  appCode?: string
 }
 
 export const chainApi = {
-  list(params: { moduleId: number; keyword?: string; status?: number; page?: number; size?: number }) {
+  list(params: { appCode: string; keyword?: string; status?: number; page?: number; size?: number }) {
     return http.get<{ records: ChainVO[]; total: number; current: number; size: number }>('/chains', { params })
   },
 
-  getByCode(code: string, moduleId: number) {
-    return http.get<ChainVO>(`/chains/${code}`, { params: { moduleId } })
+  getByCode(code: string, appCode: string) {
+    return http.get<ChainVO>(`/chains/${code}`, { params: { appCode } })
   },
 
   create(data: ChainCreateDTO) {
@@ -43,15 +44,15 @@ export const chainApi = {
     return http.put<ChainVO>(`/chains/${code}`, data)
   },
 
-  delete(code: string, moduleId: number) {
-    return http.delete(`/chains/${code}`, { params: { moduleId } } as AxiosRequestConfig)
+  delete(code: string, appCode: string) {
+    return http.delete(`/chains/${code}`, { params: { appCode } } as AxiosRequestConfig)
   },
 
-  toggleStatus(code: string, moduleId: number) {
-    return http.put(`/chains/${code}/status?moduleId=${moduleId}`)
+  toggleStatus(code: string, appCode: string) {
+    return http.put(`/chains/${code}/status?appCode=${appCode}`)
   },
 
-  publish(code: string, moduleId: number) {
-    return http.post<{ code: number; message: string; total: number; success: number; details: Array<{ url: string; ok: boolean; message: string }> }>(`/chains/${code}/publish?moduleId=${moduleId}`)
+  publish(code: string, appCode: string) {
+    return http.post<{ code: number; message: string; total: number; success: number; details: Array<{ url: string; ok: boolean; message: string }> }>(`/chains/${code}/publish?appCode=${appCode}`)
   },
 }

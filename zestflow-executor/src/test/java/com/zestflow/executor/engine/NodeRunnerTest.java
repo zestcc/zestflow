@@ -49,11 +49,11 @@ class NodeRunnerTest {
 
     @BeforeEach
     void setUp() {
-        when(executorProperties.getModuleCode()).thenReturn("test-module");
+        when(executorProperties.getAppCode()).thenReturn("test-app");
         when(executorProperties.getHost()).thenReturn("127.0.0.1");
         when(executorProperties.getPort()).thenReturn(9999);
-        when(executorProperties.getModuleName()).thenReturn("test-app");
-        executorId = "test-module@127.0.0.1:9999";
+        when(executorProperties.getAppName()).thenReturn("test-app");
+        executorId = "test-app@127.0.0.1:9999";
         nodeRunner = new NodeRunner(componentScanner, eventPublisher,
                 interceptorChain, lifecycleExecutor, retryExecutor, chainManager, executorProperties);
     }

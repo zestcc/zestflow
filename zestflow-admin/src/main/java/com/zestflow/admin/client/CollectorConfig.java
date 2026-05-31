@@ -1,5 +1,6 @@
 package com.zestflow.admin.client;
 
+import com.zestflow.collector.client.CollectorQueryClient;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -31,6 +32,12 @@ public class CollectorConfig {
     public CollectorClient collectorClient(RestTemplate restTemplate,
                                             CollectorClientProperties properties) {
         return new CollectorClient(restTemplate, properties.getApiUrl(), properties.getAccessToken());
+    }
+
+    @Bean
+    public CollectorQueryClient collectorQueryClient(RestTemplate restTemplate,
+                                                      CollectorClientProperties properties) {
+        return new CollectorQueryClient(restTemplate, properties.getAccessToken());
     }
 
     @Data

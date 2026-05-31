@@ -1,7 +1,6 @@
 package com.zestflow.admin.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.zestflow.admin.model.dto.AssignModuleRoleDTO;
 import com.zestflow.admin.model.dto.UserCreateDTO;
 import com.zestflow.admin.model.dto.UserUpdateDTO;
 import com.zestflow.admin.model.vo.UserManageVO;
@@ -63,16 +62,17 @@ public class UserManageController {
         return Result.success(Collections.singletonMap("generatedPassword", generatedPassword));
     }
 
-    @PostMapping("/{id}/module-roles")
-    public Result<Void> assignModuleRole(@PathVariable Long id, @Valid @RequestBody AssignModuleRoleDTO dto) {
-        dto.setUserId(id);
-        userManageService.assignModuleRole(dto);
+    @PostMapping("/{id}/app-roles")
+    public Result<Void> assignAppRole(@PathVariable Long id, @Valid @RequestBody Map<String, Object> body) {
+        String appCode = (String) body.get("appCode");
+        Long roleId = body.get("roleId") instanceof Number ? ((Number) body.get("roleId")).longValue() : null;
+        userManageService.assignAppRole(id, appCode, roleId);
         return Result.success();
     }
 
-    @DeleteMapping("/{id}/module-roles/{moduleId}")
-    public Result<Void> removeModuleRole(@PathVariable Long id, @PathVariable Long moduleId) {
-        userManageService.removeModuleRole(id, moduleId);
+    @DeleteMapping("/{id}/app-roles/{appCode}")
+    public Result<Void> removeAppRole(@PathVariable Long id, @PathVariable String appCode) {
+        userManageService.removeAppRole(id, appCode);
         return Result.success();
     }
 }

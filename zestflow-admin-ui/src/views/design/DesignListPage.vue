@@ -6,13 +6,13 @@
         <el-tag type="success" size="small" style="margin-left:8px">{{ $t('design.enabled') }} {{ stats.enabled }}</el-tag>
         <el-tag type="danger" size="small">{{ $t('design.disabled') }} {{ stats.disabled }}</el-tag>
         <el-select
-          v-model="currentModuleId"
+          v-model="currentAppCode"
           filterable
           style="width:200px;margin-left:16px"
-          :placeholder="$t('design.selectModule')"
-          @change="handleModuleChange"
+          :placeholder="$t('design.selectApp')"
+          @change="handleAppChange"
         >
-          <el-option v-for="m in modules" :key="m.id" :label="m.name" :value="m.id" />
+          <el-option v-for="m in apps" :key="m.appCode" :label="m.appName || m.appCode" :value="m.appCode" />
         </el-select>
       </div>
       <el-button type="primary" @click="openCreate">
@@ -57,9 +57,9 @@
         </template>
       </el-table-column>
       <el-table-column prop="designer" :label="$t('design.designer')" width="100" show-overflow-tooltip />
-      <el-table-column :label="$t('design.module')" width="120" show-overflow-tooltip>
+      <el-table-column :label="$t('design.app')" width="120" show-overflow-tooltip>
         <template #default>
-          {{ currentModuleName }}
+          {{ currentAppName }}
         </template>
       </el-table-column>
       <el-table-column :label="$t('design.boundChainCodes')" width="180" show-overflow-tooltip>
@@ -109,8 +109,8 @@
     <!-- 创建弹窗 -->
     <CreateDesignDialog
       v-model:visible="createDialogVisible"
-      :module-options="modules"
-      :default-module-id="currentModuleId"
+      :app-options="apps"
+      :default-app-code="currentAppCode"
       @saved="onDesignCreated"
     />
 
@@ -188,8 +188,8 @@
             <el-descriptions-item label="设计者">
               {{ currentDesignDetail.designer || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="模块">
-              {{ getModuleName(currentDesignDetail.moduleId) }}
+            <el-descriptions-item label="应用">
+              {{ getAppName(currentDesignDetail.appCode) }}
             </el-descriptions-item>
             <el-descriptions-item label="描述">
               {{ currentDesignDetail.description || '-' }}
@@ -229,8 +229,8 @@
                 {{ currentChainDetail.status === 0 ? $t('chains.disabled') : $t('chains.enabled') }}
               </el-tag>
             </el-descriptions-item>
-            <el-descriptions-item label="模块">
-              {{ moduleNameMap[currentChainDetail.moduleId] || '-' }}
+            <el-descriptions-item label="应用">
+              {{ appNameMap[currentChainDetail.appCode] || '-' }}
             </el-descriptions-item>
             <el-descriptions-item label="描述">
               {{ currentChainDetail.description || '-' }}
@@ -253,15 +253,15 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { designApi, type DesignVO } from '@/api/design'
 import type { ChainVO } from '@/api/chain'
-import { moduleApi, type ModuleVO } from '@/api/module'
+import { executorApi, type AppOption } from '@/api/executor'
 import CreateDesignDialog from '@/components/CreateDesignDialog.vue'
 
 const { t } = useI18n()
 const router = useRouter()
 
 const loading = ref(false)
-const modules = ref<ModuleVO[]>([])
-const currentModuleId = ref<number | undefined>(undefined)
+const apps = ref<AppOption[]>([])
+const currentAppCode = ref<string>('')
 const designList = ref<DesignVO[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -276,15 +276,15 @@ function chainStatusLabel(status: number): string {
 }
 const filter = ref({ keyword: '', status: undefined as number | undefined })
 
-const currentModuleName = computed(() => {
-  const m = modules.value.find(m => m.id === currentModuleId.value)
-  return m ? m.name : ''
+const currentAppName = computed(() => {
+  const m = apps.value.find(m => m.appCode === currentAppCode.value)
+  return m ? m.appName || m.appCode : ''
 })
 
-function getModuleName(moduleId: number | undefined): string {
-  if (moduleId == null) return '-'
-  const m = modules.value.find(m => m.id === moduleId)
-  return m ? m.name : '-'
+function getAppName(appCode: string | undefined): string {
+  if (!appCode) return '-'
+  const m = apps.value.find(m => m.appCode === appCode)
+  return m ? m.appName || m.appCode : '-'
 }
 
 const stats = computed(() => {
@@ -293,21 +293,21 @@ const stats = computed(() => {
   return { enabled, disabled }
 })
 
-async function fetchModules() {
+async function fetchApps() {
   try {
-    modules.value = await moduleApi.list()
-    if (modules.value.length > 0 && !currentModuleId.value) {
-      currentModuleId.value = modules.value[0].id
+    apps.value = await executorApi.listApps()
+    if (apps.value.length > 0 && !currentAppCode.value) {
+      currentAppCode.value = apps.value[0].appCode
     }
   } catch { /* ignore */ }
 }
 
 async function fetchList() {
-  if (!currentModuleId.value) return
+  if (!currentAppCode.value) return
   loading.value = true
   try {
     const res = await designApi.list({
-      moduleId: currentModuleId.value,
+      appCode: currentAppCode.value,
       keyword: filter.value.keyword || undefined,
       status: filter.value.status,
       page: page.value,
@@ -318,7 +318,7 @@ async function fetchList() {
   } finally { loading.value = false }
 }
 
-function handleModuleChange() { page.value = 1; fetchList() }
+function handleAppChange() { page.value = 1; fetchList() }
 function handleSearch() { page.value = 1; fetchList() }
 function handleReset() { filter.value = { keyword: '', status: undefined }; page.value = 1; fetchList() }
 
@@ -340,7 +340,7 @@ const editDialogVisible = ref(false)
 const editSubmitting = ref(false)
 const editFormRef = ref<any>(null)
 const editingCode = ref<string | null>(null)
-const editingModuleId = ref<number>(0)
+const editingAppCode = ref<string>('')
 const editForm = ref({ code: '', name: '', description: '', designer: '' })
 const editRules = {
   name: [{ required: true, message: () => t('validation.required', { field: t('design.name') }), trigger: 'blur' }],
@@ -348,7 +348,7 @@ const editRules = {
 
 function openEdit(row: DesignVO) {
   editingCode.value = row.code
-  editingModuleId.value = row.moduleId
+  editingAppCode.value = row.appCode || ''
   editForm.value = {
     code: row.code,
     name: row.name,
@@ -367,7 +367,7 @@ async function handleEdit() {
       name: editForm.value.name,
       description: editForm.value.description || undefined,
       designer: editForm.value.designer || undefined,
-      moduleId: editingModuleId.value,
+      appCode: editingAppCode.value || undefined,
     })
     ElMessage.success(t('common.edit') + '成功')
     editDialogVisible.value = false
@@ -377,7 +377,7 @@ async function handleEdit() {
 
 // 启停 / 删除
 async function handleToggleStatus(row: DesignVO) {
-  await designApi.toggleStatus(row.code, row.moduleId)
+  await designApi.toggleStatus(row.code, row.appCode!)
   ElMessage.success(row.status === 1 ? t('design.disable') + '成功' : t('design.enable') + '成功')
   await fetchList()
 }
@@ -386,7 +386,7 @@ function handleDelete(row: DesignVO) {
   ElMessageBox.confirm(t('design.deleteConfirm', { name: row.name }), t('design.delete'),
     { confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel'), type: 'warning' }
   ).then(async () => {
-    await designApi.delete(row.code, row.moduleId)
+    await designApi.delete(row.code, row.appCode!)
     ElMessage.success(t('design.delete') + '成功')
     await fetchList()
   }).catch(() => {})
@@ -394,7 +394,7 @@ function handleDelete(row: DesignVO) {
 
 // 设计 → 跳转编辑器
 function handleDesign(row: DesignVO) {
-  router.push({ name: 'DesignEditor', params: { id: row.code }, query: { moduleId: row.moduleId } })
+  router.push({ name: 'DesignEditor', params: { id: row.code }, query: { appCode: row.appCode } })
 }
 
 // 绑定
@@ -408,8 +408,8 @@ async function openBindDialog(row: DesignVO) {
   bindDialogVisible.value = true
   try {
     const [bindings, bindable] = await Promise.all([
-      designApi.getBindings(row.code, row.moduleId),
-      designApi.getBindable(row.code, row.moduleId),
+      designApi.getBindings(row.code, row.appCode!),
+      designApi.getBindable(row.code, row.appCode!),
     ])
     boundChains.value = bindings
     bindableChains.value = bindable
@@ -419,11 +419,11 @@ async function openBindDialog(row: DesignVO) {
 async function handleBind(chainCode: string) {
   if (!bindTarget.value) return
   try {
-    await designApi.bind(bindTarget.value.code, chainCode, bindTarget.value.moduleId)
+    await designApi.bind(bindTarget.value.code, chainCode, bindTarget.value.appCode!)
     ElMessage.success(t('design.bind') + '成功')
     const [bindings, bindable] = await Promise.all([
-      designApi.getBindings(bindTarget.value.code, bindTarget.value.moduleId),
-      designApi.getBindable(bindTarget.value.code, bindTarget.value.moduleId),
+      designApi.getBindings(bindTarget.value.code, bindTarget.value.appCode!),
+      designApi.getBindable(bindTarget.value.code, bindTarget.value.appCode!),
     ])
     boundChains.value = bindings
     bindableChains.value = bindable
@@ -434,11 +434,11 @@ async function handleBind(chainCode: string) {
 async function handleUnbind(chainCode: string) {
   if (!bindTarget.value) return
   try {
-    await designApi.unbind(bindTarget.value.code, chainCode, bindTarget.value.moduleId)
+    await designApi.unbind(bindTarget.value.code, chainCode, bindTarget.value.appCode!)
     ElMessage.success(t('design.unbind') + '成功')
     const [bindings, bindable] = await Promise.all([
-      designApi.getBindings(bindTarget.value.code, bindTarget.value.moduleId),
-      designApi.getBindable(bindTarget.value.code, bindTarget.value.moduleId),
+      designApi.getBindings(bindTarget.value.code, bindTarget.value.appCode!),
+      designApi.getBindable(bindTarget.value.code, bindTarget.value.appCode!),
     ])
     boundChains.value = bindings
     bindableChains.value = bindable
@@ -453,16 +453,16 @@ async function openDesignDetail(row: DesignVO) {
   designDrawerVisible.value = true
   currentDesignDetail.value = null
   try {
-    currentDesignDetail.value = await designApi.getByCode(row.code, row.moduleId)
+    currentDesignDetail.value = await designApi.getByCode(row.code, row.appCode!)
   } catch { /* ignore */ }
 }
 
 // 链详情抽屉
 const chainDrawerVisible = ref(false)
 const currentChainDetail = ref<any>(null)
-const moduleNameMap = computed(() => {
-  const map: Record<number, string> = {}
-  modules.value.forEach(m => { map[m.id] = m.name })
+const appNameMap = computed(() => {
+  const map: Record<string, string> = {}
+  apps.value.forEach(m => { map[m.appCode] = m.appName || m.appCode })
   return map
 })
 function openChainDetail(chain: any) {
@@ -472,7 +472,7 @@ function openChainDetail(chain: any) {
 
 async function openChainDetailFromDesign(row: DesignVO) {
   try {
-    const detail = await designApi.getByCode(row.code, row.moduleId)
+    const detail = await designApi.getByCode(row.code, row.appCode!)
     const chains = detail.boundChains
     if (chains && chains.length > 0) {
       currentChainDetail.value = chains[0]
@@ -482,7 +482,7 @@ async function openChainDetailFromDesign(row: DesignVO) {
 }
 
 onMounted(async () => {
-  await fetchModules()
+  await fetchApps()
   await fetchList()
 })
 </script>

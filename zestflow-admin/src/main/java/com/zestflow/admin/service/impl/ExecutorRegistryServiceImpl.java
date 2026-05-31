@@ -1,22 +1,20 @@
 package com.zestflow.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
-import com.zestflow.admin.model.entity.ModulePO;
 import com.zestflow.admin.model.vo.ExecutorRegistryVO;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
-import com.zestflow.admin.repository.ModuleMapper;
 import com.zestflow.admin.service.ExecutorRegistryService;
 import com.zestflow.common.exception.BizException;
-import com.zestflow.admin.constant.ErrorCode;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -25,49 +23,72 @@ import java.util.stream.Collectors;
 public class ExecutorRegistryServiceImpl implements ExecutorRegistryService {
 
     private final ExecutorRegistryMapper executorRegistryMapper;
-    private final ModuleMapper moduleMapper;
 
     @Override
-    public List<ExecutorRegistryVO> listByModuleId(Long moduleId) {
-        ModulePO module = moduleMapper.selectById(moduleId);
-        if (module == null) {
-            return Collections.emptyList();
-        }
-
+    public List<ExecutorRegistryVO> listAll() {
         List<ExecutorRegistryPO> list = executorRegistryMapper.selectList(
                 new LambdaQueryWrapper<ExecutorRegistryPO>()
-                        .eq(ExecutorRegistryPO::getModuleId, moduleId)
                         .orderByDesc(ExecutorRegistryPO::getLastHeartbeat)
         );
+        return list.stream().map(this::toVO).collect(Collectors.toList());
+    }
 
-        log.info("查询模块执行器列表 moduleId={} count={}", moduleId, list.size());
-        return list.stream().map(po -> ExecutorRegistryVO.builder()
+    @Override
+    public ExecutorRegistryVO getByExecutorId(String executorId) {
+        ExecutorRegistryPO po = executorRegistryMapper.selectOne(
+                new LambdaQueryWrapper<ExecutorRegistryPO>()
+                        .eq(ExecutorRegistryPO::getExecutorId, executorId)
+                        .last("LIMIT 1")
+        );
+        if (po == null) throw new BizException(ErrorCode.EXECUTOR_NOT_FOUND);
+        return toVO(po);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateStatus(String executorId, Integer status) {
+        ExecutorRegistryPO po = executorRegistryMapper.selectOne(
+                new LambdaQueryWrapper<ExecutorRegistryPO>()
+                        .eq(ExecutorRegistryPO::getExecutorId, executorId)
+                        .last("LIMIT 1")
+        );
+        if (po == null) throw new BizException(ErrorCode.EXECUTOR_NOT_FOUND);
+        if (status == null || (status != 0 && status != 1 && status != 2)) {
+            throw new BizException(ErrorCode.VALIDATION_ERROR);
+        }
+        po.setStatus(status);
+        po.setLastHeartbeat(java.time.LocalDateTime.now());
+        executorRegistryMapper.updateById(po);
+    }
+
+    @Override
+    public List<Map<String, String>> listDistinctApps() {
+        List<ExecutorRegistryPO> list = executorRegistryMapper.selectList(
+                new QueryWrapper<ExecutorRegistryPO>()
+                        .select("DISTINCT app_code, app_name")
+                        .isNotNull("app_code")
+                        .orderByAsc("app_code")
+        );
+        return list.stream().map(po -> {
+            Map<String, String> map = new java.util.HashMap<>();
+            map.put("appCode", po.getAppCode());
+            map.put("appName", po.getAppName() != null ? po.getAppName() : po.getAppCode());
+            return map;
+        }).collect(Collectors.toList());
+    }
+
+    private ExecutorRegistryVO toVO(ExecutorRegistryPO po) {
+        return ExecutorRegistryVO.builder()
                 .id(po.getId())
-                .moduleId(po.getModuleId())
-                .moduleCode(module.getCode())
-                .moduleName(module.getName())
                 .executorId(po.getExecutorId())
-                .appName(po.getAppName())
+                .appCode(po.getAppCode())
+                .appName(po.getAppName() != null ? po.getAppName() : po.getAppCode())
                 .executorHost(po.getExecutorHost())
                 .executorPort(po.getExecutorPort())
                 .status(po.getStatus())
                 .lastHeartbeat(po.getLastHeartbeat())
                 .updatedBy(po.getUpdatedBy())
                 .createdAt(po.getCreatedAt())
-                .build()
-        ).collect(Collectors.toList());
-    }
-
-    @Override
-    public void updateStatus(Long id, Integer status) {
-        ExecutorRegistryPO po = executorRegistryMapper.selectById(id);
-        if (po == null) {
-            throw new BizException(ErrorCode.EXECUTOR_NOT_FOUND);
-        }
-        po.setStatus(status);
-
-        po.setUpdatedAt(LocalDateTime.now());
-        executorRegistryMapper.updateById(po);
-        log.info("执行器状态变更 executorId={} status={}", po.getExecutorId(), status);
+                .build();
     }
 }

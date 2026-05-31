@@ -1,9 +1,7 @@
 import http from './index'
 
-export interface ModuleRoleAssignment {
-  moduleId: number
-  moduleCode: string
-  moduleName: string
+export interface AppRoleAssignment {
+  appCode: string
   roleId: number
   roleCode: string
   roleName: string
@@ -18,7 +16,7 @@ export interface UserManageVO {
   isSuperAdmin: number
   mustChangePassword?: number
   generatedPassword?: string
-  moduleRoles: ModuleRoleAssignment[]
+  appRoles: AppRoleAssignment[]
   updatedBy?: string
   createdAt?: string
   updatedAt?: string
@@ -44,9 +42,9 @@ export interface RoleVO {
   description: string
 }
 
-export interface AssignModuleRoleDTO {
+export interface AssignAppRoleDTO {
   userId: number
-  moduleId: number
+  appCode: string
   roleId: number
 }
 
@@ -77,11 +75,11 @@ export const userManageApi = {
   resetPassword(id: number) {
     return http.put<{ generatedPassword: string }>(`/users/${id}/reset-password`)
   },
-  assignModuleRole(data: AssignModuleRoleDTO) {
-    return http.post<void>(`/users/${data.userId}/module-roles`, data)
+  assignAppRole(data: AssignAppRoleDTO) {
+    return http.post<void>(`/users/${data.userId}/app-roles`, data)
   },
-  removeModuleRole(userId: number, moduleId: number) {
-    return http.delete<void>(`/users/${userId}/module-roles/${moduleId}`)
+  removeAppRole(userId: number, appCode: string) {
+    return http.delete<void>(`/users/${userId}/app-roles/${appCode}`)
   },
 }
 

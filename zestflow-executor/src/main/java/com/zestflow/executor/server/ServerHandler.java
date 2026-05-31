@@ -310,12 +310,12 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
         JsonNode json = MAPPER.readTree(body);
         String name = json.has("name") ? json.get("name").asText("") : "";
         String description = json.has("description") ? json.get("description").asText(null) : null;
-        String moduleCode = json.has("moduleCode") ? json.get("moduleCode").asText(null) : null;
+        String appCode = json.has("appCode") ? json.get("appCode").asText(null) : null;
         Integer status = json.has("status") && !json.get("status").isNull() ? json.get("status").asInt() : null;
         String updatedBy = json.has("updatedBy") ? json.get("updatedBy").asText(null) : null;
 
-        ChainPO data = chainRepo.create(name, description, moduleCode, status, updatedBy);
-        log.info("创建链 code={} name={} moduleCode={} updatedBy={}", data.getCode(), name, moduleCode, updatedBy);
+        ChainPO data = chainRepo.create(name, description, appCode, status, updatedBy);
+        log.info("创建链 code={} name={} appCode={} updatedBy={}", data.getCode(), name, appCode, updatedBy);
         writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(chainToJson(data)));
         return true;
     }
@@ -419,13 +419,13 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
         String name = json.has("name") ? json.get("name").asText("") : "";
         String description = json.has("description") ? json.get("description").asText(null) : null;
         String designer = json.has("designer") ? json.get("designer").asText(null) : null;
-        String moduleCode = json.has("moduleCode") ? json.get("moduleCode").asText(null) : null;
+        String appCode = json.has("appCode") ? json.get("appCode").asText(null) : null;
         String graphData = json.has("graphData") ? json.get("graphData").asText(null) : null;
         String chainData = json.has("chainData") ? json.get("chainData").asText(null) : null;
         String updatedBy = json.has("updatedBy") ? json.get("updatedBy").asText(null) : null;
 
-        DesignPO data = designRepo.create(name, description, designer, moduleCode, graphData, chainData, updatedBy);
-        log.info("创建设计 code={} name={} moduleCode={} designer={}", data.getCode(), name, moduleCode, designer);
+        DesignPO data = designRepo.create(name, description, designer, appCode, graphData, chainData, updatedBy);
+        log.info("创建设计 code={} name={} appCode={} designer={}", data.getCode(), name, appCode, designer);
         writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(designToJson(data, null)));
         return true;
     }

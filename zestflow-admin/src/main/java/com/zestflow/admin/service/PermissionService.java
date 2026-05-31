@@ -6,9 +6,9 @@ public interface PermissionService {
 
     boolean isSuperAdmin(Long userId);
 
-    Set<Long> getAccessibleModuleIds(Long userId);
+    Set<String> getAccessibleAppCodes(Long userId);
 
-    boolean hasModulePermission(Long userId, Long moduleId, String requiredRoleCode);
+    boolean hasAppPermission(Long userId, String appCode, String requiredRoleCode);
 
-    String getModuleRole(Long userId, Long moduleId);
+    String getAppRole(Long userId, String appCode);
 }

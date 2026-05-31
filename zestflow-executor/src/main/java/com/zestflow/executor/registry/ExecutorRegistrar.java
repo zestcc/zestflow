@@ -151,15 +151,14 @@ public class ExecutorRegistrar implements ApplicationRunner {
     }
 
     private RegisterDTO buildRegisterDTO() {
-        String moduleCode = resolveModuleCode();
-        String moduleName = properties.getModuleName() != null ? properties.getModuleName() : moduleCode;
+        String appCode = resolveAppCode();
+        String appName = properties.getAppName() != null ? properties.getAppName() : appCode;
         return RegisterDTO.builder()
                 .executorId(executorId)
-                .appName(moduleCode)
                 .host(resolveHost())
                 .port(executorServer.getPort())
-                .moduleCode(moduleCode)
-                .moduleName(moduleName)
+                .appCode(appCode)
+                .appName(appName)
                 .components(buildComponentDTOs())
                 .build();
     }
@@ -184,9 +183,9 @@ public class ExecutorRegistrar implements ApplicationRunner {
         return list;
     }
 
-    private String resolveModuleCode() {
-        if (properties.getModuleCode() != null && !properties.getModuleCode().isEmpty()) {
-            return properties.getModuleCode();
+    private String resolveAppCode() {
+        if (properties.getAppCode() != null && !properties.getAppCode().isEmpty()) {
+            return properties.getAppCode();
         }
         String springName = environment.getProperty("spring.application.name");
         if (springName != null && !springName.isEmpty()) {
@@ -218,7 +217,7 @@ public class ExecutorRegistrar implements ApplicationRunner {
 
     private void initExecutorId() {
         this.executorId = String.format("%s@%s:%d",
-                resolveModuleCode(),
+                resolveAppCode(),
                 resolveHost(),
                 executorServer.getPort());
     }

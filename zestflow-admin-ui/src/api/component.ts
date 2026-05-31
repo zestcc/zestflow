@@ -22,7 +22,7 @@ export interface ComponentVO {
 
 export const componentApi = {
   list(params: {
-    moduleId?: number
+    appCode?: string
     keyword?: string
     status?: number
     componentType?: string
@@ -37,7 +37,7 @@ export const componentApi = {
     }>('/components', { params })
   },
 
-  stats(params: { moduleId: number }) {
+  stats(params: { appCode?: string }) {
     return http.get<{ total: number; active: number; offline: number }>('/components/stats', { params })
   },
 }

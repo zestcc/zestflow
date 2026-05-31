@@ -18,8 +18,6 @@ public class SchedulePO {
 
     private String chainName;
 
-    private Long moduleId;
-
     private String cron;
 
     private String routeStrategy;

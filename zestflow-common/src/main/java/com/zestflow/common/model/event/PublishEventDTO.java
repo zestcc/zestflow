@@ -31,9 +31,6 @@ public class PublishEventDTO implements Serializable {
     /** 链编码 */
     private String chainCode;
 
-    /** 模块 ID */
-    private Long moduleId;
-
     /** 执行器地址（Executor 端填充） */
     private String executorUrl;
 

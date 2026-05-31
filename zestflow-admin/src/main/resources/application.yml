@@ -44,6 +44,7 @@ zestflow:
   upload:
     avatar-dir: uploads/avatars
   admin:
+    system-user: sys
     default-user:
       username: admin
       password: admin123

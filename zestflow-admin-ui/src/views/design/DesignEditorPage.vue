@@ -6,7 +6,7 @@
         <el-button text @click="goBack">
           <el-icon><ArrowLeft /></el-icon> {{ $t('design.back') }}
         </el-button>
-        <span v-if="moduleName" class="module-prefix">{{ moduleName }}</span>
+        <span v-if="appName" class="app-prefix">{{ appName }}</span>
         <span class="toolbar-title">{{ design?.name }}</span>
         <el-tag v-if="design" :type="design.status === 1 ? 'success' : 'danger'" size="small">
           {{ design.status === 1 ? $t('design.enabled') : $t('design.disabled') }}
@@ -174,10 +174,7 @@
             </el-form-item>
             <el-form-item v-if="canBindComponent(selectedNodeData.nodeType)" :label="$t('design.executeStrategy')">
               <el-select v-model="selectedNodeData.executeStrategy" style="width:100%" @change="onDataChange">
-                <el-option :label="$t('design.strategyNormal')" value="NORMAL" />
-                <el-option :label="$t('design.strategyRetry')" value="RETRY_ON_FAILURE" />
-                <el-option :label="$t('design.strategyStopOnException')" value="STOP_ON_EXCEPTION" />
-                <el-option :label="$t('design.strategyIgnoreException')" value="IGNORE_EXCEPTION" />
+                <el-option v-for="item in executeStrategyOptions" :key="item.value" :label="item.label" :value="item.value" />
               </el-select>
             </el-form-item>
             <!-- 参数解析器链 -->
@@ -498,7 +495,9 @@ import { Clipboard } from '@antv/x6-plugin-clipboard'
 import { Export } from '@antv/x6-plugin-export'
 import { designApi } from '@/api/design'
 import { componentApi } from '@/api/component'
-import { moduleApi } from '@/api/module'
+import { executorApi } from '@/api/executor'
+import { dictApi } from '@/api/dict'
+import type { DictDataVO } from '@/api/dict'
 import {
   ArrowLeft, Check, Pointer, Back, Right,
   CopyDocument, DocumentAdd,
@@ -511,11 +510,11 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const designCode = route.params.id as string
-const moduleId = Number(route.query.moduleId) || 0
+const appCode = route.query.appCode as string || ''
 
 // ====== 响应式状态 ======
 const design = ref<any>(null)
-const moduleName = ref('')
+const appName = ref('')
 const saving = ref(false)
 const selectedCount = ref(0)
 const canUndo = ref(false)
@@ -533,6 +532,8 @@ const gridSnapEnabled = ref(false)
 const panModeEnabled = ref(false)
 const endpointHandles = ref<{ side: 'source' | 'target'; x: number; y: number }[]>([])
 let draggingEp: { side: 'source' | 'target' } | null = null
+
+const executeStrategyOptions = ref<DictDataVO[]>([])
 
 // 绑定元件弹窗状态
 const bindDialog = reactive({
@@ -875,7 +876,7 @@ async function fetchBindList() {
   bindDialog.loading = true
   try {
     const res = await componentApi.list({
-      moduleId,
+      appCode,
       componentType: bindDialog.componentType,
       keyword: bindDialog.keyword || undefined,
       page: bindDialog.page,
@@ -2009,12 +2010,13 @@ function showChainDataDialog() {
 // ====== 加载设计 ======
 async function loadDesign() {
   try {
-    design.value = await designApi.getByCode(designCode, moduleId)
-    // 获取模块名称
-    if (moduleId) {
+    design.value = await designApi.getByCode(designCode, appCode)
+    // 获取应用名称
+    if (appCode) {
       try {
-        const mod = await moduleApi.getById(moduleId)
-        moduleName.value = mod.name || mod.code
+        const apps = await executorApi.listApps()
+        const mod = apps.find((a: any) => a.appCode === appCode)
+        if (mod) appName.value = mod.appName || mod.appCode
       } catch { /* ignore */ }
     }
     if (!graph) return
@@ -2104,7 +2106,7 @@ async function handleSave() {
   try {
     const json = graph.toJSON()
     const chain = translateGraphToChain()
-    await designApi.saveGraph(designCode, moduleId, JSON.stringify(json), JSON.stringify(chain))
+    await designApi.saveGraph(designCode, appCode, JSON.stringify(json), JSON.stringify(chain))
     ElMessage.success(t('design.saveGraphSuccess'))
   } catch { ElMessage.error(t('design.saveFailed')) }
   finally { saving.value = false }
@@ -2118,6 +2120,7 @@ onMounted(async () => {
   await nextTick()
   initGraph()
   await loadDesign()
+  dictApi.getDictData('execute_strategy').then(data => { executeStrategyOptions.value = data })
 })
 
 onBeforeUnmount(() => {
@@ -2153,7 +2156,7 @@ onBeforeUnmount(() => {
 
 .toolbar-left { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .toolbar-title { font-size: 15px; }
-.module-prefix { font-size: 13px; margin-right: 2px; }
+.app-prefix { font-size: 13px; margin-right: 2px; }
 .toolbar-center { display: flex; align-items: center; gap: 0; flex: 1; min-width: 0; overflow: hidden; }
 .toolbar-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .toolbar-divider { width: 1px; height: 16px; background: #cbd5e1; margin: 0 4px; flex-shrink: 0; }

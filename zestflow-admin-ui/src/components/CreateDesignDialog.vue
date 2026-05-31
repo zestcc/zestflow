@@ -7,9 +7,9 @@
     :append-to-body="appendToBody"
   >
     <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-      <el-form-item :label="$t('design.module')" prop="moduleId">
-        <el-select v-model="form.moduleId" filterable style="width:100%" :placeholder="$t('design.selectModule')" :disabled="disableModule">
-          <el-option v-for="m in moduleOptions" :key="m.id" :label="m.name" :value="m.id" />
+      <el-form-item :label="$t('design.app')" prop="appCode">
+        <el-select v-model="form.appCode" filterable style="width:100%" :placeholder="$t('design.selectApp')" :disabled="disableAppSelect">
+          <el-option v-for="m in appOptions" :key="m.appCode" :label="m.appName || m.appCode" :value="m.appCode" />
         </el-select>
       </el-form-item>
       <el-form-item :label="$t('design.name')" prop="name">
@@ -36,20 +36,20 @@ import { ref, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { designApi, type DesignVO } from '@/api/design'
-import type { ModuleVO } from '@/api/module'
+import type { AppOption } from '@/api/executor'
 
 const { t } = useI18n()
 
 const props = withDefaults(defineProps<{
   visible: boolean
-  moduleOptions: ModuleVO[]
-  defaultModuleId?: number
+  appOptions: AppOption[]
+  defaultAppCode?: string
   defaultName?: string
-  disableModule?: boolean
+  disableAppSelect?: boolean
   appendToBody?: boolean
 }>(), {
   appendToBody: false,
-  disableModule: false,
+  disableAppSelect: false,
 })
 
 const emit = defineEmits<{
@@ -60,11 +60,11 @@ const emit = defineEmits<{
 const formRef = ref<any>(null)
 const saving = ref(false)
 const savedOnce = ref(false)
-const form = ref({ name: '', description: '', designer: '', moduleId: undefined as number | undefined })
+const form = ref({ name: '', description: '', designer: '', appCode: '' })
 
 const rules = {
   name: [{ required: true, message: () => t('validation.required', { field: t('design.name') }), trigger: 'blur' }],
-  moduleId: [{ required: true, message: () => t('design.selectModule'), trigger: 'change' }],
+  appCode: [{ required: true, message: () => t('design.selectModule'), trigger: 'change' }],
 }
 
 const dialogVisible = computed({
@@ -75,7 +75,7 @@ const dialogVisible = computed({
 watch(() => props.visible, (v) => {
   if (v) {
     savedOnce.value = false
-    form.value = { name: props.defaultName || '', description: '', designer: '', moduleId: props.defaultModuleId }
+    form.value = { name: props.defaultName || '', description: '', designer: '', appCode: props.defaultAppCode || '' }
   }
 })
 
@@ -89,7 +89,7 @@ async function handleSave() {
       name: form.value.name,
       description: form.value.description || undefined,
       designer: form.value.designer || undefined,
-      moduleId: form.value.moduleId!,
+      appCode: form.value.appCode,
     })
     savedOnce.value = true
     emit('saved', res)

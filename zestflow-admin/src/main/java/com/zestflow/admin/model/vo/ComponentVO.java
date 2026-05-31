@@ -21,7 +21,7 @@ public class ComponentVO {
     private String groupName;
     private Long timeout;
     private Boolean async;
-    private String moduleCode;
+    private String appCode;
     private Integer status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

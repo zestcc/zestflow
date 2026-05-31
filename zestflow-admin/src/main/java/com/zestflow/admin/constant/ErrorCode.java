@@ -16,9 +16,9 @@ public interface ErrorCode {
     String VALIDATION_ERROR = "VALIDATION_ERROR";
     String SERVER_ERROR = "SERVER_ERROR";
 
-    // Module
+    // Application
     String MODULE_CODE_EXISTS = "MODULE_CODE_EXISTS";
-    String MODULE_NOT_FOUND = "MODULE_NOT_FOUND";
+    String APP_NOT_FOUND = "APP_NOT_FOUND";
 
     // Permission
     String PERMISSION_DENIED = "PERMISSION_DENIED";
@@ -33,6 +33,11 @@ public interface ErrorCode {
 
     // Schedule
     String SCHEDULE_NOT_FOUND = "SCHEDULE_NOT_FOUND";
+
+    // Dict
+    String DICT_TYPE_NOT_FOUND = "DICT_TYPE_NOT_FOUND";
+    String DICT_TYPE_CODE_EXISTS = "DICT_TYPE_CODE_EXISTS";
+    String DICT_DATA_NOT_FOUND = "DICT_DATA_NOT_FOUND";
 
     // Security
     String LOGIN_RATE_LIMITED = "LOGIN_RATE_LIMITED";

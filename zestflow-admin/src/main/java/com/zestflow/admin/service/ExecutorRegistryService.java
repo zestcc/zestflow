@@ -3,10 +3,15 @@ package com.zestflow.admin.service;
 import com.zestflow.admin.model.vo.ExecutorRegistryVO;
 
 import java.util.List;
+import java.util.Map;
 
 public interface ExecutorRegistryService {
 
-    List<ExecutorRegistryVO> listByModuleId(Long moduleId);
+    List<ExecutorRegistryVO> listAll();
 
-    void updateStatus(Long id, Integer status);
+    ExecutorRegistryVO getByExecutorId(String executorId);
+
+    void updateStatus(String executorId, Integer status);
+
+    List<Map<String, String>> listDistinctApps();
 }

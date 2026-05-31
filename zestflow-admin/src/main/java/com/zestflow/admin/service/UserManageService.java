@@ -1,7 +1,6 @@
 package com.zestflow.admin.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.zestflow.admin.model.dto.AssignModuleRoleDTO;
 import com.zestflow.admin.model.dto.UserCreateDTO;
 import com.zestflow.admin.model.dto.UserUpdateDTO;
 import com.zestflow.admin.model.vo.UserManageVO;
@@ -24,7 +23,7 @@ public interface UserManageService {
 
     String resetPassword(Long id);
 
-    void assignModuleRole(AssignModuleRoleDTO dto);
+    void assignAppRole(Long userId, String appCode, Long roleId);
 
-    void removeModuleRole(Long userId, Long moduleId);
+    void removeAppRole(Long userId, String appCode);
 }

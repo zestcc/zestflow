@@ -3,7 +3,7 @@ package com.zestflow.admin.model.dto;
 import lombok.Data;
 
 @Data
-public class ModuleUpdateDTO {
+public class DictTypeUpdateDTO {
 
     private String name;
 
@@ -11,7 +11,5 @@ public class ModuleUpdateDTO {
 
     private Integer status;
 
-    private String owner;
-
-    private Integer sortOrder;
+    private Integer sort;
 }

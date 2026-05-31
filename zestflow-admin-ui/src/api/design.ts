@@ -5,7 +5,6 @@ import type { AxiosRequestConfig } from 'axios'
 export interface DesignVO {
   code: string
   name: string
-  moduleId: number
   status: number
   description?: string
   graphData?: string
@@ -18,11 +17,12 @@ export interface DesignVO {
   updatedBy?: string
   createdAt: string
   updatedAt: string
+  appCode?: string
 }
 
 export interface DesignCreateDTO {
   name: string
-  moduleId: number
+  appCode: string
   description?: string
   designer?: string
 }
@@ -31,17 +31,16 @@ export interface DesignUpdateDTO {
   name?: string
   description?: string
   designer?: string
-  moduleId?: number
-  status?: number
+  appCode?: string
 }
 
 export const designApi = {
-  list(params: { moduleId: number; keyword?: string; status?: number; page?: number; size?: number }) {
+  list(params: { appCode?: string; keyword?: string; status?: number; page?: number; size?: number }) {
     return http.get<{ records: DesignVO[]; total: number; current: number; size: number }>('/designs', { params })
   },
 
-  getByCode(code: string, moduleId: number) {
-    return http.get<DesignVO>(`/designs/${code}`, { params: { moduleId } })
+  getByCode(code: string, appCode: string) {
+    return http.get<DesignVO>(`/designs/${code}`, { params: { appCode } })
   },
 
   create(data: DesignCreateDTO) {
@@ -52,31 +51,31 @@ export const designApi = {
     return http.put<DesignVO>(`/designs/${code}`, data)
   },
 
-  saveGraph(code: string, moduleId: number, graphData: string, chainData?: string) {
-    return http.put(`/designs/${code}/graph`, { graphData, chainData, moduleId })
+  saveGraph(code: string, appCode: string, graphData: string, chainData?: string) {
+    return http.put(`/designs/${code}/graph`, { graphData, chainData, appCode })
   },
 
-  delete(code: string, moduleId: number) {
-    return http.delete(`/designs/${code}`, { params: { moduleId } } as AxiosRequestConfig)
+  delete(code: string, appCode: string) {
+    return http.delete(`/designs/${code}`, { params: { appCode } } as AxiosRequestConfig)
   },
 
-  toggleStatus(code: string, moduleId: number) {
-    return http.put(`/designs/${code}/status?moduleId=${moduleId}`)
+  toggleStatus(code: string, appCode: string) {
+    return http.put(`/designs/${code}/status?appCode=${appCode}`)
   },
 
-  getBindings(code: string, moduleId: number) {
-    return http.get<ChainVO[]>(`/designs/${code}/bindings`, { params: { moduleId } })
+  getBindings(code: string, appCode: string) {
+    return http.get<ChainVO[]>(`/designs/${code}/bindings`, { params: { appCode } })
   },
 
-  getBindable(code: string, moduleId: number) {
-    return http.get<ChainVO[]>(`/designs/${code}/bindable`, { params: { moduleId } })
+  getBindable(code: string, appCode: string) {
+    return http.get<ChainVO[]>(`/designs/${code}/bindable`, { params: { appCode } })
   },
 
-  bind(designCode: string, chainCode: string, moduleId: number) {
-    return http.post(`/designs/${designCode}/bindings?moduleId=${moduleId}`, { chainCode })
+  bind(designCode: string, chainCode: string, appCode: string) {
+    return http.post(`/designs/${designCode}/bindings?appCode=${appCode}`, { chainCode })
   },
 
-  unbind(designCode: string, chainCode: string, moduleId: number) {
-    return http.delete(`/designs/${designCode}/bindings/${chainCode}?moduleId=${moduleId}`)
+  unbind(designCode: string, chainCode: string, appCode: string) {
+    return http.delete(`/designs/${designCode}/bindings/${chainCode}?appCode=${appCode}`)
   },
 }

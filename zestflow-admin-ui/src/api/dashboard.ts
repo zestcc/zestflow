@@ -1,7 +1,7 @@
 import http from './index'
 
 export interface DashboardStatsVO {
-  totalModules: number
+  totalApps: number
   totalExecutors: number
   healthyExecutors: number
   errorExecutors: number

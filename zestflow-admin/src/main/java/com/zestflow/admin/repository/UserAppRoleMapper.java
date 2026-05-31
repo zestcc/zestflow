@@ -1,9 +1,9 @@
 package com.zestflow.admin.repository;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.zestflow.admin.model.entity.UserModuleRolePO;
+import com.zestflow.admin.model.entity.UserAppRolePO;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface UserModuleRoleMapper extends BaseMapper<UserModuleRolePO> {
+public interface UserAppRoleMapper extends BaseMapper<UserAppRolePO> {
 }

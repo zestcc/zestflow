@@ -16,27 +16,27 @@ public class ComponentController {
 
     @GetMapping
     public String list(
-            @RequestParam(required = false) Long moduleId,
+            @RequestParam(required = false) String appCode,
             @RequestParam(required = false) String executorId,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Integer status,
             @RequestParam(required = false) String componentType,
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size) {
-        if (moduleId != null) {
+        if (appCode != null && !appCode.isBlank()) {
             String query = "?executorId=" + (executorId != null ? executorId : "")
                     + "&keyword=" + (keyword != null ? keyword : "")
                     + "&status=" + (status != null ? status : "")
                     + "&componentType=" + (componentType != null ? componentType : "")
                     + "&page=" + page + "&size=" + size;
-            return proxyService.getFromExecutor(moduleId, "/api/components", query);
+            return proxyService.getFromExecutor(appCode, "/api/components", query);
         }
         return "{\"records\":[],\"total\":0,\"current\":1,\"size\":10}";
     }
 
     @GetMapping("/stats")
-    public String stats(@RequestParam Long moduleId) {
-        String baseUrl = proxyService.resolveExecutorBaseUrl(moduleId);
+    public String stats(@RequestParam String appCode) {
+        String baseUrl = proxyService.resolveExecutorBaseUrl(appCode);
         if (baseUrl == null) {
             return "{\"total\":0,\"active\":0,\"offline\":0}";
         }
