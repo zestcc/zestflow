@@ -7,12 +7,12 @@ import com.zestflow.common.constant.ChainConstants;
 import com.zestflow.common.model.dto.ChainEvent;
 import com.zestflow.common.model.dto.ChainExecuteResultDTO;
 import com.zestflow.common.model.dto.NodeResultDTO;
+import com.zestflow.common.spi.EventCollector;
 import com.zestflow.executor.chain.ChainDefinition;
 import com.zestflow.executor.chain.ChainLoader;
 import com.zestflow.executor.chain.ChainManager;
 import com.zestflow.executor.chain.NodeDefinition;
 import com.zestflow.executor.context.ChainContext;
-import com.zestflow.executor.event.EventPublisher;
 import com.zestflow.executor.interceptor.InterceptorChain;
 import com.zestflow.executor.lifecycle.ChainStateMachine;
 import com.zestflow.executor.registry.ExecutorProperties;
@@ -50,7 +50,7 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
     private final DagSorter dagSorter;
     private final NodeRunner nodeRunner;
     private final ChainInstanceManager instanceManager;
-    private final EventPublisher eventPublisher;
+    private final EventCollector eventCollector;
     private final InterceptorChain interceptorChain;
     private final ExecutorProperties properties;
     private final String appCode;
@@ -70,13 +70,13 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
     public DefaultChainExecutionEngine(ChainManager chainManager,
                                        DagSorter dagSorter, NodeRunner nodeRunner,
                                        ChainInstanceManager instanceManager,
-                                       EventPublisher eventPublisher, InterceptorChain interceptorChain,
+                                       EventCollector eventCollector, InterceptorChain interceptorChain,
                                        ExecutorProperties properties) {
         this.chainManager = chainManager;
         this.dagSorter = dagSorter;
         this.nodeRunner = nodeRunner;
         this.instanceManager = instanceManager;
-        this.eventPublisher = eventPublisher;
+        this.eventCollector = eventCollector;
         this.interceptorChain = interceptorChain;
         this.properties = properties;
         this.appCode = properties.getAppCode();
@@ -266,8 +266,11 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
      * 发布链级事件
      */
     private void publishChainEvent(ChainEvent.EventType eventType, String chainCode, ChainInstance instance) {
+        if (eventCollector == null) {
+            return;
+        }
         ChainContext context = instance.getContext();
-        eventPublisher.publish(ChainEvent.builder()
+        eventCollector.collect(ChainEvent.builder()
                 .eventId(UUID.randomUUID().toString())
                 .eventType(eventType)
                 .executionId(instance.getInstanceId())

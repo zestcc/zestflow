@@ -7,6 +7,7 @@ import com.zestflow.collector.model.dto.EventQuery;
 import com.zestflow.common.model.Result;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,6 +23,9 @@ public class LogController {
 
     private final CollectorQueryClient collectorQueryClient;
     private final CollectorRegistryService collectorRegistryService;
+
+    @Value("${zestflow.collector.api-url:}")
+    private String collectorApiUrl;
 
     /**
      * 查询事件日志（分页）
@@ -66,15 +70,22 @@ public class LogController {
     }
 
     /**
-     * 从采集器注册表中查找第一个在线采集器地址
+     * 解析采集器地址
+     * <p>
+     * 优先级：配置的 api-url > 注册表中第一个在线采集器
+     * 配置的 api-url 优先，因为嵌入式模式下采集器注册端口（9998）与 HTTP 服务端口（8081）不一致，
+     * 导致 registry 地址不可用。已配置 api-url 说明运维指定了正确的采集器端点。
      */
     private String resolveCollectorBaseUrl() {
-        List<CollectorRegistryVO> collectors = collectorRegistryService.listAllOnline();
-        if (collectors.isEmpty()) {
-            log.warn("无在线采集器可用，日志查询返回空");
-            return null;
+        if (collectorApiUrl != null && !collectorApiUrl.isEmpty()) {
+            return collectorApiUrl;
         }
-        CollectorRegistryVO c = collectors.get(0);
-        return "http://" + c.getCollectorHost() + ":" + c.getCollectorPort();
+        List<CollectorRegistryVO> collectors = collectorRegistryService.listAllOnline();
+        if (!collectors.isEmpty()) {
+            CollectorRegistryVO c = collectors.get(0);
+            return "http://" + c.getCollectorHost() + ":" + c.getCollectorPort();
+        }
+        log.warn("无在线采集器可用且未配置 zestflow.collector.api-url，日志查询返回空");
+        return null;
     }
 }

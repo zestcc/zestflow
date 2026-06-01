@@ -30,4 +30,16 @@ public class CollectorProperties {
 
     /** 磁盘降级目录 */
     private String diskFallbackDir = "./collector-fallback";
+
+    /** 是否启用异步采集（队列 + 批量写入） */
+    private boolean asyncEnabled = true;
+
+    /** 熔断阈值（连续失败次数，0 表示不熔断） */
+    private int circuitBreakerThreshold = 10;
+
+    /** 熔断冷却时间（毫秒） */
+    private int circuitBreakerCooldownMs = 30_000;
+
+    /** 关闭等待时间（毫秒） */
+    private long shutdownTimeoutMs = 5000;
 }

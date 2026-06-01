@@ -2,7 +2,7 @@ package com.zestflow.collector.jdbc.collector;
 
 import com.zestflow.collector.jdbc.entity.ChainEventPO;
 import com.zestflow.collector.jdbc.mapper.ChainEventMapper;
-import com.zestflow.collector.spi.EventCollector;
+import com.zestflow.common.spi.EventCollector;
 import com.zestflow.common.model.dto.ChainEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

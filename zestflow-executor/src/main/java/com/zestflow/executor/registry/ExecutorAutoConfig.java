@@ -1,12 +1,8 @@
 package com.zestflow.executor.registry;
 
-import com.zestflow.collector.spi.EventCollector;
-import com.zestflow.collector.spi.EventQueryService;
+import com.zestflow.common.spi.EventCollector;
 import com.zestflow.executor.chain.*;
 import com.zestflow.executor.engine.*;
-import com.zestflow.executor.event.AsyncEventPublisher;
-import com.zestflow.executor.event.AsyncEventPublisher.AsyncPublisherConfig;
-import com.zestflow.executor.event.EventPublisher;
 import com.zestflow.executor.fallback.FallbackStrategy;
 import com.zestflow.executor.fallback.DefaultFallbackStrategy;
 import com.zestflow.executor.interceptor.*;
@@ -21,10 +17,7 @@ import com.zestflow.executor.chain.ChainRepository;
 import com.zestflow.executor.design.DesignRepository;
 import com.zestflow.executor.server.ExecutorServer;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -41,15 +34,13 @@ public class ExecutorAutoConfig {
 
     @Bean(initMethod = "start", destroyMethod = "stop")
     public ExecutorServer executorServer(ExecutorProperties properties,
-                                          java.util.Optional<EventPublisher> eventPublisher,
                                           ChainExecutionEngine chainExecutionEngine,
                                           ChainRepository chainRepo,
                                           DesignRepository designRepo,
                                           ComponentScanner componentScanner,
-                                          ChainLoader chainLoader,
-                                          java.util.Optional<EventQueryService> eventQueryService) {
-        return new ExecutorServer(properties.getPort(), chainExecutionEngine, eventPublisher.orElse(null),
-                chainRepo, designRepo, componentScanner, chainLoader, eventQueryService.orElse(null));
+                                          ChainLoader chainLoader) {
+        return new ExecutorServer(properties.getPort(), chainExecutionEngine,
+                chainRepo, designRepo, componentScanner, chainLoader);
     }
 
     @Bean
@@ -76,36 +67,6 @@ public class ExecutorAutoConfig {
                                                Environment environment,
                                                ComponentScanner componentScanner) {
         return new ExecutorRegistrar(adminClient, properties, executorServer, environment, componentScanner);
-    }
-
-    // ==================== 事件发布 ====================
-
-    /**
-     * 异步事件发布器 — 仅在有 EventCollector bean 时创建
-     */
-    @Bean(destroyMethod = "destroy")
-    @ConditionalOnBean(EventCollector.class)
-    public EventPublisher asyncEventPublisher(List<EventCollector> collectors,
-                                               ExecutorProperties properties) {
-        AsyncPublisherConfig config = AsyncPublisherConfig.builder()
-                .queueCapacity(properties.getEventQueueCapacity())
-                .batchSize(properties.getEventBatchSize())
-                .batchMaxWaitMs(properties.getEventBatchMaxWaitMs())
-                .circuitBreakerThreshold(properties.getEventCircuitBreakerThreshold())
-                .circuitBreakerCooldownMs(properties.getEventCircuitBreakerCooldownMs())
-                .diskFallbackEnabled(properties.isEventDiskFallbackEnabled())
-                .diskFallbackDir(properties.getEventDiskFallbackDir())
-                .build();
-        return new AsyncEventPublisher(collectors, config);
-    }
-
-    /**
-     * 无 Collector 时的兜底事件发布器（空实现，不丢失业务调用）
-     */
-    @Bean
-    @ConditionalOnMissingBean(EventCollector.class)
-    public EventPublisher noOpEventPublisher() {
-        return event -> {};
     }
 
     // ==================== 组件扫描 ====================
@@ -194,13 +155,13 @@ public class ExecutorAutoConfig {
 
     @Bean
     public NodeRunner nodeRunner(ComponentScanner componentScanner,
-                                 EventPublisher eventPublisher,
+                                 java.util.Optional<EventCollector> eventCollector,
                                  InterceptorChain interceptorChain,
                                  LifecycleExecutor lifecycleExecutor,
                                  RetryExecutor retryExecutor,
                                  ChainManager chainManager,
                                  ExecutorProperties properties) {
-        return new NodeRunner(componentScanner, eventPublisher,
+        return new NodeRunner(componentScanner, eventCollector.orElse(null),
                 interceptorChain, lifecycleExecutor, retryExecutor, chainManager, properties);
     }
 
@@ -209,12 +170,12 @@ public class ExecutorAutoConfig {
                                                              DagSorter dagSorter,
                                                              NodeRunner nodeRunner,
                                                              ChainInstanceManager instanceManager,
-                                                             EventPublisher eventPublisher,
+                                                             java.util.Optional<EventCollector> eventCollector,
                                                              InterceptorChain interceptorChain,
                                                              ExecutorProperties properties,
                                                              ChainLoader chainLoader) {
         DefaultChainExecutionEngine engine = new DefaultChainExecutionEngine(chainManager, dagSorter, nodeRunner,
-                instanceManager, eventPublisher, interceptorChain, properties);
+                instanceManager, eventCollector.orElse(null), interceptorChain, properties);
         // setter 注入打破循环依赖：NodeRunner → ChainExecutionEngine, ChainExecutionEngine → ChainLoader
         engine.setChainLoader(chainLoader);
         nodeRunner.setChainExecutionEngine(engine);

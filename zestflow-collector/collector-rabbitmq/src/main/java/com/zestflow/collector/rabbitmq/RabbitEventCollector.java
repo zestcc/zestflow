@@ -2,7 +2,7 @@ package com.zestflow.collector.rabbitmq;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.zestflow.collector.spi.EventCollector;
+import com.zestflow.common.spi.EventCollector;
 import com.zestflow.common.model.dto.ChainEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

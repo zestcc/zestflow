@@ -42,11 +42,11 @@ zestflow:
       username: admin
       password: admin123
       email: admin@zestflow.com
-  demo:
+  playground:
     # 开关：true 启用系统演示功能（含演示场景、演示记录、试验场），false 关闭（默认关闭）
     enabled: true
     # 演示链所属应用编码（Executor 注册时使用的 appCode）
-    app-code: demo-app
+    app-code: playground-app
   collector:
     api-url: http://localhost:8081
     access-token: ''

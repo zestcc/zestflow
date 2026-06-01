@@ -1,7 +1,7 @@
 package com.zestflow.collector.rabbitmq;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.zestflow.collector.spi.EventCollector;
+import com.zestflow.common.spi.EventCollector;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.boot.autoconfigure.AutoConfiguration;

@@ -1,16 +1,14 @@
 package com.zestflow.executor.engine;
 
-import com.zestflow.collector.spi.EventCollector;
 import com.zestflow.common.constant.ChainConstants;
 import com.zestflow.common.model.dto.ChainEvent;
 import com.zestflow.common.model.dto.ChainExecuteResultDTO;
 import com.zestflow.common.model.dto.NodeResultDTO;
+import com.zestflow.common.spi.EventCollector;
 import com.zestflow.executor.chain.ChainDefinition;
 import com.zestflow.executor.chain.ChainDefinition.ChainEdge;
 import com.zestflow.executor.chain.ChainManager;
 import com.zestflow.executor.chain.NodeDefinition;
-import com.zestflow.executor.event.AsyncEventPublisher;
-import com.zestflow.executor.event.EventPublisher;
 import com.zestflow.executor.interceptor.InterceptorChain;
 import com.zestflow.executor.registry.ExecutorProperties;
 import org.junit.jupiter.api.AfterEach;
@@ -37,37 +35,25 @@ class DefaultChainExecutionEngineIntegrationTest {
     @Mock private ChainManager chainManager;
     @Mock private NodeRunner nodeRunner;
     @Mock private EventCollector eventCollector;
-    @Captor private ArgumentCaptor<List<ChainEvent>> eventCaptor;
+    @Captor private ArgumentCaptor<ChainEvent> eventCaptor;
 
     private final ChainInstanceManager instanceManager = new ChainInstanceManager();
     private final DagSorter dagSorter = new DagSorter();
     private final InterceptorChain interceptorChain = new InterceptorChain();
     private final ExecutorProperties properties = new ExecutorProperties();
 
-    private EventPublisher eventPublisher;
     private DefaultChainExecutionEngine engine;
 
     @BeforeEach
     void setUp() {
-        AsyncEventPublisher.AsyncPublisherConfig config = AsyncEventPublisher.AsyncPublisherConfig.builder()
-                .queueCapacity(1024)
-                .batchSize(200)
-                .batchMaxWaitMs(100)
-                .circuitBreakerThreshold(10)
-                .circuitBreakerCooldownMs(30000)
-                .diskFallbackEnabled(false)
-                .build();
-        eventPublisher = new AsyncEventPublisher(List.of(eventCollector), config);
-
         engine = new DefaultChainExecutionEngine(
                 chainManager, dagSorter, nodeRunner, instanceManager,
-                eventPublisher, interceptorChain, properties
+                eventCollector, interceptorChain, properties
         );
     }
 
     @AfterEach
     void tearDown() {
-        eventPublisher.destroy();
     }
 
     @Test
@@ -94,7 +80,7 @@ class DefaultChainExecutionEngineIntegrationTest {
     }
 
     @Test
-    void publishesChainEventsOnSuccess() throws InterruptedException {
+    void publishesChainEventsOnSuccess() {
         ChainDefinition def = ChainDefinition.builder()
                 .code("chain1")
                 .nodes(Map.of("A", nodeDef("A", ChainConstants.NODE_TYPE_NORMAL)))
@@ -110,14 +96,8 @@ class DefaultChainExecutionEngineIntegrationTest {
 
         engine.execute("chain1", Map.of());
 
-        // 等待异步事件发布
-        Thread.sleep(400);
-        verify(eventCollector, atLeastOnce()).collectBatch(eventCaptor.capture());
-
-        List<ChainEvent> allEvents = eventCaptor.getAllValues().stream()
-                .flatMap(List::stream)
-                .collect(Collectors.toList());
-        List<ChainEvent.EventType> types = allEvents.stream()
+        verify(eventCollector, atLeast(2)).collect(eventCaptor.capture());
+        List<ChainEvent.EventType> types = eventCaptor.getAllValues().stream()
                 .map(ChainEvent::getEventType)
                 .collect(Collectors.toList());
         assertThat(types).contains(
@@ -137,7 +117,7 @@ class DefaultChainExecutionEngineIntegrationTest {
     }
 
     @Test
-    void nodeFailurePublishesFailedEvent() throws InterruptedException {
+    void nodeFailurePublishesFailedEvent() {
         ChainDefinition def = ChainDefinition.builder()
                 .code("chain1")
                 .nodes(Map.of("A", nodeDef("A", ChainConstants.NODE_TYPE_NORMAL)))
@@ -155,11 +135,8 @@ class DefaultChainExecutionEngineIntegrationTest {
 
         engine.execute("chain1", Map.of());
 
-        Thread.sleep(400);
-        verify(eventCollector, atLeastOnce()).collectBatch(eventCaptor.capture());
-
+        verify(eventCollector, atLeast(2)).collect(eventCaptor.capture());
         List<ChainEvent.EventType> types = eventCaptor.getAllValues().stream()
-                .flatMap(List::stream)
                 .map(ChainEvent::getEventType)
                 .collect(Collectors.toList());
         assertThat(types).contains(

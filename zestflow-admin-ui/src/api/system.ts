@@ -1,7 +1,7 @@
 import request from './index'
 
 export interface Features {
-  demo: {
+  playground: {
     enabled: boolean
   }
 }

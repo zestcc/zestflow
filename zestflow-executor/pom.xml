@@ -22,10 +22,6 @@
             <groupId>com.zestflow</groupId>
             <artifactId>zestflow-common</artifactId>
         </dependency>
-        <dependency>
-            <groupId>com.zestflow</groupId>
-            <artifactId>collector-core</artifactId>
-        </dependency>
 
         <!-- Spring Boot 自动装配支持 -->
         <dependency>
@@ -35,6 +31,12 @@
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-web</artifactId>
+        </dependency>
+        <!-- spring-webmvc 提供 RequestMappingHandlerMapping，可选（仅使用 MVC 的应用需要） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>

@@ -9,3 +9,9 @@ spring:
   # 禁用 Flyway（所有 DDL 在 init.sql 中管理）
   flyway:
     enabled: false
+
+zestflow:
+  playground:
+    url: http://localhost:8081
+    scan-packages:
+      - com.zestflow.test.controller

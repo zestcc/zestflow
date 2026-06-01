@@ -62,7 +62,7 @@ public interface ChainEventMapper extends BaseMapper<ChainEventPO> {
             "  AND e.status = #{query.status}",
             "</if>",
             "GROUP BY e.execution_id",
-            "ORDER BY startTime DESC",
+            "ORDER BY timestamp DESC",
             "LIMIT #{limit} OFFSET #{offset}",
             "</script>"
     })

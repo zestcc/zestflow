@@ -1,1 +1,2 @@
 com.zestflow.executor.registry.ExecutorAutoConfig
+com.zestflow.executor.config.ExecutorEndpointConfig

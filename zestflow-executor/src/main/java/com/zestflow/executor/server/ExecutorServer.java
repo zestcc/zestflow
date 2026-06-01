@@ -1,12 +1,10 @@
 package com.zestflow.executor.server;
 
-import com.zestflow.collector.spi.EventQueryService;
 import com.zestflow.common.constant.RegistryConstants;
 import com.zestflow.executor.chain.ChainLoader;
 import com.zestflow.executor.chain.ChainRepository;
 import com.zestflow.executor.design.DesignRepository;
 import com.zestflow.executor.engine.ChainExecutionEngine;
-import com.zestflow.executor.event.EventPublisher;
 import com.zestflow.executor.scanner.ComponentScanner;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
@@ -32,28 +30,24 @@ public class ExecutorServer {
     private EventLoopGroup workerGroup;
     private Channel channel;
 
-    public ExecutorServer(int port, EventPublisher eventPublisher) {
-        this(port, null, eventPublisher, null, null, null, null, null);
-    }
-
-    public ExecutorServer(int port, ChainExecutionEngine engine, EventPublisher eventPublisher,
+    public ExecutorServer(int port, ChainExecutionEngine engine,
                           ChainRepository chainRepo, DesignRepository designRepo,
                           ComponentScanner componentScanner, ChainLoader chainLoader) {
-        this(port, engine, eventPublisher, chainRepo, designRepo, componentScanner, chainLoader, null);
-    }
-
-    public ExecutorServer(int port, ChainExecutionEngine engine, EventPublisher eventPublisher,
-                          ChainRepository chainRepo, DesignRepository designRepo,
-                          ComponentScanner componentScanner, ChainLoader chainLoader,
-                          EventQueryService eventQueryService) {
         this.port = port;
         this.serverHandler = new ServerHandler(engine, chainRepo, designRepo, componentScanner, chainLoader);
-        if (eventPublisher != null) {
-            this.serverHandler.setEventPublisher(eventPublisher);
-        }
-        if (eventQueryService != null) {
-            this.serverHandler.setEventQueryService(eventQueryService);
-        }
+    }
+
+    public void setRequestMappingHandlerMapping(
+            org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping mapping) {
+        this.serverHandler.setRequestMappingHandlerMapping(mapping);
+    }
+
+    public void setScanPackages(java.util.List<String> scanPackages) {
+        this.serverHandler.setScanPackages(scanPackages);
+    }
+
+    public void setPlaygroundUrl(String url) {
+        this.serverHandler.setPlaygroundUrl(url);
     }
 
     public void start() throws InterruptedException {

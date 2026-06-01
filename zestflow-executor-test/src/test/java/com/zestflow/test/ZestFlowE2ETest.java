@@ -1,6 +1,6 @@
 package com.zestflow.test;
 
-import com.zestflow.collector.spi.EventCollector;
+import com.zestflow.common.spi.EventCollector;
 import com.zestflow.common.constant.ChainConstants;
 import com.zestflow.common.model.dto.*;
 import com.zestflow.executor.chain.ChainDefinition;

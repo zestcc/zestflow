@@ -34,7 +34,7 @@ public class SecurityConfig {
                 .requestMatchers("/auth/**", "/uploads/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/registry/**").permitAll()
                 .requestMatchers(HttpMethod.DELETE, "/registry/**").permitAll()
-                .requestMatchers("/demo/**").permitAll()
+                .requestMatchers("/playground/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/chains/sync").permitAll()
                 .anyRequest().authenticated()
             )

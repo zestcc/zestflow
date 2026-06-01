@@ -74,29 +74,6 @@ public class ExecutorProperties implements EnvironmentAware {
     /** 注册/心跳请求超时（毫秒） */
     private int timeoutMs = RegistryConstants.DEFAULT_REGISTRY_TIMEOUT_MS;
 
-    // ========== 事件采集配置（zestflow.executor.event.*） ==========
-
-    /** 事件缓冲队列容量 */
-    private int eventQueueCapacity = 8192;
-
-    /** 批量提交大小 */
-    private int eventBatchSize = 200;
-
-    /** 批量提交最大等待时间（毫秒） */
-    private int eventBatchMaxWaitMs = 500;
-
-    /** 熔断阈值（连续失败次数，0 表示不熔断） */
-    private int eventCircuitBreakerThreshold = 10;
-
-    /** 熔断冷却时间（毫秒） */
-    private int eventCircuitBreakerCooldownMs = 30_000;
-
-    /** 是否启用磁盘降级 */
-    private boolean eventDiskFallbackEnabled = false;
-
-    /** 磁盘降级目录 */
-    private String eventDiskFallbackDir = "./collector-fallback";
-
     // ========== 链执行配置（zestflow.executor.chain.*） ==========
 
     /** 链加载重试次数 */

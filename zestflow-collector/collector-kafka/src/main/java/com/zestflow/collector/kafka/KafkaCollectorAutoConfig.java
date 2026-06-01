@@ -1,7 +1,7 @@
 package com.zestflow.collector.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.zestflow.collector.spi.EventCollector;
+import com.zestflow.common.spi.EventCollector;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;

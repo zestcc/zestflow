@@ -1,5 +1,6 @@
 package com.zestflow.collector.jdbc.config;
 
+import com.zestflow.collector.jdbc.collector.AsyncEventCollector;
 import com.zestflow.collector.jdbc.collector.JdbcEventCollector;
 import com.zestflow.collector.jdbc.controller.CollectorController;
 import com.zestflow.collector.jdbc.mapper.ChainEventMapper;
@@ -7,7 +8,7 @@ import com.zestflow.collector.jdbc.registry.CollectorAdminClient;
 import com.zestflow.collector.jdbc.registry.CollectorRegistrar;
 import com.zestflow.collector.jdbc.registry.CollectorRegistryProperties;
 import com.zestflow.collector.jdbc.service.JdbcEventQueryService;
-import com.zestflow.collector.spi.EventCollector;
+import com.zestflow.common.spi.EventCollector;
 import com.zestflow.collector.spi.EventQueryService;
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -28,10 +29,20 @@ import org.springframework.web.client.RestTemplate;
 @Import(CollectorDataSourceConfig.class)
 public class CollectorAutoConfig {
 
-    @Bean
-    @ConditionalOnMissingBean
-    public EventCollector jdbcEventCollector(ChainEventMapper chainEventMapper) {
-        return new JdbcEventCollector(chainEventMapper);
+    /**
+     * 异步事件采集器 — 包装 JdbcEventCollector，提供队列 + 批量 + 熔断
+     * <p>
+     * 配置 zestflow.collector.async-enabled=false 可关闭异步直接写入 DB
+     */
+    @Bean(destroyMethod = "destroy")
+    @ConditionalOnMissingBean(EventCollector.class)
+    public EventCollector asyncEventCollector(ChainEventMapper chainEventMapper,
+                                               CollectorProperties properties) {
+        JdbcEventCollector delegate = new JdbcEventCollector(chainEventMapper);
+        if (properties.isAsyncEnabled()) {
+            return new AsyncEventCollector(delegate, properties);
+        }
+        return delegate;
     }
 
     @Bean

@@ -4,10 +4,10 @@ import com.zestflow.common.constant.ChainConstants;
 import com.zestflow.common.model.dto.ChainEvent;
 import com.zestflow.common.model.dto.ComponentRef;
 import com.zestflow.common.model.dto.NodeResultDTO;
+import com.zestflow.common.spi.EventCollector;
 import com.zestflow.executor.chain.ChainManager;
 import com.zestflow.executor.chain.NodeDefinition;
 import com.zestflow.executor.context.ChainContext;
-import com.zestflow.executor.event.EventPublisher;
 import com.zestflow.executor.interceptor.InterceptorChain;
 import com.zestflow.executor.lifecycle.LifecycleExecutor;
 import com.zestflow.executor.retry.RetryExecutor;
@@ -34,7 +34,7 @@ import static org.mockito.Mockito.*;
 class NodeRunnerTest {
 
     @Mock ComponentScanner componentScanner;
-    @Mock EventPublisher eventPublisher;
+    @Mock EventCollector eventCollector;
     @Mock InterceptorChain interceptorChain;
     @Mock LifecycleExecutor lifecycleExecutor;
     @Mock RetryExecutor retryExecutor;
@@ -54,7 +54,7 @@ class NodeRunnerTest {
         when(executorProperties.getPort()).thenReturn(9999);
         when(executorProperties.getAppName()).thenReturn("test-app");
         executorId = "test-app@127.0.0.1:9999";
-        nodeRunner = new NodeRunner(componentScanner, eventPublisher,
+        nodeRunner = new NodeRunner(componentScanner, eventCollector,
                 interceptorChain, lifecycleExecutor, retryExecutor, chainManager, executorProperties);
     }
 
@@ -73,7 +73,7 @@ class NodeRunnerTest {
         assertThat(result.getOutputData()).isNotNull();
         verify(interceptorChain).beforeNode(nodeDef, ctx);
         verify(interceptorChain).afterNode(eq(nodeDef), eq(ctx), any());
-        verify(eventPublisher, atLeast(2)).publish(any(ChainEvent.class));
+        verify(eventCollector, atLeast(2)).collect(any(ChainEvent.class));
     }
 
     @Test
@@ -369,7 +369,7 @@ class NodeRunnerTest {
 
         nodeRunner.execute(nodeDef, ctx);
 
-        verify(eventPublisher, atLeast(2)).publish(eventCaptor.capture());
+        verify(eventCollector, atLeast(2)).collect(eventCaptor.capture());
         List<ChainEvent.EventType> types = eventCaptor.getAllValues().stream()
                 .map(ChainEvent::getEventType).toList();
         assertThat(types).contains(
@@ -390,7 +390,7 @@ class NodeRunnerTest {
 
         nodeRunner.execute(nodeDef, ctx);
 
-        verify(eventPublisher, atLeast(2)).publish(eventCaptor.capture());
+        verify(eventCollector, atLeast(2)).collect(eventCaptor.capture());
         List<ChainEvent.EventType> types = eventCaptor.getAllValues().stream()
                 .map(ChainEvent::getEventType).toList();
         assertThat(types).contains(

@@ -4,10 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.zestflow.collector.model.dto.EventQuery;
-import com.zestflow.collector.model.dto.EventStatsQuery;
-import com.zestflow.collector.spi.EventQueryService;
-import com.zestflow.common.model.dto.ChainEvent;
 import com.zestflow.common.model.dto.ChainExecuteRequestDTO;
 import com.zestflow.common.model.dto.ChainExecuteResultDTO;
 import com.zestflow.common.model.event.PublishEventDTO;
@@ -19,7 +15,6 @@ import com.zestflow.executor.chain.ChainRepository;
 import com.zestflow.executor.design.DesignPO;
 import com.zestflow.executor.design.DesignRepository;
 import com.zestflow.executor.engine.ChainExecutionEngine;
-import com.zestflow.executor.event.EventPublisher;
 import com.zestflow.executor.scanner.ComponentScanner;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -31,7 +26,23 @@ import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.util.CharsetUtil;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.method.HandlerMethod;
+import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
+import com.zestflow.common.model.Result;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -48,8 +59,9 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
     private final ComponentScanner componentScanner;
     private final ChainLoader chainLoader;
 
-    private EventPublisher eventPublisher;
-    private EventQueryService eventQueryService;
+    private RequestMappingHandlerMapping requestMappingHandlerMapping;
+    private java.util.List<String> scanPackages = java.util.Collections.emptyList();
+    private String playgroundUrl;
 
     public ServerHandler(ChainExecutionEngine chainExecutionEngine, ChainRepository chainRepo, DesignRepository designRepo) {
         this(chainExecutionEngine, chainRepo, designRepo, null, null);
@@ -135,15 +147,15 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
             return dispatchDesignRoutes(ctx, method, uri, body);
         }
 
-        // 采集器事件查询
-        if (uri.startsWith("/collector/events")) {
-            return dispatchCollectorRoutes(ctx, method, uri, body);
+        // 控制器端点列表（供 Admin 的"从 Controller 导入"使用）
+        if (method == HttpMethod.GET && ("/api/endpoints".equals(uri) || uri.startsWith("/api/endpoints?"))) {
+            handleListEndpoints(ctx, uri);
+            return true;
         }
 
-        // 采集器健康检查
-        if ("/collector/health".equals(uri) && method == HttpMethod.GET) {
-            writeResponse(ctx, HttpResponseStatus.OK,
-                    "{\"code\":200,\"message\":\"ok\"}");
+        // 控制器类名列表（供前端导入弹窗的 Controller 下拉）
+        if (method == HttpMethod.GET && ("/api/endpoints/classes".equals(uri) || uri.startsWith("/api/endpoints/classes?"))) {
+            handleListEndpointClasses(ctx);
             return true;
         }
 
@@ -855,153 +867,151 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
         }
     }
 
-    // ==================== 采集器事件查询路由 ====================
+    // ==================== 端点扫描 ====================
 
-    private boolean dispatchCollectorRoutes(ChannelHandlerContext ctx, HttpMethod method, String uri, String body) throws Exception {
-        if (eventQueryService == null) {
-            writeResponse(ctx, HttpResponseStatus.SERVICE_UNAVAILABLE,
-                    "{\"code\":503,\"message\":\"EventQueryService 不可用\"}");
+    /**
+     * 扫描当前应用所有 Spring MVC 控制器的请求映射，返回端点列表
+     */
+    private boolean handleListEndpoints(ChannelHandlerContext ctx, String uri) throws Exception {
+        if (requestMappingHandlerMapping == null) {
+            writeResponse(ctx, HttpResponseStatus.OK, "[]");
             return true;
         }
 
-        String[] parts = uri.split("/");
-        // /collector/events/query → ["", "collector", "events", "query"]
-        // /collector/events/stats → ["", "collector", "events", "stats"]
-        // /collector/events/executions → ["", "collector", "events", "executions"]
-        // /collector/events/{eventId} → ["", "collector", "events", "EVENTID"]
+        Map<RequestMappingInfo, HandlerMethod> handlerMethods = requestMappingHandlerMapping.getHandlerMethods();
+        List<EndpointInfo> list = new ArrayList<>();
 
-        if (parts.length == 4) {
-            String action = stripQuery(parts[3]);
-            if ("query".equals(action) && method == HttpMethod.POST) {
-                return handleEventQuery(ctx, body);
+        for (Map.Entry<RequestMappingInfo, HandlerMethod> entry : handlerMethods.entrySet()) {
+            RequestMappingInfo info = entry.getKey();
+            HandlerMethod handler = entry.getValue();
+
+            // 扫描包范围过滤
+            if (!scanPackages.isEmpty()) {
+                String fullName = handler.getBeanType().getName();
+                boolean matched = scanPackages.stream().anyMatch(fullName::startsWith);
+                if (!matched) continue;
             }
-            if ("stats".equals(action) && method == HttpMethod.POST) {
-                return handleEventStats(ctx, body);
+
+            // 提取路径
+            String path = "";
+            if (info.getPathPatternsCondition() != null) {
+                path = info.getPathPatternsCondition().getFirstPattern().getPatternString();
+            } else if (info.getPatternsCondition() != null) {
+                path = info.getPatternsCondition().getPatterns().stream().findFirst().orElse("");
             }
-            if ("executions".equals(action) && method == HttpMethod.POST) {
-                return handleExecutionTraces(ctx, body);
+
+            // 拼接完整 URL（如果配置了 playgroundUrl）
+            if (playgroundUrl != null && !playgroundUrl.isEmpty()) {
+                String base = playgroundUrl.endsWith("/") ? playgroundUrl.substring(0, playgroundUrl.length() - 1) : playgroundUrl;
+                String fullPath = path.startsWith("/") ? path : "/" + path;
+                path = base + fullPath;
             }
+
+            // 提取请求方法
+            Set<RequestMethod> httpMethods = info.getMethodsCondition() != null
+                    ? info.getMethodsCondition().getMethods() : Collections.emptySet();
+            String method = httpMethods.stream().findFirst()
+                    .map(Enum::name).orElse("ALL");
+
+            // 参数类型名列表
+            List<String> params = Arrays.stream(handler.getMethod().getParameters())
+                    .map(p -> p.getParameterizedType().getTypeName())
+                    .collect(Collectors.toList());
+
+            // 是否有 @RequestBody，并提取 DTO 类名 + 生成模板 JSON
+            boolean hasBody = false;
+            String requestBodyType = "";
+            String requestBodyTemplate = "";
+            for (var p : handler.getMethod().getParameters()) {
+                if (p.isAnnotationPresent(RequestBody.class)) {
+                    hasBody = true;
+                    Class<?> paramType = p.getType();
+                    String fullName = paramType.getName();
+                    int dot = fullName.lastIndexOf('.');
+                    requestBodyType = dot >= 0 ? fullName.substring(dot + 1) : fullName;
+                    requestBodyTemplate = generateBodyTemplate(paramType);
+                    break;
+                }
+            }
+
+            // 提取响应体类型 + 生成响应示例模板
+            String responseBodyType = "";
+            String responseBodyTemplate = "";
+            java.lang.reflect.Method handlerMethod = handler.getMethod();
+            Type genericReturnType = handlerMethod.getGenericReturnType();
+            if (genericReturnType != null) {
+                responseBodyTemplate = generateResponseTemplate(genericReturnType);
+                // 从响应模板中推断类型名（如果含 data 字段则是 Result 包装）
+                if (!responseBodyTemplate.isEmpty()) {
+                    responseBodyType = tryExtractResponseTypeName(genericReturnType);
+                }
+            }
+
+            // 提取请求头信息
+            String requestHeaders = extractRequestHeaders(handler, info);
+
+            list.add(new EndpointInfo(
+                    handler.getBeanType().getSimpleName(),
+                    handler.getMethod().getName(),
+                    path, method, params, hasBody, requestBodyType, requestBodyTemplate,
+                    responseBodyType, responseBodyTemplate, requestHeaders
+            ));
         }
 
-        if (parts.length == 5 && "executions".equals(parts[3]) && method == HttpMethod.GET) {
-            return handleGetExecutionTrace(ctx, stripQuery(parts[4]));
+        // 排序
+        list.sort(Comparator.comparing(EndpointInfo::getClassName)
+                .thenComparing(EndpointInfo::getRequestPath));
+
+        // 关键字过滤
+        Map<String, String> paramsMap = parseQueryParams(uri);
+        String keyword = paramsMap.get("keyword");
+        if (keyword != null && !keyword.isEmpty()) {
+            String kw = keyword.toLowerCase();
+            list = list.stream()
+                    .filter(e -> e.getClassName().toLowerCase().contains(kw)
+                            || e.getRequestPath().toLowerCase().contains(kw)
+                            || e.getMethodName().toLowerCase().contains(kw))
+                    .collect(Collectors.toList());
         }
 
-        if (parts.length == 4 && method == HttpMethod.GET) {
-            return handleGetEvent(ctx, stripQuery(parts[3]));
+        // Controller 类名过滤
+        String classNameFilter = paramsMap.get("className");
+        if (classNameFilter != null && !classNameFilter.isEmpty()) {
+            list = list.stream()
+                    .filter(e -> e.getClassName().equals(classNameFilter))
+                    .collect(Collectors.toList());
         }
 
-        return false;
-    }
-
-    private boolean handleEventQuery(ChannelHandlerContext ctx, String body) throws Exception {
-        EventQuery query = MAPPER.readValue(body, EventQuery.class);
-        List<ChainEvent> list = eventQueryService.queryEvents(query);
-        long total = eventQueryService.countEvents(query);
-
-        ArrayNode listArr = MAPPER.createArrayNode();
-        for (ChainEvent e : list) {
-            listArr.add(eventToJson(e));
-        }
-        ObjectNode data = MAPPER.createObjectNode();
-        data.set("list", listArr);
-        data.put("total", total);
-        data.put("page", query.getPage());
-        data.put("pageSize", query.getPageSize());
-
-        ObjectNode root = MAPPER.createObjectNode();
-        root.put("code", 200);
-        root.put("message", "ok");
-        root.set("data", data);
-        writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(root));
+        writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(list));
         return true;
     }
 
-    private boolean handleGetEvent(ChannelHandlerContext ctx, String eventId) throws Exception {
-        ChainEvent event = eventQueryService.getById(eventId);
-        if (event == null) {
-            writeResponse(ctx, HttpResponseStatus.NOT_FOUND,
-                    "{\"code\":404,\"message\":\"NOT_FOUND\",\"data\":null}");
+    /**
+     * 返回唯一 Controller 类名列表（供前端导入弹窗下拉使用）
+     */
+    private boolean handleListEndpointClasses(ChannelHandlerContext ctx) throws Exception {
+        if (requestMappingHandlerMapping == null) {
+            writeResponse(ctx, HttpResponseStatus.OK, "[]");
             return true;
         }
-        ObjectNode root = MAPPER.createObjectNode();
-        root.put("code", 200);
-        root.put("message", "ok");
-        root.set("data", eventToJson(event));
-        writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(root));
-        return true;
-    }
 
-    private boolean handleEventStats(ChannelHandlerContext ctx, String body) throws Exception {
-        EventStatsQuery query = MAPPER.readValue(body, EventStatsQuery.class);
-        com.zestflow.collector.model.dto.EventStats stats = eventQueryService.queryStats(query);
+        Map<RequestMappingInfo, HandlerMethod> handlerMethods = requestMappingHandlerMapping.getHandlerMethods();
+        java.util.Set<String> classNames = new java.util.LinkedHashSet<>();
 
-        ObjectNode root = MAPPER.createObjectNode();
-        root.put("code", 200);
-        root.put("message", "ok");
-        root.set("data", MAPPER.valueToTree(stats));
-        writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(root));
-        return true;
-    }
-
-    private boolean handleExecutionTraces(ChannelHandlerContext ctx, String body) throws Exception {
-        EventQuery query = MAPPER.readValue(body, EventQuery.class);
-        List<com.zestflow.collector.model.dto.ExecutionTrace> list = eventQueryService.queryExecutionTraces(query);
-        long total = eventQueryService.countExecutionTraces(query);
-
-        ArrayNode listArr = MAPPER.createArrayNode();
-        for (com.zestflow.collector.model.dto.ExecutionTrace t : list) {
-            listArr.add(MAPPER.valueToTree(t));
+        for (HandlerMethod handler : handlerMethods.values()) {
+            String fullName = handler.getBeanType().getName();
+            // 扫描包范围过滤
+            if (!scanPackages.isEmpty()) {
+                boolean matched = scanPackages.stream().anyMatch(fullName::startsWith);
+                if (!matched) continue;
+            }
+            classNames.add(handler.getBeanType().getSimpleName());
         }
-        ObjectNode data = MAPPER.createObjectNode();
-        data.set("list", listArr);
-        data.put("total", total);
-        data.put("page", query.getPage());
-        data.put("pageSize", query.getPageSize());
 
-        ObjectNode root = MAPPER.createObjectNode();
-        root.put("code", 200);
-        root.put("message", "ok");
-        root.set("data", data);
-        writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(root));
+        List<String> sorted = new ArrayList<>(classNames);
+        Collections.sort(sorted);
+        writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(sorted));
         return true;
-    }
-
-    private boolean handleGetExecutionTrace(ChannelHandlerContext ctx, String executionId) throws Exception {
-        com.zestflow.collector.model.dto.ExecutionTrace trace = eventQueryService.getExecutionTrace(executionId);
-        if (trace == null) {
-            writeResponse(ctx, HttpResponseStatus.NOT_FOUND,
-                    "{\"code\":404,\"message\":\"NOT_FOUND\",\"data\":null}");
-            return true;
-        }
-        ObjectNode root = MAPPER.createObjectNode();
-        root.put("code", 200);
-        root.put("message", "ok");
-        root.set("data", MAPPER.valueToTree(trace));
-        writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(root));
-        return true;
-    }
-
-    /** ChainEvent → ObjectNode JSON */
-    private ObjectNode eventToJson(ChainEvent e) {
-        ObjectNode node = MAPPER.createObjectNode();
-        node.put("eventId", e.getEventId() != null ? e.getEventId() : "");
-        node.put("eventType", e.getEventType() != null ? e.getEventType().name() : "");
-        node.put("executionId", e.getExecutionId() != null ? e.getExecutionId() : "");
-        node.put("chainId", e.getChainId() != null ? e.getChainId() : "");
-        node.put("chainName", e.getChainName() != null ? e.getChainName() : "");
-        node.put("nodeId", e.getNodeId() != null ? e.getNodeId() : "");
-        node.put("nodeName", e.getNodeName() != null ? e.getNodeName() : "");
-        node.put("executorId", e.getExecutorId() != null ? e.getExecutorId() : "");
-        node.put("appName", e.getAppName() != null ? e.getAppName() : "");
-        node.put("params", e.getParams() != null ? e.getParams() : "");
-        node.put("result", e.getResult() != null ? e.getResult() : "");
-        node.put("errorMessage", e.getErrorMessage() != null ? e.getErrorMessage() : "");
-        node.put("costMs", e.getCostMs() != null ? e.getCostMs() : 0);
-        node.put("status", e.getStatus() != null ? e.getStatus() : 0);
-        node.put("timestamp", e.getTimestamp());
-        node.put("metadata", e.getMetadata() != null ? e.getMetadata() : "");
-        return node;
     }
 
     // ==================== 工具方法 ====================
@@ -1111,5 +1121,299 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
             log.debug("连接空闲，关闭 channel");
             ctx.close();
         }
+    }
+
+    // ==================== 请求体/响应体模板生成 ====================
+
+    /**
+     * 通过反射读取 DTO 字段，生成请求体示例 JSON（入口）
+     */
+    private static String generateBodyTemplate(Class<?> paramType) {
+        return generateBodyTemplateRecursive(paramType, new HashSet<>(), 0);
+    }
+
+    /**
+     * 递归生成请求体模板
+     *
+     * @param visited 已访问类型集合（防循环引用）
+     * @param depth   当前缩进层级
+     */
+    private static String generateBodyTemplateRecursive(Class<?> paramType, Set<Class<?>> visited, int depth) {
+        if (paramType == null || paramType == Object.class
+                || paramType.isPrimitive() || paramType.getName().startsWith("java.")) {
+            return "{}";
+        }
+        if (!visited.add(paramType)) {
+            return "{}"; // 循环引用保护
+        }
+
+        try {
+            List<Field> fields = new ArrayList<>();
+            Class<?> current = paramType;
+            while (current != null && current != Object.class) {
+                for (Field f : current.getDeclaredFields()) {
+                    if (!Modifier.isStatic(f.getModifiers()) && !Modifier.isTransient(f.getModifiers())) {
+                        fields.add(f);
+                    }
+                }
+                current = current.getSuperclass();
+            }
+
+            if (fields.isEmpty()) return "{}";
+
+            String indent = getIndent(depth);
+            String childIndent = getIndent(depth + 1);
+            StringBuilder sb = new StringBuilder("{\n");
+            for (int i = 0; i < fields.size(); i++) {
+                Field f = fields.get(i);
+                sb.append(childIndent).append("\"").append(f.getName()).append("\": ")
+                        .append(getFieldDefaultValue(f, visited, depth + 1));
+                if (i < fields.size() - 1) sb.append(",");
+                sb.append("\n");
+            }
+            sb.append(indent).append("}");
+            return sb.toString();
+        } finally {
+            visited.remove(paramType);
+        }
+    }
+
+    /**
+     * 获取字段的默认值 JSON（递归展开嵌套对象和泛型集合）
+     */
+    private static String getFieldDefaultValue(Field field, Set<Class<?>> visited, int depth) {
+        Class<?> type = field.getType();
+        String indent = getIndent(depth);
+
+        // 基本类型和 JDK 内置类型
+        if (type == String.class) return "\"\"";
+        if (type == boolean.class || type == Boolean.class) return "false";
+        if (type == int.class || type == Integer.class
+                || type == long.class || type == Long.class
+                || type == short.class || type == Short.class
+                || type == byte.class || type == Byte.class) return "0";
+        if (type == float.class || type == Float.class
+                || type == double.class || type == Double.class) return "0.0";
+        if (type == BigDecimal.class) return "0";
+        if (type == Date.class || type == LocalDate.class || type == LocalDateTime.class) return "\"\"";
+        if (type.isEnum()) return "\"\"";
+        // 其他 java.* 类型（不含 Collection/Map）
+        if (type.getName().startsWith("java.") && !Collection.class.isAssignableFrom(type) && !Map.class.isAssignableFrom(type)) {
+            return "\"\"";
+        }
+
+        // Map
+        if (Map.class.isAssignableFrom(type)) return "{}";
+
+        // Collection/Array — 检查泛型参数以展开嵌套类型
+        if (type.isArray() || Collection.class.isAssignableFrom(type)) {
+            Type genericType = field.getGenericType();
+            if (genericType instanceof ParameterizedType) {
+                Type[] actualTypeArgs = ((ParameterizedType) genericType).getActualTypeArguments();
+                if (actualTypeArgs.length > 0 && actualTypeArgs[0] instanceof Class) {
+                    Class<?> elementClass = (Class<?>) actualTypeArgs[0];
+                    // 仅对非 JDK 类型递归展开
+                    if (!elementClass.getName().startsWith("java.") && !elementClass.isPrimitive() && !elementClass.isEnum()) {
+                        String nested = generateBodyTemplateRecursive(elementClass, visited, depth + 1);
+                        String nextIndent = getIndent(depth + 1);
+                        return "[\n" + nextIndent + nested + "\n" + indent + "]";
+                    }
+                }
+            }
+            return "[]";
+        }
+
+        // 自定义对象类型 — 递归展开
+        if (!visited.contains(type)) {
+            return generateBodyTemplateRecursive(type, visited, depth);
+        }
+        return "{}";
+    }
+
+    /**
+     * 生成缩进字符串
+     */
+    private static String getIndent(int depth) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < depth; i++) sb.append("  ");
+        return sb.toString();
+    }
+
+    // ==================== 响应体示例生成 ====================
+
+    /**
+     * 从 Controller 方法的泛型返回类型生成响应体示例 JSON
+     */
+    private static String generateResponseTemplate(Type genericReturnType) {
+        if (genericReturnType instanceof ParameterizedType) {
+            ParameterizedType pt = (ParameterizedType) genericReturnType;
+            Class<?> rawType = (Class<?>) pt.getRawType();
+            Type[] args = pt.getActualTypeArguments();
+
+            // Result<T> 包装 — 生成 {"code":200, "message":"success", "data": <展开的 T>}
+            if (rawType == Result.class && args.length > 0) {
+                return generateWrappedResponse(args[0]);
+            }
+
+            // ResponseEntity<T> 同样处理
+            if ("ResponseEntity".equals(rawType.getSimpleName()) && args.length > 0) {
+                return generateWrappedResponse(args[0]);
+            }
+
+            // 其他 ParameterizedType — 用 raw type 生成
+            return generateBodyTemplate(rawType);
+        }
+
+        if (genericReturnType instanceof Class) {
+            Class<?> returnClass = (Class<?>) genericReturnType;
+            if (returnClass == void.class || returnClass == Void.class) return "";
+            if (returnClass.getName().startsWith("java.") || returnClass.isPrimitive()) return "";
+            return generateBodyTemplate(returnClass);
+        }
+
+        return "";
+    }
+
+    /**
+     * 将数据模板包装在 Result 响应结构中
+     */
+    private static String generateWrappedResponse(Type dataType) {
+        String dataTemplate = generateTemplateForType(dataType, new HashSet<>(), 0);
+        return "{\n" +
+                "  \"code\": 200,\n" +
+                "  \"message\": \"success\",\n" +
+                "  \"data\": " + dataTemplate + "\n" +
+                "}";
+    }
+
+    /**
+     * 为任意 Type 生成示例模板（处理 Class、ParameterizedType 等）
+     */
+    private static String generateTemplateForType(Type type, Set<Class<?>> visited, int depth) {
+        if (type instanceof Class) {
+            Class<?> clazz = (Class<?>) type;
+            if (clazz == void.class || clazz == Void.class) return "\"\"";
+            if (clazz.isPrimitive() || clazz == String.class || clazz.isEnum()
+                    || clazz == BigDecimal.class || clazz == Date.class
+                    || clazz == LocalDate.class || clazz == LocalDateTime.class) {
+                return getPrimitiveDefault(clazz);
+            }
+            if (clazz.isArray()) return "[]";
+            if (Collection.class.isAssignableFrom(clazz)) return "[]";
+            if (Map.class.isAssignableFrom(clazz)) return "{}";
+            if (clazz.getName().startsWith("java.")) return "\"\"";
+            return generateBodyTemplateRecursive(clazz, visited, depth);
+        }
+        if (type instanceof ParameterizedType) {
+            ParameterizedType pt = (ParameterizedType) type;
+            Class<?> rawType = (Class<?>) pt.getRawType();
+            Type[] args = pt.getActualTypeArguments();
+
+            if (Collection.class.isAssignableFrom(rawType) && args.length > 0) {
+                String elemTemplate = generateTemplateForType(args[0], visited, depth + 1);
+                String childIndent = getIndent(depth + 1);
+                String indent = getIndent(depth);
+                return "[\n" + childIndent + elemTemplate + "\n" + indent + "]";
+            }
+            if (Map.class.isAssignableFrom(rawType)) return "{}";
+            if (rawType.getName().startsWith("java.") || rawType.isPrimitive()) return "\"\"";
+            return generateBodyTemplateRecursive(rawType, visited, depth);
+        }
+        return "\"\"";
+    }
+
+    /**
+     * 从泛型返回类型中提取数据类型的类名
+     */
+    private static String tryExtractResponseTypeName(Type genericReturnType) {
+        if (genericReturnType instanceof ParameterizedType) {
+            ParameterizedType pt = (ParameterizedType) genericReturnType;
+            Class<?> rawType = (Class<?>) pt.getRawType();
+            if (rawType == Result.class || "ResponseEntity".equals(rawType.getSimpleName())) {
+                Type[] args = pt.getActualTypeArguments();
+                if (args.length > 0) {
+                    return extractTypeName(args[0]);
+                }
+            }
+        }
+        if (genericReturnType instanceof Class) {
+            return ((Class<?>) genericReturnType).getSimpleName();
+        }
+        return "";
+    }
+
+    /**
+     * 递归提取类型名称（处理 List<OrderResponse> → "OrderResponse"）
+     */
+    private static String extractTypeName(Type type) {
+        if (type instanceof Class) {
+            return ((Class<?>) type).getSimpleName();
+        }
+        if (type instanceof ParameterizedType) {
+            Class<?> rawType = (Class<?>) ((ParameterizedType) type).getRawType();
+            if (Collection.class.isAssignableFrom(rawType)) {
+                Type[] args = ((ParameterizedType) type).getActualTypeArguments();
+                if (args.length > 0) {
+                    return "List<" + extractTypeName(args[0]) + ">";
+                }
+            }
+            return rawType.getSimpleName();
+        }
+        return "";
+    }
+
+    /**
+     * 基础类型的默认值 JSON 字符串
+     */
+    private static String getPrimitiveDefault(Class<?> type) {
+        if (type == String.class) return "\"\"";
+        if (type == boolean.class || type == Boolean.class) return "false";
+        if (type == int.class || type == Integer.class
+                || type == long.class || type == Long.class
+                || type == short.class || type == Short.class
+                || type == byte.class || type == Byte.class) return "0";
+        if (type == float.class || type == Float.class
+                || type == double.class || type == Double.class) return "0.0";
+        if (type == BigDecimal.class) return "0";
+        if (type == Date.class || type == LocalDate.class || type == LocalDateTime.class) return "\"\"";
+        if (type.isEnum()) return "\"\"";
+        return "\"\"";
+    }
+
+    // ==================== 请求头提取 ====================
+
+    /**
+     * 从 Controller 方法中提取请求头信息
+     */
+    private static String extractRequestHeaders(HandlerMethod handler, RequestMappingInfo info) {
+        List<String> headers = new ArrayList<>();
+
+        // 从 @RequestMapping(headers = ...) 中提取
+        RequestMapping classMapping = handler.getBeanType().getAnnotation(RequestMapping.class);
+        if (classMapping != null) {
+            for (String h : classMapping.headers()) {
+                if (!h.isEmpty()) headers.add(h);
+            }
+        }
+        RequestMapping methodMapping = handler.getMethodAnnotation(RequestMapping.class);
+        if (methodMapping != null) {
+            for (String h : methodMapping.headers()) {
+                if (!h.isEmpty()) headers.add(h);
+            }
+        }
+
+        // 从 @RequestHeader 参数中提取
+        for (var p : handler.getMethod().getParameters()) {
+            RequestHeader rh = p.getAnnotation(RequestHeader.class);
+            if (rh != null) {
+                String name = rh.value();
+                if (name.isEmpty()) name = rh.name();
+                if (name.isEmpty()) name = p.getName();
+                boolean required = rh.required();
+                headers.add(name + (required ? "" : "(可选)"));
+            }
+        }
+
+        return headers.isEmpty() ? "" : String.join(", ", headers);
     }
 }

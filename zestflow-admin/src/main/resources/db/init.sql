@@ -265,7 +265,7 @@ CREATE TABLE `zestflow_admin`.`sys_dict_data` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='字典数据表';
 
 -- 2026-05-31：演示场景定义表 — 替代 application.yml 配置，DB 驱动 CRUD
-CREATE TABLE `zestflow_admin`.`demo_scene` (
+CREATE TABLE `zestflow_admin`.`playground_scene` (
     `id`               BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键',
     `scene_code`       VARCHAR(64)  NOT NULL                 COMMENT '场景编码（SCN{yMMdd}{6位序号}）',
     `name`             VARCHAR(128) NOT NULL                 COMMENT '场景名称',
@@ -288,10 +288,10 @@ CREATE TABLE `zestflow_admin`.`demo_scene` (
     UNIQUE KEY `uk_scene_code` (`scene_code`),
     KEY `idx_chain_code` (`chain_code`),
     KEY `idx_app_code` (`app_code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='演示场景定义表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='试验场场景定义表';
 
--- 2026-05-31：演示执行记录表 — 替代 playground_log
-CREATE TABLE `zestflow_admin`.`demo_record` (
+-- 2026-06-01：演示执行记录表
+CREATE TABLE `zestflow_admin`.`playground_record` (
     `id`               BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键',
     `scene_id`         BIGINT       DEFAULT NULL             COMMENT '关联场景ID',
     `scene_name`       VARCHAR(128) DEFAULT NULL             COMMENT '场景名称（冗余）',
@@ -321,7 +321,7 @@ CREATE TABLE `zestflow_admin`.`demo_record` (
     KEY `idx_created_at` (`created_at`),
     KEY `idx_status` (`status`),
     KEY `idx_chain_code` (`chain_code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='演示执行记录表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='试验场执行记录表';
 
 -- ==================== 日志库（zestflow_test_log） ====================
 

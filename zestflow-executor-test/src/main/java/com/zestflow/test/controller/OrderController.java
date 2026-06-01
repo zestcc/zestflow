@@ -2,15 +2,23 @@ package com.zestflow.test.controller;
 
 import com.zestflow.common.model.Result;
 import com.zestflow.common.model.dto.ChainExecuteResultDTO;
+import com.zestflow.executor.engine.ChainExecutionEngine;
+import com.zestflow.test.dto.ApplyAfterSaleRequest;
 import com.zestflow.test.dto.OrderRequest;
 import com.zestflow.test.dto.OrderResponse;
 import com.zestflow.test.service.BizOrchestrationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -23,6 +31,7 @@ import java.util.stream.Collectors;
 public class OrderController {
 
     private final BizOrchestrationService orch;
+    private final ChainExecutionEngine chainExecutionEngine;
 
     // ==================== S01: 简单线性下单 ====================
 
@@ -261,10 +270,10 @@ public class OrderController {
     }
 
     @PostMapping("/handleApplyAfterSale")
-    public Result<OrderResponse> handleApplyAfterSale(@RequestBody Map<String, Object> params) {
-        String chainCode = params.getOrDefault("chainCode", "CHN_DEMO_AFTER_SALE").toString();
-        var result = orch.loadFromDbAndExecute(chainCode, params);
+    public Result<OrderResponse> handleApplyAfterSale(@RequestBody ApplyAfterSaleRequest afterSaleRequest) {
+        String chainCode = "CHN_DEMO_AFTER_SALE";
 
+        var result  = chainExecutionEngine.execute(chainCode, afterSaleRequest);
         OrderResponse resp = OrderResponse.builder()
                 .orderId(result.getInstanceId())
                 .status(statusText(result.getStatus()))

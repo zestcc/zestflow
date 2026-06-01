@@ -24,20 +24,20 @@
         <el-icon><EditPen /></el-icon>
         <span>{{ $t('layout.design') }}</span>
       </el-menu-item>
-      <el-sub-menu index="/demo" v-if="appStore.demoEnabled">
+      <el-sub-menu index="/playground" v-if="appStore.playgroundEnabled">
         <template #title>
           <el-icon><VideoPlay /></el-icon>
-          <span>{{ $t('layout.demo') }}</span>
+          <span>{{ $t('layout.playgroundMenu') }}</span>
         </template>
-        <el-menu-item index="/demo/scenes">
+        <el-menu-item index="/playground/scenes">
           <el-icon><Collection /></el-icon>
-          <span>{{ $t('layout.demoScenes') }}</span>
+          <span>{{ $t('layout.playgroundScenes') }}</span>
         </el-menu-item>
-        <el-menu-item index="/demo/records">
+        <el-menu-item index="/playground/records">
           <el-icon><Document /></el-icon>
-          <span>{{ $t('layout.demoRecords') }}</span>
+          <span>{{ $t('layout.playgroundRecords') }}</span>
         </el-menu-item>
-        <el-menu-item index="/demo/playground">
+        <el-menu-item index="/playground">
           <el-icon><MagicStick /></el-icon>
           <span>{{ $t('layout.playground') }}</span>
         </el-menu-item>

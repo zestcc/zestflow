@@ -8,12 +8,12 @@ import com.zestflow.common.model.dto.ChainEvent;
 import com.zestflow.common.model.dto.ChainExecuteResultDTO;
 import com.zestflow.common.model.dto.ComponentRef;
 import com.zestflow.common.model.dto.NodeResultDTO;
+import com.zestflow.common.spi.EventCollector;
 import com.zestflow.executor.circuit.SimpleCircuitBreaker;
 import com.zestflow.executor.chain.ChainDefinition;
 import com.zestflow.executor.chain.ChainManager;
 import com.zestflow.executor.chain.NodeDefinition;
 import com.zestflow.executor.context.ChainContext;
-import com.zestflow.executor.event.EventPublisher;
 import com.zestflow.executor.interceptor.InterceptorChain;
 import com.zestflow.executor.lifecycle.LifecycleExecutor;
 import com.zestflow.executor.lifecycle.NodeStateMachine;
@@ -45,7 +45,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class NodeRunner {
 
     private final ComponentScanner componentScanner;
-    private final EventPublisher eventPublisher;
+    private final EventCollector eventCollector;
     private final InterceptorChain interceptorChain;
     private final LifecycleExecutor lifecycleExecutor;
     private final RetryExecutor retryExecutor;
@@ -87,12 +87,12 @@ public class NodeRunner {
         log.debug("熔断器已全部清除 count={}", size);
     }
 
-    public NodeRunner(ComponentScanner componentScanner, EventPublisher eventPublisher,
+    public NodeRunner(ComponentScanner componentScanner, EventCollector eventCollector,
                       InterceptorChain interceptorChain, LifecycleExecutor lifecycleExecutor,
                       RetryExecutor retryExecutor, ChainManager chainManager,
                       com.zestflow.executor.registry.ExecutorProperties properties) {
         this.componentScanner = componentScanner;
-        this.eventPublisher = eventPublisher;
+        this.eventCollector = eventCollector;
         this.interceptorChain = interceptorChain;
         this.lifecycleExecutor = lifecycleExecutor;
         this.retryExecutor = retryExecutor;
@@ -410,7 +410,10 @@ public class NodeRunner {
     private void publishNodeEvent(ChainEvent.EventType eventType, NodeDefinition nodeDef,
                                    ChainContext context, Long costMs, Integer status, String errorMessage,
                                    String params, String result) {
-        eventPublisher.publish(ChainEvent.builder()
+        if (eventCollector == null) {
+            return;
+        }
+        eventCollector.collect(ChainEvent.builder()
                 .eventId(UUID.randomUUID().toString())
                 .eventType(eventType)
                 .executionId(context.getInstanceId())
