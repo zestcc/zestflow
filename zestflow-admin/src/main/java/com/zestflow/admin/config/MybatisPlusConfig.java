@@ -5,17 +5,15 @@ import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.handler.TenantLineHandler;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.TenantLineInnerInterceptor;
-import com.zestflow.admin.service.TenantAppContext;
-import lombok.RequiredArgsConstructor;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.LongValue;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.Set;
 
 @Configuration
-@RequiredArgsConstructor
 public class MybatisPlusConfig {
 
     /** 租户过滤排除表 — 这些表不自动注入 tenant_id 条件 */
@@ -23,7 +21,8 @@ public class MybatisPlusConfig {
             "tenant", "user_tenant", "role", "tenant_ip_mapping"
     );
 
-    private final TenantAppContext tenantAppContext;
+    @Value("${zestflow.admin.tenant-id:1}")
+    private Long defaultTenantId;
 
     @Bean
     public MybatisPlusInterceptor mybatisPlusInterceptor() {
@@ -33,8 +32,8 @@ public class MybatisPlusConfig {
         tenantInterceptor.setTenantLineHandler(new TenantLineHandler() {
             @Override
             public Expression getTenantId() {
-                Long tenantId = tenantAppContext.getCurrentTenantId();
-                return new LongValue(tenantId != null ? tenantId : 1L);
+                Long tenantId = TenantContextHolder.getTenantId();
+                return new LongValue(tenantId != null ? tenantId : defaultTenantId);
             }
 
             @Override

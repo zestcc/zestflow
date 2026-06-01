@@ -1,9 +1,7 @@
 package com.zestflow.admin.config;
 
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
-import com.zestflow.admin.service.TenantAppContext;
 import com.zestflow.admin.util.SecurityUtils;
-import lombok.RequiredArgsConstructor;
 import org.apache.ibatis.reflection.MetaObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -11,13 +9,13 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 
 @Component
-@RequiredArgsConstructor
 public class MyMetaObjectHandler implements MetaObjectHandler {
 
     @Value("${zestflow.admin.system-user:sys}")
     private String systemUser;
 
-    private final TenantAppContext tenantAppContext;
+    @Value("${zestflow.admin.tenant-id:1}")
+    private Long defaultTenantId;
 
     @Override
     public void insertFill(MetaObject metaObject) {
@@ -62,10 +60,11 @@ public class MyMetaObjectHandler implements MetaObjectHandler {
 
     private void fillTenantId(MetaObject metaObject) {
         if (metaObject.hasSetter("tenantId")) {
-            Long tenantId = tenantAppContext.getCurrentTenantId();
-            if (tenantId != null) {
-                this.setFieldValByName("tenantId", tenantId, metaObject);
+            Long tenantId = TenantContextHolder.getTenantId();
+            if (tenantId == null) {
+                tenantId = defaultTenantId;
             }
+            this.setFieldValByName("tenantId", tenantId, metaObject);
         }
     }
 }
