@@ -1,5 +1,6 @@
 package com.zestflow.admin.client;
 
+import com.zestflow.admin.service.CollectorRegistryService;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -29,8 +30,9 @@ public class CollectorConfig {
 
     @Bean
     public CollectorClient collectorClient(RestTemplate restTemplate,
-                                            CollectorClientProperties properties) {
-        return new CollectorClient(restTemplate, properties.getApiUrl(), properties.getAccessToken());
+                                            CollectorClientProperties properties,
+                                            CollectorRegistryService registryService) {
+        return new CollectorClient(restTemplate, properties.getAccessToken(), registryService, properties);
     }
 
     @Bean
@@ -42,8 +44,8 @@ public class CollectorConfig {
     @Data
     @ConfigurationProperties(prefix = "zestflow.collector")
     public static class CollectorClientProperties {
-        /** Collector API 地址，如 http://localhost:8081 */
-        private String apiUrl = "http://localhost:8081";
+        /** Collector API 地址（可选），为空则从注册表查找在线采集器 */
+        private String apiUrl = "";
 
         /** Collector 认证令牌 */
         private String accessToken = "";

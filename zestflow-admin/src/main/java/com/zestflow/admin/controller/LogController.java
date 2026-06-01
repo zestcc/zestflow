@@ -103,18 +103,32 @@ public class LogController {
     /**
      * 解析采集器地址
      * <p>
-     * 优先级：配置的 api-url > 注册表中第一个在线采集器
-     * 配置的 api-url 优先，因为嵌入式模式下采集器注册端口（9998）与 HTTP 服务端口（8081）不一致，
-     * 导致 registry 地址不可用。已配置 api-url 说明运维指定了正确的采集器端点。
+     * 优先级：注册表中第一个在线采集器 > 配置的 api-url（可选兜底）
+     * 采集器启动时自动注册到 Admin，上报 host:port，Admin 据此直连。
+     * api-url 仅在无在线采集器时作为兜底，用于特殊网络拓扑。
      */
     private String resolveCollectorBaseUrl() {
-        if (collectorApiUrl != null && !collectorApiUrl.isEmpty()) {
-            return collectorApiUrl;
+        return resolveCollectorBaseUrl(null);
+    }
+
+    private String resolveCollectorBaseUrl(String appCode) {
+        // 1. 按 appCode 查找精度最高
+        if (appCode != null) {
+            List<CollectorRegistryVO> matched = collectorRegistryService.listOnlineByAppCode(appCode);
+            if (!matched.isEmpty()) {
+                return "http://" + matched.get(0).getCollectorHost() + ":" + matched.get(0).getCollectorPort();
+            }
         }
+        // 2. 任意在线采集器
         List<CollectorRegistryVO> collectors = collectorRegistryService.listAllOnline();
         if (!collectors.isEmpty()) {
             CollectorRegistryVO c = collectors.get(0);
             return "http://" + c.getCollectorHost() + ":" + c.getCollectorPort();
+        }
+        // 3. 配置兜底
+        if (collectorApiUrl != null && !collectorApiUrl.isEmpty()) {
+            log.info("注册表中无在线采集器，使用配置的 api-url={}", collectorApiUrl);
+            return collectorApiUrl;
         }
         log.warn("无在线采集器可用且未配置 zestflow.collector.api-url，日志查询返回空");
         return null;

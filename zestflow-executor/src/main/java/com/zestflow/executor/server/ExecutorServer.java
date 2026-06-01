@@ -25,6 +25,7 @@ public class ExecutorServer {
 
     private final int port;
     private final ServerHandler serverHandler;
+    private final String accessToken;
 
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
@@ -32,9 +33,12 @@ public class ExecutorServer {
 
     public ExecutorServer(int port, ChainExecutionEngine engine,
                           ChainRepository chainRepo, DesignRepository designRepo,
-                          ComponentScanner componentScanner, ChainLoader chainLoader) {
+                          ComponentScanner componentScanner, ChainLoader chainLoader,
+                          String accessToken) {
         this.port = port;
+        this.accessToken = accessToken;
         this.serverHandler = new ServerHandler(engine, chainRepo, designRepo, componentScanner, chainLoader);
+        this.serverHandler.setAccessToken(accessToken);
     }
 
     public void setRequestMappingHandlerMapping(

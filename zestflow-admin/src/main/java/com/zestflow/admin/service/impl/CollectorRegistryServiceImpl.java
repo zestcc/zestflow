@@ -122,6 +122,16 @@ public class CollectorRegistryServiceImpl implements CollectorRegistryService {
     }
 
     @Override
+    public List<CollectorRegistryVO> listOnlineByAppCode(String appCode) {
+        List<CollectorRegistryPO> list = collectorRegistryMapper.selectList(
+                new LambdaQueryWrapper<CollectorRegistryPO>()
+                        .eq(CollectorRegistryPO::getStatus, RegistryConstants.STATUS_ONLINE)
+                        .eq(CollectorRegistryPO::getAppCode, appCode)
+        );
+        return list.stream().map(this::enrichVO).collect(Collectors.toList());
+    }
+
+    @Override
     public List<CollectorRegistryVO> listAll() {
         Set<String> accessibleCodes = tenantAppContext.getCurrentUserAppCodes();
         LambdaQueryWrapper<CollectorRegistryPO> wrapper = new LambdaQueryWrapper<>();

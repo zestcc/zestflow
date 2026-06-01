@@ -12,7 +12,6 @@ import com.zestflow.admin.playground.service.PlaygroundSceneService;
 import com.zestflow.admin.service.TenantAppContext;
 import com.zestflow.common.util.CodeGenerator;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -30,9 +29,6 @@ public class PlaygroundSceneServiceImpl implements PlaygroundSceneService {
 
     private final PlaygroundSceneMapper sceneMapper;
     private final TenantAppContext tenantAppContext;
-
-    @Value("${zestflow.playground.app-code:playground-app}")
-    private String defaultAppCode;
 
     @Override
     public IPage<PlaygroundSceneVO> queryPage(String keyword, String appCode, int page, int size) {
@@ -88,7 +84,7 @@ public class PlaygroundSceneServiceImpl implements PlaygroundSceneService {
         po.setChainCode(dto.getChainCode());
         po.setRateLimit(dto.getRateLimit() != null ? dto.getRateLimit() : 30);
         po.setTenantId(tenantAppContext.getCurrentTenantId());
-        po.setAppCode(StringUtils.hasText(dto.getAppCode()) ? dto.getAppCode() : defaultAppCode);
+        po.setAppCode(StringUtils.hasText(dto.getAppCode()) ? dto.getAppCode() : null);
         sceneMapper.insert(po);
         return toVO(po);
     }

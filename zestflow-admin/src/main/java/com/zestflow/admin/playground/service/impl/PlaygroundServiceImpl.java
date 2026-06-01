@@ -14,7 +14,6 @@ import com.zestflow.admin.service.TenantAppContext;
 import com.zestflow.common.model.dto.ChainExecuteRequestDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpEntity;
@@ -48,9 +47,6 @@ public class PlaygroundServiceImpl implements PlaygroundService {
     private final PlaygroundRateLimiter rateLimiter;
     private final TenantAppContext tenantAppContext;
     private final RestTemplate restTemplate;
-
-    @Value("${zestflow.playground.app-code:playground-app}")
-    private String defaultAppCode;
 
     @Override
     public Map<String, Object> executeScene(String sceneCode, Map<String, Object> params, String requestIp) {
@@ -105,7 +101,7 @@ public class PlaygroundServiceImpl implements PlaygroundService {
                         .build();
 
                 String body = MAPPER.writeValueAsString(request);
-                resultJson = proxyService.executeOnExecutor(defaultAppCode, "POST", "/execute", body);
+                resultJson = proxyService.executeOnExecutor(scene.getAppCode(), "POST", "/execute", body);
                 log.info("演示执行完成 sceneCode={} chainCode={}", sceneCode, scene.getChainCode());
 
                 ObjectNode resultNode = (ObjectNode) MAPPER.readTree(resultJson);
@@ -139,7 +135,7 @@ public class PlaygroundServiceImpl implements PlaygroundService {
         record.setErrorMsg(errorMsg);
         record.setRequestIp(requestIp);
         record.setTenantId(tenantAppContext.getCurrentTenantId());
-        record.setAppCode(defaultAppCode);
+        record.setAppCode(scene.getAppCode());
         record.setCreatedAt(LocalDateTime.now());
         recordMapper.insert(record);
 

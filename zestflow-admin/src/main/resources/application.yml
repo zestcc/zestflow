@@ -62,12 +62,6 @@ zestflow:
   playground:
     # 开关：true 启用系统演示功能（含演示场景、演示记录、试验场），false 关闭（默认关闭）
     enabled: true
-    # 演示链所属应用编码（Executor 注册时使用的 appCode）
-    app-code: playground-app
-  collector:
-    api-url: http://localhost:8081
-    access-token: ''
-
   mail:
     # 总开关：false 时不执行真实邮件发送，MailService 由 NoopMailService 兜底
     # 生产环境在 application-local.yml 中覆盖为 true

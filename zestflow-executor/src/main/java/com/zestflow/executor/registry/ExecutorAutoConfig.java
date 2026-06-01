@@ -40,7 +40,7 @@ public class ExecutorAutoConfig {
                                           ComponentScanner componentScanner,
                                           ChainLoader chainLoader) {
         return new ExecutorServer(properties.getPort(), chainExecutionEngine,
-                chainRepo, designRepo, componentScanner, chainLoader);
+                chainRepo, designRepo, componentScanner, chainLoader, properties.getAccessToken());
     }
 
     @Bean
