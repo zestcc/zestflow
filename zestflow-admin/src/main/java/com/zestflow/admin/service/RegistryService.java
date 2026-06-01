@@ -6,7 +6,7 @@ import com.zestflow.common.model.dto.HeartbeatDTO;
 public interface RegistryService {
 
     /** 执行器注册 */
-    void register(RegisterDTO dto);
+    void register(RegisterDTO dto, Long tenantId);
 
     /** 执行器心跳 */
     void heartbeat(HeartbeatDTO dto);

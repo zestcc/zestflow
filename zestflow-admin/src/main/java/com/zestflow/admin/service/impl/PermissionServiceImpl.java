@@ -47,7 +47,7 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     @Override
-    @Cacheable(value = CACHE_NAME, key = "'appCodes:' + #userId")
+    @Cacheable(value = CACHE_NAME, key = "'appCodes:' + #userId + ':' + @tenantAppContext.getCurrentTenantId()")
     public Set<String> getAccessibleAppCodes(Long userId) {
         if (isSuperAdmin(userId)) {
             return Collections.emptySet();
@@ -60,7 +60,7 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     @Override
-    @Cacheable(value = CACHE_NAME, key = "'hasPerm:' + #userId + ':' + #appCode + ':' + #requiredRoleCode")
+    @Cacheable(value = CACHE_NAME, key = "'hasPerm:' + #userId + ':' + #appCode + ':' + #requiredRoleCode + ':' + T(com.zestflow.admin.config.TenantContextHolder).getTenantId()")
     public boolean hasAppPermission(Long userId, String appCode, String requiredRoleCode) {
         if (isSuperAdmin(userId)) {
             return true;
@@ -89,7 +89,7 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     @Override
-    @Cacheable(value = CACHE_NAME, key = "'appRole:' + #userId + ':' + #appCode")
+    @Cacheable(value = CACHE_NAME, key = "'appRole:' + #userId + ':' + #appCode + ':' + @tenantAppContext.getCurrentTenantId()")
     public String getAppRole(Long userId, String appCode) {
         UserAppRolePO assignment = userAppRoleMapper.selectOne(
                 new LambdaQueryWrapper<UserAppRolePO>()

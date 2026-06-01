@@ -29,6 +29,11 @@ instance.interceptors.request.use(
     // 发送当前语言，后端通过 Accept-Language 决定国际化消息
     const locale = localStorage.getItem('locale') || 'zh-CN'
     config.headers['Accept-Language'] = locale
+    // 注入当前租户 ID
+    const tenantId = localStorage.getItem('currentTenantId')
+    if (tenantId) {
+      config.headers['X-Tenant-Id'] = tenantId
+    }
     return config
   },
   (error) => Promise.reject(error),

@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { useTenantStore } from '@/stores/tenant'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -145,6 +146,12 @@ const routes: RouteRecordRaw[] = [
             component: () => import('@/views/settings/DictTypesPage.vue'),
             meta: { title: '字典管理' },
           },
+          {
+            path: 'tenants',
+            name: 'TenantManage',
+            component: () => import('@/views/tenant/TenantManagePage.vue'),
+            meta: { title: '租户管理' },
+          },
         ],
       },
     ],
@@ -171,6 +178,13 @@ router.beforeEach((to, _from, next) => {
     // 需要强制改密，跳转到改密页
     next({ name: 'ForcePassword' })
   } else {
+    // 登录后初始化租户（页面刷新时从 localStorage 恢复）
+    if (isLoggedIn) {
+      const tenantStore = useTenantStore()
+      if (!tenantStore.currentTenantId && localStorage.getItem('currentTenantId')) {
+        tenantStore.initFromStorage()
+      }
+    }
     next()
   }
 })

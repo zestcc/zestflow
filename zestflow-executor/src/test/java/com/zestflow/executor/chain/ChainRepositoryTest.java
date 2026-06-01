@@ -33,7 +33,7 @@ class ChainRepositoryTest {
 
     @BeforeEach
     void setUp() {
-        repo = new ChainRepository(jdbc);
+        repo = new ChainRepository(jdbc, 1L);
     }
 
     // ==================== incrementVersion ====================
@@ -41,21 +41,21 @@ class ChainRepositoryTest {
     @Test
     void incrementVersionIncrementsAndReturnsNewVersion() {
         ChainPO updated = ChainPO.builder().code("CHN001").version(3).build();
-        when(jdbc.update(anyString(), anyString(), anyString())).thenReturn(1);
-        when(jdbc.query(anyString(), any(RowMapper.class), anyString()))
+        when(jdbc.update(anyString(), anyString(), anyString(), anyLong())).thenReturn(1);
+        when(jdbc.query(anyString(), any(RowMapper.class), anyString(), anyLong()))
                 .thenReturn(List.of(updated));
 
         int newVersion = repo.incrementVersion("CHN001");
 
         assertThat(newVersion).isEqualTo(3);
-        verify(jdbc).update(sqlCaptor.capture(), anyString(), anyString());
+        verify(jdbc).update(sqlCaptor.capture(), anyString(), anyString(), anyLong());
         assertThat(sqlCaptor.getValue()).contains("version = version + 1");
     }
 
     @Test
     void incrementVersionNonExistentChainReturnsOne() {
-        when(jdbc.update(anyString(), anyString(), anyString())).thenReturn(0);
-        when(jdbc.query(anyString(), any(RowMapper.class), anyString()))
+        when(jdbc.update(anyString(), anyString(), anyString(), anyLong())).thenReturn(0);
+        when(jdbc.query(anyString(), any(RowMapper.class), anyString(), anyLong()))
                 .thenReturn(List.of());
 
         int newVersion = repo.incrementVersion("NON_EXISTENT");
@@ -94,7 +94,7 @@ class ChainRepositoryTest {
         when(rs.getString("created_by")).thenReturn("admin", "admin");
         when(rs.getString("created_at")).thenReturn("2026-05-31 12:00:00", "2026-05-30 12:00:00");
 
-        when(jdbc.query(anyString(), any(RowMapper.class), anyString()))
+        when(jdbc.query(anyString(), any(RowMapper.class), anyString(), anyLong()))
                 .thenAnswer(invocation -> {
                     RowMapper<ChainVersionPO> mapper = invocation.getArgument(1);
                     ChainVersionPO v1 = mapper.mapRow(rs, 0);
@@ -108,7 +108,7 @@ class ChainRepositoryTest {
 
     @Test
     void listVersionSnapshotsEmpty() {
-        when(jdbc.query(anyString(), any(RowMapper.class), anyString()))
+        when(jdbc.query(anyString(), any(RowMapper.class), anyString(), anyLong()))
                 .thenReturn(List.of());
 
         List<ChainVersionPO> result = repo.listVersionSnapshots("CHN001");
@@ -125,7 +125,7 @@ class ChainRepositoryTest {
         when(rs.getString("chain_code")).thenReturn("CHN001");
         when(rs.getInt("version")).thenReturn(2);
 
-        when(jdbc.query(anyString(), any(RowMapper.class), anyString(), anyInt()))
+        when(jdbc.query(anyString(), any(RowMapper.class), anyString(), anyInt(), anyLong()))
                 .thenAnswer(invocation -> {
                     RowMapper<ChainVersionPO> mapper = invocation.getArgument(1);
                     return java.util.List.of(mapper.mapRow(rs, 0));
@@ -140,7 +140,7 @@ class ChainRepositoryTest {
 
     @Test
     void getVersionSnapshotNotFound() {
-        when(jdbc.query(anyString(), any(RowMapper.class), anyString(), anyInt()))
+        when(jdbc.query(anyString(), any(RowMapper.class), anyString(), anyInt(), anyLong()))
                 .thenReturn(List.of());
 
         ChainVersionPO result = repo.getVersionSnapshot("CHN001", 99);
@@ -181,12 +181,12 @@ class ChainRepositoryTest {
         // Verify chain status reset to 2 (no design_code set)
         verify(jdbc).update(
                 argThat(sql -> sql.contains("UPDATE zf_chain") && sql.contains("status = 2")),
-                eq("sys"), anyString(), eq("CHN001"));
+                eq("sys"), anyString(), eq("CHN001"), eq(1L));
 
         // Verify design restore
         verify(jdbc).update(
                 argThat(sql -> sql.contains("UPDATE zf_design")),
-                eq("{\"old\":true}"), eq("[\"old\"]"), eq("sys"), anyString(), eq("DSN_OLD"));
+                eq("{\"old\":true}"), eq("[\"old\"]"), eq("sys"), anyString(), eq("DSN_OLD"), eq(1L));
     }
 
     @Test

@@ -46,7 +46,7 @@ class ChainControllerTest {
     void list_superAdmin_bypassesPermissionCheck() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(1L, true));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(1L, true, 1L));
         when(proxyService.getFromExecutor(eq("app-a"), anyString(), anyString()))
                 .thenReturn("{\"records\":[],\"total\":0}");
 
@@ -59,7 +59,7 @@ class ChainControllerTest {
     void list_normalUser_withViewerPermission() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false, 1L));
         when(permissionService.hasAppPermission(2L, "app-a", "APP_VIEWER")).thenReturn(true);
         when(proxyService.getFromExecutor(eq("app-a"), anyString(), anyString()))
                 .thenReturn("{\"records\":[],\"total\":0}");
@@ -73,7 +73,7 @@ class ChainControllerTest {
     void list_normalUser_withoutPermission_throws() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false, 1L));
         when(permissionService.hasAppPermission(2L, "app-a", "APP_VIEWER")).thenReturn(false);
 
         assertThatThrownBy(() -> chainController.listByAppCode("app-a", null, null, 1, 10))
@@ -97,7 +97,7 @@ class ChainControllerTest {
     void create_requiresEditorPermission() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false, 1L));
         when(permissionService.hasAppPermission(2L, "app-a", "APP_EDITOR")).thenReturn(true);
         when(proxyService.executeOnExecutor(eq("app-a"), anyString(), anyString(), anyString()))
                 .thenReturn("{\"code\":200}");
@@ -113,7 +113,7 @@ class ChainControllerTest {
     void delete_requiresAdminPermission() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false, 1L));
         when(permissionService.hasAppPermission(2L, "app-a", "APP_ADMIN")).thenReturn(true);
         when(proxyService.executeOnExecutor(eq("app-a"), anyString(), anyString(), any()))
                 .thenReturn("{\"code\":200}");
@@ -129,7 +129,7 @@ class ChainControllerTest {
     void update_requiresEditorPermission() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false, 1L));
         when(permissionService.hasAppPermission(2L, "app-a", "APP_EDITOR")).thenReturn(true);
         when(proxyService.executeOnExecutor(eq("app-a"), anyString(), anyString(), anyString()))
                 .thenReturn("{\"code\":200}");
@@ -145,7 +145,7 @@ class ChainControllerTest {
     void publish_requiresAdminPermission() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        SecurityUtils.AuthDetails details = new SecurityUtils.AuthDetails(1L, true);
+        SecurityUtils.AuthDetails details = new SecurityUtils.AuthDetails(1L, true, 1L);
         when(authentication.getDetails()).thenReturn(details);
         when(proxyService.resolveAllExecutorUrls(anyString())).thenReturn(java.util.List.of());
         when(proxyService.getFromExecutor(anyString(), anyString(), anyString()))
@@ -163,7 +163,7 @@ class ChainControllerTest {
     void fetchActiveCodes_requiresViewerPermission() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false, 1L));
         when(permissionService.hasAppPermission(2L, "app-a", "APP_VIEWER")).thenReturn(true);
 
         chainController.fetchActiveCodes("app-a");
@@ -175,7 +175,7 @@ class ChainControllerTest {
     void getByCode_requiresViewerPermission() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false, 1L));
         when(permissionService.hasAppPermission(2L, "app-a", "APP_VIEWER")).thenReturn(false);
 
         assertThatThrownBy(() -> chainController.getByCode("chain-1", "app-a"))
@@ -189,7 +189,7 @@ class ChainControllerTest {
     void rollback_requiresAdminPermission() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        SecurityUtils.AuthDetails details = new SecurityUtils.AuthDetails(1L, true);
+        SecurityUtils.AuthDetails details = new SecurityUtils.AuthDetails(1L, true, 1L);
         when(authentication.getDetails()).thenReturn(details);
 
         chainController.rollback("chain-1", 1, "{\"appCode\":\"app-a\"}");
@@ -203,7 +203,7 @@ class ChainControllerTest {
     void toggleStatus_requiresEditorPermission() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false, 1L));
         when(permissionService.hasAppPermission(2L, "app-a", "APP_EDITOR")).thenReturn(true);
         when(proxyService.executeOnExecutor(eq("app-a"), anyString(), anyString(), anyString()))
                 .thenReturn("{\"code\":200}");

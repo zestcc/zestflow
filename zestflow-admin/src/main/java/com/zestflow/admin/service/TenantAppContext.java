@@ -1,5 +1,6 @@
 package com.zestflow.admin.service;
 
+import com.zestflow.admin.config.TenantContextHolder;
 import com.zestflow.admin.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,9 +26,12 @@ public class TenantAppContext {
 
     /**
      * 获取当前租户ID
+     * 优先从 TenantContextHolder 获取（由 JwtAuthFilter/TenantIpFilter 设置），
+     * 回退到配置默认值
      */
     public Long getCurrentTenantId() {
-        return defaultTenantId;
+        Long tenantId = TenantContextHolder.getTenantId();
+        return tenantId != null ? tenantId : defaultTenantId;
     }
 
     /**

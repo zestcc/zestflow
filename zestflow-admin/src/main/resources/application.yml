@@ -49,6 +49,13 @@ zestflow:
       maximum-size: 10000
       # 缓存 TTL（秒）
       ttl-seconds: 60
+  tenant:
+    # 租户模式：single（单租户）/ multi（多租户）
+    mode: single
+    # IP 演示模式：disabled / enabled
+    ip-demo-mode: disabled
+    # IP 租户非活跃超时（分钟）
+    ip-tenant-timeout-minutes: 60
   playground:
     # 开关：true 启用系统演示功能（含演示场景、演示记录、试验场），false 关闭（默认关闭）
     enabled: true

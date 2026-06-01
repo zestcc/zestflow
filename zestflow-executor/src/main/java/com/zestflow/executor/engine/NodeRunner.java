@@ -63,6 +63,8 @@ public class NodeRunner {
     private final String appCode;
     /** 应用名 */
     private final String appName;
+    /** 租户 ID */
+    private final long tenantId;
 
     private static final ObjectMapper JSON_MAPPER = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -100,6 +102,7 @@ public class NodeRunner {
         this.executorId = properties.getAppCode() + "@" + properties.getHost() + ":" + properties.getPort();
         this.appCode = properties.getAppCode();
         this.appName = properties.getAppName() != null ? properties.getAppName() : properties.getAppCode();
+        this.tenantId = properties.getTenantId();
     }
 
     /**
@@ -424,6 +427,7 @@ public class NodeRunner {
                 .executorId(executorId)
                 .appCode(appCode)
                 .appName(appName)
+                .tenantId(tenantId)
                 .params(params)
                 .result(result)
                 .costMs(costMs)

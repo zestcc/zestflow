@@ -8,12 +8,17 @@ import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.model.dto.UserCreateDTO;
 import com.zestflow.admin.model.dto.UserUpdateDTO;
 import com.zestflow.admin.model.entity.RolePO;
+import com.zestflow.admin.model.entity.TenantPO;
 import com.zestflow.admin.model.entity.UserAppRolePO;
 import com.zestflow.admin.model.entity.UserPO;
+import com.zestflow.admin.model.entity.UserTenantPO;
 import com.zestflow.admin.model.vo.UserManageVO;
 import com.zestflow.admin.repository.RoleMapper;
+import com.zestflow.admin.repository.TenantMapper;
 import com.zestflow.admin.repository.UserAppRoleMapper;
 import com.zestflow.admin.repository.UserMapper;
+import com.zestflow.admin.repository.UserTenantMapper;
+import com.zestflow.admin.service.TenantAppContext;
 import com.zestflow.admin.service.UserManageService;
 import com.zestflow.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +44,9 @@ public class UserManageServiceImpl implements UserManageService {
     private final UserAppRoleMapper userAppRoleMapper;
     private final RoleMapper roleMapper;
     private final PasswordEncoder passwordEncoder;
+    private final UserTenantMapper userTenantMapper;
+    private final TenantMapper tenantMapper;
+    private final TenantAppContext tenantAppContext;
 
     private static final String PASSWORD_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
     private static final int PASSWORD_LENGTH = 12;
@@ -46,7 +54,8 @@ public class UserManageServiceImpl implements UserManageService {
 
     @Override
     public List<UserManageVO> listAll() {
-        List<UserPO> users = userMapper.selectList(null);
+        // 用户管理横跨租户，使用忽略租户过滤的查询
+        List<UserPO> users = userMapper.selectAllWithoutTenant();
         if (users.isEmpty()) {
             return Collections.emptyList();
         }
@@ -75,7 +84,7 @@ public class UserManageServiceImpl implements UserManageService {
                 .eq(status != null, UserPO::getStatus, status)
                 .eq(isSuperAdmin != null, UserPO::getIsSuperAdmin, isSuperAdmin);
 
-        Page<UserPO> poPage = userMapper.selectPage(new Page<>(page, size), wrapper);
+        Page<UserPO> poPage = userMapper.selectPageWithoutTenant(new Page<>(page, size), wrapper);
         if (poPage.getRecords().isEmpty()) {
             return poPage.convert(u -> null);
         }
@@ -96,7 +105,7 @@ public class UserManageServiceImpl implements UserManageService {
 
     @Override
     public UserManageVO getById(Long id) {
-        UserPO user = userMapper.selectById(id);
+        UserPO user = userMapper.selectByIdWithoutTenant(id);
         if (user == null) {
             throw new BizException(ErrorCode.USER_NOT_FOUND);
         }
@@ -112,17 +121,14 @@ public class UserManageServiceImpl implements UserManageService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public UserManageVO create(UserCreateDTO dto) {
-        Long countByUsername = userMapper.selectCount(
-                new LambdaQueryWrapper<UserPO>().eq(UserPO::getUsername, dto.getUsername())
-        );
+        Long countByUsername = userMapper.countByUsername(dto.getUsername());
         if (countByUsername > 0) {
             throw new BizException(ErrorCode.USERNAME_EXISTS);
         }
 
-        Long countByEmail = userMapper.selectCount(
-                new LambdaQueryWrapper<UserPO>().eq(UserPO::getEmail, dto.getEmail())
-        );
+        Long countByEmail = userMapper.countByEmail(dto.getEmail());
         if (countByEmail > 0) {
             throw new BizException(ErrorCode.EMAIL_EXISTS);
         }
@@ -136,12 +142,21 @@ public class UserManageServiceImpl implements UserManageService {
         user.setStatus(1);
         user.setIsSuperAdmin(dto.getIsSuperAdmin() != null ? dto.getIsSuperAdmin() : 0);
         user.setMustChangePassword(1);
-
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.insert(user);
 
-        log.info("用户创建成功 userId={} username={} isSuperAdmin={}", user.getId(), user.getUsername(), user.getIsSuperAdmin());
+        // 新用户自动绑定到当前租户
+        Long currentTenantId = tenantAppContext.getCurrentTenantId();
+        UserTenantPO ut = new UserTenantPO();
+        ut.setUserId(user.getId());
+        ut.setTenantId(currentTenantId);
+        ut.setIsTenantAdmin(0);
+        ut.setCreatedAt(LocalDateTime.now());
+        userTenantMapper.insert(ut);
+
+        log.info("用户创建成功 userId={} username={} isSuperAdmin={} tenantId={}",
+                user.getId(), user.getUsername(), user.getIsSuperAdmin(), currentTenantId);
         UserManageVO vo = getById(user.getId());
         vo.setGeneratedPassword(rawPassword);
         return vo;
@@ -149,17 +164,13 @@ public class UserManageServiceImpl implements UserManageService {
 
     @Override
     public UserManageVO update(Long id, UserUpdateDTO dto) {
-        UserPO user = userMapper.selectById(id);
+        UserPO user = userMapper.selectByIdWithoutTenant(id);
         if (user == null) {
             throw new BizException(ErrorCode.USER_NOT_FOUND);
         }
 
         if (dto.getUsername() != null) {
-            Long count = userMapper.selectCount(
-                    new LambdaQueryWrapper<UserPO>()
-                            .eq(UserPO::getUsername, dto.getUsername())
-                            .ne(UserPO::getId, id)
-            );
+            Long count = userMapper.countByUsernameExcludingId(dto.getUsername(), id);
             if (count > 0) {
                 throw new BizException(ErrorCode.USERNAME_EXISTS);
             }
@@ -167,11 +178,7 @@ public class UserManageServiceImpl implements UserManageService {
         }
 
         if (dto.getEmail() != null) {
-            Long count = userMapper.selectCount(
-                    new LambdaQueryWrapper<UserPO>()
-                            .eq(UserPO::getEmail, dto.getEmail())
-                            .ne(UserPO::getId, id)
-            );
+            Long count = userMapper.countByEmailExcludingId(dto.getEmail(), id);
             if (count > 0) {
                 throw new BizException(ErrorCode.EMAIL_EXISTS);
             }
@@ -191,12 +198,15 @@ public class UserManageServiceImpl implements UserManageService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
-        UserPO user = userMapper.selectById(id);
+        UserPO user = userMapper.selectByIdWithoutTenant(id);
         if (user == null) {
             throw new BizException(ErrorCode.USER_NOT_FOUND);
         }
         userAppRoleMapper.delete(
                 new LambdaQueryWrapper<UserAppRolePO>().eq(UserAppRolePO::getUserId, id)
+        );
+        userTenantMapper.delete(
+                new LambdaQueryWrapper<UserTenantPO>().eq(UserTenantPO::getUserId, id)
         );
         userMapper.deleteById(id);
         log.info("用户删除成功 userId={} username={}", id, user.getUsername());
@@ -204,7 +214,7 @@ public class UserManageServiceImpl implements UserManageService {
 
     @Override
     public String resetPassword(Long id) {
-        UserPO user = userMapper.selectById(id);
+        UserPO user = userMapper.selectByIdWithoutTenant(id);
         if (user == null) {
             throw new BizException(ErrorCode.USER_NOT_FOUND);
         }
@@ -221,7 +231,7 @@ public class UserManageServiceImpl implements UserManageService {
     @Override
     @CacheEvict(value = "permissions", allEntries = true)
     public void assignAppRole(Long userId, String appCode, Long roleId) {
-        UserPO user = userMapper.selectById(userId);
+        UserPO user = userMapper.selectByIdWithoutTenant(userId);
         if (user == null) {
             throw new BizException(ErrorCode.USER_NOT_FOUND);
         }
@@ -286,6 +296,22 @@ public class UserManageServiceImpl implements UserManageService {
                 })
                 .collect(Collectors.toList());
 
+        // 获取用户的租户关联信息
+        List<UserTenantPO> userTenants = userTenantMapper.selectList(
+                new LambdaQueryWrapper<UserTenantPO>().eq(UserTenantPO::getUserId, user.getId())
+        );
+        List<UserManageVO.UserTenantAssignmentVO> tenantVOs = userTenants.stream()
+                .map(ut -> {
+                    TenantPO tenant = tenantMapper.selectById(ut.getTenantId());
+                    return UserManageVO.UserTenantAssignmentVO.builder()
+                            .tenantId(ut.getTenantId())
+                            .tenantName(tenant != null ? tenant.getName() : null)
+                            .tenantCode(tenant != null ? tenant.getCode() : null)
+                            .isTenantAdmin(ut.getIsTenantAdmin())
+                            .build();
+                })
+                .collect(Collectors.toList());
+
         return UserManageVO.builder()
                 .id(user.getId())
                 .username(user.getUsername())
@@ -294,6 +320,7 @@ public class UserManageServiceImpl implements UserManageService {
                 .status(user.getStatus())
                 .isSuperAdmin(user.getIsSuperAdmin())
                 .appRoles(roleVOs)
+                .userTenants(tenantVOs)
                 .mustChangePassword(user.getMustChangePassword())
                 .updatedBy(user.getUpdatedBy())
                 .createdAt(user.getCreatedAt())

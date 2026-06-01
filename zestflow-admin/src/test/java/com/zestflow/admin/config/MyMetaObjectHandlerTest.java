@@ -2,6 +2,7 @@ package com.zestflow.admin.config;
 
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
+import com.zestflow.admin.service.TenantAppContext;
 import com.zestflow.admin.util.SecurityUtils;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.apache.ibatis.reflection.MetaObject;
@@ -17,18 +18,21 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class MyMetaObjectHandlerTest {
 
     @Mock private Authentication authentication;
+    @Mock private TenantAppContext tenantAppContext;
 
     private MyMetaObjectHandler handler;
 
     @BeforeEach
     void setUp() {
-        handler = new MyMetaObjectHandler();
+        lenient().when(tenantAppContext.getCurrentTenantId()).thenReturn(1L);
+        handler = new MyMetaObjectHandler(tenantAppContext);
         // 用反射设置 systemUser 字段，避免 @Value 依赖
         try {
             java.lang.reflect.Field field = MyMetaObjectHandler.class.getDeclaredField("systemUser");

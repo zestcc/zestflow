@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { LoginDTO, RegisterDTO, UpdateProfileDTO, UserVO } from '@/api/auth'
 import { authApi } from '@/api/auth'
+import { useTenantStore } from '@/stores/tenant'
 import router from '@/router'
 
 export const useUserStore = defineStore('user', () => {
@@ -15,6 +16,12 @@ export const useUserStore = defineStore('user', () => {
     user.value = res.user
     localStorage.setItem('token', res.token)
     mustChangePassword.value = res.user?.mustChangePassword === 1
+    // 初始化租户
+    if (res.tenants || res.currentTenant) {
+      const tenantStore = useTenantStore()
+      tenantStore.initFromLogin(res)
+      tenantStore.persistTenantId()
+    }
   }
 
   async function register(data: RegisterDTO) {
@@ -53,6 +60,8 @@ export const useUserStore = defineStore('user', () => {
     user.value = null
     mustChangePassword.value = false
     localStorage.removeItem('token')
+    const tenantStore = useTenantStore()
+    tenantStore.clear()
     router.push({ name: 'Login' })
   }
 

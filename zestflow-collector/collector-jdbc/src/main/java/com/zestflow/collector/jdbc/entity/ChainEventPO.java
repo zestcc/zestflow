@@ -52,6 +52,9 @@ public class ChainEventPO {
     /** 应用名 */
     private String appName;
 
+    /** 租户 ID */
+    private Long tenantId;
+
     /** 执行入参 JSON */
     private String params;
 

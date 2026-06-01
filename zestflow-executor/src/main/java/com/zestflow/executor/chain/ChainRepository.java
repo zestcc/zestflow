@@ -34,9 +34,11 @@ public class ChainRepository {
     };
 
     private final JdbcTemplate jdbc;
+    private final long tenantId;
 
-    public ChainRepository(JdbcTemplate jdbcTemplate) {
+    public ChainRepository(JdbcTemplate jdbcTemplate, long tenantId) {
         this.jdbc = jdbcTemplate;
+        this.tenantId = tenantId;
     }
 
     /**
@@ -51,8 +53,9 @@ public class ChainRepository {
 
     public List<ChainPO> list(String keyword, Integer status) {
         StringBuilder sql = new StringBuilder(
-                "SELECT c.*, b.design_code FROM zf_chain c LEFT JOIN zf_design_binding b ON c.code = b.chain_code WHERE c.is_deleted = 0");
+                "SELECT c.*, b.design_code FROM zf_chain c LEFT JOIN zf_design_binding b ON c.code = b.chain_code WHERE c.is_deleted = 0 AND c.tenant_id = ?");
         List<Object> args = new ArrayList<>();
+        args.add(tenantId);
         if (keyword != null && !keyword.isBlank()) {
             sql.append(" AND (c.name LIKE ? OR c.code LIKE ?)");
             String kw = "%" + keyword + "%";
@@ -69,8 +72,8 @@ public class ChainRepository {
 
     public ChainPO get(String code) {
         List<ChainPO> list = jdbc.query(
-                "SELECT c.*, b.design_code FROM zf_chain c LEFT JOIN zf_design_binding b ON c.code = b.chain_code WHERE c.code = ? AND c.is_deleted = 0",
-                ROW_MAPPER, code);
+                "SELECT c.*, b.design_code FROM zf_chain c LEFT JOIN zf_design_binding b ON c.code = b.chain_code WHERE c.code = ? AND c.is_deleted = 0 AND c.tenant_id = ?",
+                ROW_MAPPER, code, tenantId);
         return list.isEmpty() ? null : list.get(0);
     }
 
@@ -80,7 +83,7 @@ public class ChainRepository {
         String creator = updatedBy != null ? updatedBy : (appCode != null ? appCode : "");
         jdbc.update("INSERT INTO zf_chain(code, name, description, status, version, app_code, tenant_id, created_by, updated_by, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                 code, name, description, status != null ? status : 1, 1,
-                appCode, 1L, creator, creator, now, now);
+                appCode, tenantId, creator, creator, now, now);
         log.info("链创建成功 code={} name={} createdBy={}", code, name, creator);
         return get(code);
     }
@@ -89,12 +92,12 @@ public class ChainRepository {
         ChainPO cur = get(code);
         if (cur == null) return null;
         String now = LocalDateTime.now().format(DTF);
-        jdbc.update("UPDATE zf_chain SET name=?, description=?, status=?, updated_by=?, updated_at=? WHERE code=?",
+        jdbc.update("UPDATE zf_chain SET name=?, description=?, status=?, updated_by=?, updated_at=? WHERE code=? AND tenant_id=?",
                 name != null ? name : cur.getName(),
                 description != null ? description : cur.getDescription(),
                 status != null ? status : cur.getStatus(),
                 updatedBy != null ? updatedBy : cur.getUpdatedBy(),
-                now, code);
+                now, code, tenantId);
         return get(code);
     }
 
@@ -102,8 +105,8 @@ public class ChainRepository {
         ChainPO cur = get(code);
         if (cur == null) return null;
         String now = LocalDateTime.now().format(DTF);
-        jdbc.update("UPDATE zf_chain SET is_deleted=1, updated_by=?, updated_at=? WHERE code=?",
-                updatedBy != null ? updatedBy : cur.getUpdatedBy(), now, code);
+        jdbc.update("UPDATE zf_chain SET is_deleted=1, updated_by=?, updated_at=? WHERE code=? AND tenant_id=?",
+                updatedBy != null ? updatedBy : cur.getUpdatedBy(), now, code, tenantId);
         log.info("链假删成功 code={} updatedBy={}", code, updatedBy);
         return cur;
     }
@@ -119,8 +122,8 @@ public class ChainRepository {
             newStatus = 0;
         }
         String now = LocalDateTime.now().format(DTF);
-        jdbc.update("UPDATE zf_chain SET status=?, updated_by=?, updated_at=? WHERE code=?",
-                newStatus, updatedBy != null ? updatedBy : cur.getUpdatedBy(), now, code);
+        jdbc.update("UPDATE zf_chain SET status=?, updated_by=?, updated_at=? WHERE code=? AND tenant_id=?",
+                newStatus, updatedBy != null ? updatedBy : cur.getUpdatedBy(), now, code, tenantId);
         log.info("链状态切换 code={} newStatus={} updatedBy={}", code, newStatus, updatedBy);
         return get(code);
     }
@@ -128,8 +131,8 @@ public class ChainRepository {
     /** 回退绑定链的发布状态（graphData 修改时触发） */
     public void resetBoundChainStatus(String designCode, String updatedBy) {
         jdbc.update("UPDATE zf_chain c INNER JOIN zf_design_binding b ON c.code = b.chain_code" +
-                        " SET c.status = 2, c.updated_by = ?, c.updated_at = ? WHERE b.design_code = ? AND c.status IN (3, 4)",
-                updatedBy != null ? updatedBy : "", LocalDateTime.now().format(DTF), designCode);
+                        " SET c.status = 2, c.updated_by = ?, c.updated_at = ? WHERE b.design_code = ? AND c.status IN (3, 4) AND c.tenant_id = ?",
+                updatedBy != null ? updatedBy : "", LocalDateTime.now().format(DTF), designCode, tenantId);
     }
 
     // ==================== 版本化 ====================
@@ -154,7 +157,7 @@ public class ChainRepository {
      */
     public int incrementVersion(String code) {
         String now = LocalDateTime.now().format(DTF);
-        jdbc.update("UPDATE zf_chain SET version = version + 1, updated_at = ? WHERE code = ?", now, code);
+        jdbc.update("UPDATE zf_chain SET version = version + 1, updated_at = ? WHERE code = ? AND tenant_id = ?", now, code, tenantId);
         ChainPO updated = get(code);
         return updated != null ? updated.getVersion() : 1;
     }
@@ -169,7 +172,7 @@ public class ChainRepository {
         String appCode = cur != null ? cur.getAppCode() : null;
         jdbc.update("INSERT INTO zf_chain_version(chain_code, version, design_code, graph_data, chain_data, app_code, tenant_id, created_by, created_at) VALUES(?,?,?,?,?,?,?,?,?)",
                 chainCode, version, designCode, graphData, chainData,
-                appCode, 1L, createdBy != null ? createdBy : "", now);
+                appCode, tenantId, createdBy != null ? createdBy : "", now);
         log.info("版本快照已保存 chainCode={} version={}", chainCode, version);
     }
 
@@ -177,16 +180,16 @@ public class ChainRepository {
      * 列出链的所有版本快照（按版本号降序）
      */
     public List<ChainVersionPO> listVersionSnapshots(String chainCode) {
-        return jdbc.query("SELECT * FROM zf_chain_version WHERE chain_code = ? ORDER BY version DESC",
-                VERSION_ROW_MAPPER, chainCode);
+        return jdbc.query("SELECT * FROM zf_chain_version WHERE chain_code = ? AND tenant_id = ? ORDER BY version DESC",
+                VERSION_ROW_MAPPER, chainCode, tenantId);
     }
 
     /**
      * 获取指定版本的快照
      */
     public ChainVersionPO getVersionSnapshot(String chainCode, int version) {
-        List<ChainVersionPO> list = jdbc.query("SELECT * FROM zf_chain_version WHERE chain_code = ? AND version = ?",
-                VERSION_ROW_MAPPER, chainCode, version);
+        List<ChainVersionPO> list = jdbc.query("SELECT * FROM zf_chain_version WHERE chain_code = ? AND version = ? AND tenant_id = ?",
+                VERSION_ROW_MAPPER, chainCode, version, tenantId);
         return list.isEmpty() ? null : list.get(0);
     }
 
@@ -212,13 +215,13 @@ public class ChainRepository {
         }
 
         // 重置状态为未发布
-        jdbc.update("UPDATE zf_chain SET status = 2, updated_by = ?, updated_at = ? WHERE code = ?",
-                updater, now, code);
+        jdbc.update("UPDATE zf_chain SET status = 2, updated_by = ?, updated_at = ? WHERE code = ? AND tenant_id = ?",
+                updater, now, code, tenantId);
 
         // 回写快照的 graphData/chainData 到设计表
         if (snapshot.getDesignCode() != null && !snapshot.getDesignCode().isEmpty()) {
-            jdbc.update("UPDATE zf_design SET graph_data = ?, chain_data = ?, updated_by = ?, updated_at = ? WHERE code = ?",
-                    snapshot.getGraphData(), snapshot.getChainData(), updater, now, snapshot.getDesignCode());
+            jdbc.update("UPDATE zf_design SET graph_data = ?, chain_data = ?, updated_by = ?, updated_at = ? WHERE code = ? AND tenant_id = ?",
+                    snapshot.getGraphData(), snapshot.getChainData(), updater, now, snapshot.getDesignCode(), tenantId);
         }
 
         log.info("链回滚成功 code={} targetVersion={} updatedBy={}", code, targetVersion, updatedBy);

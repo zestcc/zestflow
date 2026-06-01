@@ -279,6 +279,7 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
                 .executorId(properties.getAppCode() + "@" + properties.getHost() + ":" + properties.getPort())
                 .appCode(appCode)
                 .appName(properties.getAppName())
+                .tenantId(properties.getTenantId())
                 .params(toJsonString(context != null ? context.snapshot() : null))
                 .result(toJsonString(context != null ? context.snapshot() : null))
                 .timestamp(System.currentTimeMillis())

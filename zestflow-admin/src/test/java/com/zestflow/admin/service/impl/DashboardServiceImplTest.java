@@ -50,7 +50,7 @@ class DashboardServiceImplTest {
                 .thenReturn("{\"total\":10}")   // chainJson → totalChains
                 .thenReturn("{\"total\":3}")    // designJson → totalDesigns
                 .thenReturn("{\"total\":5}");   // enabledJson → enabledChains
-        when(collectorClient.queryStats(anyLong(), any())).thenReturn(
+        when(collectorClient.queryStats(anyLong(), any(), anyLong())).thenReturn(
                 Collections.singletonMap("totalCount", 100));
 
         DashboardStatsVO stats = dashboardService.getStats();
@@ -76,7 +76,7 @@ class DashboardServiceImplTest {
                 .thenReturn("{\"total\":5}")
                 .thenReturn("{\"total\":2}")
                 .thenReturn("{\"total\":3}");
-        when(collectorClient.queryStats(anyLong(), any())).thenReturn(Collections.emptyMap());
+        when(collectorClient.queryStats(anyLong(), any(), anyLong())).thenReturn(Collections.emptyMap());
 
         DashboardStatsVO stats = dashboardService.getStats();
 
@@ -93,7 +93,7 @@ class DashboardServiceImplTest {
         when(executorRegistryMapper.selectList(any())).thenReturn(List.of(appPo));
         when(tenantAppContext.getCurrentUserAppCodes()).thenReturn(Collections.emptySet());
         // 在线执行器数为 0
-        when(collectorClient.queryStats(anyLong(), any())).thenReturn(Collections.emptyMap());
+        when(collectorClient.queryStats(anyLong(), any(), anyLong())).thenReturn(Collections.emptyMap());
 
         DashboardStatsVO stats = dashboardService.getStats();
 
@@ -111,7 +111,7 @@ class DashboardServiceImplTest {
         when(tenantAppContext.getCurrentUserAppCodes()).thenReturn(Collections.emptySet());
         when(proxyService.getFromExecutor(anyString(), anyString(), anyString()))
                 .thenReturn("{\"total\":10}");
-        when(collectorClient.queryStats(anyLong(), any()))
+        when(collectorClient.queryStats(anyLong(), any(), anyLong()))
                 .thenThrow(new RuntimeException("Collector unavailable"));
 
         DashboardStatsVO stats = dashboardService.getStats();

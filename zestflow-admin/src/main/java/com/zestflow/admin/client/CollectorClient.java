@@ -108,11 +108,17 @@ public class CollectorClient {
      */
     @SuppressWarnings("unchecked")
     public Map<String, Object> queryStats(Long startTime, Long endTime) {
+        return queryStats(startTime, endTime, null);
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> queryStats(Long startTime, Long endTime, Long tenantId) {
         try {
             String url = apiUrl + "/collector/events/stats";
             Map<String, Object> requestBody = new LinkedHashMap<>();
             if (startTime != null) requestBody.put("startTime", startTime);
             if (endTime != null) requestBody.put("endTime", endTime);
+            if (tenantId != null) requestBody.put("tenantId", tenantId);
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, buildHeaders());
             Map<String, Object> response = restTemplate.exchange(url, HttpMethod.POST, entity, Map.class).getBody();

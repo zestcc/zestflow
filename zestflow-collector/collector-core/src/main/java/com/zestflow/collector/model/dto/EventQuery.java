@@ -32,6 +32,9 @@ public class EventQuery implements Serializable {
     /** 应用名 */
     private String appName;
 
+    /** 租户 ID */
+    private Long tenantId;
+
     /** 事件类型列表 */
     private List<EventType> eventTypes;
 

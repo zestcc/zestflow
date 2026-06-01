@@ -161,6 +161,7 @@ public class AdminClient {
     private HttpHeaders buildHeaders() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-Tenant-Id", String.valueOf(properties.getTenantId()));
         if (properties.getAccessToken() != null && !properties.getAccessToken().isEmpty()) {
             headers.set("Authorization", "Bearer " + properties.getAccessToken());
         }

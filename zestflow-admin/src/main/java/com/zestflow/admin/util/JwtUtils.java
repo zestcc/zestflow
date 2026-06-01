@@ -22,12 +22,13 @@ public class JwtUtils {
         this.expiration = expiration;
     }
 
-    public String generateToken(Long userId, String username, boolean isSuperAdmin) {
+    public String generateToken(Long userId, String username, boolean isSuperAdmin, Long currentTenantId) {
         Date now = new Date();
         return Jwts.builder()
                 .subject(String.valueOf(userId))
                 .claim("username", username)
                 .claim("isSuperAdmin", isSuperAdmin)
+                .claim("currentTenantId", currentTenantId)
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + expiration))
                 .signWith(key)
@@ -62,5 +63,9 @@ public class JwtUtils {
     public boolean isSuperAdmin(String token) {
         Boolean val = parseToken(token).get("isSuperAdmin", Boolean.class);
         return val != null && val;
+    }
+
+    public Long getCurrentTenantId(String token) {
+        return parseToken(token).get("currentTenantId", Long.class);
     }
 }

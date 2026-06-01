@@ -2,6 +2,7 @@ package com.zestflow.admin.controller;
 
 import com.zestflow.admin.model.vo.CollectorRegistryVO;
 import com.zestflow.admin.service.CollectorRegistryService;
+import com.zestflow.admin.util.SecurityUtils;
 import com.zestflow.collector.client.CollectorQueryClient;
 import com.zestflow.collector.model.dto.EventQuery;
 import com.zestflow.common.model.Result;
@@ -33,6 +34,10 @@ public class LogController {
     @PostMapping("/events/query")
     public Result<CollectorQueryClient.PageResult<CollectorQueryClient.EventQueryResult>> queryEvents(
             @RequestBody EventQuery query) {
+        // 注入当前租户 ID，保证查询隔离
+        if (query.getTenantId() == null) {
+            query.setTenantId(SecurityUtils.getCurrentTenantId());
+        }
         String baseUrl = resolveCollectorBaseUrl();
         if (baseUrl == null) {
             return Result.success(new CollectorQueryClient.PageResult<>(List.of(), 0L, query.getPage(), query.getPageSize()));
@@ -47,6 +52,10 @@ public class LogController {
     @PostMapping("/executions")
     public Result<CollectorQueryClient.PageResult<com.zestflow.collector.model.dto.ExecutionTrace>> queryExecutionTraces(
             @RequestBody EventQuery query) {
+        // 注入当前租户 ID
+        if (query.getTenantId() == null) {
+            query.setTenantId(SecurityUtils.getCurrentTenantId());
+        }
         String baseUrl = resolveCollectorBaseUrl();
         if (baseUrl == null) {
             return Result.success(new CollectorQueryClient.PageResult<>(List.of(), 0L, query.getPage(), query.getPageSize()));
