@@ -25,6 +25,7 @@ export default {
     reset: '重置',
     sessionExpired: '登录已过期，请重新登录',
     networkError: '网络异常',
+    noAppEmpty: '暂无已注册的应用，请先部署执行器',
     last15minutes: '最近15分钟',
     last1hour: '最近1小时',
     last6hours: '最近6小时',

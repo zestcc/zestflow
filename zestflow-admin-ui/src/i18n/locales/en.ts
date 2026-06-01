@@ -22,6 +22,7 @@ export default {
     createdBy: 'Created By',
     sessionExpired: 'Session expired, please login again',
     networkError: 'Network error',
+    noAppEmpty: 'No registered applications. Please deploy an executor first.',
     last15minutes: 'Last 15 minutes',
     last1hour: 'Last 1 hour',
     last6hours: 'Last 6 hours',

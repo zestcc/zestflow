@@ -8,6 +8,7 @@ import com.zestflow.admin.model.vo.ExecutorRegistryVO;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import com.zestflow.admin.service.ExecutorRegistryService;
 import com.zestflow.admin.service.TenantAppContext;
+import com.zestflow.common.constant.RegistryConstants;
 import com.zestflow.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -65,6 +66,23 @@ public class ExecutorRegistryServiceImpl implements ExecutorRegistryService {
         po.setStatus(status);
         po.setLastHeartbeat(java.time.LocalDateTime.now());
         executorRegistryMapper.updateById(po);
+    }
+
+    @Override
+    public List<Map<String, String>> listDistinctOnlineApps() {
+        List<ExecutorRegistryPO> list = executorRegistryMapper.selectList(
+                new QueryWrapper<ExecutorRegistryPO>()
+                        .select("DISTINCT app_code, app_name")
+                        .isNotNull("app_code")
+                        .eq("status", RegistryConstants.STATUS_ONLINE)
+                        .orderByAsc("app_code")
+        );
+        return list.stream().map(po -> {
+            Map<String, String> map = new java.util.HashMap<>();
+            map.put("appCode", po.getAppCode());
+            map.put("appName", po.getAppName() != null ? po.getAppName() : po.getAppCode());
+            return map;
+        }).collect(Collectors.toList());
     }
 
     @Override

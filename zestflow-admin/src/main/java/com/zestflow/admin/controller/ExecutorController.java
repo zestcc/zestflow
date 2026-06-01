@@ -54,7 +54,10 @@ public class ExecutorController {
     }
 
     @GetMapping("/apps")
-    public Result<List<Map<String, String>>> listApps() {
+    public Result<List<Map<String, String>>> listApps(@RequestParam(required = false, defaultValue = "false") boolean online) {
+        if (online) {
+            return Result.success(executorRegistryService.listDistinctOnlineApps());
+        }
         return Result.success(executorRegistryService.listDistinctApps());
     }
 }
