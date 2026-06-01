@@ -9,6 +9,7 @@ import com.zestflow.collector.jdbc.mapper.ChainGraphSnapshotMapper;
 import com.zestflow.collector.jdbc.registry.CollectorAdminClient;
 import com.zestflow.collector.jdbc.registry.CollectorRegistrar;
 import com.zestflow.collector.jdbc.registry.CollectorRegistryProperties;
+import com.zestflow.collector.jdbc.server.CollectorServer;
 import com.zestflow.collector.jdbc.service.ChainGraphSnapshotService;
 import com.zestflow.collector.jdbc.service.JdbcEventQueryService;
 import com.zestflow.common.spi.EventCollector;
@@ -60,12 +61,30 @@ public class CollectorAutoConfig {
         return new MyMetaObjectHandler();
     }
 
+    // ==================== Collector Netty 服务 ====================
+
     /**
-     * REST 控制器仅在 spring-web 环境下生效
+     * Collector Netty HTTP 服务 — 独立端口，供 Admin 查询事件/轨迹/快照
+     * <p>
+     * 端口取自 zestflow.collector.registry.port，线程模型对标 ExecutorServer。
+     * 当 zestflow.collector.netty-enabled=false 时降级为 Spring MVC Controller。
      */
+    @Bean(initMethod = "start", destroyMethod = "stop")
+    @ConditionalOnProperty(prefix = "zestflow.collector", name = "netty-enabled", havingValue = "true", matchIfMissing = true)
+    public CollectorServer collectorServer(EventQueryService eventQueryService,
+                                            ChainGraphSnapshotService snapshotService,
+                                            CollectorRegistryProperties registryProperties,
+                                            CollectorProperties collectorProperties) {
+        int port = registryProperties.getPort() > 0 ? registryProperties.getPort() : 20650;
+        return new CollectorServer(port, eventQueryService, snapshotService, collectorProperties.getAccessToken());
+    }
+
+    // ==================== REST 控制器（Netty 禁用时降级）====================
+
     @Bean
     @ConditionalOnClass(name = "jakarta.servlet.http.HttpServletRequest")
     @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "zestflow.collector", name = "netty-enabled", havingValue = "false")
     public CollectorController collectorController(EventQueryService eventQueryService,
                                                     CollectorProperties properties) {
         return new CollectorController(eventQueryService, properties);
@@ -84,6 +103,7 @@ public class CollectorAutoConfig {
     @Bean
     @ConditionalOnClass(name = "jakarta.servlet.http.HttpServletRequest")
     @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "zestflow.collector", name = "netty-enabled", havingValue = "false")
     public GraphSnapshotController graphSnapshotController(
             ChainGraphSnapshotService snapshotService,
             CollectorProperties properties) {

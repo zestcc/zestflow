@@ -37,6 +37,9 @@ zestflow:
     expiration: 86400000
   upload:
     avatar-dir: uploads/avatars
+  collector:
+    # Collector HTTP API 地址（可选兜底），采集器注册后自动发现，无需配置
+    api-url: http://localhost:20650
   admin:
     # 内部服务间通信协议（http/https）
     protocol: http

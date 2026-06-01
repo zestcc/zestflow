@@ -973,6 +973,11 @@ zestflow:
 | 2026-06 | 修复 `MyMetaObjectHandler` 字段名 `createTime` → `createdAt`，新增 `updatedAt` 自动填充 |
 | 2026-06 | `ChainGraphSnapshotService` 显式设置 `createdAt`/`updatedAt` 绕开 MetaObjectHandler 限制 |
 | 2026-06 | 连线标签文字样式修复：使用 `defaultLabel` + `text` 选择器，`#303133` 深色 + 白色描边抗锯齿 |
+| 2026-06 | Collector Netty 独立服务器搭建（CollectorServer + CollectorServerHandler），采集器注册到 Admin 独立表 collector_registry，端口 20650 |
+| 2026-06 | 修复 CollectorServerHandler 路由匹配 bug：`String.split("/")` 数组首元素为空串，6 个路由的 `parts.length` 判断偏小 1，导致所有 Collector API 返回 404，Admin 日志页无数据 |
+| 2026-06 | 修复 executor-test `application.yml` collector.registry.port 缩进错误（`registry:` 被缩在 `zestflow` 下而非 `zestflow.collector` 下），导致注册端口取 server.port(8081) 而非 20650 |
+| 2026-06 | Admin `application.yml` 新增 `zestflow.collector.api-url: http://localhost:20650` 兜底配置，采集器未注册时可用 |
+| 2026-06 | 编写 CollectorServerHandlerTest（32 用例覆盖 8 路由 + Token 校验 + 错误处理）和 JdbcEventQueryServiceTest（20 用例覆盖 7 查询方法 + 边界条件）|
 
 ## 新机器初始化（事件系统修复已提交，commit c1b1faa）
 
