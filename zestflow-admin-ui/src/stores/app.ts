@@ -1,10 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { getFeatures } from '@/api/system'
+import { executorApi } from '@/api/executor'
 
 export const useAppStore = defineStore('app', () => {
   const sidebarCollapsed = ref(false)
   const playgroundEnabled = ref(false)
+  const hasOnlineApps = ref(false)
 
   function toggleSidebar() {
     sidebarCollapsed.value = !sidebarCollapsed.value
@@ -19,5 +21,14 @@ export const useAppStore = defineStore('app', () => {
     }
   }
 
-  return { sidebarCollapsed, playgroundEnabled, toggleSidebar, fetchFeatures }
+  async function fetchOnlineApps() {
+    try {
+      const apps = await executorApi.listApps(true)
+      hasOnlineApps.value = apps.length > 0
+    } catch {
+      hasOnlineApps.value = false
+    }
+  }
+
+  return { sidebarCollapsed, playgroundEnabled, hasOnlineApps, toggleSidebar, fetchFeatures, fetchOnlineApps }
 })

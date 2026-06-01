@@ -8,8 +8,11 @@
         <AppHeader @toggle-sidebar="appStore.toggleSidebar" />
       </el-header>
       <el-main>
-        <div v-if="!route.meta?.hideTitle" class="page-title">{{ route.meta?.title || '' }}</div>
-        <router-view />
+        <NoAppEmpty v-if="route.meta?.requiresExecutor && !appStore.hasOnlineApps" />
+        <template v-else>
+          <div v-if="!route.meta?.hideTitle" class="page-title">{{ route.meta?.title || '' }}</div>
+          <router-view />
+        </template>
       </el-main>
     </el-container>
   </el-container>
@@ -20,6 +23,7 @@ import { onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { useUserStore } from '@/stores/user'
+import NoAppEmpty from '@/components/NoAppEmpty.vue'
 
 const route = useRoute()
 import AppSidebar from './AppSidebar.vue'
@@ -30,6 +34,7 @@ const userStore = useUserStore()
 
 onMounted(() => {
   userStore.getUserInfo()
+  appStore.fetchOnlineApps()
 })
 </script>
 

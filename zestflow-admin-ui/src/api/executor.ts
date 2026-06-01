@@ -26,7 +26,7 @@ export const executorApi = {
   updateStatus(executorId: number, status: number) {
     return http.put<void>(`/executors/${executorId}/status`, { status })
   },
-  listApps() {
-    return http.get<AppOption[]>('/executors/apps')
+  listApps(online?: boolean) {
+    return http.get<AppOption[]>('/executors/apps', { params: { online: online || false } })
   },
 }

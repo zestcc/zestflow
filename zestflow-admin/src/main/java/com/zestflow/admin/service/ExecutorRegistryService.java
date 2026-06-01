@@ -14,4 +14,7 @@ public interface ExecutorRegistryService {
     void updateStatus(String executorId, Integer status);
 
     List<Map<String, String>> listDistinctApps();
+
+    /** 查询有在线执行器的 appCode 列表 */
+    List<Map<String, String>> listDistinctOnlineApps();
 }
