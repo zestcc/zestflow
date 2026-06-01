@@ -13,15 +13,14 @@ spring:
   mvc:
     locale-resolver: accept-header
   mail:
-    host: smtp.126.com
+    # 以下连接配置在 application-local.yml 中按环境覆盖
+    host: ''
     port: 465
     username: ''
     password: ''
     properties:
       mail.smtp.auth: true
       mail.smtp.ssl.enable: true
-      mail.smtp.ssl.trust: smtp.126.com
-      mail.smtp.socketFactory.class: javax.net.ssl.SSLSocketFactory
   servlet:
     multipart:
       max-file-size: 5MB
@@ -33,7 +32,8 @@ spring:
 
 zestflow:
   jwt:
-    secret: ZestFlow_admin_2024_JWT_Secret_Key_Must_Be_At_Least_256_Bits_Long_!!_
+    # 生产环境在 application-local.yml 或环境变量中覆盖
+    secret: ZestFlow_dev_JWT_Secret_Key_Change_Me_In_Production_!!_
     expiration: 86400000
   upload:
     avatar-dir: uploads/avatars
@@ -46,6 +46,7 @@ zestflow:
       email: admin@zestflow.com
     cache:
       # 缓存类型：simple（默认，零依赖）/ caffeine（生产本地）/ redis（集群）
+      # 本地开发在 application-local.yml 中覆盖为 simple
       type: caffeine
       # Caffeine 最大条目数
       maximum-size: 10000
@@ -69,7 +70,8 @@ zestflow:
 
   mail:
     # 总开关：false 时不执行真实邮件发送，MailService 由 NoopMailService 兜底
-    enabled: true
+    # 生产环境在 application-local.yml 中覆盖为 true
+    enabled: false
     # 前端访问地址（用于拼接重置/验证链接）
     base-url: ${APP_BASE_URL:http://localhost:8080}
     # 发件人显示名称
@@ -84,7 +86,8 @@ mybatis-plus:
   type-aliases-package: com.zestflow.admin.model.entity
   configuration:
     map-underscore-to-camel-case: true
-#    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    # 本地开发在 application-local.yml 中取消注释以打印 SQL
+    # log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
     db-config:
       id-type: auto
@@ -94,4 +97,5 @@ mybatis-plus:
 
 logging:
   level:
-    com.zestflow: debug
+    # 生产环境建议 info，本地开发在 application-local.yml 中覆盖为 debug
+    com.zestflow: info
