@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
  * 演示记录查询 — 只读
  */
 @RestController
-@RequestMapping("/playground/records")
+@RequestMapping("/api/playground/records")
 @ConditionalOnProperty(prefix = "zestflow.playground", name = "enabled", havingValue = "true", matchIfMissing = false)
 @RequiredArgsConstructor
 public class PlaygroundRecordController {

@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/executors")
+@RequestMapping("/api/executors")
 @RequiredArgsConstructor
 public class ExecutorController {
 

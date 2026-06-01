@@ -444,7 +444,7 @@ function renderExecGraph(graphDataStr: string, events: any[]) {
         attrs: { text: { fill: '#303133', fontSize: 12, stroke: '#fff', strokeWidth: 2, paintOrder: 'stroke' } },
       },
     },
-  })
+  } as any)
 
   g.use(new Export())
   g.fromJSON(graphData)
@@ -631,7 +631,7 @@ function renderFullscreenGraph() {
         attrs: { text: { fill: '#303133', fontSize: 12, stroke: '#fff', strokeWidth: 2, paintOrder: 'stroke' } },
       },
     },
-  })
+  } as any)
 
   g.fromJSON(data)
   applyExecutionColors(g, savedGraphEvents.value)

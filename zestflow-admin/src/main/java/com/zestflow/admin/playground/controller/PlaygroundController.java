@@ -27,7 +27,7 @@ import java.util.Map;
  * 支持从历史记录加载到请求面板进行重试。
  */
 @RestController
-@RequestMapping("/playground")
+@RequestMapping("/api/playground")
 @ConditionalOnProperty(prefix = "zestflow.playground", name = "enabled", havingValue = "true", matchIfMissing = false)
 @RequiredArgsConstructor
 public class PlaygroundController {

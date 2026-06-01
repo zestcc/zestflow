@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
  * 元件列表 — 通过 HTTP 代理到具体 Executor 端的 ComponentScanner
  */
 @RestController
-@RequestMapping("/components")
+@RequestMapping("/api/components")
 @RequiredArgsConstructor
 public class ComponentController {
 

@@ -22,7 +22,7 @@ import java.util.List;
  */
 @Slf4j
 @RestController
-@RequestMapping("/logs")
+@RequestMapping("/api/logs")
 @RequiredArgsConstructor
 public class LogController {
 

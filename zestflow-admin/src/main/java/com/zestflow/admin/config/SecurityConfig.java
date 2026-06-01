@@ -31,12 +31,15 @@ public class SecurityConfig {
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/auth/**", "/uploads/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/registry/**").permitAll()
-                .requestMatchers(HttpMethod.DELETE, "/registry/**").permitAll()
-                .requestMatchers("/playground/**").permitAll()
+                .requestMatchers("/api/auth/**", "/api/uploads/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/registry/**").permitAll()
+                .requestMatchers(HttpMethod.DELETE, "/api/registry/**").permitAll()
+                .requestMatchers("/api/playground/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/chains/sync").permitAll()
-                .anyRequest().authenticated()
+                // 所有 /api/** 请求必须认证（已在上面放行的除外）
+                .requestMatchers("/api/**").authenticated()
+                // 静态资源 + SPA 路由（前端自己控制登录态）
+                .anyRequest().permitAll()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

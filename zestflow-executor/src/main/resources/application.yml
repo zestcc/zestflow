@@ -18,7 +18,7 @@ zestflow:
     # 执行器暴露的 Host（为空则自动探测本机 IP）
     host:
     # 执行器暴露的 Port（Netty 服务端端口）
-    port: 9999
+    port: 20550
     # 注册/心跳请求超时（毫秒）
     timeout-ms: 5000
 

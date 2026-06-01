@@ -32,7 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 @RestController
-@RequestMapping("/chains")
+@RequestMapping("/api/chains")
 @RequiredArgsConstructor
 public class ChainController {
 

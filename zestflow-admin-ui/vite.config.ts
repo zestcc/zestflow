@@ -22,4 +22,8 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    outDir: path.resolve(__dirname, '../zestflow-admin/src/main/resources/static'),
+    emptyOutDir: true,
+  },
 })

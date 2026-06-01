@@ -16,7 +16,7 @@ import java.util.List;
 
 @Slf4j
 @RestController
-@RequestMapping("/tenants")
+@RequestMapping("/api/tenants")
 @RequiredArgsConstructor
 public class TenantController {
 

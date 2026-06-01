@@ -11,7 +11,12 @@ spring:
     enabled: false
 
 zestflow:
+  executor:
+    port: 20550
   playground:
     url: http://localhost:8081
     scan-packages:
       - com.zestflow.test.controller
+  collector:
+    registry:
+      port: 20650

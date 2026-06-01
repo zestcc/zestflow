@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/dict-types")
+@RequestMapping("/api/dict-types")
 @RequiredArgsConstructor
 public class DictTypeController {
 

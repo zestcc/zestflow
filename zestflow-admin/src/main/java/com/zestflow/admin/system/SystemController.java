@@ -12,7 +12,7 @@ import java.util.Map;
  * 系统配置/特性查询 — 始终加载，不受开关影响
  */
 @RestController
-@RequestMapping("/system")
+@RequestMapping("/api/system")
 @RequiredArgsConstructor
 public class SystemController {
 

@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
  * 设计管理 — 所有数据通过 HTTP 代理到具体 Executor 端
  */
 @RestController
-@RequestMapping("/designs")
+@RequestMapping("/api/designs")
 @RequiredArgsConstructor
 public class DesignController {
 
