@@ -1,0 +1,108 @@
+# ============================================================
+# 生产环境配置（模板）
+# 复制本文件为 application-prod.yml 并按实际环境修改
+# 启动方式：--spring.profiles.active=prod
+# ============================================================
+
+server:
+  port: 8080
+
+spring:
+  application:
+    name: zestflow-admin
+  # 生产环境不加载 application-local.yml
+  messages:
+    basename: messages
+    encoding: UTF-8
+    fallback-to-system-locale: false
+  mvc:
+    locale-resolver: accept-header
+  datasource:
+    url: jdbc:mysql://localhost:3306/zestflow_admin?useUnicode=true&characterEncoding=utf-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    username: your-db-username
+    password: your-db-password
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 30000
+      connection-timeout: 10000
+  mail:
+    host: smtp.your-email.com
+    port: 465
+    username: your-email@your-email.com
+    password: your-auth-code
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.ssl.enable: true
+      mail.smtp.ssl.trust: smtp.your-email.com
+      mail.smtp.socketFactory.class: javax.net.ssl.SSLSocketFactory
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 10MB
+  flyway:
+    enabled: false
+  thymeleaf:
+    enabled: false
+
+zestflow:
+  jwt:
+    secret: your-jwt-secret-must-be-at-least-256-bits-long
+    expiration: 86400000
+  upload:
+    avatar-dir: uploads/avatars
+  admin:
+    tenant-id: 1
+    system-user: sys
+    default-user:
+      username: admin
+      password: admin123
+      email: admin@example.com
+    cache:
+      # 缓存类型：simple（默认，零依赖）/ caffeine（生产本地）/ redis（集群）
+      type: caffeine
+      maximum-size: 10000
+      ttl-seconds: 60
+  tenant:
+    # 租户模式：single（单租户）/ multi（多租户）
+    mode: single
+    # IP 演示模式：disabled / enabled
+    ip-demo-mode: disabled
+    # IP 租户非活跃超时（分钟）
+    ip-tenant-timeout-minutes: 60
+  playground:
+    # 开关：true 启用系统演示功能（含演示场景、演示记录、试验场）
+    enabled: true
+    # 演示链所属应用编码
+    app-code: playground-app
+  collector:
+    # Collector 服务地址
+    api-url: http://localhost:8081
+    access-token: ''
+  mail:
+    # 总开关：启用邮件发送
+    enabled: true
+    # 前端访问域名（用于拼接重置/验证链接）
+    base-url: http://your-domain.com
+    from-name: "ZestFlow"
+    reset-password:
+      subject: "ZestFlow - 密码重置"
+    verify-email:
+      subject: "ZestFlow - 邮箱验证"
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.zestflow.admin.model.entity
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+logging:
+  level:
+    com.zestflow: info
