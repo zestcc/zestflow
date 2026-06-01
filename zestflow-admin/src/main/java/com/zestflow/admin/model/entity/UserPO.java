@@ -37,6 +37,12 @@ public class UserPO {
 
     private LocalDateTime resetTokenExpiry;
 
+    private Integer emailVerified;
+
+    private String verifyToken;
+
+    private LocalDateTime verifyTokenExpiry;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 

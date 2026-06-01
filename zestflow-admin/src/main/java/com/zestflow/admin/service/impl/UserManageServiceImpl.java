@@ -18,6 +18,7 @@ import com.zestflow.admin.repository.TenantMapper;
 import com.zestflow.admin.repository.UserAppRoleMapper;
 import com.zestflow.admin.repository.UserMapper;
 import com.zestflow.admin.repository.UserTenantMapper;
+import com.zestflow.admin.service.MailService;
 import com.zestflow.admin.service.TenantAppContext;
 import com.zestflow.admin.service.UserManageService;
 import com.zestflow.common.exception.BizException;
@@ -47,6 +48,7 @@ public class UserManageServiceImpl implements UserManageService {
     private final UserTenantMapper userTenantMapper;
     private final TenantMapper tenantMapper;
     private final TenantAppContext tenantAppContext;
+    private final MailService mailService;
 
     private static final String PASSWORD_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
     private static final int PASSWORD_LENGTH = 12;
@@ -157,6 +159,14 @@ public class UserManageServiceImpl implements UserManageService {
 
         log.info("用户创建成功 userId={} username={} isSuperAdmin={} tenantId={}",
                 user.getId(), user.getUsername(), user.getIsSuperAdmin(), currentTenantId);
+
+        // 发送欢迎邮件（含账号密码）
+        try {
+            mailService.sendWelcomeEmail(user.getEmail(), user.getUsername(), rawPassword);
+        } catch (Exception e) {
+            log.error("欢迎邮件发送失败 userId={} email={}", user.getId(), user.getEmail(), e);
+        }
+
         UserManageVO vo = getById(user.getId());
         vo.setGeneratedPassword(rawPassword);
         return vo;

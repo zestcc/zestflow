@@ -68,6 +68,18 @@ public class AuthController {
         return Result.success();
     }
 
+    @PostMapping("/reset-password")
+    public Result<Void> resetPassword(@Valid @RequestBody ResetPasswordDTO dto) {
+        userService.resetPassword(dto);
+        return Result.success();
+    }
+
+    @GetMapping("/verify-email")
+    public Result<Void> verifyEmail(@RequestParam String token) {
+        userService.verifyEmail(token);
+        return Result.success();
+    }
+
     @GetMapping("/userinfo")
     public Result<UserVO> getUserInfo(Authentication authentication) {
         Long userId = SecurityUtils.getUserId(authentication);

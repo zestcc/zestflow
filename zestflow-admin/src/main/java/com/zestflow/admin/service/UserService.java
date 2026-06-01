@@ -13,6 +13,10 @@ public interface UserService {
 
     void forgot(ForgotDTO dto);
 
+    void resetPassword(ResetPasswordDTO dto);
+
+    void verifyEmail(String token);
+
     UserVO getUserInfo(Long userId);
 
     UserVO updateProfile(Long userId, UpdateProfileDTO dto);

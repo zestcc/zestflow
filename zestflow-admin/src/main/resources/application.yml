@@ -28,6 +28,8 @@ spring:
       max-request-size: 10MB
   flyway:
     enabled: false
+  thymeleaf:
+    enabled: false
 
 zestflow:
   jwt:
@@ -64,6 +66,18 @@ zestflow:
   collector:
     api-url: http://localhost:8081
     access-token: ''
+
+  mail:
+    # 总开关：false 时不执行真实邮件发送，MailService 由 NoopMailService 兜底
+    enabled: false
+    # 前端访问地址（用于拼接重置/验证链接）
+    base-url: ${APP_BASE_URL:http://localhost:8001}
+    # 发件人显示名称
+    from-name: "ZestFlow"
+    reset-password:
+      subject: "ZestFlow - 密码重置"
+    verify-email:
+      subject: "ZestFlow - 邮箱验证"
 
 mybatis-plus:
   mapper-locations: classpath:mapper/*.xml

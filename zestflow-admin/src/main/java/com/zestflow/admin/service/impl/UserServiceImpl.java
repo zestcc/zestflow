@@ -10,6 +10,7 @@ import com.zestflow.admin.model.vo.TenantSimpleVO;
 import com.zestflow.admin.model.vo.UserVO;
 import com.zestflow.admin.repository.UserMapper;
 import com.zestflow.admin.repository.UserTenantMapper;
+import com.zestflow.admin.service.MailService;
 import com.zestflow.admin.service.TenantService;
 import com.zestflow.admin.service.UserService;
 import com.zestflow.admin.util.JwtUtils;
@@ -40,6 +41,7 @@ public class UserServiceImpl implements UserService {
     private final JwtUtils jwtUtils;
     private final TenantService tenantService;
     private final UserTenantMapper userTenantMapper;
+    private final MailService mailService;
 
     @Value("${zestflow.upload.avatar-dir:uploads/avatars}")
     private String avatarDir;
@@ -98,6 +100,7 @@ public class UserServiceImpl implements UserService {
         user.setEmail(dto.getEmail());
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         user.setStatus(1);
+        user.setEmailVerified(0);
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.insert(user);
@@ -109,6 +112,13 @@ public class UserServiceImpl implements UserService {
         ut.setIsTenantAdmin(0);
         ut.setCreatedAt(LocalDateTime.now());
         userTenantMapper.insert(ut);
+
+        // 发送验证邮件
+        String verifyToken = UUID.randomUUID().toString().replace("-", "");
+        user.setVerifyToken(verifyToken);
+        user.setVerifyTokenExpiry(LocalDateTime.now().plusHours(24));
+        userMapper.updateById(user);
+        mailService.sendVerificationEmail(user.getEmail(), user.getUsername(), verifyToken);
 
         String token = jwtUtils.generateToken(user.getId(), user.getUsername(), false, 1L);
         UserVO userVO = toUserVO(user);
@@ -133,7 +143,58 @@ public class UserServiceImpl implements UserService {
         user.setResetTokenExpiry(LocalDateTime.now().plusHours(1));
         userMapper.updateById(user);
 
-        log.info("找回密码: userId={} email={} resetToken={}", user.getId(), dto.getEmail(), resetToken);
+        try {
+            mailService.sendResetPasswordEmail(user.getEmail(), user.getUsername(), resetToken);
+        } catch (Exception e) {
+            log.error("重置密码邮件发送失败 userId={} email={}", user.getId(), user.getEmail(), e);
+        }
+    }
+
+    @Override
+    public void resetPassword(ResetPasswordDTO dto) {
+        UserPO user = userMapper.findByResetToken(dto.getToken());
+        if (user == null) {
+            throw new BizException(ErrorCode.INVALID_RESET_TOKEN);
+        }
+
+        if (user.getResetTokenExpiry() == null
+                || user.getResetTokenExpiry().isBefore(LocalDateTime.now())) {
+            throw new BizException(ErrorCode.INVALID_RESET_TOKEN);
+        }
+
+        user.setPassword(passwordEncoder.encode(dto.getPassword()));
+        user.setResetToken(null);
+        user.setResetTokenExpiry(null);
+        user.setMustChangePassword(0);
+        user.setUpdatedAt(LocalDateTime.now());
+        userMapper.updateById(user);
+
+        log.info("密码重置成功 userId={}", user.getId());
+    }
+
+    @Override
+    public void verifyEmail(String token) {
+        UserPO user = userMapper.findByVerifyToken(token);
+        if (user == null) {
+            throw new BizException(ErrorCode.INVALID_RESET_TOKEN);
+        }
+
+        if (user.getVerifyTokenExpiry() == null
+                || user.getVerifyTokenExpiry().isBefore(LocalDateTime.now())) {
+            throw new BizException(ErrorCode.INVALID_RESET_TOKEN);
+        }
+
+        if (user.getEmailVerified() != null && user.getEmailVerified() == 1) {
+            throw new BizException(ErrorCode.EMAIL_ALREADY_VERIFIED);
+        }
+
+        user.setEmailVerified(1);
+        user.setVerifyToken(null);
+        user.setVerifyTokenExpiry(null);
+        user.setUpdatedAt(LocalDateTime.now());
+        userMapper.updateById(user);
+
+        log.info("邮箱验证成功 userId={} email={}", user.getId(), user.getEmail());
     }
 
     @Override

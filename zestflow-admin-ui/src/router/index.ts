@@ -27,6 +27,18 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: false },
   },
   {
+    path: '/reset-password',
+    name: 'ResetPassword',
+    component: () => import('@/views/reset-password/ResetPasswordPage.vue'),
+    meta: { requiresAuth: false },
+  },
+  {
+    path: '/verify-email',
+    name: 'VerifyEmail',
+    component: () => import('@/views/verify-email/VerifyEmailPage.vue'),
+    meta: { requiresAuth: false },
+  },
+  {
     path: '/force-password',
     name: 'ForcePassword',
     component: () => import('@/views/login/ForceChangePassword.vue'),

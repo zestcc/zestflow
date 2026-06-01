@@ -896,6 +896,34 @@ CREATE TABLE IF NOT EXISTS `chain_event` (
 | 2026-05 | 移除节点 body `magnet: true`（改为仅端口 magnet，避免全节点十字光标） |
 | 2026-05 | 移除 `highlighting` 配置 + `highlight: true`（避免拖线时所有节点变蓝） |
 
+### 邮件集成 — 3 功能 + 开关（2026-06）
+
+**需求：** 补全"忘记密码"邮件发送、注册邮箱验证、管理员创建用户时发送账号密码通知。使用 Spring 标准方案（JavaMailSender + Thymeleaf），防腐层设计隔离外部依赖。
+
+**架构设计：**
+- `MailService` 接口（防腐层）— 3 个方法：`sendVerificationEmail()` / `sendResetPasswordEmail()` / `sendWelcomeEmail()`
+- `SmtpMailService`（`@ConditionalOnProperty("zestflow.mail.enabled")`）— 真实 SMTP 发送
+- `NoopMailService`（`@ConditionalOnMissingBean(MailService.class)`）— 关闭时兜底，只打日志
+- 业务代码统一注入 `MailService`，无需 null 判断
+
+**开关配置：**
+```yaml
+zestflow:
+  mail:
+    enabled: false
+    base-url: http://localhost:8001
+    from-name: "ZestFlow"
+```
+
+**三个功能：**
+| 功能 | 触发 | 实现 |
+|------|------|------|
+| 注册邮箱验证 | 用户注册 → 发送验证邮件 | `UserServiceImpl.register()` 设置 `emailVerified=0`，调用 `MailService.sendVerificationEmail()`；`GET /auth/verify-email` 验证 |
+| 忘记密码重置 | 用户申请重置 → 发送重置邮件 | `UserServiceImpl.forgot()` → `MailService.sendResetPasswordEmail()`；`POST /auth/reset-password` 改密 |
+| 创建用户通知 | 管理员创建用户 → 发送账号密码 | `UserManageServiceImpl.createUser()` → `MailService.sendWelcomeEmail()` |
+
+**字段扩展：** `UserPO` 新增 `emailVerified`/`verifyToken`/`verifyTokenExpiry`；DDL `init.sql` 已更新
+
 ### 清理记录
 
 | 时间 | 内容 |

@@ -70,4 +70,18 @@ public interface UserMapper extends BaseMapper<UserPO> {
     @InterceptorIgnore(tenantLine = "true")
     @Select("SELECT * FROM `user` WHERE id = #{id}")
     UserPO selectByIdWithoutTenant(@Param("id") Long id);
+
+    /**
+     * 按重置令牌查找（忽略租户过滤）
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT * FROM `user` WHERE reset_token = #{token} LIMIT 1")
+    UserPO findByResetToken(@Param("token") String token);
+
+    /**
+     * 按验证令牌查找（忽略租户过滤）
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT * FROM `user` WHERE verify_token = #{token} LIMIT 1")
+    UserPO findByVerifyToken(@Param("token") String token);
 }

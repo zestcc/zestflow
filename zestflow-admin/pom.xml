@@ -67,6 +67,12 @@
             <artifactId>flyway-mysql</artifactId>
         </dependency>
 
+        <!-- Thymeleaf 模板引擎（邮件模板渲染） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+        </dependency>
+
         <!-- Cache -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -47,6 +47,10 @@ export const authApi = {
     return http.post('/auth/reset-password', data)
   },
 
+  verifyEmail(token: string) {
+    return http.get('/auth/verify-email', { params: { token } })
+  },
+
   getUserInfo() {
     return http.get<UserVO>('/auth/userinfo')
   },
