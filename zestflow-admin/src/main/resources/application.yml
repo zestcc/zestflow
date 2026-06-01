@@ -50,8 +50,9 @@ zestflow:
       password: admin123
       email: admin@zestflow.com
     cache:
-      # 缓存类型：simple（默认，零依赖）/ caffeine（生产本地）/ redis（集群）
+      # 缓存类型：simple（默认，零依赖）/ caffeine（生产本地）/ redis（集群共享）
       # 本地开发在 application-local.yml 中覆盖为 simple
+      # 使用 redis 时需配置 spring.data.redis.* 连接信息
       type: caffeine
       # Caffeine 最大条目数
       maximum-size: 10000

@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -40,6 +41,9 @@ public class ExecutorProxyService {
     /** 服务间通信协议（http/https） */
     @Value("${zestflow.admin.protocol:http}")
     private String protocol;
+
+    /** 轮询计数器 */
+    private final AtomicInteger roundRobinCounter = new AtomicInteger(0);
 
     /**
      * 通过 appCode 解析到 Executor 地址并执行 GET 请求
@@ -181,7 +185,7 @@ public class ExecutorProxyService {
     }
 
     /**
-     * 通过 appCode 查找可用的 Executor 地址
+     * 通过 appCode 查找可用的 Executor 地址（轮询）
      *
      * @return URL 基础地址，如 http://192.168.1.10:9999
      */
@@ -193,13 +197,14 @@ public class ExecutorProxyService {
         List<ExecutorRegistryPO> executors = executorRegistryMapper.selectList(
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ExecutorRegistryPO>()
                         .eq(ExecutorRegistryPO::getAppCode, appCode)
-                        .eq(ExecutorRegistryPO::getStatus, 1) // 只选在线
-                        .last("LIMIT 1"));
+                        .eq(ExecutorRegistryPO::getStatus, 1));
         if (executors.isEmpty()) {
             log.warn("应用无可用执行器 appCode={}", appCode);
             return null;
         }
-        ExecutorRegistryPO executor = executors.get(0);
+        // 轮询选择
+        int index = roundRobinCounter.getAndIncrement() % executors.size();
+        ExecutorRegistryPO executor = executors.get(index);
         return protocol + "://" + executor.getExecutorHost() + ":" + executor.getExecutorPort();
     }
 

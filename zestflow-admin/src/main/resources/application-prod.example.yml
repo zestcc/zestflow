@@ -62,7 +62,8 @@ zestflow:
       password: admin123
       email: admin@example.com
     cache:
-      # 缓存类型：simple（默认，零依赖）/ caffeine（生产本地）/ redis（集群）
+      # 缓存类型：simple（默认，零依赖）/ caffeine（生产本地）/ redis（集群共享）
+      # type: redis 时需配置 spring.data.redis.* 连接信息
       type: caffeine
       maximum-size: 10000
       ttl-seconds: 60
@@ -105,3 +106,12 @@ mybatis-plus:
 logging:
   level:
     com.zestflow: info
+
+# Redis 连接（cache.type=redis 时启用）
+# spring:
+#   data:
+#     redis:
+#       host: your-redis-host
+#       port: 6379
+#       password: your-redis-password
+#       database: 0
