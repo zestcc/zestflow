@@ -68,8 +68,8 @@ public class ExecutorProperties implements EnvironmentAware {
     /** 执行器暴露的 Host（为空则自动探测本机 IP） */
     private String host;
 
-    /** 执行器暴露的 Port */
-    private int port = 9999;
+    /** 执行器暴露的 Port（默认 20550，与 YAML 文档同步） */
+    private int port = 20550;
 
     /** 是否启用统一执行端点（Spring MVC /execute），默认关闭 */
     private boolean executeEndpointEnabled = false;

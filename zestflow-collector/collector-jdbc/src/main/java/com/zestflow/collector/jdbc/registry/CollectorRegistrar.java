@@ -158,7 +158,7 @@ public class CollectorRegistrar implements ApplicationRunner {
         if (portStr != null && !portStr.isEmpty()) {
             return Integer.parseInt(portStr);
         }
-        return 8081;
+        return 9998;
     }
 
     private String resolveHost() {
