@@ -24,12 +24,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -266,6 +270,17 @@ public class UserServiceImpl implements UserService {
         log.info("强制密码修改成功 userId={}", userId);
     }
 
+    /** 允许的头像文件扩展名（小写） */
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "gif", "webp");
+
+    /** 文件魔数 → 扩展名校验：前 8 字节即可区分常见图片类型 */
+    private static final List<ImageMagic> IMAGE_MAGICS = Arrays.asList(
+            new ImageMagic(new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF}, "jpg", "jpeg"),
+            new ImageMagic(new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47}, "png"),
+            new ImageMagic(new byte[]{0x47, 0x49, 0x46, 0x38}, "gif"),
+            new ImageMagic(new byte[]{0x52, 0x49, 0x46, 0x46}, "webp")
+    );
+
     @Override
     public String uploadAvatar(Long userId, MultipartFile file) {
         UserPO user = userMapper.selectById(userId);
@@ -273,10 +288,39 @@ public class UserServiceImpl implements UserService {
             throw new BizException(ErrorCode.USER_NOT_FOUND);
         }
 
-        String ext = "png";
+        // 1. 校验文件扩展名
         String originalName = file.getOriginalFilename();
+        String ext = "";
         if (originalName != null && originalName.contains(".")) {
-            ext = originalName.substring(originalName.lastIndexOf(".") + 1);
+            ext = originalName.substring(originalName.lastIndexOf(".") + 1).toLowerCase();
+        }
+        if (ext.isEmpty() || !ALLOWED_EXTENSIONS.contains(ext)) {
+            throw new BizException(ErrorCode.INVALID_AVATAR_TYPE);
+        }
+
+        // 2. 校验文件魔数（防止伪造扩展名）
+        try (InputStream in = file.getInputStream()) {
+            byte[] header = new byte[8];
+            int read = in.readNBytes(header, 0, header.length);
+            if (read < 4) {
+                throw new BizException(ErrorCode.INVALID_AVATAR_TYPE);
+            }
+            boolean magicMatched = false;
+            for (ImageMagic magic : IMAGE_MAGICS) {
+                if (magic.matches(header, ext)) {
+                    magicMatched = true;
+                    break;
+                }
+            }
+            if (!magicMatched) {
+                log.warn("头像文件魔数校验失败 userId={} ext={}", userId, ext);
+                throw new BizException(ErrorCode.INVALID_AVATAR_TYPE);
+            }
+        } catch (BizException e) {
+            throw e;
+        } catch (IOException e) {
+            log.error("读取头像文件失败 userId={}", userId, e);
+            throw new BizException(ErrorCode.SERVER_ERROR);
         }
 
         try {
@@ -300,6 +344,34 @@ public class UserServiceImpl implements UserService {
         } catch (IOException e) {
             log.error("头像上传失败 userId={}", userId, e);
             throw new BizException(ErrorCode.SERVER_ERROR);
+        }
+    }
+
+    /** 图片魔数校验辅助 */
+    private static class ImageMagic {
+        private final byte[] magic;
+        private final String[] extensions;
+
+        ImageMagic(byte[] magic, String... extensions) {
+            this.magic = magic;
+            this.extensions = extensions;
+        }
+
+        boolean matches(byte[] header, String ext) {
+            // 扩展名校验
+            boolean extMatch = Arrays.stream(extensions).anyMatch(e -> e.equals(ext));
+            if (!extMatch) return false;
+            // WebP 魔数为 RIFF + 第 8-11 字节 WEBP
+            if (magic.length == 4 && magic[0] == 0x52 && magic[1] == 0x49) { // "RIFF"
+                return header.length >= 12
+                        && header[0] == 0x52 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x46
+                        && header[8] == 0x57 && header[9] == 0x45 && header[10] == 0x42 && header[11] == 0x50;
+            }
+            // 常规魔数：比对前 N 字节
+            for (int i = 0; i < magic.length; i++) {
+                if (header[i] != magic[i]) return false;
+            }
+            return true;
         }
     }
 

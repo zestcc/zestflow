@@ -26,7 +26,10 @@ public interface CollectorRegistryService {
     /** 查询所有在线采集器 */
     List<CollectorRegistryVO> listAllOnline();
 
-    /** 查询所有采集器（全量） */
+    /** 按应用编码查询在线采集器列表 */
+    List<CollectorRegistryVO> listOnlineByAppCode(String appCode);
+
+    /** 查询所有已注册的采集器（全量） */
     List<CollectorRegistryVO> listAll();
 
     /** 手动更新采集器状态 */

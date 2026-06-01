@@ -20,8 +20,8 @@ public class CollectorRegistryProperties {
     /** 采集器 Host（为空则自动探测） */
     private String host = "";
 
-    /** 采集器 Port（默认 9998） */
-    private int port = 9998;
+    /** 采集器 Port（默认 0，自动取 server.port） */
+    private int port = 0;
 
     /** 心跳间隔（秒） */
     private int heartbeatInterval = RegistryConstants.DEFAULT_HEARTBEAT_INTERVAL_SECONDS;

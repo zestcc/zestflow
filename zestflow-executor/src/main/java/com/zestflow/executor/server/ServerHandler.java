@@ -62,6 +62,8 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
     private RequestMappingHandlerMapping requestMappingHandlerMapping;
     private java.util.List<String> scanPackages = java.util.Collections.emptyList();
     private String playgroundUrl;
+    /** 可选 accessToken，非空时校验请求头 X-Access-Token */
+    private String accessToken;
 
     public ServerHandler(ChainExecutionEngine chainExecutionEngine, ChainRepository chainRepo, DesignRepository designRepo) {
         this(chainExecutionEngine, chainRepo, designRepo, null, null);
@@ -87,6 +89,17 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
         String uri = request.uri();
         String content = request.content().toString(CharsetUtil.UTF_8);
         log.info("收到请求 method={} uri={}", request.method(), uri);
+
+        // 可选 accessToken 校验（仅非 /health 请求，内网安全加固）
+        if (accessToken != null && !accessToken.isEmpty() && !"/health".equals(uri)) {
+            String token = request.headers().get("X-Access-Token");
+            if (!accessToken.equals(token)) {
+                log.warn("accessToken 校验失败 uri={}", uri);
+                writeResponse(ctx, HttpResponseStatus.UNAUTHORIZED,
+                        "{\"code\":401,\"message\":\"Unauthorized\"}");
+                return;
+            }
+        }
 
         try {
             if (!dispatchApiRoute(ctx, request.method(), uri, content)) {
