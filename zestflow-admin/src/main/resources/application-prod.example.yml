@@ -10,7 +10,7 @@ server:
 spring:
   application:
     name: zestflow-admin
-  # 生产环境不加载 application-local.yml
+  # application-local.yml 通过 application.yml 的 optional import 加载，不存在时跳过
   messages:
     basename: messages
     encoding: UTF-8
