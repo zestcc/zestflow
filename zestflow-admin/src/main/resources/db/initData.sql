@@ -3,8 +3,20 @@
 -- 职责：所有数据库种子数据（演示场景、链、设计、调度等）集中在此文件
 -- 规范：所有表引用必须带数据库前缀（zestflow_admin.* / zestflow_test_bussiness.*）
 -- 用法：在 init.sql 之后执行（或 Flyway 迁移时 include）
--- 2026-05-31
+-- 2026-06-01
 -- ============================================================================
+
+-- ==================== 系统母版租户（tenant） ====================
+
+INSERT IGNORE INTO `zestflow_admin`.`tenant` (`id`, `name`, `code`, `description`, `status`)
+VALUES (1, '系统母版', 'system-template', '模板租户，新租户从此拷贝初始数据', 1);
+
+-- ==================== 用户-租户关联（user_tenant） ====================
+-- 默认 admin 用户（id=1）绑定到系统母版租户，作为租户管理员
+
+INSERT IGNORE INTO `zestflow_admin`.`user_tenant` (`user_id`, `tenant_id`, `is_tenant_admin`, `created_by`)
+SELECT 1, 1, 1, 'system'
+WHERE EXISTS (SELECT 1 FROM `zestflow_admin`.`user` WHERE id = 1);
 
 -- ==================== 定义共享 X6 端口配置 ====================
 SET @ports = '{"groups":{"handle":{"position":"absolute","attrs":{"circle":{"r":5,"magnet":true,"stroke":"#fff","strokeWidth":2,"fill":"#fff","stroke-opacity":0,"fill-opacity":0}},"zIndex":10}},"items":[{"id":"t","group":"handle","args":{"x":"50%","y":"0%"}},{"id":"tr","group":"handle","args":{"x":"100%","y":"15%"}},{"id":"r","group":"handle","args":{"x":"100%","y":"50%"}},{"id":"br","group":"handle","args":{"x":"100%","y":"85%"}},{"id":"b","group":"handle","args":{"x":"50%","y":"100%"}},{"id":"bl","group":"handle","args":{"x":"0%","y":"85%"}},{"id":"l","group":"handle","args":{"x":"0%","y":"50%"}},{"id":"tl","group":"handle","args":{"x":"0%","y":"15%"}}]}';

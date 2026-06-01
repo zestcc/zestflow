@@ -3,7 +3,9 @@ package com.zestflow.admin.controller;
 import com.zestflow.admin.client.CollectorQueryClient;
 import com.zestflow.admin.model.vo.CollectorRegistryVO;
 import com.zestflow.admin.service.CollectorRegistryService;
+import com.zestflow.admin.util.SecurityUtils;
 import com.zestflow.common.model.Result;
+import com.zestflow.common.model.dto.ChainSnapshotDTO;
 import com.zestflow.common.protocol.EventQuery;
 import com.zestflow.common.protocol.EventQueryResult;
 import com.zestflow.common.protocol.ExecutionTrace;
@@ -36,6 +38,10 @@ public class LogController {
     @PostMapping("/events/query")
     public Result<PageResult<EventQueryResult>> queryEvents(
             @RequestBody EventQuery query) {
+        // 注入当前租户 ID，保证查询隔离
+        if (query.getTenantId() == null) {
+            query.setTenantId(SecurityUtils.getCurrentTenantId());
+        }
         String baseUrl = resolveCollectorBaseUrl();
         if (baseUrl == null) {
             return Result.success(new PageResult<>(List.of(), 0L, query.getPage(), query.getPageSize()));
@@ -50,6 +56,10 @@ public class LogController {
     @PostMapping("/executions")
     public Result<PageResult<ExecutionTrace>> queryExecutionTraces(
             @RequestBody EventQuery query) {
+        // 注入当前租户 ID
+        if (query.getTenantId() == null) {
+            query.setTenantId(SecurityUtils.getCurrentTenantId());
+        }
         String baseUrl = resolveCollectorBaseUrl();
         if (baseUrl == null) {
             return Result.success(new PageResult<>(List.of(), 0L, query.getPage(), query.getPageSize()));
@@ -70,6 +80,24 @@ public class LogController {
         }
         var result = collectorQueryClient.getExecutionTrace(baseUrl, executionId);
         return Result.success(result);
+    }
+
+    /**
+     * 查询指定时刻的图数据快照
+     */
+    @GetMapping("/snapshots")
+    public Result<ChainSnapshotDTO> getSnapshot(@RequestParam String chainCode,
+                                                 @RequestParam long timestamp) {
+        String baseUrl = resolveCollectorBaseUrl();
+        if (baseUrl == null) {
+            return Result.fail(503, "COLLECTOR_UNAVAILABLE", "无可用采集器");
+        }
+        ChainSnapshotDTO snapshot = collectorQueryClient.getSnapshot(baseUrl, chainCode, timestamp,
+                SecurityUtils.getCurrentTenantId());
+        if (snapshot == null) {
+            return Result.fail(404, "NOT_FOUND", "未找到图数据快照");
+        }
+        return Result.success(snapshot);
     }
 
     /**

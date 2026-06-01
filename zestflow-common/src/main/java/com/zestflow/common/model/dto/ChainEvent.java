@@ -87,6 +87,9 @@ public class ChainEvent implements Serializable {
     /** 事件发生时间戳（毫秒） */
     private long timestamp;
 
+    /** 租户 ID */
+    private Long tenantId;
+
     /** 扩展元数据 JSON */
     private String metadata;
 }

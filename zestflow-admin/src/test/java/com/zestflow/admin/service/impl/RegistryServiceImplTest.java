@@ -49,7 +49,7 @@ class RegistryServiceImplTest {
         dto.setAppCode("test-app");
         dto.setAppName("测试应用");
 
-        registryService.register(dto);
+        registryService.register(dto, 1L);
 
         verify(executorRegistryMapper).insert(registryCaptor.capture());
         ExecutorRegistryPO inserted = registryCaptor.getValue();
@@ -58,6 +58,7 @@ class RegistryServiceImplTest {
         assertThat(inserted.getStatus()).isEqualTo(RegistryConstants.STATUS_ONLINE);
         assertThat(inserted.getAppCode()).isEqualTo("test-app");
         assertThat(inserted.getAppName()).isEqualTo("测试应用");
+        assertThat(inserted.getTenantId()).isEqualTo(1L);
         // 应自动创建字典项
         verify(dictTypeService).ensureDictData("app_type", "test-app", "测试应用");
     }
@@ -76,7 +77,7 @@ class RegistryServiceImplTest {
                 ComponentDTO.builder().componentId("comp2").componentType("PREDICATE").componentName("条件元件").build()
         ));
 
-        registryService.register(dto);
+        registryService.register(dto, 1L);
 
         verify(dictTypeService, times(3)).ensureDictData(anyString(), anyString(), anyString());
         verify(dictTypeService).ensureDictData("app_type", "test-app", "test-app");
@@ -98,7 +99,7 @@ class RegistryServiceImplTest {
         dto.setPort(9998);
         dto.setAppCode("test-app");
 
-        registryService.register(dto);
+        registryService.register(dto, null);
 
         verify(executorRegistryMapper).updateById(registryCaptor.capture());
         ExecutorRegistryPO updated = registryCaptor.getValue();

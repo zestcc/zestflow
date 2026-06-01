@@ -173,6 +173,7 @@ import type { FormInstance, FormRules } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { useLocale } from '@/i18n/useLocale'
 import { useUserStore } from '@/stores/user'
+import { useTenantStore } from '@/stores/tenant'
 import Captcha from '@/components/Captcha.vue'
 
 const { t } = useI18n()
@@ -185,6 +186,7 @@ function switchLang(lang: string) {
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const tenantStore = useTenantStore()
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)

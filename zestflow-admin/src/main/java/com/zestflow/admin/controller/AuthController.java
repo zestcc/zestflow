@@ -1,16 +1,21 @@
 package com.zestflow.admin.controller;
 
+import com.zestflow.admin.config.TenantContextHolder;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.config.LoginRateLimiter;
 import com.zestflow.admin.model.dto.*;
 import com.zestflow.admin.model.vo.LoginVO;
+import com.zestflow.admin.model.vo.TenantSimpleVO;
 import com.zestflow.admin.model.vo.UserVO;
+import com.zestflow.admin.service.TenantService;
 import com.zestflow.admin.service.UserService;
+import com.zestflow.admin.util.JwtUtils;
 import com.zestflow.admin.util.SecurityUtils;
 import com.zestflow.common.exception.BizException;
 import com.zestflow.common.model.Result;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +31,8 @@ public class AuthController {
 
     private final UserService userService;
     private final LoginRateLimiter loginRateLimiter;
+    private final TenantService tenantService;
+    private final JwtUtils jwtUtils;
 
     @PostMapping("/login")
     public Result<LoginVO> login(@Valid @RequestBody LoginDTO dto, HttpServletRequest request) {
@@ -96,6 +103,52 @@ public class AuthController {
         }
         userService.forcePassword(userId, newPassword);
         return Result.success();
+    }
+
+    /**
+     * 获取当前用户可访问的租户列表
+     */
+    @GetMapping("/tenants")
+    public Result<List<TenantSimpleVO>> getUserTenants(Authentication authentication) {
+        Long userId = SecurityUtils.getUserId(authentication);
+        List<TenantSimpleVO> tenants = tenantService.listUserTenants(userId);
+        return Result.success(tenants);
+    }
+
+    /**
+     * 切换到指定租户（返回新 JWT）
+     */
+    @PostMapping("/switch-tenant/{id}")
+    public Result<LoginVO> switchTenant(@PathVariable Long id, Authentication authentication) {
+        Long userId = SecurityUtils.getUserId(authentication);
+        String username = authentication.getPrincipal() instanceof String s ? s : null;
+        boolean isSuperAdmin = SecurityUtils.isSuperAdmin(authentication);
+
+        tenantService.switchTenant(userId, id);
+        String newToken = jwtUtils.generateToken(userId, username, isSuperAdmin, id);
+
+        UserVO userVO = userService.getUserInfo(userId);
+        List<TenantSimpleVO> tenants = tenantService.listUserTenants(userId);
+        TenantSimpleVO currentTenant = TenantSimpleVO.builder()
+                .id(id)
+                .current(true)
+                .build();
+        // 填充当前租户名称
+        for (TenantSimpleVO t : tenants) {
+            if (t.getId().equals(id)) {
+                currentTenant.setName(t.getName());
+                currentTenant.setCode(t.getCode());
+                currentTenant.setTenantAdmin(t.isTenantAdmin());
+                break;
+            }
+        }
+
+        return Result.success(LoginVO.builder()
+                .token(newToken)
+                .user(userVO)
+                .tenants(tenants)
+                .currentTenant(currentTenant)
+                .build());
     }
 
     @PostMapping("/avatar")

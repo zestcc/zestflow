@@ -37,6 +37,18 @@ public class SecurityUtils {
         return false;
     }
 
-    public record AuthDetails(Long userId, boolean superAdmin) {
+    public record AuthDetails(Long userId, boolean superAdmin, Long currentTenantId) {
+    }
+
+    public static Long getCurrentTenantId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getDetails() == null) {
+            return null;
+        }
+        Object details = authentication.getDetails();
+        if (details instanceof AuthDetails authDetails) {
+            return authDetails.currentTenantId();
+        }
+        return null;
     }
 }

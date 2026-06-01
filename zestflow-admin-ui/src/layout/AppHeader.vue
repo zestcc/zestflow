@@ -7,6 +7,32 @@
       </el-icon>
     </el-button>
     <div class="header-right">
+      <!-- 租户切换 -->
+      <el-dropdown
+        v-if="tenantStore.tenants.length > 1"
+        trigger="click"
+        class="tenant-switch"
+        @command="handleSwitchTenant"
+      >
+        <span class="tenant-trigger">
+          <el-icon><HomeFilled /></el-icon>
+          <span>{{ tenantStore.currentTenant?.name || $t('tenant.select') }}</span>
+        </span>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item
+              v-for="t in tenantStore.tenants"
+              :key="t.id"
+              :command="t.id"
+              :disabled="t.id === tenantStore.currentTenantId"
+            >
+              <span>{{ t.name }}</span>
+              <span class="tenant-code">({{ t.code }})</span>
+            </el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+
       <el-dropdown trigger="click" class="lang-switch">
         <span class="lang-trigger">
             <span>{{ locale === 'zh-CN' ? '中文' : 'EN' }}</span>
@@ -56,17 +82,37 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { useTenantStore } from '@/stores/tenant'
 import { useLocale } from '@/i18n/useLocale'
-import { Fold, Expand, ArrowDown } from '@element-plus/icons-vue'
+import { Fold, Expand, ArrowDown, HomeFilled } from '@element-plus/icons-vue'
 
 defineProps<{ collapsed?: boolean }>()
 defineEmits<{ 'toggle-sidebar': [] }>()
 
 const router = useRouter()
 const userStore = useUserStore()
+const tenantStore = useTenantStore()
 const { locale, setLocale } = useLocale()
+const switching = ref(false)
+
+async function handleSwitchTenant(tenantId: number) {
+  if (switching.value) return
+  switching.value = true
+  try {
+    await tenantStore.switchTenant(tenantId)
+    ElMessage.success('租户已切换')
+    // 刷新页面以重新加载所有数据
+    window.location.reload()
+  } catch {
+    ElMessage.error('租户切换失败')
+  } finally {
+    switching.value = false
+  }
+}
 
 const avatarUrl = computed(() => {
   const avatar = userStore.user?.avatar
@@ -104,6 +150,33 @@ function switchLang(lang: string) {
   gap: 4px;
   color: #606266;
   font-size: 14px;
+}
+
+.tenant-switch {
+  cursor: pointer;
+}
+
+.tenant-trigger {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #606266;
+  font-size: 14px;
+  padding: 4px 8px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.tenant-trigger:hover {
+  border-color: #409eff;
+  color: #409eff;
+}
+
+.tenant-code {
+  color: #909399;
+  font-size: 12px;
+  margin-left: 2px;
 }
 
 .user-info {

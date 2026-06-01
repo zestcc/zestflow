@@ -79,6 +79,10 @@
           <el-icon><List /></el-icon>
           <span>{{ $t('layout.dictTypes') }}</span>
         </el-menu-item>
+        <el-menu-item index="/settings/tenants">
+          <el-icon><Collection /></el-icon>
+          <span>{{ $t('tenant.title') }}</span>
+        </el-menu-item>
       </el-sub-menu>
     </el-menu>
   </div>

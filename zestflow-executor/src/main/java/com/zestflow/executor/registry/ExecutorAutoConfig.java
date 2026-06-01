@@ -215,13 +215,15 @@ public class ExecutorAutoConfig {
     // ==================== 数据访问 ====================
 
     @Bean
-    public ChainRepository chainRepository(@Qualifier("executorJdbcTemplate") org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
-        return new ChainRepository(jdbcTemplate);
+    public ChainRepository chainRepository(@Qualifier("executorJdbcTemplate") org.springframework.jdbc.core.JdbcTemplate jdbcTemplate,
+                                           ExecutorProperties properties) {
+        return new ChainRepository(jdbcTemplate, properties.getTenantId());
     }
 
     @Bean
-    public DesignRepository designRepository(@Qualifier("executorJdbcTemplate") org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
-        return new DesignRepository(jdbcTemplate);
+    public DesignRepository designRepository(@Qualifier("executorJdbcTemplate") org.springframework.jdbc.core.JdbcTemplate jdbcTemplate,
+                                             ExecutorProperties properties) {
+        return new DesignRepository(jdbcTemplate, properties.getTenantId());
     }
 
     // ==================== 降级策略 ====================

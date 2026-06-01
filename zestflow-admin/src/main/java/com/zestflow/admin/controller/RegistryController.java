@@ -16,8 +16,10 @@ public class RegistryController {
     private final RegistryService registryService;
 
     @PostMapping("/register")
-    public Result<Void> register(@Valid @RequestBody RegisterDTO dto) {
-        registryService.register(dto);
+    public Result<Void> register(
+            @Valid @RequestBody RegisterDTO dto,
+            @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
+        registryService.register(dto, tenantId);
         return Result.success();
     }
 

@@ -27,19 +27,26 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         String token = extractToken(request);
 
-        if (StringUtils.hasText(token) && jwtUtils.validateToken(token)) {
-            Long userId = jwtUtils.getUserId(token);
-            String username = jwtUtils.getUsername(token);
-            boolean isSuperAdmin = jwtUtils.isSuperAdmin(token);
+        try {
+            if (StringUtils.hasText(token) && jwtUtils.validateToken(token)) {
+                Long userId = jwtUtils.getUserId(token);
+                String username = jwtUtils.getUsername(token);
+                boolean isSuperAdmin = jwtUtils.isSuperAdmin(token);
+                Long currentTenantId = jwtUtils.getCurrentTenantId(token);
 
-            SecurityUtils.AuthDetails details = new SecurityUtils.AuthDetails(userId, isSuperAdmin);
-            UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(username, null, null);
-            authentication.setDetails(details);
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+                TenantContextHolder.setTenantId(currentTenantId);
+
+                SecurityUtils.AuthDetails details = new SecurityUtils.AuthDetails(userId, isSuperAdmin, currentTenantId);
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(username, null, null);
+                authentication.setDetails(details);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            }
+
+            filterChain.doFilter(request, response);
+        } finally {
+            TenantContextHolder.clear();
         }
-
-        filterChain.doFilter(request, response);
     }
 
     private String extractToken(HttpServletRequest request) {

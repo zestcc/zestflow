@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -17,4 +19,6 @@ public class UserVO {
     private String avatar;
     private Integer isSuperAdmin;
     private Integer mustChangePassword;
+    /** 用户所属租户列表（登录时返回） */
+    private List<TenantSimpleVO> tenants;
 }

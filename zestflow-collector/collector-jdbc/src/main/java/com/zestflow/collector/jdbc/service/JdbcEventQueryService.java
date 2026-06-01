@@ -152,6 +152,12 @@ public class JdbcEventQueryService implements EventQueryService {
         if (StringUtils.isNotBlank(query.getAppName())) {
             wrapper.eq(ChainEventPO::getAppName, query.getAppName());
         }
+        if (query.getTenantId() != null) {
+            wrapper.eq(ChainEventPO::getTenantId, query.getTenantId());
+        }
+        if (StringUtils.isNotBlank(query.getAppCode())) {
+            wrapper.eq(ChainEventPO::getAppCode, query.getAppCode());
+        }
         if (query.getEventTypes() != null && !query.getEventTypes().isEmpty()) {
             List<String> typeNames = query.getEventTypes().stream()
                     .map(Enum::name)
@@ -203,6 +209,7 @@ public class JdbcEventQueryService implements EventQueryService {
                 .executorId(po.getExecutorId())
                 .appName(po.getAppName())
                 .appCode(po.getAppCode())
+                .tenantId(po.getTenantId())
                 .params(po.getParams())
                 .result(po.getResult())
                 .errorMessage(po.getErrorMessage())

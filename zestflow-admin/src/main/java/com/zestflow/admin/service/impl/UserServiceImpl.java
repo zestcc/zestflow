@@ -1,11 +1,16 @@
 package com.zestflow.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.zestflow.admin.config.TenantContextHolder;
 import com.zestflow.admin.model.dto.*;
+import com.zestflow.admin.model.entity.UserTenantPO;
 import com.zestflow.admin.model.entity.UserPO;
 import com.zestflow.admin.model.vo.LoginVO;
+import com.zestflow.admin.model.vo.TenantSimpleVO;
 import com.zestflow.admin.model.vo.UserVO;
 import com.zestflow.admin.repository.UserMapper;
+import com.zestflow.admin.repository.UserTenantMapper;
+import com.zestflow.admin.service.TenantService;
 import com.zestflow.admin.service.UserService;
 import com.zestflow.admin.util.JwtUtils;
 import com.zestflow.admin.constant.ErrorCode;
@@ -22,6 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -32,17 +38,16 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
+    private final TenantService tenantService;
+    private final UserTenantMapper userTenantMapper;
 
     @Value("${zestflow.upload.avatar-dir:uploads/avatars}")
     private String avatarDir;
 
     @Override
     public LoginVO login(LoginDTO dto) {
-        UserPO user = userMapper.selectOne(
-                new LambdaQueryWrapper<UserPO>()
-                        .eq(UserPO::getUsername, dto.getUsername())
-                        .last("LIMIT 1")
-        );
+        // 登录需忽略租户过滤 — 先找到用户再确定其租户
+        UserPO user = userMapper.findByUsername(dto.getUsername());
 
         if (user == null) {
             throw new BizException(ErrorCode.INVALID_CREDENTIALS);
@@ -56,9 +61,20 @@ public class UserServiceImpl implements UserService {
             throw new BizException(ErrorCode.USER_DISABLED);
         }
 
-        String token = jwtUtils.generateToken(user.getId(), user.getUsername(), user.getIsSuperAdmin() == 1);
+        // 获取用户租户列表和默认租户
+        List<TenantSimpleVO> tenants = tenantService.listUserTenants(user.getId());
+        TenantSimpleVO defaultTenant = tenantService.getDefaultTenant(user.getId());
+        Long currentTenantId = defaultTenant != null ? defaultTenant.getId() : 1L;
+
+        String token = jwtUtils.generateToken(user.getId(), user.getUsername(), user.getIsSuperAdmin() == 1, currentTenantId);
         UserVO userVO = toUserVO(user);
-        return LoginVO.builder().token(token).user(userVO).build();
+        userVO.setTenants(tenants);
+        return LoginVO.builder()
+                .token(token)
+                .user(userVO)
+                .tenants(tenants)
+                .currentTenant(defaultTenant)
+                .build();
     }
 
     @Override
@@ -86,7 +102,15 @@ public class UserServiceImpl implements UserService {
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.insert(user);
 
-        String token = jwtUtils.generateToken(user.getId(), user.getUsername(), false);
+        // 新注册用户绑定到租户1
+        UserTenantPO ut = new UserTenantPO();
+        ut.setUserId(user.getId());
+        ut.setTenantId(1L);
+        ut.setIsTenantAdmin(0);
+        ut.setCreatedAt(LocalDateTime.now());
+        userTenantMapper.insert(ut);
+
+        String token = jwtUtils.generateToken(user.getId(), user.getUsername(), false, 1L);
         UserVO userVO = toUserVO(user);
         return LoginVO.builder().token(token).user(userVO).build();
     }
@@ -228,6 +252,7 @@ public class UserServiceImpl implements UserService {
     }
 
     private UserVO toUserVO(UserPO user) {
+        List<TenantSimpleVO> tenants = tenantService.listUserTenants(user.getId());
         return UserVO.builder()
                 .id(user.getId())
                 .username(user.getUsername())
@@ -235,6 +260,7 @@ public class UserServiceImpl implements UserService {
                 .avatar(user.getAvatar())
                 .isSuperAdmin(user.getIsSuperAdmin())
                 .mustChangePassword(user.getMustChangePassword())
+                .tenants(tenants)
                 .build();
     }
 }

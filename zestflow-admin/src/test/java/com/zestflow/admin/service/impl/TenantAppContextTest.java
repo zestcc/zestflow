@@ -69,7 +69,7 @@ class TenantAppContextTest {
     @Test
     void getCurrentUserAppCodes_superAdmin_returnsEmptySet() {
         when(authentication.isAuthenticated()).thenReturn(true);
-        SecurityUtils.AuthDetails details = new SecurityUtils.AuthDetails(1L, true);
+        SecurityUtils.AuthDetails details = new SecurityUtils.AuthDetails(1L, true, 1L);
         when(authentication.getDetails()).thenReturn(details);
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
@@ -82,7 +82,7 @@ class TenantAppContextTest {
     @Test
     void getCurrentUserAppCodes_normalUser_returnsAccessibleCodes() {
         when(authentication.isAuthenticated()).thenReturn(true);
-        SecurityUtils.AuthDetails details = new SecurityUtils.AuthDetails(2L, false);
+        SecurityUtils.AuthDetails details = new SecurityUtils.AuthDetails(2L, false, 1L);
         when(authentication.getDetails()).thenReturn(details);
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(permissionService.getAccessibleAppCodes(2L)).thenReturn(Set.of("app-a", "app-b"));
@@ -96,7 +96,7 @@ class TenantAppContextTest {
     @Test
     void getCurrentUserAppCodes_normalUserNoApps_returnsEmptySet() {
         when(authentication.isAuthenticated()).thenReturn(true);
-        SecurityUtils.AuthDetails details = new SecurityUtils.AuthDetails(2L, false);
+        SecurityUtils.AuthDetails details = new SecurityUtils.AuthDetails(2L, false, 1L);
         when(authentication.getDetails()).thenReturn(details);
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(permissionService.getAccessibleAppCodes(2L)).thenReturn(Collections.emptySet());
@@ -128,7 +128,7 @@ class TenantAppContextTest {
     @Test
     void hasEditPermission_superAdmin_returnsTrue() {
         when(authentication.isAuthenticated()).thenReturn(true);
-        SecurityUtils.AuthDetails details = new SecurityUtils.AuthDetails(1L, true);
+        SecurityUtils.AuthDetails details = new SecurityUtils.AuthDetails(1L, true, 1L);
         when(authentication.getDetails()).thenReturn(details);
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
@@ -139,7 +139,7 @@ class TenantAppContextTest {
     @Test
     void hasEditPermission_normalUserWithEditorRole_returnsTrue() {
         when(authentication.isAuthenticated()).thenReturn(true);
-        SecurityUtils.AuthDetails details = new SecurityUtils.AuthDetails(2L, false);
+        SecurityUtils.AuthDetails details = new SecurityUtils.AuthDetails(2L, false, 1L);
         when(authentication.getDetails()).thenReturn(details);
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(permissionService.hasAppPermission(2L, "app-a", "APP_EDITOR")).thenReturn(true);
@@ -150,7 +150,7 @@ class TenantAppContextTest {
     @Test
     void hasEditPermission_normalUserWithViewerRole_returnsFalse() {
         when(authentication.isAuthenticated()).thenReturn(true);
-        SecurityUtils.AuthDetails details = new SecurityUtils.AuthDetails(2L, false);
+        SecurityUtils.AuthDetails details = new SecurityUtils.AuthDetails(2L, false, 1L);
         when(authentication.getDetails()).thenReturn(details);
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(permissionService.hasAppPermission(2L, "app-a", "APP_EDITOR")).thenReturn(false);

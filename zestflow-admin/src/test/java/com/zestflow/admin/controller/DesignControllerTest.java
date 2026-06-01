@@ -44,7 +44,7 @@ class DesignControllerTest {
     void list_requiresViewerPermission() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false, 1L));
         when(permissionService.hasAppPermission(2L, "app-a", "APP_VIEWER")).thenReturn(true);
         when(proxyService.getFromExecutor(eq("app-a"), anyString(), anyString()))
                 .thenReturn("{\"records\":[]}");
@@ -58,7 +58,7 @@ class DesignControllerTest {
     void getByCode_requiresViewerPermission() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false, 1L));
         when(permissionService.hasAppPermission(2L, "app-a", "APP_VIEWER")).thenReturn(false);
 
         assertThatThrownBy(() -> designController.getByCode("DSN001", "app-a"))
@@ -70,7 +70,7 @@ class DesignControllerTest {
     void create_requiresEditorPermission() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false, 1L));
         when(permissionService.hasAppPermission(2L, "app-a", "APP_EDITOR")).thenReturn(true);
         when(proxyService.executeOnExecutor(eq("app-a"), anyString(), anyString(), anyString()))
                 .thenReturn("{\"code\":200}");
@@ -84,7 +84,7 @@ class DesignControllerTest {
     void create_missingAppCode_stillProceeds() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(1L, true));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(1L, true, 1L));
 
         designController.create("{\"name\":\"no-appcode-design\"}");
 
@@ -95,7 +95,7 @@ class DesignControllerTest {
     void update_requiresEditorPermission() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false, 1L));
         when(permissionService.hasAppPermission(2L, "app-a", "APP_EDITOR")).thenReturn(true);
         when(proxyService.executeOnExecutor(eq("app-a"), anyString(), anyString(), anyString()))
                 .thenReturn("{\"code\":200}");
@@ -109,7 +109,7 @@ class DesignControllerTest {
     void saveGraph_requiresEditorPermission() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false, 1L));
         when(permissionService.hasAppPermission(2L, "app-a", "APP_EDITOR")).thenReturn(true);
         when(proxyService.executeOnExecutor(eq("app-a"), anyString(), anyString(), anyString()))
                 .thenReturn("{\"code\":200}");
@@ -134,7 +134,7 @@ class DesignControllerTest {
     void delete_requiresAdminPermission() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false, 1L));
         when(permissionService.hasAppPermission(2L, "app-a", "APP_ADMIN")).thenReturn(true);
         when(proxyService.executeOnExecutor(eq("app-a"), anyString(), anyString(), any()))
                 .thenReturn("{\"code\":200}");
@@ -148,7 +148,7 @@ class DesignControllerTest {
     void toggleStatus_requiresEditorPermission() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false, 1L));
         when(permissionService.hasAppPermission(2L, "app-a", "APP_EDITOR")).thenReturn(true);
         when(proxyService.executeOnExecutor(eq("app-a"), anyString(), anyString(), anyString()))
                 .thenReturn("{\"code\":200}");
@@ -162,7 +162,7 @@ class DesignControllerTest {
     void getBindings_requiresViewerPermission() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false, 1L));
         when(permissionService.hasAppPermission(2L, "app-a", "APP_VIEWER")).thenReturn(true);
         when(proxyService.getFromExecutor(eq("app-a"), anyString(), anyString()))
                 .thenReturn("{\"records\":[]}");
@@ -176,7 +176,7 @@ class DesignControllerTest {
     void getBindable_requiresViewerPermission() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false, 1L));
         when(permissionService.hasAppPermission(2L, "app-a", "APP_VIEWER")).thenReturn(true);
         when(proxyService.getFromExecutor(eq("app-a"), anyString(), anyString()))
                 .thenReturn("{\"records\":[]}");
@@ -190,7 +190,7 @@ class DesignControllerTest {
     void bind_requiresEditorPermission() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false, 1L));
         when(permissionService.hasAppPermission(2L, "app-a", "APP_EDITOR")).thenReturn(true);
         when(proxyService.executeOnExecutor(eq("app-a"), anyString(), anyString(), anyString()))
                 .thenReturn("{\"code\":200}");
@@ -204,7 +204,7 @@ class DesignControllerTest {
     void unbind_requiresEditorPermission() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false, 1L));
         when(permissionService.hasAppPermission(2L, "app-a", "APP_EDITOR")).thenReturn(true);
         when(proxyService.executeOnExecutor(eq("app-a"), anyString(), anyString(), any()))
                 .thenReturn("{\"code\":200}");

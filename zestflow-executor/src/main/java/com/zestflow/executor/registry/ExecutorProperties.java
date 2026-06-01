@@ -71,6 +71,9 @@ public class ExecutorProperties implements EnvironmentAware {
     /** 执行器暴露的 Port */
     private int port = 9999;
 
+    /** 租户 ID（默认 1，多租户环境下 Admin 分配） */
+    private long tenantId = 1L;
+
     /** 注册/心跳请求超时（毫秒） */
     private int timeoutMs = RegistryConstants.DEFAULT_REGISTRY_TIMEOUT_MS;
 

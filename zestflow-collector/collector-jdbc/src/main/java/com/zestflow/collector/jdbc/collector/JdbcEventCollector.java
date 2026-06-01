@@ -52,6 +52,7 @@ public class JdbcEventCollector implements EventCollector {
                 .executorId(event.getExecutorId())
                 .appCode(event.getAppCode())
                 .appName(event.getAppName())
+                .tenantId(event.getTenantId())
                 .params(event.getParams())
                 .result(event.getResult())
                 .errorMessage(event.getErrorMessage())

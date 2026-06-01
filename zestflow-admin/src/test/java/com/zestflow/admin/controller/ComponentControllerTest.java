@@ -44,7 +44,7 @@ class ComponentControllerTest {
     void list_withAppCode_requiresViewerPermission() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false, 1L));
         when(permissionService.hasAppPermission(2L, "app-a", "APP_VIEWER")).thenReturn(true);
         when(proxyService.getFromExecutor(eq("app-a"), anyString(), anyString()))
                 .thenReturn("{\"records\":[],\"total\":0}");
@@ -77,7 +77,7 @@ class ComponentControllerTest {
     void list_withoutPermission_throws() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false, 1L));
         when(permissionService.hasAppPermission(2L, "app-a", "APP_VIEWER")).thenReturn(false);
 
         assertThatThrownBy(() -> componentController.list("app-a", null, null, null, null, 1, 10))
@@ -89,7 +89,7 @@ class ComponentControllerTest {
     void stats_requiresViewerPermission() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false, 1L));
         when(permissionService.hasAppPermission(2L, "app-a", "APP_VIEWER")).thenReturn(true);
         when(proxyService.resolveExecutorBaseUrl("app-a")).thenReturn("http://192.168.1.1:9999");
         when(proxyService.getDirectFromUrl(anyString(), anyString()))
@@ -104,7 +104,7 @@ class ComponentControllerTest {
     void stats_superAdmin_bypassesPermission() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(1L, true));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(1L, true, 1L));
         when(proxyService.resolveExecutorBaseUrl("app-a")).thenReturn("http://192.168.1.1:9999");
         when(proxyService.getDirectFromUrl(anyString(), anyString()))
                 .thenReturn("{\"total\":5,\"records\":[]}");
@@ -119,7 +119,7 @@ class ComponentControllerTest {
     void stats_noExecutor_returnsZeroStats() {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(1L, true));
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(1L, true, 1L));
         when(proxyService.resolveExecutorBaseUrl("app-a")).thenReturn(null);
 
         String result = componentController.stats("app-a");

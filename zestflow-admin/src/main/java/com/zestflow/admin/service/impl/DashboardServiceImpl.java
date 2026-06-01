@@ -129,7 +129,7 @@ public class DashboardServiceImpl implements DashboardService {
         try {
             LocalDate today = LocalDate.now();
             long todayStart = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli();
-            Map<String, Object> stats = collectorClient.queryStats(todayStart, null);
+            Map<String, Object> stats = collectorClient.queryStats(todayStart, null, tenantAppContext.getCurrentTenantId());
             if (!stats.isEmpty()) {
                 todayExecutions = ((Number) stats.getOrDefault("totalCount", 0)).longValue();
                 avgExecutionMs = ((Number) stats.getOrDefault("avgCostMs", 0)).doubleValue();

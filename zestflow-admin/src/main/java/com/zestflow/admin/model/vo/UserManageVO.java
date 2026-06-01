@@ -26,6 +26,7 @@ public class UserManageVO {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<AppRoleAssignmentVO> appRoles;
+    private List<UserTenantAssignmentVO> userTenants;
 
     @Data
     @Builder
@@ -36,5 +37,16 @@ public class UserManageVO {
         private Long roleId;
         private String roleCode;
         private String roleName;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class UserTenantAssignmentVO {
+        private Long tenantId;
+        private String tenantName;
+        private String tenantCode;
+        private Integer isTenantAdmin;
     }
 }

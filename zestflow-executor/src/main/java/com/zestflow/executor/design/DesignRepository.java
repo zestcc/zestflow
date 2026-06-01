@@ -52,16 +52,19 @@ public class DesignRepository {
     };
 
     private final JdbcTemplate jdbc;
+    private final long tenantId;
 
-    public DesignRepository(JdbcTemplate jdbcTemplate) {
+    public DesignRepository(JdbcTemplate jdbcTemplate, long tenantId) {
         this.jdbc = jdbcTemplate;
+        this.tenantId = tenantId;
     }
 
     // ==================== 设计 CRUD ====================
 
     public List<DesignPO> list(String keyword, Integer status) {
-        StringBuilder sql = new StringBuilder("SELECT * FROM zf_design WHERE is_deleted = 0");
+        StringBuilder sql = new StringBuilder("SELECT * FROM zf_design WHERE is_deleted = 0 AND tenant_id = ?");
         List<Object> args = new ArrayList<>();
+        args.add(tenantId);
         if (keyword != null && !keyword.isBlank()) {
             sql.append(" AND (name LIKE ? OR code LIKE ?)");
             String kw = "%" + keyword + "%";
@@ -77,7 +80,7 @@ public class DesignRepository {
     }
 
     public DesignPO get(String code) {
-        List<DesignPO> list = jdbc.query("SELECT * FROM zf_design WHERE code = ? AND is_deleted = 0", DESIGN_ROW_MAPPER, code);
+        List<DesignPO> list = jdbc.query("SELECT * FROM zf_design WHERE code = ? AND is_deleted = 0 AND tenant_id = ?", DESIGN_ROW_MAPPER, code, tenantId);
         return list.isEmpty() ? null : list.get(0);
     }
 
@@ -88,7 +91,7 @@ public class DesignRepository {
         String creator = updatedBy != null ? updatedBy : (appCode != null ? appCode : "");
         jdbc.update("INSERT INTO zf_design(code, name, description, designer, status, graph_data, chain_data, app_code, tenant_id, created_by, updated_by, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 code, name, description, designer, 1, graphData, chainData,
-                appCode, 1L, creator, creator, now, now);
+                appCode, tenantId, creator, creator, now, now);
         log.info("设计创建成功 code={} name={} createdBy={}", code, name, creator);
         return get(code);
     }
@@ -98,13 +101,13 @@ public class DesignRepository {
         DesignPO cur = get(code);
         if (cur == null) return null;
         String now = LocalDateTime.now().format(DTF);
-        jdbc.update("UPDATE zf_design SET name=?, description=?, designer=?, status=?, updated_by=?, updated_at=? WHERE code=?",
+        jdbc.update("UPDATE zf_design SET name=?, description=?, designer=?, status=?, updated_by=?, updated_at=? WHERE code=? AND tenant_id=?",
                 name != null ? name : cur.getName(),
                 description != null ? description : cur.getDescription(),
                 designer != null ? designer : cur.getDesigner(),
                 status != null ? status : cur.getStatus(),
                 updatedBy != null ? updatedBy : cur.getUpdatedBy(),
-                now, code);
+                now, code, tenantId);
         return get(code);
     }
 
@@ -112,8 +115,8 @@ public class DesignRepository {
         DesignPO cur = get(code);
         if (cur == null) return null;
         String now = LocalDateTime.now().format(DTF);
-        jdbc.update("UPDATE zf_design SET graph_data=?, chain_data=?, updated_by=?, updated_at=? WHERE code=?",
-                graphData, chainData, updatedBy != null ? updatedBy : cur.getUpdatedBy(), now, code);
+        jdbc.update("UPDATE zf_design SET graph_data=?, chain_data=?, updated_by=?, updated_at=? WHERE code=? AND tenant_id=?",
+                graphData, chainData, updatedBy != null ? updatedBy : cur.getUpdatedBy(), now, code, tenantId);
         log.info("设计图保存成功 code={}", code);
         return get(code);
     }
@@ -122,8 +125,8 @@ public class DesignRepository {
         DesignPO cur = get(code);
         if (cur == null) return null;
         String now = LocalDateTime.now().format(DTF);
-        jdbc.update("UPDATE zf_design SET is_deleted=1, updated_by=?, updated_at=? WHERE code=?",
-                updatedBy != null ? updatedBy : cur.getUpdatedBy(), now, code);
+        jdbc.update("UPDATE zf_design SET is_deleted=1, updated_by=?, updated_at=? WHERE code=? AND tenant_id=?",
+                updatedBy != null ? updatedBy : cur.getUpdatedBy(), now, code, tenantId);
         log.info("设计假删成功 code={} updatedBy={}", code, updatedBy);
         return cur;
     }
@@ -133,8 +136,8 @@ public class DesignRepository {
         if (cur == null) return null;
         int newStatus = (cur.getStatus() != null && cur.getStatus() == 1) ? 0 : 1;
         String now = LocalDateTime.now().format(DTF);
-        jdbc.update("UPDATE zf_design SET status=?, updated_by=?, updated_at=? WHERE code=?",
-                newStatus, updatedBy != null ? updatedBy : cur.getUpdatedBy(), now, code);
+        jdbc.update("UPDATE zf_design SET status=?, updated_by=?, updated_at=? WHERE code=? AND tenant_id=?",
+                newStatus, updatedBy != null ? updatedBy : cur.getUpdatedBy(), now, code, tenantId);
         log.info("设计状态切换 code={} newStatus={}", code, newStatus);
         return get(code);
     }
@@ -143,38 +146,38 @@ public class DesignRepository {
 
     public List<ChainPO> getBindings(String designCode) {
         return jdbc.query(
-                "SELECT c.*, b.design_code FROM zf_chain c INNER JOIN zf_design_binding b ON c.code = b.chain_code WHERE b.design_code = ? ORDER BY c.updated_at DESC",
-                CHAIN_ROW_MAPPER, designCode);
+                "SELECT c.*, b.design_code FROM zf_chain c INNER JOIN zf_design_binding b ON c.code = b.chain_code WHERE b.design_code = ? AND c.tenant_id = ? ORDER BY c.updated_at DESC",
+                CHAIN_ROW_MAPPER, designCode, tenantId);
     }
 
     public boolean bind(String designCode, String chainCode, String updatedBy) {
         // 先清除该链的旧绑定，避免残留
-        jdbc.update("DELETE FROM zf_design_binding WHERE chain_code = ?", chainCode);
+        jdbc.update("DELETE FROM zf_design_binding WHERE chain_code = ? AND tenant_id = ?", chainCode, tenantId);
         // 创建新绑定
-        int updated = jdbc.update("INSERT INTO zf_design_binding(design_code, chain_code) VALUES(?,?)",
-                designCode, chainCode);
+        int updated = jdbc.update("INSERT INTO zf_design_binding(design_code, chain_code, tenant_id, app_code) VALUES(?,?,?,?)",
+                designCode, chainCode, tenantId, null);
         if (updated == 0) return false;
         // 更新链状态为未发布
         String now = LocalDateTime.now().format(DTF);
-        jdbc.update("UPDATE zf_chain SET status=2, updated_by=?, updated_at=? WHERE code=?",
-                updatedBy != null ? updatedBy : "", now, chainCode);
+        jdbc.update("UPDATE zf_chain SET status=2, updated_by=?, updated_at=? WHERE code=? AND tenant_id=?",
+                updatedBy != null ? updatedBy : "", now, chainCode, tenantId);
         log.info("设计绑定成功 designCode={} chainCode={} updatedBy={}", designCode, chainCode, updatedBy);
         return true;
     }
 
     public boolean unbind(String designCode, String chainCode, String updatedBy) {
-        int updated = jdbc.update("DELETE FROM zf_design_binding WHERE design_code=? AND chain_code=?",
-                designCode, chainCode);
+        int updated = jdbc.update("DELETE FROM zf_design_binding WHERE design_code=? AND chain_code=? AND tenant_id=?",
+                designCode, chainCode, tenantId);
         if (updated == 0) return false;
         // 更新链状态
         String now = LocalDateTime.now().format(DTF);
-        jdbc.update("UPDATE zf_chain SET updated_by=?, updated_at=? WHERE code=?",
-                updatedBy != null ? updatedBy : "", now, chainCode);
+        jdbc.update("UPDATE zf_chain SET updated_by=?, updated_at=? WHERE code=? AND tenant_id=?",
+                updatedBy != null ? updatedBy : "", now, chainCode, tenantId);
         log.info("设计解绑成功 designCode={} chainCode={} updatedBy={}", designCode, chainCode, updatedBy);
         return true;
     }
 
     public void deleteBindingsByChain(String chainCode) {
-        jdbc.update("DELETE FROM zf_design_binding WHERE chain_code = ?", chainCode);
+        jdbc.update("DELETE FROM zf_design_binding WHERE chain_code = ? AND tenant_id = ?", chainCode, tenantId);
     }
 }

@@ -9,6 +9,48 @@ CREATE DATABASE IF NOT EXISTS `zestflow_test_log` DEFAULT CHARACTER SET utf8mb4 
 
 -- ==================== Admin 库（zestflow_admin） ====================
 
+-- 2026-06-01：租户表 — 多租户基础
+CREATE TABLE `zestflow_admin`.`tenant` (
+    `id`             BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
+    `name`           VARCHAR(128) NOT NULL                 COMMENT '租户名称',
+    `code`           VARCHAR(64)  NOT NULL                 COMMENT '租户编码',
+    `description`    VARCHAR(500) DEFAULT NULL             COMMENT '租户描述',
+    `status`         TINYINT      DEFAULT 1                COMMENT '状态：1-正常 0-禁用',
+    `last_active_at` DATETIME     DEFAULT NULL             COMMENT '最后活跃时间',
+    `created_by`     VARCHAR(64)  DEFAULT NULL             COMMENT '创建人',
+    `updated_by`     VARCHAR(64)  DEFAULT NULL             COMMENT '最后修改人',
+    `created_at`     DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at`     DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='租户表';
+
+-- 2026-06-01：用户-租户关联表
+CREATE TABLE `zestflow_admin`.`user_tenant` (
+    `id`              BIGINT   NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
+    `user_id`         BIGINT   NOT NULL                 COMMENT '用户ID',
+    `tenant_id`       BIGINT   NOT NULL                 COMMENT '租户ID',
+    `is_tenant_admin` TINYINT  DEFAULT 0                COMMENT '是否租户管理员：1-是 0-否',
+    `created_by`      VARCHAR(64) DEFAULT NULL          COMMENT '创建人',
+    `created_at`      DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_user_tenant` (`user_id`, `tenant_id`),
+    KEY `idx_tenant_id` (`tenant_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户租户关联表';
+
+-- 2026-06-01：IP-租户映射表（演示环境自动映射）
+CREATE TABLE `zestflow_admin`.`tenant_ip_mapping` (
+    `id`              BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
+    `ip_address`      VARCHAR(64)  NOT NULL                 COMMENT 'IP地址',
+    `tenant_id`       BIGINT       NOT NULL                 COMMENT '租户ID',
+    `last_active_at`  DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '最后活跃时间',
+    `created_at`      DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_ip` (`ip_address`),
+    KEY `idx_tenant_id` (`tenant_id`),
+    KEY `idx_last_active` (`last_active_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='IP-租户映射表（演示环境）';
+
 CREATE TABLE `zestflow_admin`.`user` (
     `id`                   BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `username`             VARCHAR(50)  NOT NULL                 COMMENT '用户名',
@@ -337,6 +379,7 @@ CREATE TABLE `zestflow_test_log`.`chain_event` (
     `executor_id`   VARCHAR(128) DEFAULT NULL             COMMENT '执行器 ID',
     `app_code`      VARCHAR(64)  DEFAULT NULL             COMMENT '应用编码',
     `app_name`      VARCHAR(64)  DEFAULT NULL             COMMENT '应用名',
+    `tenant_id`     BIGINT       DEFAULT 1                COMMENT '租户ID',
     `params`        TEXT         DEFAULT NULL             COMMENT '执行入参 JSON',
     `result`        TEXT         DEFAULT NULL             COMMENT '执行结果 JSON',
     `error_message` TEXT         DEFAULT NULL             COMMENT '错误消息',
@@ -351,5 +394,24 @@ CREATE TABLE `zestflow_test_log`.`chain_event` (
     KEY `idx_executor_id` (`executor_id`),
     KEY `idx_timestamp` (`timestamp`),
     KEY `idx_app_event` (`app_name`, `event_type`),
-    KEY `idx_execution_id` (`execution_id`)
+    KEY `idx_execution_id` (`execution_id`),
+    KEY `idx_tenant_id` (`tenant_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='链执行事件表';
+
+-- 2026-06-01：链图数据快照表，发布时快照供历史日志 X6 图还原
+CREATE TABLE IF NOT EXISTS `zestflow_test_log`.`chain_graph_snapshot` (
+    `id`          BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '自增主键',
+    `chain_code`  VARCHAR(64)  NOT NULL                            COMMENT '链编码',
+    `version`     INT          NOT NULL                            COMMENT '版本号',
+    `graph_data`  MEDIUMTEXT   DEFAULT NULL                        COMMENT '图数据 JSON',
+    `status`      TINYINT      NOT NULL DEFAULT 1                  COMMENT '状态：1-生效 0-已废弃',
+    `tenant_id`   BIGINT       DEFAULT 1                           COMMENT '租户ID',
+    `app_code`    VARCHAR(50)  DEFAULT NULL                        COMMENT '应用编码',
+    `created_by`  VARCHAR(64)  DEFAULT NULL                        COMMENT '创建人',
+    `updated_by`  VARCHAR(64)  DEFAULT NULL                        COMMENT '最后更新人',
+    `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP   COMMENT '创建时间',
+    `updated_at`  DATETIME     DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `is_deleted`  TINYINT      DEFAULT 0                           COMMENT '删除标记（0-未删）',
+    UNIQUE KEY `uk_chain_version` (`chain_code`, `version`),
+    KEY `idx_lookup` (`chain_code`, `status`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='链图数据快照表';

@@ -3,10 +3,13 @@ package com.zestflow.collector.jdbc.config;
 import com.zestflow.collector.jdbc.collector.AsyncEventCollector;
 import com.zestflow.collector.jdbc.collector.JdbcEventCollector;
 import com.zestflow.collector.jdbc.controller.CollectorController;
+import com.zestflow.collector.jdbc.controller.GraphSnapshotController;
 import com.zestflow.collector.jdbc.mapper.ChainEventMapper;
+import com.zestflow.collector.jdbc.mapper.ChainGraphSnapshotMapper;
 import com.zestflow.collector.jdbc.registry.CollectorAdminClient;
 import com.zestflow.collector.jdbc.registry.CollectorRegistrar;
 import com.zestflow.collector.jdbc.registry.CollectorRegistryProperties;
+import com.zestflow.collector.jdbc.service.ChainGraphSnapshotService;
 import com.zestflow.collector.jdbc.service.JdbcEventQueryService;
 import com.zestflow.common.spi.EventCollector;
 import com.zestflow.collector.spi.EventQueryService;
@@ -66,6 +69,25 @@ public class CollectorAutoConfig {
     public CollectorController collectorController(EventQueryService eventQueryService,
                                                     CollectorProperties properties) {
         return new CollectorController(eventQueryService, properties);
+    }
+
+    // ==================== 图数据快照 ====================
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ChainGraphSnapshotService chainGraphSnapshotService(
+            ChainGraphSnapshotMapper chainGraphSnapshotMapper,
+            ChainEventMapper chainEventMapper) {
+        return new ChainGraphSnapshotService(chainGraphSnapshotMapper, chainEventMapper);
+    }
+
+    @Bean
+    @ConditionalOnClass(name = "jakarta.servlet.http.HttpServletRequest")
+    @ConditionalOnMissingBean
+    public GraphSnapshotController graphSnapshotController(
+            ChainGraphSnapshotService snapshotService,
+            CollectorProperties properties) {
+        return new GraphSnapshotController(snapshotService, properties);
     }
 
     // ==================== 采集器注册 ====================

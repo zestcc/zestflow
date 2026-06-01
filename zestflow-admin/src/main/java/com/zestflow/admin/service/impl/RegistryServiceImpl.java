@@ -28,7 +28,7 @@ public class RegistryServiceImpl implements RegistryService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void register(RegisterDTO dto) {
+    public void register(RegisterDTO dto, Long tenantId) {
         ExecutorRegistryPO existing = findById(dto.getExecutorId());
 
         if (existing != null) {
@@ -49,6 +49,7 @@ public class RegistryServiceImpl implements RegistryService {
             po.setExecutorPort(dto.getPort());
             po.setStatus(RegistryConstants.STATUS_ONLINE);
             po.setLastHeartbeat(LocalDateTime.now());
+            po.setTenantId(tenantId != null ? tenantId : 1L);
             executorRegistryMapper.insert(po);
             log.info("执行器首次注册 executorId={} appCode={} appName={} host={}:{}",
                     dto.getExecutorId(), dto.getAppCode(), dto.getAppName(), dto.getHost(), dto.getPort());

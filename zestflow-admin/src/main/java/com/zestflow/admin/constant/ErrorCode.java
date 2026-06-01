@@ -41,4 +41,9 @@ public interface ErrorCode {
 
     // Security
     String LOGIN_RATE_LIMITED = "LOGIN_RATE_LIMITED";
+
+    // Tenant
+    String TENANT_NOT_FOUND = "TENANT_NOT_FOUND";
+    String TENANT_CODE_EXISTS = "TENANT_CODE_EXISTS";
+    String TENANT_CANNOT_DELETE_SYSTEM = "TENANT_CANNOT_DELETE_SYSTEM";
 }
