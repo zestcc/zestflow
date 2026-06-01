@@ -974,6 +974,43 @@ zestflow:
 | 2026-06 | `ChainGraphSnapshotService` 显式设置 `createdAt`/`updatedAt` 绕开 MetaObjectHandler 限制 |
 | 2026-06 | 连线标签文字样式修复：使用 `defaultLabel` + `text` 选择器，`#303133` 深色 + 白色描边抗锯齿 |
 
+## 架构决策记录（2026-06-02）
+
+### 架构评估结论
+
+全链路评估完成，确认系统架构整体可用，不存在硬伤：
+
+| 层级 | 结论 | 对标 |
+|------|------|------|
+| Admin↔Executor HTTP 通信 | RestTemplate + Netty，成熟模式 | xxl-job |
+| 注册表（心跳 + DB + 三态） | 心跳 30s，90s 离线检测 | Nacos / xxl-job |
+| 发布广播 | reload 已走 broadcastToExecutors，全实例广播 | xxl-job |
+| 元件一致性 | 多实例同 JAR 部署，一致 | - |
+| CRUD 数据一致性 | 共享 MySQL，打到谁都一样 | - |
+| 事件采集（三级异步流水线） | 有界队列 + 批量 drain + 熔断器 | Sentinel |
+
+### Round-robin 路由
+
+`ExecutorProxyService.resolveExecutorBaseUrl` 从 `LIMIT 1` 改为 `AtomicInteger` 轮询，多实例部署时请求均匀分布。
+
+### Redis 分布式缓存（条件装配）
+
+- pom.xml 添加 `spring-boot-starter-data-redis` 依赖，但 `RedisAutoConfiguration` 在主应用排除
+- `zestflow.admin.cache.type=redis` 时启用 AdminRedisCacheConfig，提供 Lettuce + RedisCacheManager
+- 默认 `type=caffeine`，Redis 依赖在 classpath 上但不激活，零改动
+- Redis 连接使用标准 `spring.data.redis.*` 配置
+
+### ABNORMAL 清理
+
+OfflineMonitor 新增 `cleanupStaleAbnormal()`，每 30min 扫描并删除 ABNORMAL 超过 24h 的注册表记录，防止表无限膨胀。
+
+### Admin 高可用分析
+
+- **Executor 侧**: Admin 挂不影响已发布链执行，Executor 不依赖 Admin 做运行时决策
+- **Admin 侧**: 单进程单点，重启期间不能发布/查日志。无状态（JWT + 共享 MySQL），做集群只需解决调度分布式锁
+- **单点瓶颈**: MySQL 是全局单点，MySQL 挂则全部停服
+- **容量**: 单 Admin 可扛 250+ executor 实例（50 应用 × 5 实例），无需过早考虑集群化
+
 ## 新机器初始化（事件系统修复已提交，commit c1b1faa）
 
 **代码已全部提交，新机器 clone/pull 后需要做的：**
