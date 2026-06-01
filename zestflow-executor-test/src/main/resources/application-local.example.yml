@@ -6,7 +6,7 @@
 spring:
   # 主数据源 — 业务数据库
   datasource:
-    url: jdbc:mysql://localhost:3306/zestflow_test_bussiness?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://localhost:3306/zestflow_app_bussiness?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
     username: your-db-username
     password: your-db-password
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -18,13 +18,13 @@ spring:
 zestflow:
   executor:
     datasource:
-      url: jdbc:mysql://localhost:3306/zestflow_test_bussiness?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+      url: jdbc:mysql://localhost:3306/zestflow_app_bussiness?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
       username: your-db-username
       password: your-db-password
       driver-class-name: com.mysql.cj.jdbc.Driver
   collector:
     datasource:
-      url: jdbc:mysql://localhost:3306/zestflow_test_log?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+      url: jdbc:mysql://localhost:3306/zestflow_app_log?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
       username: your-db-username
       password: your-db-password
       driver-class-name: com.mysql.cj.jdbc.Driver

@@ -12,7 +12,7 @@ spring:
     name: demo-app
   datasource:
     # 主数据源 — 业务数据库
-    url: jdbc:mysql://localhost:3306/zestflow_test_bussiness?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://localhost:3306/zestflow_app_bussiness?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
     username: your-db-username
     password: your-db-password
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -28,7 +28,7 @@ zestflow:
     execute-endpoint-enabled: false
     # 执行器数据源（默认复用主数据源）
     datasource:
-      url: jdbc:mysql://localhost:3306/zestflow_test_bussiness?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+      url: jdbc:mysql://localhost:3306/zestflow_app_bussiness?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
       username: your-db-username
       password: your-db-password
       driver-class-name: com.mysql.cj.jdbc.Driver
@@ -42,7 +42,7 @@ zestflow:
   collector:
     # 采集器数据源
     datasource:
-      url: jdbc:mysql://localhost:3306/zestflow_test_log?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+      url: jdbc:mysql://localhost:3306/zestflow_app_log?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
       username: your-db-username
       password: your-db-password
       driver-class-name: com.mysql.cj.jdbc.Driver

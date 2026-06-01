@@ -594,7 +594,7 @@ log.error("链执行失败 chainId={} nodeId={}", chainId, nodeId, e);
 4. **默认值双重保障** — 新增字段的默认值同时在 DDL（`DEFAULT xxx`）和 Service 层代码中设置，避免空指针。
 5. **未正式发布前可删表重建** — 当前无正式用户（没有 v1 版本），所有数据库可随时 `DROP TABLE` 后由 Flyway 重新创建。需要表结构变更时，直接修改 `init.sql` 或最新迁移脚本 <code>V{n}__xxx.sql</code>，通知后执行 Flyway clean + migrate 即可。
 6. **种子数据放 initData.sql，禁止 Java 代码播种（强制，2026-05-31 立规）** — 所有演示/测试用种子数据必须放在 `db/initData.sql` 中，严禁在 `ApplicationRunner`、`@PostConstruct` 或任何 Java 代码路径中执行 INSERT 播种。`init.sql` 只包含 DDL（建表、索引），`initData.sql` 只包含 DML（INSERT）。两条规则必须遵守：
-   - **所有表引用必须携带数据库前缀**：`zestflow_admin.xxx`、`zestflow_test_bussiness.xxx`，禁止无前缀裸表名
+   - **所有表引用必须携带数据库前缀**：`zestflow_admin.xxx`、`zestflow_app_bussiness.xxx`，禁止无前缀裸表名
    - **幂等性**：所有 INSERT 使用 `INSERT IGNORE INTO`，确保重复执行不产生重复数据
    - **初始化流程**：先执行 `init.sql` 建表，再执行 `initData.sql` 灌数据
 
@@ -977,7 +977,7 @@ zestflow:
 ## 新机器初始化（事件系统修复已提交，commit c1b1faa）
 
 **代码已全部提交，新机器 clone/pull 后需要做的：**
-1. 数据库迁移：`ALTER TABLE zestflow_test_log.chain_event ADD COLUMN app_code VARCHAR(64) DEFAULT NULL COMMENT '应用编码' AFTER executor_id;`
+1. 数据库迁移：`ALTER TABLE zestflow_app_log.chain_event ADD COLUMN app_code VARCHAR(64) DEFAULT NULL COMMENT '应用编码' AFTER executor_id;`
 2. 编译安装：`mvn install -pl zestflow-executor -am -DskipTests && mvn package -pl zestflow-executor-test -am -DskipTests`
 3. 启动 Admin + 测试应用（端口 8081）
 4. 验证：POST `/api/orders/handleApplyAfterSale` → 检查 chain_event 表数据（app_code 非空、params/result 有值、cost_ms > 0、executor_id 为编码非 null@null）

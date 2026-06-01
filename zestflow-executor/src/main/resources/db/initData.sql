@@ -6,12 +6,12 @@
 -- 2026-06-02
 -- ============================================================================
 
-USE `zestflow_test_bussiness`;
+USE `zestflow_app_bussiness`;
 
 -- ==================== 定义共享 X6 端口配置 ====================
 SET @ports = '{"groups":{"handle":{"position":"absolute","attrs":{"circle":{"r":5,"magnet":true,"stroke":"#fff","strokeWidth":2,"fill":"#fff","stroke-opacity":0,"fill-opacity":0}},"zIndex":10}},"items":[{"id":"t","group":"handle","args":{"x":"50%","y":"0%"}},{"id":"tr","group":"handle","args":{"x":"100%","y":"15%"}},{"id":"r","group":"handle","args":{"x":"100%","y":"50%"}},{"id":"br","group":"handle","args":{"x":"100%","y":"85%"}},{"id":"b","group":"handle","args":{"x":"50%","y":"100%"}},{"id":"bl","group":"handle","args":{"x":"0%","y":"85%"}},{"id":"l","group":"handle","args":{"x":"0%","y":"50%"}},{"id":"tl","group":"handle","args":{"x":"0%","y":"15%"}}]}';
 
--- ==================== 链定义（zestflow_test_bussiness.zf_chain） ====================
+-- ==================== 链定义（zestflow_app_bussiness.zf_chain） ====================
 
 INSERT IGNORE INTO `zf_chain` (`code`, `name`, `description`, `status`, `version`, `created_by`, `app_code`, `tenant_id`, `created_at`, `updated_at`) VALUES
 ('CHN_PLAYGROUND_HELLO',         'Hello World',           '3 节点最小链路，体验链执行全流程',                                     4, 1, 'system', 'playground-app', 1, NOW(), NOW()),
@@ -46,7 +46,7 @@ INSERT IGNORE INTO `zf_chain` (`code`, `name`, `description`, `status`, `version
 ('CHN_PLAYGROUND_SMS_SEND',       '短信发送',              '校验模板→填充变量→调用通道→记录发送日志',                                     4, 1, 'system', 'playground-app', 1, NOW(), NOW()),
 ('CHN_PLAYGROUND_EMAIL_SEND',     '邮件通知',              '校验模板→渲染HTML→调用SMTP→记录日志',                                     4, 1, 'system', 'playground-app', 1, NOW(), NOW());
 
--- ==================== 设计定义（zestflow_test_bussiness.zf_design） ====================
+-- ==================== 设计定义（zestflow_app_bussiness.zf_design） ====================
 -- 每个设计包含最小有效 3 节点 DAG（开始→任务→结束），
 -- graph_data 为 X6 JSON 格式，chain_data 为 ChainDefinitionDTO 格式
 
@@ -206,7 +206,7 @@ INSERT IGNORE INTO `zf_design` (`code`, `name`, `description`, `designer`, `stat
  CONCAT('{"code":"CHN_PLAYGROUND_EMAIL_SEND","version":1,"nodes":[{"id":"n1","label":"开始","type":"EXECUTOR"},{"id":"n2","label":"邮件通知","type":"EXECUTOR"},{"id":"n3","label":"结束","type":"EXECUTOR"}],"edges":[{"source":"n1","target":"n2"},{"source":"n2","target":"n3"}]}'),
  'system', 'playground-app', 1, NOW(), NOW());
 
--- ==================== 设计与链绑定（zestflow_test_bussiness.zf_design_binding） ====================
+-- ==================== 设计与链绑定（zestflow_app_bussiness.zf_design_binding） ====================
 
 INSERT IGNORE INTO `zf_design_binding` (`design_code`, `chain_code`, `tenant_id`, `app_code`) VALUES
 ('DES_PLAYGROUND_HELLO',           'CHN_PLAYGROUND_HELLO',          1, 'playground-app'),

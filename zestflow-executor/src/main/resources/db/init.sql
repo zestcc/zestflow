@@ -3,9 +3,9 @@
 
 -- ==================== 创建数据库 ====================
 
-CREATE DATABASE IF NOT EXISTS `zestflow_test_bussiness` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS `zestflow_app_bussiness` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-USE `zestflow_test_bussiness`;
+USE `zestflow_app_bussiness`;
 
 -- ==================== 业务表 ====================
 
