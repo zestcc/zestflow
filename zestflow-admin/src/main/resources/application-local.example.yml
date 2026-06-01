@@ -1,5 +1,5 @@
 # ============================================================
-# 本地开发环境数据库配置（模板）
+# 本地开发环境配置（模板）
 # 复制本文件为 application-local.yml 并修改实际配置
 # ============================================================
 
@@ -14,3 +14,39 @@ spring:
       minimum-idle: 5
       idle-timeout: 30000
       connection-timeout: 10000
+  mail:
+    # SMTP 服务器配置（按实际邮件服务商填写）
+    host: smtp.your-email.com
+    port: 465
+    username: your-email@126.com
+    password: your-auth-code
+    properties:
+      mail.smtp.ssl.trust: smtp.your-email.com
+      mail.smtp.socketFactory.class: javax.net.ssl.SSLSocketFactory
+
+zestflow:
+  jwt:
+    # 生产环境 JWT Secret 必须修改，保持 256 位以上
+    secret: your-jwt-secret-must-be-at-least-256-bits-long
+  admin:
+    default-user:
+      email: admin@example.com
+    cache:
+      # 本地开发用 simple（零依赖），生产用 caffeine
+      type: simple
+  mail:
+    # 覆盖为主配置中的开关，本地开发启用邮件发送
+    enabled: true
+  collector:
+    api-url: http://localhost:8081
+    access-token: ''
+
+# 本地开发开启 MyBatis SQL 日志
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# 本地开发开启 debug 日志
+logging:
+  level:
+    com.zestflow: debug
