@@ -6,22 +6,14 @@ server:
 spring:
   application:
     name: zestflow-admin
+  config:
+    import: optional:classpath:application-local.yml
   messages:
     basename: messages
     encoding: UTF-8
     fallback-to-system-locale: false
   mvc:
     locale-resolver: accept-header
-  datasource:
-    url: jdbc:mysql://localhost:3306/zestflow_admin?useUnicode=true&characterEncoding=utf-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
-    username: root
-    password: 123456
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
-      idle-timeout: 30000
-      connection-timeout: 10000
   mail:
     host: smtp.example.com
     port: 587
