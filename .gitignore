@@ -79,8 +79,9 @@ dist-ssr/
 .env.*
 !.env.example
 
-# ====== 本地配置（含数据库密码等敏感信息） ======
+# ====== 本地/生产配置（含数据库密码等敏感信息） ======
 application-local.yml
+application-prod.yml
 
 # ====== 上传文件 ======
 uploads/
