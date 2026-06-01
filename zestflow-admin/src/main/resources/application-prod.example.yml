@@ -74,11 +74,8 @@ zestflow:
   playground:
     # 开关：true 启用系统演示功能（含演示场景、演示记录、试验场）
     enabled: true
-    # 演示链所属应用编码
-    app-code: playground-app
   collector:
-    # Collector 服务地址
-    api-url: http://localhost:8081
+    # Collector 地址通过注册表自动发现，无需配置
     access-token: ''
   mail:
     # 总开关：启用邮件发送
