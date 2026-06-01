@@ -67,7 +67,7 @@ zestflow:
     # 生产环境在 application-local.yml 中覆盖为 true
     enabled: false
     # 前端访问地址（用于拼接重置/验证链接）
-    base-url: ${APP_BASE_URL:http://localhost:8080}
+    base-url: ${APP_BASE_URL:http://localhost:${server.port}}
     # 发件人显示名称
     from-name: "ZestFlow"
     reset-password:

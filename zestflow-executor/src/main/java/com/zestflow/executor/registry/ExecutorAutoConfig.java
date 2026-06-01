@@ -16,7 +16,9 @@ import com.zestflow.executor.scanner.ComponentScanner;
 import com.zestflow.executor.chain.ChainRepository;
 import com.zestflow.executor.design.DesignRepository;
 import com.zestflow.executor.server.ExecutorServer;
+import com.zestflow.executor.controller.ExecutionController;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
@@ -41,6 +43,14 @@ public class ExecutorAutoConfig {
                                           ChainLoader chainLoader) {
         return new ExecutorServer(properties.getPort(), chainExecutionEngine,
                 chainRepo, designRepo, componentScanner, chainLoader, properties.getAccessToken());
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "zestflow.executor", name = "execute-endpoint-enabled",
+            havingValue = "true", matchIfMissing = false)
+    public ExecutionController executionController(ChainExecutionEngine chainExecutionEngine,
+                                                    ChainManager chainManager) {
+        return new ExecutionController(chainExecutionEngine, chainManager);
     }
 
     @Bean

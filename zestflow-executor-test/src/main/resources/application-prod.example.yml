@@ -25,6 +25,7 @@ spring:
 zestflow:
   executor:
     port: 20550
+    execute-endpoint-enabled: false
     # 执行器数据源（默认复用主数据源）
     datasource:
       url: jdbc:mysql://localhost:3306/zestflow_test_bussiness?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai

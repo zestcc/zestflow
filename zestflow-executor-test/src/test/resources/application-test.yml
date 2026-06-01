@@ -33,6 +33,7 @@ zestflow:
     module-code: test-executor
     host: localhost
     port: 0
+    execute-endpoint-enabled: false
     event:
       queue-capacity: 8192
       batch-size: 200

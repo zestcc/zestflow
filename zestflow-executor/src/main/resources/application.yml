@@ -19,6 +19,8 @@ zestflow:
     host:
     # 执行器暴露的 Port（Netty 服务端端口）
     port: 20550
+    # 统一执行端点开关（true 则在 Web 端口注册 POST /execute）
+    execute-endpoint-enabled: false
     # 注册/心跳请求超时（毫秒）
     timeout-ms: 5000
 

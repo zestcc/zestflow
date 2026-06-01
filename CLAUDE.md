@@ -563,6 +563,17 @@ log.error("链执行失败 chainId={} nodeId={}", chainId, nodeId, e);
 12. **弹窗关闭后自动刷新列表** — 所有弹窗操作（新增/编辑/绑定/解绑/删除等）成功后，关闭弹窗的同时必须自动刷新列表，且保持当前筛选条件和分页状态不变（不重置 page=1，不清空 filter）
 13. **编码列点击查看详情（强制）** — 所有列表页的编码列（包括主实体编码和外键引用编码）必须可点击，点击后使用 `el-drawer` 从右侧滑出详情面板。主实体编码展示自身详情，外键引用编码（如链表中展示的设计编码）展示被引用实体详情。详情内容包括名称、编码、状态、描述、时间等基本信息。
 
+### 配置同步规范（强制）
+
+新增或修改 `zestflow.executor.*` 配置属性时，必须同步到以下所有配置文件，保持属性名、注释风格一致：
+
+- **`zestflow-executor/src/main/resources/application.yml`** — executor 模块默认配置（含所有属性的完整注释）
+- **`zestflow-executor-test/src/main/resources/application.yml`** — test 模块主配置
+- **`zestflow-executor-test/src/main/resources/application-prod.example.yml`** — 生产部署模板（显式设值，不依赖默认值）
+- **`zestflow-executor-test/src/test/resources/application-test.yml`** — 单元测试配置
+
+仅涉及 datasource 子属性的（如 `zestflow.executor.datasource.*`），上述文件中非 datasource 性质的配置可不同步。
+
 ### 开发环境规范
 
 1. **端口管理** — 重启开发服务器时，必须先杀掉旧进程再在原端口启动，不得自动换端口。Windows Git Bash 下需用 `//F` 而非 `/F` 避免 MSYS 路径转换（`/F` 会被转为 `F:/`）。
