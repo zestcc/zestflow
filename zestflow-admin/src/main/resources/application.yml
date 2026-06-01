@@ -15,8 +15,8 @@ spring:
   mail:
     host: smtp.126.com
     port: 465
-    username: zestcc@126.com
-    password: ZLyFqvYN34kTFFpy
+    username: ''
+    password: ''
     properties:
       mail.smtp.auth: true
       mail.smtp.ssl.enable: true
@@ -43,7 +43,7 @@ zestflow:
     default-user:
       username: admin
       password: admin123
-      email: xiaoze_cheng@163.com
+      email: admin@zestflow.com
     cache:
       # 缓存类型：simple（默认，零依赖）/ caffeine（生产本地）/ redis（集群）
       type: caffeine

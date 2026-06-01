@@ -1,5 +1,5 @@
 # ============================================================
-# 本地开发环境数据库配置（模板）
+# 本地开发环境配置（模板）
 # 复制本文件为 application-local.yml 并修改实际配置
 # ============================================================
 
@@ -14,3 +14,14 @@ spring:
       minimum-idle: 5
       idle-timeout: 30000
       connection-timeout: 10000
+  mail:
+    username: your-email@126.com
+    password: your-auth-code
+
+zestflow:
+  admin:
+    default-user:
+      email: admin@example.com
+  collector:
+    api-url: http://localhost:8081
+    access-token: ''
