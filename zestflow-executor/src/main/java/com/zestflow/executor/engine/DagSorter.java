@@ -153,9 +153,8 @@ public class DagSorter {
 
         try {
             String expr = condition.trim();
-            if (expr.startsWith("${") && expr.endsWith("}")) {
-                expr = expr.substring(2, expr.length() - 1);
-            }
+            // 处理内联 ${...} 占位符，兼容 ${expr} 和 ${expr} < val 两种格式
+            expr = expr.replaceAll("\\$\\{([^}]*)\\}", "$1");
 
             ScriptEngine engine = new ScriptEngineManager().getEngineByName("groovy");
             if (engine == null) {
@@ -166,6 +165,8 @@ public class DagSorter {
             for (Map.Entry<String, Object> entry : data.entrySet()) {
                 bindings.put(entry.getKey(), entry.getValue());
             }
+            // 兼容 params.xxx 条件表达式
+            bindings.put("params", new HashMap<>(data));
             Object result = engine.eval(expr, bindings);
             return Boolean.TRUE.equals(result);
 

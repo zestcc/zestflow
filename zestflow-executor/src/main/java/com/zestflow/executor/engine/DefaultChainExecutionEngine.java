@@ -9,6 +9,7 @@ import com.zestflow.common.model.dto.ChainExecuteResultDTO;
 import com.zestflow.common.model.dto.NodeResultDTO;
 import com.zestflow.common.spi.EventCollector;
 import com.zestflow.executor.chain.ChainDefinition;
+import com.zestflow.executor.chain.ChainDefinition.ChainEdge;
 import com.zestflow.executor.chain.ChainLoader;
 import com.zestflow.executor.chain.ChainManager;
 import com.zestflow.executor.chain.NodeDefinition;
@@ -19,9 +20,11 @@ import com.zestflow.executor.registry.ExecutorProperties;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
@@ -157,10 +160,27 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
             // 4. 获取拓扑分层
             List<List<String>> layers = dagSorter.sort(definition);
 
-            // 5. 逐层执行
+            // 5. 逐层执行 — 动态追踪条件可达节点，实现条件边路由
+            //    初始时第一层（入度为 0 的节点）全部可达
+            Set<String> reachableNodes = new HashSet<>();
+            if (!layers.isEmpty()) {
+                reachableNodes.addAll(layers.get(0));
+            }
+
             for (int layerIndex = 0; layerIndex < layers.size(); layerIndex++) {
                 List<String> layerNodeIds = layers.get(layerIndex);
-                log.debug("链执行第 {} 层 chainCode={} nodes={}", layerIndex + 1, chainCode, layerNodeIds);
+
+                // 按运行时条件过滤仅执行可达节点
+                List<String> executableNodeIds = layerNodeIds.stream()
+                        .filter(reachableNodes::contains)
+                        .collect(Collectors.toList());
+
+                log.debug("链执行第 {} 层 chainCode={} nodes={}", layerIndex + 1, chainCode, executableNodeIds);
+
+                if (executableNodeIds.isEmpty()) {
+                    reachableNodes.clear();
+                    continue;
+                }
 
                 if (instance.isStopped()) {
                     log.warn("链执行被终止 chainCode={} instanceId={}", chainCode, instance.getInstanceId());
@@ -175,8 +195,15 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
                     break;
                 }
 
-                List<NodeResultDTO> layerResults = executeLayer(layerNodeIds, definition, context, instance);
+                List<NodeResultDTO> layerResults = executeLayer(executableNodeIds, definition, context, instance);
                 allNodeResults.addAll(layerResults);
+
+                // 计算当前层可达的下一层节点（按条件边动态路由）
+                reachableNodes.clear();
+                for (String nodeId : executableNodeIds) {
+                    List<String> successors = resolveNodeSuccessors(nodeId, definition, context);
+                    reachableNodes.addAll(successors);
+                }
 
                 boolean hasFailed = layerResults.stream()
                         .anyMatch(r -> r.getStatus() == ChainConstants.NODE_FAILED);
@@ -345,5 +372,64 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
     /** 取节点超时与剩余时间的最小值 */
     private static long nodeDefTimeout(long chainTimeout, long remainingTime) {
         return Math.min(chainTimeout, Math.max(remainingTime, 0));
+    }
+
+    /**
+     * 解析节点的运行时可达后继
+     * <p>
+     * 决策优先级：
+     * <ol>
+     *   <li>出边存在 condition → DagSorter 条件评估</li>
+     *   <li>节点为 CONDITION 类型且出边有 label → 用上下文中 {@code _branch} 匹配 label</li>
+     *   <li>否则全部可达（无条件边）</li>
+     * </ol>
+     */
+    private List<String> resolveNodeSuccessors(String nodeId, ChainDefinition definition, ChainContext context) {
+        NodeDefinition nodeDef = definition.getNode(nodeId);
+        // 非 CONDITION 节点走 DagSorter 标准逻辑
+        if (nodeDef == null || !ChainConstants.NODE_TYPE_CONDITION.equals(nodeDef.getType())) {
+            return dagSorter.resolveReachableSuccessors(nodeId, definition, context.snapshot());
+        }
+
+        // CONDITION 节点：检查出边是否有 condition
+        List<ChainEdge> outgoingEdges = definition.getEdges().stream()
+                .filter(e -> e.getSource().equals(nodeId))
+                .toList();
+        boolean hasConditionalEdges = outgoingEdges.stream()
+                .anyMatch(e -> e.getCondition() != null && !e.getCondition().isEmpty());
+
+        if (hasConditionalEdges) {
+            // 边上有 condition，走 DagSorter 条件评估
+            return dagSorter.resolveReachableSuccessors(nodeId, definition, context.snapshot());
+        }
+
+        // 边无 condition：用 _branch 约定键匹配 label
+        Map<String, Object> snapshot = context.snapshot();
+        Object branchValue = snapshot.get("_branch");
+        if (branchValue != null) {
+            String branchStr = branchValue.toString();
+            for (ChainEdge edge : outgoingEdges) {
+                if (edge.getLabel() != null && edge.getLabel().equals(branchStr)) {
+                    log.debug("CONDITION 节点路由匹配 nodeId={} branch={} target={}",
+                            nodeId, branchStr, edge.getTarget());
+                    return List.of(edge.getTarget());
+                }
+            }
+            log.warn("CONDITION 节点未匹配到分支 nodeId={} _branch={} labels={}",
+                    nodeId, branchStr, outgoingEdges.stream().map(ChainEdge::getLabel).toList());
+            // _branch 已设置但无匹配标签 → 停止该分支，不走无条件边（防全分支执行）
+            return List.of();
+        }
+
+        // 无 _branch：CONDITION 纯路由器（无组件但有条件表达式）
+        // 条件已通过 evaluateCondition 验证，所有无条件边均可达
+        List<String> unconditionalTargets = outgoingEdges.stream()
+                .filter(e -> e.getCondition() == null || e.getCondition().isEmpty())
+                .map(ChainEdge::getTarget)
+                .toList();
+        if (!unconditionalTargets.isEmpty()) {
+            return unconditionalTargets;
+        }
+        return List.of();
     }
 }

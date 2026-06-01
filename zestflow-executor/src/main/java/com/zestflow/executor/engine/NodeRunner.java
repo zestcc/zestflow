@@ -19,6 +19,8 @@ import com.zestflow.executor.lifecycle.LifecycleExecutor;
 import com.zestflow.executor.lifecycle.NodeStateMachine;
 import com.zestflow.executor.retry.RetryExecutor;
 import com.zestflow.executor.scanner.ComponentScanner;
+import com.zestflow.executor.scanner.ComponentScanner.ComponentMeta;
+import com.zestflow.executor.scanner.ComponentScanner.TagDef;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.script.Bindings;
@@ -27,6 +29,7 @@ import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -230,10 +233,54 @@ public class NodeRunner {
                 return null;
             }
         }
+
+        // 无 component 的 CONDITION 节点是纯路由器，跳过元件执行
+        String componentId = nodeDef.getComponent();
+        if (componentId == null || componentId.isEmpty()) {
+            log.debug("条件节点为纯路由器，跳过元件执行 nodeId={}", nodeDef.getId());
+            return null;
+        }
+
         executePreProcessors(nodeDef, context);
         Object result = lifecycleExecutor.execute(nodeDef, context);
         executePostProcessors(nodeDef, context);
+
+        // 将路由决策写入上下文，供引擎选择匹配的出边
+        if (result != null) {
+            String branchLabel = resolveBranchLabel(nodeDef, result.toString());
+            if (branchLabel != null) {
+                context.put("_branch", branchLabel);
+                log.debug("CONDITION 节点路由决策 nodeId={} result={} branch={}",
+                        nodeDef.getId(), result, branchLabel);
+            }
+        }
+
         return result;
+    }
+
+    /**
+     * 解析 CONDITION 节点的路由分支标签
+     * <p>
+     * 优先匹配 @ZestTag.value → @ZestTag.name；无 TagDef 时直接用返回值。
+     */
+    private String resolveBranchLabel(NodeDefinition nodeDef, String resultStr) {
+        String componentId = nodeDef.getComponent();
+        if (componentId == null || componentId.isEmpty()) {
+            return resultStr;
+        }
+        ComponentMeta meta = componentScanner.getComponent(componentId);
+        if (meta == null || meta.getTagDefs() == null || meta.getTagDefs().isEmpty()) {
+            return resultStr;
+        }
+        for (TagDef tag : meta.getTagDefs()) {
+            if (tag.getValue().equals(resultStr)) {
+                return tag.getName();
+            }
+        }
+        log.warn("CONDITION 节点返回值未匹配任何 @ZestTag nodeId={} component={} result={} tags={}",
+                nodeDef.getId(), componentId, resultStr,
+                meta.getTagDefs().stream().map(t -> t.getName() + "=" + t.getValue()).toList());
+        return null;
     }
 
     private Object executeScript(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
@@ -449,9 +496,8 @@ public class NodeRunner {
         }
         try {
             String expr = condition.trim();
-            if (expr.startsWith("${") && expr.endsWith("}")) {
-                expr = expr.substring(2, expr.length() - 1);
-            }
+            // 处理内联 ${...} 占位符，兼容 ${expr} 和 ${expr} < val 两种格式
+            expr = expr.replaceAll("\\$\\{([^}]*)\\}", "$1");
             ScriptEngine engine = new ScriptEngineManager().getEngineByName("groovy");
             if (engine == null) {
                 log.warn("Groovy 引擎不可用，条件表达式视为 true condition={}", condition);
@@ -462,6 +508,8 @@ public class NodeRunner {
             for (Map.Entry<String, Object> entry : snapshot.entrySet()) {
                 bindings.put(entry.getKey(), entry.getValue());
             }
+            // 兼容 params.xxx 条件表达式
+            bindings.put("params", new HashMap<>(snapshot));
             Object result = engine.eval(expr, bindings);
             return Boolean.TRUE.equals(result);
         } catch (Exception e) {

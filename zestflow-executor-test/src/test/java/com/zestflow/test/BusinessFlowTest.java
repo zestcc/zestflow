@@ -114,7 +114,8 @@ class BusinessFlowTest {
                 .orderId("ORD-003").userId("U001").amount(50000).approvalAmount(50000).build();
         Result<PaymentResponse> result = post("/api/payments/approval", req,
                 new ParameterizedTypeReference<Result<PaymentResponse>>() {});
-        assertThat(result.getData().getApprovalResult()).isEqualTo("APPROVED");
+        // 大额（>=5000）不走自动通过，路由到 rejected 分支
+        assertThat(result.getData().getApprovalResult()).isEqualTo("REJECTED");
     }
 
     @Test
