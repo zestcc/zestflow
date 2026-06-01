@@ -18,6 +18,7 @@ import com.zestflow.admin.service.UserManageService;
 import com.zestflow.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -218,6 +219,7 @@ public class UserManageServiceImpl implements UserManageService {
     }
 
     @Override
+    @CacheEvict(value = "permissions", allEntries = true)
     public void assignAppRole(Long userId, String appCode, Long roleId) {
         UserPO user = userMapper.selectById(userId);
         if (user == null) {
@@ -252,6 +254,7 @@ public class UserManageServiceImpl implements UserManageService {
     }
 
     @Override
+    @CacheEvict(value = "permissions", allEntries = true)
     public void removeAppRole(Long userId, String appCode) {
         userAppRoleMapper.delete(
                 new LambdaQueryWrapper<UserAppRolePO>()

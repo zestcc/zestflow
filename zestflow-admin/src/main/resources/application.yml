@@ -42,6 +42,13 @@ zestflow:
       username: admin
       password: admin123
       email: admin@zestflow.com
+    cache:
+      # 缓存类型：simple（默认，零依赖）/ caffeine（生产本地）/ redis（集群）
+      type: caffeine
+      # Caffeine 最大条目数
+      maximum-size: 10000
+      # 缓存 TTL（秒）
+      ttl-seconds: 60
   playground:
     # 开关：true 启用系统演示功能（含演示场景、演示记录、试验场），false 关闭（默认关闭）
     enabled: true

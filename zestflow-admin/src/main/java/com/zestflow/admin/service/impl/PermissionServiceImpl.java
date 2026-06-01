@@ -9,6 +9,8 @@ import com.zestflow.admin.repository.UserAppRoleMapper;
 import com.zestflow.admin.repository.UserMapper;
 import com.zestflow.admin.service.PermissionService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
@@ -28,20 +30,24 @@ public class PermissionServiceImpl implements PermissionService {
             "APP_VIEWER", 1
     );
 
+    private static final String CACHE_NAME = "permissions";
+
     private final UserMapper userMapper;
     private final UserAppRoleMapper userAppRoleMapper;
     private final RoleMapper roleMapper;
 
-    // 角色编码缓存，避免重复查询数据库
+    /** 角色编码本地缓存（角色几乎不变更，适合长期缓存） */
     private final Map<Long, String> roleCodeCache = new ConcurrentHashMap<>();
 
     @Override
+    @Cacheable(value = CACHE_NAME, key = "'super:' + #userId", unless = "#result == false")
     public boolean isSuperAdmin(Long userId) {
         UserPO user = userMapper.selectById(userId);
         return user != null && user.getIsSuperAdmin() != null && user.getIsSuperAdmin() == 1;
     }
 
     @Override
+    @Cacheable(value = CACHE_NAME, key = "'appCodes:' + #userId")
     public Set<String> getAccessibleAppCodes(Long userId) {
         if (isSuperAdmin(userId)) {
             return Collections.emptySet();
@@ -54,6 +60,7 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     @Override
+    @Cacheable(value = CACHE_NAME, key = "'hasPerm:' + #userId + ':' + #appCode + ':' + #requiredRoleCode")
     public boolean hasAppPermission(Long userId, String appCode, String requiredRoleCode) {
         if (isSuperAdmin(userId)) {
             return true;
@@ -82,6 +89,7 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     @Override
+    @Cacheable(value = CACHE_NAME, key = "'appRole:' + #userId + ':' + #appCode")
     public String getAppRole(Long userId, String appCode) {
         UserAppRolePO assignment = userAppRoleMapper.selectOne(
                 new LambdaQueryWrapper<UserAppRolePO>()
@@ -93,6 +101,20 @@ public class PermissionServiceImpl implements PermissionService {
             return null;
         }
         return getRoleCode(assignment.getRoleId());
+    }
+
+    /**
+     * 清除指定用户的权限缓存（权限变更时调用）
+     */
+    @CacheEvict(value = CACHE_NAME, key = "'super:' + #userId")
+    public void evictSuperAdmin(Long userId) {
+    }
+
+    /**
+     * 清除指定用户的应用权限缓存
+     */
+    @CacheEvict(value = CACHE_NAME, allEntries = true)
+    public void evictAll() {
     }
 
     private String getRoleCode(Long roleId) {
