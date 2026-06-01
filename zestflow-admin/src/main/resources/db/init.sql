@@ -1,16 +1,16 @@
--- ZestFlow 数据库初始化脚本
--- 所有 DDL 集中管理，未发布前可直接删表重来
+-- ZestFlow Admin 数据库初始化脚本 — DDL 集中管理
+-- 未发布前可直接删表重来
 
 -- ==================== 创建数据库 ====================
 
 CREATE DATABASE IF NOT EXISTS `zestflow_admin` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE DATABASE IF NOT EXISTS `zestflow_test_bussiness` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE DATABASE IF NOT EXISTS `zestflow_test_log` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- ==================== Admin 库（zestflow_admin） ====================
+USE `zestflow_admin`;
+
+-- ==================== Admin 表 ====================
 
 -- 2026-06-01：租户表 — 多租户基础
-CREATE TABLE `zestflow_admin`.`tenant` (
+CREATE TABLE IF NOT EXISTS `tenant` (
     `id`             BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `name`           VARCHAR(128) NOT NULL                 COMMENT '租户名称',
     `code`           VARCHAR(64)  NOT NULL                 COMMENT '租户编码',
@@ -26,7 +26,7 @@ CREATE TABLE `zestflow_admin`.`tenant` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='租户表';
 
 -- 2026-06-01：用户-租户关联表
-CREATE TABLE `zestflow_admin`.`user_tenant` (
+CREATE TABLE IF NOT EXISTS `user_tenant` (
     `id`              BIGINT   NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `user_id`         BIGINT   NOT NULL                 COMMENT '用户ID',
     `tenant_id`       BIGINT   NOT NULL                 COMMENT '租户ID',
@@ -39,7 +39,7 @@ CREATE TABLE `zestflow_admin`.`user_tenant` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户租户关联表';
 
 -- 2026-06-01：IP-租户映射表（演示环境自动映射）
-CREATE TABLE `zestflow_admin`.`tenant_ip_mapping` (
+CREATE TABLE IF NOT EXISTS `tenant_ip_mapping` (
     `id`              BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `ip_address`      VARCHAR(64)  NOT NULL                 COMMENT 'IP地址',
     `tenant_id`       BIGINT       NOT NULL                 COMMENT '租户ID',
@@ -51,7 +51,7 @@ CREATE TABLE `zestflow_admin`.`tenant_ip_mapping` (
     KEY `idx_last_active` (`last_active_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='IP-租户映射表（演示环境）';
 
-CREATE TABLE `zestflow_admin`.`user` (
+CREATE TABLE IF NOT EXISTS `user` (
     `id`                   BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `username`             VARCHAR(50)  NOT NULL                 COMMENT '用户名',
     `email`                VARCHAR(100) DEFAULT NULL             COMMENT '邮箱',
@@ -75,7 +75,7 @@ CREATE TABLE `zestflow_admin`.`user` (
     UNIQUE KEY `uk_email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
-CREATE TABLE `zestflow_admin`.`role` (
+CREATE TABLE IF NOT EXISTS `role` (
     `id`          BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `code`        VARCHAR(30)  NOT NULL                 COMMENT '角色编码：APP_ADMIN/APP_EDITOR/APP_VIEWER',
     `name`        VARCHAR(50)  NOT NULL                 COMMENT '角色名称',
@@ -89,12 +89,7 @@ CREATE TABLE `zestflow_admin`.`role` (
     UNIQUE KEY `uk_code` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色表';
 
-INSERT INTO `zestflow_admin`.`role` (`code`, `name`, `description`) VALUES
-('APP_ADMIN', '应用管理员', '可管理应用配置，可对应用下的链进行增删改查'),
-('APP_EDITOR', '应用编辑', '可查看应用配置，可对应用下的链进行增删改查'),
-('APP_VIEWER', '应用只读', '仅可查看应用配置和应用下的链');
-
-CREATE TABLE `zestflow_admin`.`user_app_role` (
+CREATE TABLE IF NOT EXISTS `user_app_role` (
     `id`         BIGINT   NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `user_id`    BIGINT   NOT NULL                 COMMENT '用户ID',
     `app_code`   VARCHAR(50) NOT NULL              COMMENT '应用编码',
@@ -109,7 +104,7 @@ CREATE TABLE `zestflow_admin`.`user_app_role` (
     KEY `idx_user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户应用角色关联表';
 
-CREATE TABLE `zestflow_admin`.`executor_registry` (
+CREATE TABLE IF NOT EXISTS `executor_registry` (
     `id`             BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `executor_id`    VARCHAR(100) NOT NULL                 COMMENT '执行器唯一标识',
     `app_code`       VARCHAR(50)  DEFAULT NULL             COMMENT '应用编码（分组标识）',
@@ -128,7 +123,7 @@ CREATE TABLE `zestflow_admin`.`executor_registry` (
     KEY `idx_app_code` (`app_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='执行器注册表';
 
-CREATE TABLE `zestflow_admin`.`schedule` (
+CREATE TABLE IF NOT EXISTS `schedule` (
     `id`             BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `chain_id`       BIGINT       NOT NULL                 COMMENT '关联链ID',
     `chain_code`     VARCHAR(128) NOT NULL                 COMMENT '链编码（冗余，方便执行器执行）',
@@ -149,7 +144,7 @@ CREATE TABLE `zestflow_admin`.`schedule` (
     KEY `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='调度定义表';
 
-CREATE TABLE `zestflow_admin`.`schedule_log` (
+CREATE TABLE IF NOT EXISTS `schedule_log` (
     `id`               BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `schedule_id`      BIGINT       NOT NULL                 COMMENT '调度ID',
     `chain_code`       VARCHAR(128) NOT NULL                 COMMENT '链编码',
@@ -175,7 +170,7 @@ CREATE TABLE `zestflow_admin`.`schedule_log` (
     KEY `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='调度执行日志表';
 
-CREATE TABLE `zestflow_admin`.`component` (
+CREATE TABLE IF NOT EXISTS `component` (
     `id`              BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `executor_id`     VARCHAR(128) NOT NULL                 COMMENT '执行器唯一标识',
     `component_id`    VARCHAR(128) NOT NULL                 COMMENT '元件 ID（@ZestExecute value 或 类名.方法名）',
@@ -196,64 +191,7 @@ CREATE TABLE `zestflow_admin`.`component` (
     KEY `idx_executor_id` (`executor_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='执行元件注册表';
 
--- ==================== 业务库（zestflow_test_bussiness） ====================
-
--- 2026-05-31：移除 design_code 列，改由 zf_design_binding 表维护设计↔链关系
-CREATE TABLE `zestflow_test_bussiness`.`zf_chain` (
-    `code`        VARCHAR(64)  NOT NULL PRIMARY KEY,
-    `name`        VARCHAR(128) NOT NULL DEFAULT '',
-    `description` VARCHAR(500) DEFAULT NULL,
-    `status`      TINYINT      NOT NULL DEFAULT 1   COMMENT '0-停用 1-未设计 2-未发布 3-发布中 4-已发布',
-    `version`     INT          NOT NULL DEFAULT 1   COMMENT '当前发布版本号',
-    `created_by`  VARCHAR(64)  DEFAULT NULL         COMMENT '创建人',
-    `updated_by`  VARCHAR(64)  DEFAULT NULL         COMMENT '最后修改人',
-    `tenant_id`   BIGINT       DEFAULT 1            COMMENT '租户ID',
-    `app_code`    VARCHAR(50)  DEFAULT NULL         COMMENT '应用编码',
-    `is_deleted`  TINYINT      DEFAULT 0            COMMENT '删除标记（0-未删 1-已删）',
-    `created_at`  VARCHAR(32)  DEFAULT NULL         COMMENT '创建时间',
-    `updated_at`  VARCHAR(32)  DEFAULT NULL         COMMENT '更新时间'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Executor 链定义';
-
-CREATE TABLE `zestflow_test_bussiness`.`zf_design` (
-    `code`        VARCHAR(64)  NOT NULL PRIMARY KEY,
-    `name`        VARCHAR(128) NOT NULL DEFAULT '',
-    `description` VARCHAR(500) DEFAULT NULL,
-    `designer`    VARCHAR(64)  DEFAULT NULL,
-    `status`      TINYINT      NOT NULL DEFAULT 1  COMMENT '1-启用 0-停用',
-    `graph_data`  TEXT         DEFAULT NULL,
-    `chain_data`  TEXT         DEFAULT NULL        COMMENT '翻译后的链定义 JSON（ChainDefinitionDTO 格式）',
-    `created_by`  VARCHAR(64)  DEFAULT NULL        COMMENT '创建人',
-    `updated_by`  VARCHAR(64)  DEFAULT NULL        COMMENT '最后修改人',
-    `tenant_id`   BIGINT       DEFAULT 1           COMMENT '租户ID',
-    `app_code`    VARCHAR(50)  DEFAULT NULL        COMMENT '应用编码',
-    `is_deleted`  TINYINT      DEFAULT 0           COMMENT '删除标记（0-未删 1-已删）',
-    `created_at`  VARCHAR(32)  DEFAULT NULL        COMMENT '创建时间',
-    `updated_at`  VARCHAR(32)  DEFAULT NULL        COMMENT '更新时间'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Executor 设计定义';
-
-CREATE TABLE `zestflow_test_bussiness`.`zf_design_binding` (
-    `design_code` VARCHAR(64) NOT NULL,
-    `chain_code`  VARCHAR(64) NOT NULL,
-    `tenant_id`   BIGINT      DEFAULT 1            COMMENT '租户ID',
-    `app_code`    VARCHAR(50) DEFAULT NULL         COMMENT '应用编码',
-    PRIMARY KEY (`design_code`, `chain_code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='设计与链绑定关系';
-
-CREATE TABLE `zestflow_test_bussiness`.`zf_chain_version` (
-    `id`          BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    `chain_code`  VARCHAR(64)  NOT NULL                COMMENT '链编码',
-    `version`     INT          NOT NULL                COMMENT '版本号',
-    `design_code` VARCHAR(64)  DEFAULT NULL            COMMENT '关联设计编码',
-    `graph_data`  MEDIUMTEXT   DEFAULT NULL            COMMENT '图数据 JSON 快照',
-    `chain_data`  MEDIUMTEXT   DEFAULT NULL            COMMENT '链定义 JSON 快照',
-    `created_by`  VARCHAR(64)  DEFAULT NULL            COMMENT '创建人',
-    `tenant_id`   BIGINT       DEFAULT 1               COMMENT '租户ID',
-    `app_code`    VARCHAR(50)  DEFAULT NULL            COMMENT '应用编码',
-    `created_at`  VARCHAR(32)  NOT NULL                COMMENT '创建时间',
-    INDEX `idx_chain_version` (`chain_code`, `version`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='链版本快照表';
-
-CREATE TABLE `zestflow_admin`.`collector_registry` (
+CREATE TABLE IF NOT EXISTS `collector_registry` (
     `id`             BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `collector_id`   VARCHAR(128) NOT NULL                 COMMENT '采集器唯一标识',
     `app_code`       VARCHAR(50)  DEFAULT NULL             COMMENT '应用编码（分组标识）',
@@ -272,7 +210,7 @@ CREATE TABLE `zestflow_admin`.`collector_registry` (
     KEY `idx_app_code` (`app_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='采集器注册表';
 
-CREATE TABLE `zestflow_admin`.`sys_dict_type` (
+CREATE TABLE IF NOT EXISTS `sys_dict_type` (
     `id`          BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `code`        VARCHAR(64)  NOT NULL                 COMMENT '字典编码（唯一）',
     `name`        VARCHAR(128) NOT NULL                 COMMENT '字典名称',
@@ -289,7 +227,7 @@ CREATE TABLE `zestflow_admin`.`sys_dict_type` (
     UNIQUE KEY `uk_code` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='字典类型表';
 
-CREATE TABLE `zestflow_admin`.`sys_dict_data` (
+CREATE TABLE IF NOT EXISTS `sys_dict_data` (
     `id`           BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `type_code`    VARCHAR(64)  NOT NULL                 COMMENT '字典类型编码',
     `label`        VARCHAR(128) NOT NULL                 COMMENT '数据标签',
@@ -310,7 +248,7 @@ CREATE TABLE `zestflow_admin`.`sys_dict_data` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='字典数据表';
 
 -- 2026-05-31：演示场景定义表 — 替代 application.yml 配置，DB 驱动 CRUD
-CREATE TABLE `zestflow_admin`.`playground_scene` (
+CREATE TABLE IF NOT EXISTS `playground_scene` (
     `id`               BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键',
     `scene_code`       VARCHAR(64)  NOT NULL                 COMMENT '场景编码（SCN{yMMdd}{6位序号}）',
     `name`             VARCHAR(128) NOT NULL                 COMMENT '场景名称',
@@ -336,7 +274,7 @@ CREATE TABLE `zestflow_admin`.`playground_scene` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='试验场场景定义表';
 
 -- 2026-06-01：演示执行记录表
-CREATE TABLE `zestflow_admin`.`playground_record` (
+CREATE TABLE IF NOT EXISTS `playground_record` (
     `id`               BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键',
     `scene_id`         BIGINT       DEFAULT NULL             COMMENT '关联场景ID',
     `scene_name`       VARCHAR(128) DEFAULT NULL             COMMENT '场景名称（冗余）',
@@ -367,54 +305,3 @@ CREATE TABLE `zestflow_admin`.`playground_record` (
     KEY `idx_status` (`status`),
     KEY `idx_chain_code` (`chain_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='试验场执行记录表';
-
--- ==================== 日志库（zestflow_test_log） ====================
-
-CREATE TABLE `zestflow_test_log`.`chain_event` (
-    `id`            BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '自增主键',
-    `event_id`      VARCHAR(64)  NOT NULL                 COMMENT '事件全局唯一 ID（UUID）',
-    `event_type`    VARCHAR(32)  NOT NULL                 COMMENT '事件类型',
-    `execution_id`  VARCHAR(64)  DEFAULT NULL             COMMENT '执行追踪 ID（同一次链执行的所有事件共享）',
-    `chain_id`      VARCHAR(64)  DEFAULT NULL             COMMENT '链编码',
-    `chain_name`    VARCHAR(128) DEFAULT NULL             COMMENT '链名称',
-    `node_id`       VARCHAR(64)  DEFAULT NULL             COMMENT '节点编码',
-    `node_name`     VARCHAR(128) DEFAULT NULL             COMMENT '节点名称',
-    `executor_id`   VARCHAR(128) DEFAULT NULL             COMMENT '执行器 ID',
-    `app_code`      VARCHAR(64)  DEFAULT NULL             COMMENT '应用编码',
-    `app_name`      VARCHAR(64)  DEFAULT NULL             COMMENT '应用名',
-    `tenant_id`     BIGINT       DEFAULT 1                COMMENT '租户ID',
-    `params`        TEXT         DEFAULT NULL             COMMENT '执行入参 JSON',
-    `result`        TEXT         DEFAULT NULL             COMMENT '执行结果 JSON',
-    `error_message` TEXT         DEFAULT NULL             COMMENT '错误消息',
-    `cost_ms`       BIGINT       DEFAULT NULL             COMMENT '执行耗时（毫秒）',
-    `status`        TINYINT      DEFAULT NULL             COMMENT '节点状态：0-失败 1-成功',
-    `timestamp`     BIGINT       NOT NULL                 COMMENT '事件发生时间戳（毫秒）',
-    `metadata`      TEXT         DEFAULT NULL             COMMENT '扩展元数据 JSON',
-    `create_time`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '记录创建时间',
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_event_id` (`event_id`),
-    KEY `idx_chain_id` (`chain_id`),
-    KEY `idx_executor_id` (`executor_id`),
-    KEY `idx_timestamp` (`timestamp`),
-    KEY `idx_app_event` (`app_name`, `event_type`),
-    KEY `idx_execution_id` (`execution_id`),
-    KEY `idx_tenant_id` (`tenant_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='链执行事件表';
-
--- 2026-06-01：链图数据快照表，发布时快照供历史日志 X6 图还原
-CREATE TABLE IF NOT EXISTS `zestflow_test_log`.`chain_graph_snapshot` (
-    `id`          BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '自增主键',
-    `chain_code`  VARCHAR(64)  NOT NULL                            COMMENT '链编码',
-    `version`     INT          NOT NULL                            COMMENT '版本号',
-    `graph_data`  MEDIUMTEXT   DEFAULT NULL                        COMMENT '图数据 JSON',
-    `status`      TINYINT      NOT NULL DEFAULT 1                  COMMENT '状态：1-生效 0-已废弃',
-    `tenant_id`   BIGINT       DEFAULT 1                           COMMENT '租户ID',
-    `app_code`    VARCHAR(50)  DEFAULT NULL                        COMMENT '应用编码',
-    `created_by`  VARCHAR(64)  DEFAULT NULL                        COMMENT '创建人',
-    `updated_by`  VARCHAR(64)  DEFAULT NULL                        COMMENT '最后更新人',
-    `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP   COMMENT '创建时间',
-    `updated_at`  DATETIME     DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `is_deleted`  TINYINT      DEFAULT 0                           COMMENT '删除标记（0-未删）',
-    UNIQUE KEY `uk_chain_version` (`chain_code`, `version`),
-    KEY `idx_lookup` (`chain_code`, `status`, `created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='链图数据快照表';

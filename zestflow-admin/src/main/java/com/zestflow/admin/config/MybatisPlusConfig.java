@@ -24,24 +24,31 @@ public class MybatisPlusConfig {
     @Value("${zestflow.admin.tenant-id:1}")
     private Long defaultTenantId;
 
+    @Value("${zestflow.tenant.mode:single}")
+    private String tenantMode;
+
     @Bean
     public MybatisPlusInterceptor mybatisPlusInterceptor() {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
 
-        TenantLineInnerInterceptor tenantInterceptor = new TenantLineInnerInterceptor();
-        tenantInterceptor.setTenantLineHandler(new TenantLineHandler() {
-            @Override
-            public Expression getTenantId() {
-                Long tenantId = TenantContextHolder.getTenantId();
-                return new LongValue(tenantId != null ? tenantId : defaultTenantId);
-            }
+        // 多租户模式启用行级隔离；单租户模式跳过（Service 层已确保 tenant_id 填充，且 JSqlParser 4.9
+        // parseStatements() 不支持 UPDATE 语句的解析，会造成运行时异常）
+        if (!"single".equals(tenantMode)) {
+            TenantLineInnerInterceptor tenantInterceptor = new TenantLineInnerInterceptor();
+            tenantInterceptor.setTenantLineHandler(new TenantLineHandler() {
+                @Override
+                public Expression getTenantId() {
+                    Long tenantId = TenantContextHolder.getTenantId();
+                    return new LongValue(tenantId != null ? tenantId : defaultTenantId);
+                }
 
-            @Override
-            public boolean ignoreTable(String tableName) {
-                return EXCLUDED_TABLES.contains(tableName);
-            }
-        });
-        interceptor.addInnerInterceptor(tenantInterceptor);
+                @Override
+                public boolean ignoreTable(String tableName) {
+                    return EXCLUDED_TABLES.contains(tableName);
+                }
+            });
+            interceptor.addInnerInterceptor(tenantInterceptor);
+        }
 
         interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
         return interceptor;
