@@ -13,13 +13,15 @@ spring:
   mvc:
     locale-resolver: accept-header
   mail:
-    host: smtp.example.com
-    port: 587
-    username:
-    password:
+    host: smtp.126.com
+    port: 465
+    username: zestcc@126.com
+    password: ZLyFqvYN34kTFFpy
     properties:
       mail.smtp.auth: true
-      mail.smtp.starttls.enable: true
+      mail.smtp.ssl.enable: true
+      mail.smtp.ssl.trust: smtp.126.com
+      mail.smtp.socketFactory.class: javax.net.ssl.SSLSocketFactory
   servlet:
     multipart:
       max-file-size: 5MB
@@ -41,7 +43,7 @@ zestflow:
     default-user:
       username: admin
       password: admin123
-      email: admin@zestflow.com
+      email: xiaoze_cheng@163.com
     cache:
       # 缓存类型：simple（默认，零依赖）/ caffeine（生产本地）/ redis（集群）
       type: caffeine
@@ -67,9 +69,9 @@ zestflow:
 
   mail:
     # 总开关：false 时不执行真实邮件发送，MailService 由 NoopMailService 兜底
-    enabled: false
+    enabled: true
     # 前端访问地址（用于拼接重置/验证链接）
-    base-url: ${APP_BASE_URL:http://localhost:8001}
+    base-url: ${APP_BASE_URL:http://localhost:8080}
     # 发件人显示名称
     from-name: "ZestFlow"
     reset-password:
@@ -82,7 +84,7 @@ mybatis-plus:
   type-aliases-package: com.zestflow.admin.model.entity
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+#    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
     db-config:
       id-type: auto
