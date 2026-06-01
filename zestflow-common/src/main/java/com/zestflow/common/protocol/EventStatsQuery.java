@@ -1,4 +1,4 @@
-package com.zestflow.collector.model.dto;
+package com.zestflow.common.protocol;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

@@ -1,10 +1,10 @@
 package com.zestflow.collector.jdbc.controller;
 
 import com.zestflow.collector.jdbc.config.CollectorProperties;
-import com.zestflow.collector.model.dto.EventQuery;
-import com.zestflow.collector.model.dto.EventStats;
-import com.zestflow.collector.model.dto.EventStatsQuery;
-import com.zestflow.collector.model.dto.ExecutionTrace;
+import com.zestflow.common.protocol.EventQuery;
+import com.zestflow.common.protocol.EventStats;
+import com.zestflow.common.protocol.EventStatsQuery;
+import com.zestflow.common.protocol.ExecutionTrace;
 import com.zestflow.collector.spi.EventQueryService;
 import com.zestflow.common.model.Result;
 import com.zestflow.common.model.dto.ChainEvent;

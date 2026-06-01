@@ -1,6 +1,5 @@
 package com.zestflow.admin.client;
 
-import com.zestflow.collector.client.CollectorQueryClient;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
