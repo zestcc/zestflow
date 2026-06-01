@@ -2,6 +2,8 @@ package com.zestflow.collector.jdbc.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.zestflow.collector.jdbc.entity.ChainEventPO;
+import com.zestflow.common.protocol.EventQuery;
+import com.zestflow.common.protocol.EventStatsQuery;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -66,7 +68,7 @@ public interface ChainEventMapper extends BaseMapper<ChainEventPO> {
             "LIMIT #{limit} OFFSET #{offset}",
             "</script>"
     })
-    List<ChainEventPO> selectExecutionTraces(@Param("query") com.zestflow.collector.model.dto.EventQuery query,
+    List<ChainEventPO> selectExecutionTraces(@Param("query") EventQuery query,
                                               @Param("limit") int limit,
                                               @Param("offset") int offset);
 
@@ -89,7 +91,7 @@ public interface ChainEventMapper extends BaseMapper<ChainEventPO> {
             "</if>",
             "</script>"
     })
-    long countExecutionTraces(@Param("query") com.zestflow.collector.model.dto.EventQuery query);
+    long countExecutionTraces(@Param("query") EventQuery query);
 
     /**
      * 查询指定 executionId 的所有事件（按时间升序）
@@ -118,5 +120,5 @@ public interface ChainEventMapper extends BaseMapper<ChainEventPO> {
             "</if>",
             "</script>"
     })
-    Map<String, Object> selectAggregatedStats(@Param("query") com.zestflow.collector.model.dto.EventStatsQuery query);
+    Map<String, Object> selectAggregatedStats(@Param("query") EventStatsQuery query);
 }

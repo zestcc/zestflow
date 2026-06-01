@@ -1,4 +1,4 @@
-package com.zestflow.collector.model.dto;
+package com.zestflow.common.protocol;
 
 import com.zestflow.common.model.dto.ChainEvent;
 import lombok.AllArgsConstructor;

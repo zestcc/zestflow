@@ -1,10 +1,13 @@
 package com.zestflow.admin.controller;
 
+import com.zestflow.admin.client.CollectorQueryClient;
 import com.zestflow.admin.model.vo.CollectorRegistryVO;
 import com.zestflow.admin.service.CollectorRegistryService;
-import com.zestflow.collector.client.CollectorQueryClient;
-import com.zestflow.collector.model.dto.EventQuery;
 import com.zestflow.common.model.Result;
+import com.zestflow.common.protocol.EventQuery;
+import com.zestflow.common.protocol.EventQueryResult;
+import com.zestflow.common.protocol.ExecutionTrace;
+import com.zestflow.common.protocol.PageResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,11 +34,11 @@ public class LogController {
      * 查询事件日志（分页）
      */
     @PostMapping("/events/query")
-    public Result<CollectorQueryClient.PageResult<CollectorQueryClient.EventQueryResult>> queryEvents(
+    public Result<PageResult<EventQueryResult>> queryEvents(
             @RequestBody EventQuery query) {
         String baseUrl = resolveCollectorBaseUrl();
         if (baseUrl == null) {
-            return Result.success(new CollectorQueryClient.PageResult<>(List.of(), 0L, query.getPage(), query.getPageSize()));
+            return Result.success(new PageResult<>(List.of(), 0L, query.getPage(), query.getPageSize()));
         }
         var result = collectorQueryClient.queryEvents(baseUrl, query);
         return Result.success(result);
@@ -45,11 +48,11 @@ public class LogController {
      * 查询执行轨迹列表（分页）
      */
     @PostMapping("/executions")
-    public Result<CollectorQueryClient.PageResult<com.zestflow.collector.model.dto.ExecutionTrace>> queryExecutionTraces(
+    public Result<PageResult<ExecutionTrace>> queryExecutionTraces(
             @RequestBody EventQuery query) {
         String baseUrl = resolveCollectorBaseUrl();
         if (baseUrl == null) {
-            return Result.success(new CollectorQueryClient.PageResult<>(List.of(), 0L, query.getPage(), query.getPageSize()));
+            return Result.success(new PageResult<>(List.of(), 0L, query.getPage(), query.getPageSize()));
         }
         var result = collectorQueryClient.queryExecutionTraces(baseUrl, query);
         return Result.success(result);
@@ -59,7 +62,7 @@ public class LogController {
      * 查询单次执行轨迹详情
      */
     @GetMapping("/executions/{executionId}")
-    public Result<com.zestflow.collector.model.dto.ExecutionTrace> getExecutionTrace(
+    public Result<ExecutionTrace> getExecutionTrace(
             @PathVariable String executionId) {
         String baseUrl = resolveCollectorBaseUrl();
         if (baseUrl == null) {

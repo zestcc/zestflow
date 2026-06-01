@@ -1,9 +1,9 @@
 package com.zestflow.collector.spi;
 
-import com.zestflow.collector.model.dto.EventQuery;
-import com.zestflow.collector.model.dto.EventStats;
-import com.zestflow.collector.model.dto.EventStatsQuery;
-import com.zestflow.collector.model.dto.ExecutionTrace;
+import com.zestflow.common.protocol.EventQuery;
+import com.zestflow.common.protocol.EventStats;
+import com.zestflow.common.protocol.EventStatsQuery;
+import com.zestflow.common.protocol.ExecutionTrace;
 import com.zestflow.common.model.dto.ChainEvent;
 
 import java.util.List;

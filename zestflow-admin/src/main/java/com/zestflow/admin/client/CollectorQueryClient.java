@@ -1,10 +1,11 @@
-package com.zestflow.collector.client;
+package com.zestflow.admin.client;
 
-import com.zestflow.collector.model.dto.EventQuery;
-import com.zestflow.collector.model.dto.EventStats;
-import com.zestflow.collector.model.dto.EventStatsQuery;
-import com.zestflow.collector.model.dto.ExecutionTrace;
-import com.zestflow.common.model.Result;
+import com.zestflow.common.protocol.EventQuery;
+import com.zestflow.common.protocol.EventQueryResult;
+import com.zestflow.common.protocol.EventStats;
+import com.zestflow.common.protocol.EventStatsQuery;
+import com.zestflow.common.protocol.ExecutionTrace;
+import com.zestflow.common.protocol.PageResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
@@ -13,16 +14,12 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 采集器查询客户端 — 向 Collector REST API 查询事件/轨迹/统计
  * <p>
- * 对标 executor 端 AdminClient 的设计模式，但方向相反：
- * AdminClient 是 Executor→Admin 的注册客户端，
- * CollectorQueryClient 是 Consumer→Collector 的数据查询客户端。
+ * HTTP 防腐层：切换 Collector 通信协议（如 gRPC）只需修改此类。
  */
 @Slf4j
 public class CollectorQueryClient {
@@ -30,16 +27,16 @@ public class CollectorQueryClient {
     private final RestTemplate restTemplate;
     private final String accessToken;
 
-    private static final ParameterizedTypeReference<Result<PageResult<EventQueryResult>>> EVENT_PAGE_TYPE =
-            new ParameterizedTypeReference<Result<PageResult<EventQueryResult>>>() {};
-    private static final ParameterizedTypeReference<Result<EventStats>> EVENT_STATS_TYPE =
-            new ParameterizedTypeReference<Result<EventStats>>() {};
-    private static final ParameterizedTypeReference<Result<PageResult<ExecutionTrace>>> EXEC_TRACE_PAGE_TYPE =
-            new ParameterizedTypeReference<Result<PageResult<ExecutionTrace>>>() {};
-    private static final ParameterizedTypeReference<Result<ExecutionTrace>> EXEC_TRACE_TYPE =
-            new ParameterizedTypeReference<Result<ExecutionTrace>>() {};
-    private static final ParameterizedTypeReference<Result<Void>> RESULT_VOID_TYPE =
-            new ParameterizedTypeReference<Result<Void>>() {};
+    private static final ParameterizedTypeReference<com.zestflow.common.model.Result<PageResult<EventQueryResult>>> EVENT_PAGE_TYPE =
+            new ParameterizedTypeReference<com.zestflow.common.model.Result<PageResult<EventQueryResult>>>() {};
+    private static final ParameterizedTypeReference<com.zestflow.common.model.Result<EventStats>> EVENT_STATS_TYPE =
+            new ParameterizedTypeReference<com.zestflow.common.model.Result<EventStats>>() {};
+    private static final ParameterizedTypeReference<com.zestflow.common.model.Result<PageResult<ExecutionTrace>>> EXEC_TRACE_PAGE_TYPE =
+            new ParameterizedTypeReference<com.zestflow.common.model.Result<PageResult<ExecutionTrace>>>() {};
+    private static final ParameterizedTypeReference<com.zestflow.common.model.Result<ExecutionTrace>> EXEC_TRACE_TYPE =
+            new ParameterizedTypeReference<com.zestflow.common.model.Result<ExecutionTrace>>() {};
+    private static final ParameterizedTypeReference<com.zestflow.common.model.Result<Void>> RESULT_VOID_TYPE =
+            new ParameterizedTypeReference<com.zestflow.common.model.Result<Void>>() {};
 
     public CollectorQueryClient(RestTemplate restTemplate, String accessToken) {
         this.restTemplate = restTemplate;
@@ -138,36 +135,5 @@ public class CollectorQueryClient {
             headers.set("X-Collector-Token", accessToken);
         }
         return headers;
-    }
-
-    @lombok.Data
-    @lombok.AllArgsConstructor
-    @lombok.NoArgsConstructor
-    public static class PageResult<T> {
-        private List<T> list;
-        private long total;
-        private int page;
-        private int pageSize;
-    }
-
-    @lombok.Data
-    public static class EventQueryResult {
-        private String eventId;
-        private String eventType;
-        private String executionId;
-        private String chainId;
-        private String chainName;
-        private String nodeId;
-        private String nodeName;
-        private String executorId;
-        private String appName;
-        private String params;
-        private String result;
-        private String errorMessage;
-        private Long costMs;
-        private Integer status;
-        private Long timestamp;
-        private String metadata;
-        private String createTime;
     }
 }

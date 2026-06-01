@@ -27,11 +27,6 @@
             <groupId>com.zestflow</groupId>
             <artifactId>zestflow-common</artifactId>
         </dependency>
-        <dependency>
-            <groupId>com.zestflow</groupId>
-            <artifactId>collector-core</artifactId>
-        </dependency>
-
         <!-- Spring Boot -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
