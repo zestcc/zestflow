@@ -567,6 +567,7 @@ log.error("链执行失败 chainId={} nodeId={}", chainId, nodeId, e);
 
 1. **端口管理** — 重启开发服务器时，必须先杀掉旧进程再在原端口启动，不得自动换端口。Windows Git Bash 下需用 `//F` 而非 `/F` 避免 MSYS 路径转换（`/F` 会被转为 `F:/`）。
 2. **默认端口一览** — Admin（8080）、Executor Netty 回调（9999，`zestflow.executor.port` 可配）、Executor 测试应用（8081）
+3. **前端修改后必须 build（强制）** — 前端已整合到 zestflow-admin 单 jar 部署。所有 `zestflow-admin-ui/` 下的修改，完成后必须在 `zestflow-admin-ui/` 目录下执行 `npm run build`，将产物输出到 admin 的 static 目录，否则修改不生效。场景动作改了前端代码`cd zestflow-admin-ui && npm run build`只改后端代码无需 build，重启 Admin 即可
 
 ### 数据库变更规范（强制）
 

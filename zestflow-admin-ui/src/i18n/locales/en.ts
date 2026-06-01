@@ -194,6 +194,7 @@ export default {
     saveSuccess: 'Saved successfully',
     operationFailed: 'Operation failed',
     createdBy: 'Created By',
+    design: 'Design',
   },
   schedules: {
     title: 'Schedule Center',

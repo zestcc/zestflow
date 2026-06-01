@@ -37,14 +37,13 @@
       stripe border
       style="width:100%"
       :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"
-      table-layout="fixed"
     >
-      <el-table-column prop="code" :label="$t('chains.code')" width="210" show-overflow-tooltip>
+      <el-table-column prop="code" :label="$t('chains.code')" width="160" show-overflow-tooltip>
         <template #default="{ row }">
-          <span style="color:#409eff;cursor:pointer;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" @click="openChainDetail(row)">{{ row.code }}</span>
+          <span style="color:#409eff;cursor:pointer;font-family:monospace;font-weight:600;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" @click="openChainDetail(row)">{{ row.code }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="name" :label="$t('chains.name')" show-overflow-tooltip width="168" />
+      <el-table-column prop="name" :label="$t('chains.name')" show-overflow-tooltip min-width="140" />
       <el-table-column :label="$t('common.status')" width="80" align="center">
         <template #default="{ row }">
           <el-tag :type="statusTagType(row.status)" size="small">
@@ -59,13 +58,13 @@
           </span>
         </template>
       </el-table-column>
-      <el-table-column prop="designCode" label="设计编码" width="209" show-overflow-tooltip>
+      <el-table-column prop="designCode" label="设计编码" width="160" show-overflow-tooltip>
         <template #default="{ row }">
           <span v-if="!row.designCode" style="color:#c0c4cc">-</span>
-          <span v-else style="color:#409eff;cursor:pointer;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" @click="openDesignDetail(row.designCode, row.appCode)">{{ row.designCode }}</span>
+          <span v-else style="color:#409eff;cursor:pointer;font-family:monospace;font-weight:600;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" @click="openDesignDetail(row.designCode, row.appCode)">{{ row.designCode }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="description" :label="$t('chains.description')" show-overflow-tooltip width="160" />
+      <el-table-column prop="description" :label="$t('chains.description')" show-overflow-tooltip min-width="140" />
       <el-table-column prop="updatedBy" :label="$t('common.updatedBy')" width="120" show-overflow-tooltip />
       <el-table-column prop="updatedAt" :label="$t('chains.updatedAt')" width="160" show-overflow-tooltip>
         <template #default="{ row }">{{ row.updatedAt?.replace('T', ' ') }}</template>
@@ -73,10 +72,10 @@
       <el-table-column :label="$t('common.actions')" width="240" fixed="right">
         <template #default="{ row }">
           <el-button v-if="row.status === 2 && row.designCode" text type="primary" size="small" class="action-btn" @click="handlePublish(row)">{{ $t('chains.publish') }}</el-button>
-          <el-button text type="primary" size="small" class="action-btn" @click="openDesignDialog(row)">设计</el-button>
+          <el-button text type="primary" size="small" class="action-btn" @click="openDesignDialog(row)">{{ $t('chains.design') }}</el-button>
           <el-button text type="primary" size="small" class="action-btn" @click="openEdit(row)">{{ $t('common.edit') }}</el-button>
-          <el-button v-if="row.status !== 0" text type="warning" size="small" class="action-btn" @click="handleToggleStatus(row)">{{ $t('chains.disable') }}</el-button>
-          <el-button v-else text type="success" size="small" class="action-btn" @click="handleToggleStatus(row)">{{ $t('chains.enable') }}</el-button>
+          <el-button v-if="row.status !== 0" text type="primary" size="small" class="action-btn" @click="handleToggleStatus(row)">{{ $t('chains.disable') }}</el-button>
+          <el-button v-else text type="primary" size="small" class="action-btn" @click="handleToggleStatus(row)">{{ $t('chains.enable') }}</el-button>
           <el-button text type="danger" size="small" class="action-btn" @click="handleDelete(row)">{{ $t('common.delete') }}</el-button>
         </template>
       </el-table-column>

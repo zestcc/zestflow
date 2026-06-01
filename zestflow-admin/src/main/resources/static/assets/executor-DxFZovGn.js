@@ -1,0 +1,1 @@
+import{aa as t}from"./index-Bh0i2Btu.js";const u={list(){return t.get("/executors")},updateStatus(e,s){return t.put(`/executors/${e}/status`,{status:s})},listApps(){return t.get("/executors/apps")}};export{u as e};
