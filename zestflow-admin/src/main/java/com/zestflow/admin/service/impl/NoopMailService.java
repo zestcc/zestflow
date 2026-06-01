@@ -2,18 +2,17 @@ package com.zestflow.admin.service.impl;
 
 import com.zestflow.admin.service.MailService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 /**
  * 邮件未启用时的兜底实现。
  * <p>
- * 仅在 {@code MailService} 无其他 Bean 时创建（即 {@code zestflow.mail.enabled=false}）。
- * 所有方法只记录日志，不执行真实发送。
+ * {@code zestflow.mail.enabled=false}（或未配置）时创建，只记录日志不发送。
  */
 @Slf4j
 @Service
-@ConditionalOnMissingBean(MailService.class)
+@ConditionalOnProperty(value = "zestflow.mail.enabled", havingValue = "false", matchIfMissing = true)
 public class NoopMailService implements MailService {
 
     @Override
