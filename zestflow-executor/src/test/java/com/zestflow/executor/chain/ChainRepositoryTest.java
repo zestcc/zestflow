@@ -171,12 +171,12 @@ class ChainRepositoryTest {
         // Verify old binding deleted
         verify(jdbc).update(
                 argThat(sql -> sql.contains("DELETE FROM zf_design_binding")),
-                eq("CHN001"));
+                eq("CHN001"), eq(1L));
 
         // Verify new binding inserted
         verify(jdbc).update(
                 argThat(sql -> sql.contains("INSERT INTO zf_design_binding")),
-                eq("DSN_OLD"), eq("CHN001"));
+                eq("DSN_OLD"), eq("CHN001"), eq(1L), isNull());
 
         // Verify chain status reset to 2 (no design_code set)
         verify(jdbc).update(

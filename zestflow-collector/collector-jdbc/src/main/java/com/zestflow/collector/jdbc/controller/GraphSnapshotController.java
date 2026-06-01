@@ -36,7 +36,7 @@ public class GraphSnapshotController {
         }
         int version = snapshotService.syncSnapshot(
                 dto.getChainCode(), dto.getGraphData(),
-                dto.getAppCode(), dto.getCreatedBy());
+                dto.getAppCode(), dto.getTenantId(), dto.getCreatedBy());
         log.info("快照同步完成 chainCode={} version={}", dto.getChainCode(), version);
         return Result.success(java.util.Map.of("version", version));
     }
@@ -50,11 +50,12 @@ public class GraphSnapshotController {
     @GetMapping
     public Result<?> getSnapshot(@RequestParam String chainCode,
                                   @RequestParam long timestamp,
+                                  @RequestParam(required = false) Long tenantId,
                                   HttpServletRequest request) {
         if (!checkToken(request)) {
             return Result.fail(401, "UNAUTHORIZED", "Invalid collector token");
         }
-        ChainSnapshotDTO dto = snapshotService.findSnapshotAt(chainCode, timestamp);
+        ChainSnapshotDTO dto = snapshotService.findSnapshotAt(chainCode, timestamp, tenantId);
         if (dto == null) {
             return Result.fail(404, "NOT_FOUND", "Snapshot not found for chainCode=" + chainCode);
         }

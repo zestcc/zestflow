@@ -39,10 +39,10 @@ class ChainGraphSnapshotServiceTest {
 
     @Test
     void syncSnapshot_firstVersion_returns1() {
-        when(snapshotMapper.selectMaxVersionForUpdate("chain-1")).thenReturn(null);
-        when(snapshotMapper.deprecateUnreferenced("chain-1")).thenReturn(0);
+        when(snapshotMapper.selectMaxVersionForUpdate("chain-1", null)).thenReturn(null);
+        when(snapshotMapper.deprecateUnreferenced("chain-1", null)).thenReturn(0);
 
-        int version = snapshotService.syncSnapshot("chain-1", "{}", "app-a", "admin");
+        int version = snapshotService.syncSnapshot("chain-1", "{}", "app-a", null, "admin");
 
         assertThat(version).isEqualTo(1);
         verify(snapshotMapper).insert(poCaptor.capture());
@@ -57,10 +57,10 @@ class ChainGraphSnapshotServiceTest {
 
     @Test
     void syncSnapshot_versionIncrement() {
-        when(snapshotMapper.selectMaxVersionForUpdate("chain-1")).thenReturn(3);
-        when(snapshotMapper.deprecateUnreferenced("chain-1")).thenReturn(1);
+        when(snapshotMapper.selectMaxVersionForUpdate("chain-1", null)).thenReturn(3);
+        when(snapshotMapper.deprecateUnreferenced("chain-1", null)).thenReturn(1);
 
-        int version = snapshotService.syncSnapshot("chain-1", "{\"nodes\":[]}", "app-a", "admin");
+        int version = snapshotService.syncSnapshot("chain-1", "{\"nodes\":[]}", "app-a", null, "admin");
 
         assertThat(version).isEqualTo(4);
         verify(snapshotMapper).insert(poCaptor.capture());
@@ -69,23 +69,23 @@ class ChainGraphSnapshotServiceTest {
 
     @Test
     void syncSnapshot_callsDeprecateBeforeInsert() {
-        when(snapshotMapper.selectMaxVersionForUpdate("chain-1")).thenReturn(2);
-        when(snapshotMapper.deprecateUnreferenced("chain-1")).thenReturn(1);
+        when(snapshotMapper.selectMaxVersionForUpdate("chain-1", null)).thenReturn(2);
+        when(snapshotMapper.deprecateUnreferenced("chain-1", null)).thenReturn(1);
 
-        snapshotService.syncSnapshot("chain-1", "{}", "app-a", "admin");
+        snapshotService.syncSnapshot("chain-1", "{}", "app-a", null, "admin");
 
-        verify(snapshotMapper).deprecateUnreferenced("chain-1");
+        verify(snapshotMapper).deprecateUnreferenced("chain-1", null);
         verify(snapshotMapper).insert(any(ChainGraphSnapshotPO.class));
     }
 
     @Test
     void syncSnapshot_forUpdateCalledBeforeDeprecate() {
-        when(snapshotMapper.selectMaxVersionForUpdate("chain-1")).thenReturn(2);
-        when(snapshotMapper.deprecateUnreferenced("chain-1")).thenReturn(1);
+        when(snapshotMapper.selectMaxVersionForUpdate("chain-1", null)).thenReturn(2);
+        when(snapshotMapper.deprecateUnreferenced("chain-1", null)).thenReturn(1);
 
-        snapshotService.syncSnapshot("chain-1", "{}", "app-a", "admin");
+        snapshotService.syncSnapshot("chain-1", "{}", "app-a", null, "admin");
 
-        verify(snapshotMapper).selectMaxVersionForUpdate("chain-1");
+        verify(snapshotMapper).selectMaxVersionForUpdate("chain-1", null);
     }
 
     // ==================== findSnapshotAt ====================
@@ -106,7 +106,7 @@ class ChainGraphSnapshotServiceTest {
 
         when(snapshotMapper.selectOne(any())).thenReturn(po);
 
-        var result = snapshotService.findSnapshotAt(chainCode, timestamp);
+        var result = snapshotService.findSnapshotAt(chainCode, timestamp, null);
 
         assertThat(result).isNotNull();
         assertThat(result.getChainCode()).isEqualTo(chainCode);
@@ -129,7 +129,7 @@ class ChainGraphSnapshotServiceTest {
                                 .appCode("app-a").createdBy("admin")
                                 .createdAt(LocalDateTime.now()).build());
 
-        var result = snapshotService.findSnapshotAt(chainCode, timestamp);
+        var result = snapshotService.findSnapshotAt(chainCode, timestamp, null);
 
         assertThat(result).isNotNull();
         assertThat(result.getVersion()).isEqualTo(5);
@@ -140,7 +140,7 @@ class ChainGraphSnapshotServiceTest {
     void findSnapshotAt_noSnapshots_returnsNull() {
         when(snapshotMapper.selectOne(any())).thenReturn(null);
 
-        var result = snapshotService.findSnapshotAt("chain-1", 1717200000000L);
+        var result = snapshotService.findSnapshotAt("chain-1", 1717200000000L, null);
 
         assertThat(result).isNull();
         verify(snapshotMapper, times(2)).selectOne(any());
@@ -156,7 +156,7 @@ class ChainGraphSnapshotServiceTest {
 
         when(snapshotMapper.selectOne(any())).thenReturn(po);
 
-        var result = snapshotService.findSnapshotAt("chain-1", System.currentTimeMillis());
+        var result = snapshotService.findSnapshotAt("chain-1", System.currentTimeMillis(), null);
 
         assertThat(result.getChainCode()).isEqualTo("chain-1");
         assertThat(result.getVersion()).isEqualTo(3);

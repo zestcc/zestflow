@@ -23,6 +23,9 @@ public class ChainSnapshotSyncDTO {
     /** 应用编码 */
     private String appCode;
 
+    /** 租户ID */
+    private Long tenantId;
+
     /** 操作人 */
     private String createdBy;
 }

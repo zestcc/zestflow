@@ -92,7 +92,8 @@ public class LogController {
         if (baseUrl == null) {
             return Result.fail(503, "COLLECTOR_UNAVAILABLE", "无可用采集器");
         }
-        ChainSnapshotDTO snapshot = collectorQueryClient.getSnapshot(baseUrl, chainCode, timestamp);
+        ChainSnapshotDTO snapshot = collectorQueryClient.getSnapshot(baseUrl, chainCode, timestamp,
+                SecurityUtils.getCurrentTenantId());
         if (snapshot == null) {
             return Result.fail(404, "NOT_FOUND", "未找到图数据快照");
         }

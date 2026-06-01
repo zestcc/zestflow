@@ -46,8 +46,8 @@ public class ChainRepository {
      */
     public String getDesignCode(String chainCode) {
         List<String> codes = jdbc.query(
-                "SELECT design_code FROM zf_design_binding WHERE chain_code = ?",
-                (rs, rowNum) -> rs.getString("design_code"), chainCode);
+                "SELECT design_code FROM zf_design_binding WHERE chain_code = ? AND tenant_id = ?",
+                (rs, rowNum) -> rs.getString("design_code"), chainCode, tenantId);
         return codes.isEmpty() ? null : codes.get(0);
     }
 
@@ -208,10 +208,10 @@ public class ChainRepository {
         String updater = updatedBy != null ? updatedBy : cur.getUpdatedBy();
 
         // 更新绑定关系指向快照版本的设计
-        jdbc.update("DELETE FROM zf_design_binding WHERE chain_code = ?", code);
+        jdbc.update("DELETE FROM zf_design_binding WHERE chain_code = ? AND tenant_id = ?", code, tenantId);
         if (snapshot.getDesignCode() != null && !snapshot.getDesignCode().isEmpty()) {
-            jdbc.update("INSERT INTO zf_design_binding(design_code, chain_code) VALUES(?,?)",
-                    snapshot.getDesignCode(), code);
+            jdbc.update("INSERT INTO zf_design_binding(design_code, chain_code, tenant_id, app_code) VALUES(?,?,?,?)",
+                    snapshot.getDesignCode(), code, tenantId, null);
         }
 
         // 重置状态为未发布

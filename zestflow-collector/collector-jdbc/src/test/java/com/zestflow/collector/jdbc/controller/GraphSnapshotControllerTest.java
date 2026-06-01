@@ -43,7 +43,7 @@ class GraphSnapshotControllerTest {
         dto.setGraphData("{}");
         dto.setAppCode("app-a");
         dto.setCreatedBy("admin");
-        when(snapshotService.syncSnapshot("chain-1", "{}", "app-a", "admin")).thenReturn(3);
+        when(snapshotService.syncSnapshot("chain-1", "{}", "app-a", null, "admin")).thenReturn(3);
 
         var result = controller.syncSnapshot(dto, request);
 
@@ -65,7 +65,7 @@ class GraphSnapshotControllerTest {
         assertThat(result.getCode()).isEqualTo(400);
         Map<String, Object> data = (Map<String, Object>) result.getData();
         assertThat(data).isNull(); // 没有 data
-        verify(snapshotService, never()).syncSnapshot(anyString(), anyString(), anyString(), anyString());
+        verify(snapshotService, never()).syncSnapshot(anyString(), anyString(), anyString(), any(), anyString());
     }
 
     @Test
@@ -79,7 +79,7 @@ class GraphSnapshotControllerTest {
         var result = controller.syncSnapshot(dto, request);
 
         assertThat(result.getCode()).isEqualTo(401);
-        verify(snapshotService, never()).syncSnapshot(anyString(), anyString(), anyString(), anyString());
+        verify(snapshotService, never()).syncSnapshot(anyString(), anyString(), anyString(), any(), anyString());
     }
 
     @Test
@@ -90,7 +90,7 @@ class GraphSnapshotControllerTest {
         ChainSnapshotSyncDTO dto = new ChainSnapshotSyncDTO();
         dto.setChainCode("chain-1");
         dto.setGraphData("{}");
-        when(snapshotService.syncSnapshot("chain-1", "{}", null, null)).thenReturn(1);
+        when(snapshotService.syncSnapshot("chain-1", "{}", null, null, null)).thenReturn(1);
 
         var result = controller.syncSnapshot(dto, request);
 
@@ -105,9 +105,9 @@ class GraphSnapshotControllerTest {
         ChainSnapshotDTO dto = ChainSnapshotDTO.builder()
                 .chainCode("chain-1").version(2).graphData("{}")
                 .status(1).appCode("app-a").build();
-        when(snapshotService.findSnapshotAt("chain-1", 1000L)).thenReturn(dto);
+        when(snapshotService.findSnapshotAt("chain-1", 1000L, null)).thenReturn(dto);
 
-        var result = controller.getSnapshot("chain-1", 1000L, request);
+        var result = controller.getSnapshot("chain-1", 1000L, null, request);
 
         assertThat(result.getCode()).isEqualTo(200);
         assertThat(((ChainSnapshotDTO) result.getData()).getChainCode()).isEqualTo("chain-1");
@@ -117,9 +117,9 @@ class GraphSnapshotControllerTest {
     @Test
     void getSnapshot_notFound_returns404() {
         when(properties.getAccessToken()).thenReturn(null);
-        when(snapshotService.findSnapshotAt("chain-1", 1000L)).thenReturn(null);
+        when(snapshotService.findSnapshotAt("chain-1", 1000L, null)).thenReturn(null);
 
-        var result = controller.getSnapshot("chain-1", 1000L, request);
+        var result = controller.getSnapshot("chain-1", 1000L, null, request);
 
         assertThat(result.getCode()).isEqualTo(404);
     }
@@ -129,10 +129,10 @@ class GraphSnapshotControllerTest {
         when(properties.getAccessToken()).thenReturn("secret");
         when(request.getHeader("X-Collector-Token")).thenReturn("wrong");
 
-        var result = controller.getSnapshot("chain-1", 1000L, request);
+        var result = controller.getSnapshot("chain-1", 1000L, null, request);
 
         assertThat(result.getCode()).isEqualTo(401);
-        verify(snapshotService, never()).findSnapshotAt(anyString(), anyLong());
+        verify(snapshotService, never()).findSnapshotAt(anyString(), anyLong(), any());
     }
 
     @Test
@@ -140,9 +140,9 @@ class GraphSnapshotControllerTest {
         when(properties.getAccessToken()).thenReturn("");
         ChainSnapshotDTO dto = ChainSnapshotDTO.builder()
                 .chainCode("chain-1").version(1).graphData("{}").build();
-        when(snapshotService.findSnapshotAt("chain-1", 1000L)).thenReturn(dto);
+        when(snapshotService.findSnapshotAt("chain-1", 1000L, null)).thenReturn(dto);
 
-        var result = controller.getSnapshot("chain-1", 1000L, request);
+        var result = controller.getSnapshot("chain-1", 1000L, null, request);
 
         assertThat(result.getCode()).isEqualTo(200);
         verify(request, never()).getHeader(anyString()); // 空 token 不校验

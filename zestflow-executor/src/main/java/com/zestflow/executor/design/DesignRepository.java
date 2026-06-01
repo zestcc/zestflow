@@ -152,10 +152,10 @@ public class DesignRepository {
 
     public boolean bind(String designCode, String chainCode, String updatedBy) {
         // 先清除该链的旧绑定，避免残留
-        jdbc.update("DELETE FROM zf_design_binding WHERE chain_code = ?", chainCode);
+        jdbc.update("DELETE FROM zf_design_binding WHERE chain_code = ? AND tenant_id = ?", chainCode, tenantId);
         // 创建新绑定
-        int updated = jdbc.update("INSERT INTO zf_design_binding(design_code, chain_code) VALUES(?,?)",
-                designCode, chainCode);
+        int updated = jdbc.update("INSERT INTO zf_design_binding(design_code, chain_code, tenant_id, app_code) VALUES(?,?,?,?)",
+                designCode, chainCode, tenantId, null);
         if (updated == 0) return false;
         // 更新链状态为未发布
         String now = LocalDateTime.now().format(DTF);
@@ -166,8 +166,8 @@ public class DesignRepository {
     }
 
     public boolean unbind(String designCode, String chainCode, String updatedBy) {
-        int updated = jdbc.update("DELETE FROM zf_design_binding WHERE design_code=? AND chain_code=?",
-                designCode, chainCode);
+        int updated = jdbc.update("DELETE FROM zf_design_binding WHERE design_code=? AND chain_code=? AND tenant_id=?",
+                designCode, chainCode, tenantId);
         if (updated == 0) return false;
         // 更新链状态
         String now = LocalDateTime.now().format(DTF);
@@ -178,6 +178,6 @@ public class DesignRepository {
     }
 
     public void deleteBindingsByChain(String chainCode) {
-        jdbc.update("DELETE FROM zf_design_binding WHERE chain_code = ?", chainCode);
+        jdbc.update("DELETE FROM zf_design_binding WHERE chain_code = ? AND tenant_id = ?", chainCode, tenantId);
     }
 }

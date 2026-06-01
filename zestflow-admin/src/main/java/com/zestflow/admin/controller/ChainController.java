@@ -346,6 +346,7 @@ public class ChainController {
                     .chainCode(code)
                     .graphData(graphData)
                     .appCode(appCode)
+                    .tenantId(SecurityUtils.getCurrentTenantId())
                     .createdBy(SecurityUtils.getCurrentUsername())
                     .build();
             collectorClient.syncSnapshot(snapshotSync);

@@ -26,16 +26,17 @@ public class ChainGraphSnapshotService {
      * @param chainCode 链编码
      * @param graphData 图数据 JSON
      * @param appCode   应用编码
+     * @param tenantId  租户ID
      * @param createdBy 操作人
      * @return 生成的版本号
      */
-    public int syncSnapshot(String chainCode, String graphData, String appCode, String createdBy) {
+    public int syncSnapshot(String chainCode, String graphData, String appCode, Long tenantId, String createdBy) {
         // 锁定该链所有快照行，防并发
-        Integer maxVer = snapshotMapper.selectMaxVersionForUpdate(chainCode);
-        log.info("同步快照 chainCode={} 当前最大版本={}", chainCode, maxVer);
+        Integer maxVer = snapshotMapper.selectMaxVersionForUpdate(chainCode, tenantId);
+        log.info("同步快照 chainCode={} tenantId={} 当前最大版本={}", chainCode, tenantId, maxVer);
 
         // 废弃未被引用的旧版本（有执行记录引用的保留）
-        snapshotMapper.deprecateUnreferenced(chainCode);
+        snapshotMapper.deprecateUnreferenced(chainCode, tenantId);
 
         // 插入新版本
         int newVersion = (maxVer != null ? maxVer : 0) + 1;
@@ -44,11 +45,12 @@ public class ChainGraphSnapshotService {
                 .version(newVersion)
                 .graphData(graphData)
                 .status(1)
+                .tenantId(tenantId)
                 .appCode(appCode)
                 .createdBy(createdBy)
                 .build();
         snapshotMapper.insert(po);
-        log.info("快照已保存 chainCode={} version={}", chainCode, newVersion);
+        log.info("快照已保存 chainCode={} version={} tenantId={}", chainCode, newVersion, tenantId);
         return newVersion;
     }
 
@@ -60,7 +62,7 @@ public class ChainGraphSnapshotService {
      * @return 快照 DTO，查不到返回 null
      */
     @SuppressWarnings("deprecation")
-    public ChainSnapshotDTO findSnapshotAt(String chainCode, long timestamp) {
+    public ChainSnapshotDTO findSnapshotAt(String chainCode, long timestamp, Long tenantId) {
         LocalDateTime execTime = LocalDateTime.ofEpochSecond(
                 timestamp / 1000, (int) ((timestamp % 1000) * 1_000_000),
                 ZoneId.systemDefault().getRules().getOffset(java.time.Instant.now()));
@@ -68,6 +70,7 @@ public class ChainGraphSnapshotService {
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ChainGraphSnapshotPO>()
                         .eq(ChainGraphSnapshotPO::getChainCode, chainCode)
                         .eq(ChainGraphSnapshotPO::getStatus, 1)
+                        .eq(tenantId != null, ChainGraphSnapshotPO::getTenantId, tenantId)
                         .le(ChainGraphSnapshotPO::getCreatedAt, execTime)
                         .orderByDesc(ChainGraphSnapshotPO::getVersion)
                         .last("LIMIT 1"));
@@ -77,6 +80,7 @@ public class ChainGraphSnapshotService {
                     new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ChainGraphSnapshotPO>()
                             .eq(ChainGraphSnapshotPO::getChainCode, chainCode)
                             .eq(ChainGraphSnapshotPO::getStatus, 1)
+                            .eq(tenantId != null, ChainGraphSnapshotPO::getTenantId, tenantId)
                             .orderByDesc(ChainGraphSnapshotPO::getVersion)
                             .last("LIMIT 1"));
         }

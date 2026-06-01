@@ -134,9 +134,10 @@ public class CollectorQueryClient {
     /**
      * 查询图数据快照
      */
-    public ChainSnapshotDTO getSnapshot(String baseUrl, String chainCode, long timestamp) {
+    public ChainSnapshotDTO getSnapshot(String baseUrl, String chainCode, long timestamp, Long tenantId) {
         try {
-            String url = baseUrl + "/collector/snapshots?chainCode=" + chainCode + "&timestamp=" + timestamp;
+            String url = baseUrl + "/collector/snapshots?chainCode=" + chainCode + "&timestamp=" + timestamp
+                    + (tenantId != null ? "&tenantId=" + tenantId : "");
             HttpEntity<Void> entity = new HttpEntity<>(buildHeaders());
             var resp = restTemplate.exchange(url, HttpMethod.GET, entity, SNAPSHOT_TYPE);
             if (resp.getBody() != null && resp.getBody().getCode() == 200) {
