@@ -1,5 +1,6 @@
 package com.zestflow.admin.client;
 
+import com.zestflow.common.model.dto.ChainSnapshotDTO;
 import com.zestflow.common.protocol.EventQuery;
 import com.zestflow.common.protocol.EventQueryResult;
 import com.zestflow.common.protocol.EventStats;
@@ -37,6 +38,8 @@ public class CollectorQueryClient {
             new ParameterizedTypeReference<com.zestflow.common.model.Result<ExecutionTrace>>() {};
     private static final ParameterizedTypeReference<com.zestflow.common.model.Result<Void>> RESULT_VOID_TYPE =
             new ParameterizedTypeReference<com.zestflow.common.model.Result<Void>>() {};
+    private static final ParameterizedTypeReference<com.zestflow.common.model.Result<ChainSnapshotDTO>> SNAPSHOT_TYPE =
+            new ParameterizedTypeReference<com.zestflow.common.model.Result<ChainSnapshotDTO>>() {};
 
     public CollectorQueryClient(RestTemplate restTemplate, String accessToken) {
         this.restTemplate = restTemplate;
@@ -126,6 +129,23 @@ public class CollectorQueryClient {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    /**
+     * 查询图数据快照
+     */
+    public ChainSnapshotDTO getSnapshot(String baseUrl, String chainCode, long timestamp) {
+        try {
+            String url = baseUrl + "/collector/snapshots?chainCode=" + chainCode + "&timestamp=" + timestamp;
+            HttpEntity<Void> entity = new HttpEntity<>(buildHeaders());
+            var resp = restTemplate.exchange(url, HttpMethod.GET, entity, SNAPSHOT_TYPE);
+            if (resp.getBody() != null && resp.getBody().getCode() == 200) {
+                return resp.getBody().getData();
+            }
+        } catch (Exception e) {
+            log.warn("查询图数据快照失败 chainCode={} timestamp={} error={}", chainCode, timestamp, e.getMessage());
+        }
+        return null;
     }
 
     private HttpHeaders buildHeaders() {

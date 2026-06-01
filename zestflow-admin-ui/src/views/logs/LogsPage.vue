@@ -1,121 +1,99 @@
 <template>
   <div class="logs-page">
     <div class="page-header">
-      <h2>{{ $t('logs.executionTitle') }}</h2>
+      <div class="stats-summary">
+        <span style="font-weight:600;color:#409eff">{{ $t('logs.total', { total: list.length }) }}</span>
+        <el-tag type="success" size="small" style="margin-left:8px">{{ $t('logs.success') }} {{ stats.success }}</el-tag>
+        <el-tag type="danger" size="small">{{ $t('logs.failure') }} {{ stats.failure }}</el-tag>
+        <el-select v-model="currentAppCode" filterable style="width:200px;margin-left:16px" :placeholder="$t('design.selectApp')" @change="handleAppChange">
+          <el-option v-for="a in apps" :key="a.appCode" :label="a.appName || a.appCode" :value="a.appCode" />
+        </el-select>
+        <el-input v-model="query.executionId" :placeholder="$t('logs.executionId')" clearable style="width:160px;margin-left:16px" @keyup.enter="search" />
+        <el-input v-model="query.keyword" :placeholder="$t('logs.keyword')" clearable style="width:160px;margin-left:8px" @keyup.enter="search" />
+        <el-select v-model="query.status" :placeholder="$t('common.status')" clearable style="width:100px;margin-left:8px">
+          <el-option :label="$t('common.all')" :value="undefined" />
+          <el-option :label="$t('logs.success')" :value="1" />
+          <el-option :label="$t('logs.failure')" :value="0" />
+        </el-select>
+        <el-select v-model="query.eventTypes" :placeholder="$t('logs.allTypes')" clearable multiple collapse-tags style="width:160px;margin-left:8px">
+          <el-option label="CHAIN_STARTED" value="CHAIN_STARTED" />
+          <el-option label="CHAIN_COMPLETED" value="CHAIN_COMPLETED" />
+          <el-option label="CHAIN_FAILED" value="CHAIN_FAILED" />
+          <el-option label="CHAIN_TIMEOUT" value="CHAIN_TIMEOUT" />
+          <el-option label="NODE_STARTED" value="NODE_STARTED" />
+          <el-option label="NODE_COMPLETED" value="NODE_COMPLETED" />
+          <el-option label="NODE_FAILED" value="NODE_FAILED" />
+        </el-select>
+        <el-button type="primary" style="margin-left:8px" @click="search">{{ $t('logs.search') }}</el-button>
+        <el-button @click="resetSearch">{{ $t('logs.reset') }}</el-button>
+      </div>
     </div>
 
-    <!-- 筛选栏 -->
-    <el-card shadow="never" class="filter-card">
-      <el-form :inline="true" :model="query" size="default">
-        <el-form-item :label="$t('logs.executionId')">
-          <el-input v-model="query.executionId" :placeholder="$t('logs.executionId')" clearable style="width:160px" />
-        </el-form-item>
-        <el-form-item :label="$t('logs.appName')">
-          <el-input v-model="query.appName" :placeholder="$t('logs.appName')" clearable style="width:140px" />
-        </el-form-item>
-        <el-form-item :label="$t('logs.keyword')">
-          <el-input v-model="query.keyword" :placeholder="$t('logs.keyword')" clearable style="width:160px" @keyup.enter="search" />
-        </el-form-item>
-        <el-form-item :label="$t('common.status')">
-          <el-select v-model="query.status" :placeholder="$t('common.status')" clearable style="width:100px">
-            <el-option :label="$t('common.all')" :value="undefined" />
-            <el-option :label="$t('logs.success')" :value="1" />
-            <el-option :label="$t('logs.failure')" :value="0" />
-          </el-select>
-        </el-form-item>
-        <el-form-item :label="$t('logs.eventType')">
-          <el-select v-model="query.eventTypes" :placeholder="$t('logs.allTypes')" clearable multiple collapse-tags style="width:160px">
-            <el-option label="CHAIN_STARTED" value="CHAIN_STARTED" />
-            <el-option label="CHAIN_COMPLETED" value="CHAIN_COMPLETED" />
-            <el-option label="CHAIN_FAILED" value="CHAIN_FAILED" />
-            <el-option label="CHAIN_TIMEOUT" value="CHAIN_TIMEOUT" />
-            <el-option label="NODE_STARTED" value="NODE_STARTED" />
-            <el-option label="NODE_COMPLETED" value="NODE_COMPLETED" />
-            <el-option label="NODE_FAILED" value="NODE_FAILED" />
-          </el-select>
-        </el-form-item>
-        <el-form-item :label="$t('logs.startTime')">
-          <el-date-picker
-            v-model="timeRange"
-            type="datetimerange"
-            :shortcuts="timeShortcuts"
-            range-separator="-"
-            :start-placeholder="$t('logs.startTime')"
-            :end-placeholder="$t('logs.endTime')"
-            style="width:320px"
-            @change="onTimeChange"
-          />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="search">{{ $t('logs.search') }}</el-button>
-          <el-button @click="resetSearch">{{ $t('logs.reset') }}</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+    <el-table
+      :data="list"
+      v-loading="loading"
+      stripe border
+      style="width:100%"
+      :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"
+    >
+      <el-table-column prop="executionId" :label="$t('logs.executionId')" width="200" show-overflow-tooltip />
+      <el-table-column prop="chainName" :label="$t('logs.chainName')" min-width="140" show-overflow-tooltip />
+      <el-table-column prop="appName" :label="$t('logs.appName')" width="120" show-overflow-tooltip />
+      <el-table-column :label="$t('logs.nodeCount')" width="80" align="center">
+        <template #default="{ row }">
+          <span>{{ row.nodeCount || '-' }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column :label="$t('logs.successCount')" width="80" align="center">
+        <template #default="{ row }">
+          <el-tag size="small" type="success">{{ row.successCount || 0 }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column :label="$t('logs.failedCount')" width="80" align="center">
+        <template #default="{ row }">
+          <el-tag size="small" type="danger" v-if="(row.failedCount || 0) > 0">{{ row.failedCount }}</el-tag>
+          <span v-else>0</span>
+        </template>
+      </el-table-column>
+      <el-table-column :label="$t('logs.costMs')" width="100" align="center">
+        <template #default="{ row }">
+          <span>{{ row.costMs != null ? row.costMs + 'ms' : '-' }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column :label="$t('common.status')" width="80" align="center">
+        <template #default="{ row }">
+          <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
+            {{ row.status === 1 ? $t('logs.success') : $t('logs.failure') }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column :label="$t('logs.timestamp')" width="170">
+        <template #default="{ row }">
+          {{ formatTime(row.startTime) }}
+        </template>
+      </el-table-column>
+      <el-table-column :label="$t('common.actions')" width="110" fixed="right">
+        <template #default="{ row }">
+          <el-button text size="small" type="primary" class="action-btn" @click.stop="showDetail(row)">
+            {{ $t('logs.detail') }}
+          </el-button>
+        </template>
+      </el-table-column>
+    </el-table>
 
-    <!-- 表格 -->
-    <el-card shadow="never">
-      <el-table
-        :data="list"
-        :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"
-        stripe
-        @row-click="showDetail"
-      >
-        <el-table-column prop="executionId" :label="$t('logs.executionId')" width="200" show-overflow-tooltip />
-        <el-table-column prop="chainName" :label="$t('logs.chainName')" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="appName" :label="$t('logs.appName')" width="120" show-overflow-tooltip />
-        <el-table-column :label="$t('logs.nodeCount')" width="80" align="center">
-          <template #default="{ row }">
-            <span>{{ row.nodeCount || '-' }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column :label="$t('logs.successCount')" width="80" align="center">
-          <template #default="{ row }">
-            <el-tag size="small" type="success">{{ row.successCount || 0 }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column :label="$t('logs.failedCount')" width="80" align="center">
-          <template #default="{ row }">
-            <el-tag size="small" type="danger" v-if="(row.failedCount || 0) > 0">{{ row.failedCount }}</el-tag>
-            <span v-else>0</span>
-          </template>
-        </el-table-column>
-        <el-table-column :label="$t('logs.costMs')" width="100" align="center">
-          <template #default="{ row }">
-            <span>{{ row.costMs != null ? row.costMs + 'ms' : '-' }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column :label="$t('logs.status')" width="80" align="center">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
-              {{ row.status === 1 ? $t('logs.success') : $t('logs.failure') }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column :label="$t('logs.timestamp')" width="170">
-          <template #default="{ row }">
-            {{ formatTime(row.startTime) }}
-          </template>
-        </el-table-column>
-        <el-table-column :label="$t('common.actions')" width="110" fixed="right">
-          <template #default="{ row }">
-            <el-button text size="small" type="primary" class="action-btn" @click.stop="showDetail(row)">
-              {{ $t('logs.detail') }}
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px">
       <el-pagination
         v-if="total > 0"
         v-model:current-page="query.page"
         v-model:page-size="query.pageSize"
         :total="total"
         :page-sizes="[10, 20, 50]"
-        layout="total, sizes, prev, pager, next"
-        @change="fetchList"
+        layout="total, sizes, prev, pager, next, jumper"
+        @current-change="fetchList"
+        @size-change="fetchList"
       />
       <el-empty v-if="total === 0 && loaded" :description="$t('logs.noData')" />
-    </el-card>
+    </div>
 
     <!-- 详情抽屉 -->
     <el-drawer
@@ -132,7 +110,7 @@
           <el-descriptions-item :label="$t('logs.appCode')">{{ traceDetail.appCode || '-' }}</el-descriptions-item>
           <el-descriptions-item :label="$t('logs.appName')">{{ traceDetail.appName || '-' }}</el-descriptions-item>
           <el-descriptions-item :label="$t('logs.costMs')">{{ traceDetail.costMs ? traceDetail.costMs + 'ms' : '-' }}</el-descriptions-item>
-          <el-descriptions-item :label="$t('logs.status')">
+          <el-descriptions-item :label="$t('common.status')">
             <el-tag :type="traceDetail.status === 1 ? 'success' : 'danger'" size="small">
               {{ traceDetail.status === 1 ? $t('logs.success') : $t('logs.failure') }}
             </el-tag>
@@ -150,72 +128,60 @@
           </el-descriptions-item>
         </el-descriptions>
 
-        <h4 style="margin:20px 0 12px">{{ $t('logs.detail') }}</h4>
-        <el-table
-          :data="traceDetail.events || []"
-          :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"
-          stripe
-          size="small"
-        >
-          <el-table-column :label="$t('logs.eventType')" width="140">
-            <template #default="{ row }">
-              <el-tag :type="eventTagType(row.eventType)" size="small">{{ row.eventType }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column :label="$t('logs.nodeName')" width="120" show-overflow-tooltip>
-            <template #default="{ row }">
-              {{ row.nodeName || '-' }}
-            </template>
-          </el-table-column>
-          <el-table-column :label="$t('logs.costMs')" width="80" align="center">
-            <template #default="{ row }">
-              {{ row.costMs != null ? row.costMs + 'ms' : '-' }}
-            </template>
-          </el-table-column>
-          <el-table-column :label="$t('logs.params')" min-width="140" show-overflow-tooltip>
-            <template #default="{ row }">
-              <span v-if="row.params" style="font-family:monospace;font-size:12px;white-space:pre-wrap;word-break:break-all;max-height:60px;overflow-y:auto;display:inline-block">{{ row.params }}</span>
-              <span v-else>-</span>
-            </template>
-          </el-table-column>
-          <el-table-column :label="$t('logs.result')" min-width="140" show-overflow-tooltip>
-            <template #default="{ row }">
-              <span v-if="row.result" style="font-family:monospace;font-size:12px;white-space:pre-wrap;word-break:break-all;max-height:60px;overflow-y:auto;display:inline-block">{{ row.result }}</span>
-              <span v-else>-</span>
-            </template>
-          </el-table-column>
-          <el-table-column :label="$t('logs.errorMessage')" min-width="150" show-overflow-tooltip>
-            <template #default="{ row }">
-              <span v-if="row.errorMessage" style="color:var(--el-color-danger)">{{ row.errorMessage }}</span>
-              <span v-else>-</span>
-            </template>
-          </el-table-column>
-          <el-table-column :label="$t('logs.timestamp')" width="160">
-            <template #default="{ row }">
-              {{ formatTime(row.timestamp) }}
-            </template>
-          </el-table-column>
-        </el-table>
+        <h4 style="margin:20px 0 12px;display:flex;align-items:center;gap:8px">
+          {{ $t('logs.traceFlow') }}
+          <el-tag size="small" v-if="graphLegend" style="margin-left:8px">{{ graphLegend }}</el-tag>
+          <el-button v-if="!graphError && !graphLoading && execGraph" text size="small" type="primary" @click="openFullscreen" style="margin-left:auto;font-size:13px">
+            <el-icon style="font-size:14px;margin-right:2px"><FullScreen /></el-icon>{{ $t('logs.expand') }}
+          </el-button>
+        </h4>
+
+        <!-- 加载中 -->
+        <div v-if="graphLoading" style="text-align:center;padding:40px">
+          <el-icon class="is-loading" :size="24"><Loading /></el-icon>
+        </div>
+
+        <!-- 无图/错误 -->
+        <div v-else-if="graphError" style="text-align:center;padding:30px;color:#909399;font-size:13px">
+          {{ graphError }}
+        </div>
+
+        <!-- 执行状态图例 -->
+        <div v-else class="graph-legend">
+          <span class="legend-item"><span class="legend-dot dot-success" />{{ $t('logs.success') }}</span>
+          <span class="legend-item"><span class="legend-dot dot-failed" />{{ $t('logs.failure') }}</span>
+          <span class="legend-item"><span class="legend-dot dot-pending" />{{ $t('logs.notExecuted') }}</span>
+        </div>
+
+        <!-- X6 画布 -->
+        <div ref="graphContainer" class="execution-graph" style="width:100%;height:360px;border:1px solid #e8e8e8;border-radius:6px;background:#fafafa" />
       </template>
       <div v-else-if="detailLoading" style="text-align:center;padding:40px">
         <el-icon class="is-loading" :size="24"><Loading /></el-icon>
       </div>
     </el-drawer>
+
+    <!-- 流程图全屏弹窗 -->
+    <el-dialog v-model="fullscreenVisible" :title="graphLegend || $t('logs.traceFlow')" fullscreen destroy-on-close @closed="destroyFullscreenGraph">
+      <div ref="fullscreenContainer" style="width:100%;height:calc(100vh - 120px);border-radius:6px;background:#fafafa" />
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Loading } from '@element-plus/icons-vue'
+import { Loading, FullScreen } from '@element-plus/icons-vue'
+import { Graph } from '@antv/x6'
 import type { EventQueryParams, ExecutionTrace } from '@/api/logs'
-import { queryExecutionTraces, getExecutionTrace } from '@/api/logs'
+import { queryExecutionTraces, getExecutionTrace, getSnapshot } from '@/api/logs'
+import { executorApi, type AppOption } from '@/api/executor'
 
 const { t } = useI18n()
 
 const query = reactive<EventQueryParams>({
   executionId: undefined,
-  appName: undefined,
+  appCode: undefined,
   keyword: undefined,
   status: undefined,
   eventTypes: undefined,
@@ -224,38 +190,39 @@ const query = reactive<EventQueryParams>({
   page: 1,
   pageSize: 20,
 })
-const timeRange = ref<[Date, Date] | null>(null)
-const timeShortcuts = [
-  { text: t('common.last15minutes'), value: () => [new Date(Date.now() - 15 * 60 * 1000), new Date()] },
-  { text: t('common.last1hour'), value: () => [new Date(Date.now() - 60 * 60 * 1000), new Date()] },
-  { text: t('common.last6hours'), value: () => [new Date(Date.now() - 6 * 60 * 60 * 1000), new Date()] },
-  { text: t('common.last24hours'), value: () => [new Date(Date.now() - 24 * 60 * 60 * 1000), new Date()] },
-]
 
 const list = ref<ExecutionTrace[]>([])
 const total = ref(0)
 const loaded = ref(false)
+const loading = ref(false)
+
+const apps = ref<AppOption[]>([])
+const currentAppCode = ref<string>('')
+
+const stats = computed(() => {
+  const success = list.value.filter(r => r.status === 1).length
+  const failure = list.value.filter(r => r.status === 0).length
+  return { success, failure }
+})
 
 // 详情抽屉
 const detailVisible = ref(false)
 const detailLoading = ref(false)
 const traceDetail = ref<ExecutionTrace | null>(null)
 
-function onTimeChange(val: [Date, Date] | null) {
-  if (val) {
-    query.startTime = val[0].getTime()
-    query.endTime = val[1].getTime()
-  } else {
-    query.startTime = undefined
-    query.endTime = undefined
-  }
-}
+// 执行状态图
+const graphContainer = ref<HTMLElement | null>(null)
+const graphLoading = ref(false)
+const graphError = ref('')
+const graphLegend = ref('')
+const execGraph = ref<Graph | null>(null)
 
-function eventTagType(eventType: string): string {
-  if (eventType.startsWith('NODE_FAILED') || eventType.startsWith('CHAIN_FAILED') || eventType.startsWith('CHAIN_TIMEOUT')) return 'danger'
-  if (eventType.startsWith('CHAIN_STARTED') || eventType.startsWith('NODE_STARTED')) return ''
-  return 'success'
-}
+// 全屏展开
+const savedGraphData = ref<string>('')
+const savedGraphEvents = ref<any[]>([])
+const fullscreenVisible = ref(false)
+const fullscreenContainer = ref<HTMLElement | null>(null)
+const fullscreenGraph = ref<Graph | null>(null)
 
 function formatTime(ts: number | string | undefined): string {
   if (ts == null) return '-'
@@ -264,7 +231,24 @@ function formatTime(ts: number | string | undefined): string {
   return d.toLocaleString()
 }
 
+async function fetchApps() {
+  try {
+    apps.value = await executorApi.listApps()
+    if (apps.value.length > 0 && !currentAppCode.value) {
+      currentAppCode.value = apps.value[0].appCode
+      query.appCode = currentAppCode.value
+    }
+  } catch { /* ignore */ }
+}
+
+function handleAppChange() {
+  query.appCode = currentAppCode.value || undefined
+  query.page = 1
+  fetchList()
+}
+
 async function fetchList() {
+  loading.value = true
   try {
     const res: any = await queryExecutionTraces(query)
     list.value = res.list || []
@@ -274,6 +258,7 @@ async function fetchList() {
     total.value = 0
   } finally {
     loaded.value = true
+    loading.value = false
   }
 }
 
@@ -284,13 +269,13 @@ function search() {
 
 function resetSearch() {
   query.executionId = undefined
-  query.appName = undefined
+  query.appCode = undefined
   query.keyword = undefined
   query.status = undefined
   query.eventTypes = undefined
   query.startTime = undefined
   query.endTime = undefined
-  timeRange.value = null
+  currentAppCode.value = ''
   query.page = 1
   fetchList()
 }
@@ -299,28 +284,333 @@ async function showDetail(row: ExecutionTrace) {
   detailVisible.value = true
   detailLoading.value = true
   traceDetail.value = null
+  graphError.value = ''
+  graphLoading.value = true
+  graphLegend.value = ''
   try {
-    if (row.events && row.events.length > 0) {
-      traceDetail.value = row
-      return
+    let detail = row
+    if (!row.events || row.events.length === 0) {
+      const res: any = await getExecutionTrace(row.executionId)
+      detail = res
     }
-    const res: any = await getExecutionTrace(row.executionId)
-    traceDetail.value = res
+    traceDetail.value = detail
+
+    // 加载设计图数据，在 X6 画布中还原执行流程
+    const appCode = detail.appCode || (query.appCode as string)
+    const chainCode = detail.events?.[0]?.chainId
+    if (chainCode && appCode) {
+      try {
+        const snapshotRes: any = await getSnapshot(chainCode, detail.startTime || Date.now())
+        const graphData = snapshotRes?.graphData
+        if (graphData) {
+          if (snapshotRes.version) {
+            graphLegend.value = 'v' + snapshotRes.version
+          }
+          await nextTick()
+          renderExecGraph(graphData, detail.events || [])
+        } else {
+          graphError.value = t('logs.noGraphData')
+        }
+      } catch {
+        graphError.value = t('logs.graphLoadError')
+      }
+    } else {
+      graphError.value = t('logs.noChainInfo')
+    }
   } catch {
     traceDetail.value = row
   } finally {
     detailLoading.value = false
+    graphLoading.value = false
   }
 }
 
-onMounted(() => {
-  fetchList()
+onMounted(async () => {
+  await fetchApps()
+  await fetchList()
 })
+
+onUnmounted(() => {
+  destroyExecGraph()
+})
+
+// ====== X6 执行状态图 ======
+
+/** 只读执行图节点颜色（与设计编辑器一致） */
+const execNodeColors: Record<string, string> = {
+  start: '#22c55e',
+  task: '#3b82f6',
+  condition: '#f59e0b',
+  multicondition: '#8b5cf6',
+  loader: '#06b6d4',
+  parser: '#ec4899',
+  script: '#8b5cf6',
+  subchain: '#06b6d4',
+  iterator: '#f97316',
+  end: '#6b7280',
+}
+
+function registerExecShapes() {
+  function reg(name: string, def: any) {
+    try { Graph.registerNode(name, def) } catch { /* ignore duplicate HMR */ }
+  }
+
+  // 矩形类节点
+  const rectTypes = [
+    { name: 'flow-start', fill: '#22c55e', rx: 20, label: '开始' },
+    { name: 'flow-end', fill: '#6b7280', rx: 20, label: '结束' },
+    { name: 'flow-task', fill: '#3b82f6', rx: 8, label: '执行元件' },
+    { name: 'flow-loader', fill: '#06b6d4', rx: 8, label: '加载器' },
+    { name: 'flow-parser', fill: '#ec4899', rx: 8, label: '解析器' },
+    { name: 'flow-script', fill: '#8b5cf6', rx: 8, label: '脚本' },
+    { name: 'flow-subchain', fill: '#14b8a6', rx: 23, label: '子链' },
+    { name: 'flow-iterator', fill: '#f97316', rx: 8, label: '迭代器' },
+  ]
+  for (const s of rectTypes) {
+    reg(s.name, {
+      inherit: 'rect',
+      width: 160, height: 46,
+      markup: [{ tagName: 'rect', selector: 'body' }, { tagName: 'text', selector: 'label' }],
+      attrs: {
+        body: { rx: s.rx, ry: s.rx, fill: s.fill, stroke: 'none' },
+        label: { text: s.label, fill: '#fff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle' },
+      },
+    })
+  }
+
+  // 多边形类节点
+  reg('flow-condition', {
+    inherit: 'polygon',
+    width: 100, height: 80,
+    markup: [{ tagName: 'polygon', selector: 'body' }, { tagName: 'text', selector: 'label' }],
+    attrs: {
+      body: { refPoints: '50,0 100,40 50,80 0,40', fill: '#f59e0b', stroke: 'none' },
+      label: { text: '判断', fill: '#fff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle' },
+    },
+  })
+
+  reg('flow-multicondition', {
+    inherit: 'polygon',
+    width: 120, height: 80,
+    markup: [{ tagName: 'polygon', selector: 'body' }, { tagName: 'text', selector: 'label' }],
+    attrs: {
+      body: { refPoints: '85,0 120,40 85,80 35,80 0,40 35,0', fill: '#8b5cf6', stroke: 'none' },
+      label: { text: '选择器', fill: '#fff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle' },
+    },
+  })
+}
+
+function renderExecGraph(graphDataStr: string, events: any[]) {
+  if (!graphContainer.value) {
+    graphError.value = t('logs.graphDataError')
+    graphLoading.value = false
+    return
+  }
+
+  destroyExecGraph()
+
+  let graphData: any
+  try {
+    graphData = typeof graphDataStr === 'string' ? JSON.parse(graphDataStr) : graphDataStr
+  } catch {
+    graphError.value = t('logs.graphDataError')
+    graphLoading.value = false
+    return
+  }
+
+  if (!graphData || !graphData.cells || graphData.cells.length === 0) {
+    graphError.value = t('logs.noGraphData')
+    graphLoading.value = false
+    return
+  }
+
+  // 存一份供全屏展开使用
+  savedGraphData.value = graphDataStr
+  savedGraphEvents.value = events
+
+  registerExecShapes()
+
+  const container = graphContainer.value
+  const g = new Graph({
+    container,
+    width: container.clientWidth || 600,
+    height: container.clientHeight || 360,
+    grid: { visible: true, size: 20, type: 'dot' },
+    panning: { enabled: true, eventTypes: ['leftMouseDown'] },
+    mousewheel: { enabled: true, zoomAtMousePosition: true },
+    interacting: false,
+    connecting: {
+      router: { name: 'manhattan', args: { padding: { top: 15, bottom: 15, left: 15, right: 15 }, step: 10 } },
+      connector: { name: 'rounded' },
+    },
+    defaultEdge: {
+      router: { name: 'manhattan', args: { padding: { top: 15, bottom: 15, left: 15, right: 15 }, step: 10 } },
+      connector: { name: 'rounded' },
+      attrs: {
+        line: { stroke: '#94a3b8', strokeWidth: 2, targetMarker: { name: 'classic', size: 8 } },
+      },
+    },
+  })
+
+  g.fromJSON(graphData)
+  applyExecutionColors(g, events)
+  g.zoomToFit({ padding: 20, maxScale: 1.5 })
+  execGraph.value = g
+}
+
+function destroyExecGraph() {
+  if (execGraph.value) {
+    execGraph.value.dispose()
+    execGraph.value = null
+  }
+}
+
+/** 着色：根据事件状态给节点和连线着色 */
+function applyExecutionColors(g: Graph, events: any[]) {
+  // 构建节点执行状态映射：componentId → status
+  const nodeStatusMap = new Map<string, string>()
+  for (const e of events) {
+    const id = e.nodeId
+    if (!id) continue
+    if (e.eventType === 'NODE_FAILED' || e.eventType === 'NODE_FALLBACK_FAILED') {
+      nodeStatusMap.set(id, 'failed')
+    } else if (e.eventType === 'NODE_COMPLETED' || e.eventType === 'NODE_FALLBACK_SUCCESS') {
+      if (nodeStatusMap.get(id) !== 'failed') {
+        nodeStatusMap.set(id, 'success')
+      }
+    } else if (e.eventType === 'NODE_STARTED') {
+      if (!nodeStatusMap.has(id)) {
+        nodeStatusMap.set(id, 'running')
+      }
+    }
+  }
+
+  g.getNodes().forEach(node => {
+    const data = node.getData() || {}
+    const componentId = data.componentId
+    const status = componentId ? nodeStatusMap.get(componentId) : undefined
+
+    if (status === 'success') {
+      node.attr('body/stroke', '#52c41a')
+      node.attr('body/strokeWidth', 3)
+    } else if (status === 'failed') {
+      node.attr('body/stroke', '#ff4d4f')
+      node.attr('body/strokeWidth', 3)
+    } else if (status === 'running') {
+      node.attr('body/stroke', '#faad14')
+      node.attr('body/strokeWidth', 3)
+      node.attr('body/strokeDasharray', '4,2')
+    } else {
+      // 未执行：降低饱和度
+      const fill = node.attr('body/fill') as string
+      if (fill && fill.startsWith('#')) {
+        const dimColor = fill + '88'
+        node.attr('body/fill', dimColor)
+      }
+      node.attr('body/stroke', '#d9d9d9')
+      node.attr('body/strokeWidth', 1)
+    }
+  })
+
+  // 连线着色：目标节点已执行的连线高亮
+  g.getEdges().forEach(edge => {
+    const target = edge.getTargetNode()
+    if (target) {
+      const data = target.getData() || {}
+      const id = data.componentId
+      const status = id ? nodeStatusMap.get(id) : undefined
+      if (status) {
+        edge.attr('line/stroke', '#3b82f6')
+        edge.attr('line/strokeWidth', 2.5)
+      } else {
+        edge.attr('line/stroke', '#d9d9d9')
+        edge.attr('line/strokeWidth', 1.5)
+        edge.attr('line/strokeDasharray', '4,3')
+      }
+    }
+  })
+}
+
+// ====== 全屏展开 ======
+
+function openFullscreen() {
+  if (!savedGraphData.value) return
+  fullscreenVisible.value = true
+  nextTick(() => renderFullscreenGraph())
+}
+
+function renderFullscreenGraph() {
+  destroyFullscreenGraph()
+  if (!fullscreenContainer.value) return
+
+  let data: any
+  try {
+    data = JSON.parse(savedGraphData.value)
+  } catch { return }
+  if (!data || !data.cells) return
+
+  registerExecShapes()
+
+  const g = new Graph({
+    container: fullscreenContainer.value,
+    width: fullscreenContainer.value.clientWidth || 800,
+    height: fullscreenContainer.value.clientHeight || 600,
+    grid: { visible: true, size: 20, type: 'dot' },
+    panning: { enabled: true, eventTypes: ['leftMouseDown'] },
+    mousewheel: { enabled: true, zoomAtMousePosition: true },
+    interacting: false,
+    connecting: {
+      router: { name: 'manhattan', args: { padding: { top: 15, bottom: 15, left: 15, right: 15 }, step: 10 } },
+      connector: { name: 'rounded' },
+    },
+    defaultEdge: {
+      router: { name: 'manhattan', args: { padding: { top: 15, bottom: 15, left: 15, right: 15 }, step: 10 } },
+      connector: { name: 'rounded' },
+      attrs: {
+        line: { stroke: '#94a3b8', strokeWidth: 2, targetMarker: { name: 'classic', size: 8 } },
+      },
+    },
+  })
+
+  g.fromJSON(data)
+  applyExecutionColors(g, savedGraphEvents.value)
+  g.zoomToFit({ padding: 30, maxScale: 2 })
+  fullscreenGraph.value = g
+}
+
+function destroyFullscreenGraph() {
+  if (fullscreenGraph.value) {
+    fullscreenGraph.value.dispose()
+    fullscreenGraph.value = null
+  }
+}
 </script>
 
 <style scoped>
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.page-header h2 { margin: 0; font-size: 20px; }
-.filter-card { margin-bottom: 16px; }
+.page-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+}
+.stats-summary {
+  display: flex; align-items: center; font-size: 14px;
+}
 .action-btn.action-btn { padding: 2px 4px; margin-left: 0; }
+
+/* X6 执行状态图 */
+.execution-graph {
+  width: 100%; height: 360px;
+  border: 1px solid #e8e8e8; border-radius: 6px; background: #fafafa;
+  overflow: hidden;
+}
+.graph-legend {
+  display: flex; gap: 16px; margin: 8px 0 12px; font-size: 13px;
+}
+.legend-item {
+  display: flex; align-items: center; gap: 4px; color: #606266;
+}
+.legend-dot {
+  display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+}
+.dot-success { background: #52c41a; }
+.dot-failed  { background: #ff4d4f; }
+.dot-pending { background: #d9d9d9; }
 </style>

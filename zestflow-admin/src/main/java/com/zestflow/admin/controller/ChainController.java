@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.zestflow.admin.client.CollectorClient;
 import com.zestflow.admin.client.ExecutorProxyService;
 import com.zestflow.admin.client.ExecutorProxyService.BroadcastResult;
 import com.zestflow.admin.client.ExecutorProxyService.ExecutorResult;
@@ -11,6 +12,7 @@ import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.service.PermissionService;
 import com.zestflow.admin.util.SecurityUtils;
 import com.zestflow.common.exception.BizException;
+import com.zestflow.common.model.dto.ChainSnapshotSyncDTO;
 import com.zestflow.common.model.event.ChainEventType;
 import com.zestflow.common.model.event.PublishEventDTO;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +42,7 @@ public class ChainController {
 
     private final ExecutorProxyService proxyService;
     private final PermissionService permissionService;
+    private final CollectorClient collectorClient;
 
     @GetMapping
     public String listByAppCode(
@@ -335,6 +338,19 @@ public class ChainController {
             String statusPayload = "{\"status\":4,\"appCode\":\"" + appCode + "\"}";
             proxyService.executeOnExecutor(appCode, "PUT", "/api/chains/" + code, statusPayload);
             log.info("链发布成功 code={} appCode={}", code, appCode);
+        }
+
+        // 同步图数据快照到采集器（不阻塞发布流程）
+        try {
+            ChainSnapshotSyncDTO snapshotSync = ChainSnapshotSyncDTO.builder()
+                    .chainCode(code)
+                    .graphData(graphData)
+                    .appCode(appCode)
+                    .createdBy(SecurityUtils.getCurrentUsername())
+                    .build();
+            collectorClient.syncSnapshot(snapshotSync);
+        } catch (Exception e) {
+            log.warn("同步图数据快照失败，不影响发布 chainCode={}", code, e);
         }
 
         log.info("链发布完成 code={} appCode={} publishId={} success={}/{}",

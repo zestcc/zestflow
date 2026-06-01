@@ -397,3 +397,21 @@ CREATE TABLE `zestflow_test_log`.`chain_event` (
     KEY `idx_execution_id` (`execution_id`),
     KEY `idx_tenant_id` (`tenant_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='链执行事件表';
+
+-- 2026-06-01：链图数据快照表，发布时快照供历史日志 X6 图还原
+CREATE TABLE IF NOT EXISTS `zestflow_test_log`.`chain_graph_snapshot` (
+    `id`          BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '自增主键',
+    `chain_code`  VARCHAR(64)  NOT NULL                            COMMENT '链编码',
+    `version`     INT          NOT NULL                            COMMENT '版本号',
+    `graph_data`  MEDIUMTEXT   DEFAULT NULL                        COMMENT '图数据 JSON',
+    `status`      TINYINT      NOT NULL DEFAULT 1                  COMMENT '状态：1-生效 0-已废弃',
+    `tenant_id`   BIGINT       DEFAULT 1                           COMMENT '租户ID',
+    `app_code`    VARCHAR(50)  DEFAULT NULL                        COMMENT '应用编码',
+    `created_by`  VARCHAR(64)  DEFAULT NULL                        COMMENT '创建人',
+    `updated_by`  VARCHAR(64)  DEFAULT NULL                        COMMENT '最后更新人',
+    `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP   COMMENT '创建时间',
+    `updated_at`  DATETIME     DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `is_deleted`  TINYINT      DEFAULT 0                           COMMENT '删除标记（0-未删）',
+    UNIQUE KEY `uk_chain_version` (`chain_code`, `version`),
+    KEY `idx_lookup` (`chain_code`, `status`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='链图数据快照表';

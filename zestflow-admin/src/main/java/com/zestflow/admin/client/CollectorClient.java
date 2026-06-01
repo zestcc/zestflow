@@ -3,6 +3,7 @@ package com.zestflow.admin.client;
 import com.zestflow.admin.client.dto.EventQueryDTO;
 import com.zestflow.admin.client.dto.EventQueryResult;
 import com.zestflow.admin.client.dto.ExecutionTraceResult;
+import com.zestflow.common.model.dto.ChainSnapshotSyncDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -143,6 +144,27 @@ public class CollectorClient {
             return result != null && result.get("code") != null && (Integer) result.get("code") == 200;
         } catch (Exception e) {
             log.warn("Collector 健康检查失败 url={}", apiUrl);
+            return false;
+        }
+    }
+
+    /**
+     * 同步图数据快照到采集器（Admin 发布链时调用）
+     */
+    public boolean syncSnapshot(ChainSnapshotSyncDTO dto) {
+        try {
+            String url = apiUrl + "/collector/snapshots";
+            HttpEntity<ChainSnapshotSyncDTO> entity = new HttpEntity<>(dto, buildHeaders());
+            var response = restTemplate.exchange(url, HttpMethod.POST, entity, Map.class).getBody();
+            boolean ok = response != null && response.get("code") != null && (Integer) response.get("code") == 200;
+            if (ok) {
+                log.info("图数据快照同步成功 chainCode={}", dto.getChainCode());
+            } else {
+                log.warn("图数据快照同步返回异常 chainCode={} response={}", dto.getChainCode(), response);
+            }
+            return ok;
+        } catch (Exception e) {
+            log.warn("图数据快照同步失败 chainCode={}", dto.getChainCode(), e);
             return false;
         }
     }

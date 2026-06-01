@@ -5,6 +5,7 @@ export interface EventQueryParams {
   executionId?: string
   executorId?: string
   appName?: string
+  appCode?: string
   eventTypes?: string[]
   startTime?: number
   endTime?: number
@@ -62,4 +63,20 @@ export function queryExecutionTraces(params: EventQueryParams) {
 
 export function getExecutionTrace(executionId: string) {
   return request.get(`/logs/executions/${executionId}`)
+}
+
+/** 图数据快照 DTO */
+export interface ChainSnapshotDTO {
+  chainCode: string
+  version: number
+  graphData: string
+  status: number
+  appCode: string
+  createdBy: string
+  createdAt: string
+}
+
+/** 查询指定时刻的图数据快照 */
+export function getSnapshot(chainCode: string, timestamp: number) {
+  return request.get('/logs/snapshots', { params: { chainCode, timestamp } })
 }

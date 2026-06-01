@@ -1,6 +1,7 @@
 package com.zestflow.admin.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zestflow.admin.client.CollectorClient;
 import com.zestflow.admin.client.ExecutorProxyService;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.service.PermissionService;
@@ -26,13 +27,14 @@ class ChainControllerTest {
 
     @Mock private ExecutorProxyService proxyService;
     @Mock private PermissionService permissionService;
+    @Mock private CollectorClient collectorClient;
     @Mock private Authentication authentication;
 
     private ChainController chainController;
 
     @BeforeEach
     void setUp() {
-        chainController = new ChainController(proxyService, permissionService);
+        chainController = new ChainController(proxyService, permissionService, collectorClient);
     }
 
     @AfterEach

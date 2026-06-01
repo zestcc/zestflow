@@ -155,6 +155,9 @@ public class JdbcEventQueryService implements EventQueryService {
         if (query.getTenantId() != null) {
             wrapper.eq(ChainEventPO::getTenantId, query.getTenantId());
         }
+        if (StringUtils.isNotBlank(query.getAppCode())) {
+            wrapper.eq(ChainEventPO::getAppCode, query.getAppCode());
+        }
         if (query.getEventTypes() != null && !query.getEventTypes().isEmpty()) {
             List<String> typeNames = query.getEventTypes().stream()
                     .map(Enum::name)
