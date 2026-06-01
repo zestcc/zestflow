@@ -18,6 +18,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.LinkedHashMap;
 
+import org.springframework.beans.factory.annotation.Value;
+
 /**
  * Collector HTTP 客户端 — Admin 通过此客户端从 Collector 查询事件数据
  * <p>
@@ -31,6 +33,10 @@ public class CollectorClient {
     private final String accessToken;
     private final CollectorRegistryService registryService;
     private final CollectorClientProperties properties;
+
+    /** 服务间通信协议（http/https） */
+    @Value("${zestflow.admin.protocol:http}")
+    private String protocol;
 
     public CollectorClient(RestTemplate restTemplate, String accessToken,
                            CollectorRegistryService registryService,
@@ -221,8 +227,8 @@ public class CollectorClient {
         return null;
     }
 
-    private static String buildUrl(CollectorRegistryVO vo) {
-        return "http://" + vo.getCollectorHost() + ":" + vo.getCollectorPort();
+    private String buildUrl(CollectorRegistryVO vo) {
+        return protocol + "://" + vo.getCollectorHost() + ":" + vo.getCollectorPort();
     }
 
     private HttpHeaders buildHeaders() {
