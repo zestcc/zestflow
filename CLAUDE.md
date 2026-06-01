@@ -572,7 +572,12 @@ log.error("链执行失败 chainId={} nodeId={}", chainId, nodeId, e);
 - **`zestflow-executor-test/src/main/resources/application-prod.example.yml`** — 生产部署模板（显式设值，不依赖默认值）
 - **`zestflow-executor-test/src/test/resources/application-test.yml`** — 单元测试配置
 
-仅涉及 datasource 子属性的（如 `zestflow.executor.datasource.*`），上述文件中非 datasource 性质的配置可不同步。
+新增或修改 `zestflow.admin.*` 配置属性时，必须同步到以下配置文件：
+
+- **`zestflow-admin/src/main/resources/application.yml`** — Admin 模块默认配置
+- **`zestflow-admin/src/main/resources/application-prod.example.yml`** — 生产部署模板
+
+仅涉及 datasource 子属性的，上述文件中非 datasource 性质的配置可不同步。
 
 ### 开发环境规范
 

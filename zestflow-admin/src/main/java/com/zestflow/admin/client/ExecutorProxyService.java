@@ -10,6 +10,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
@@ -36,6 +37,10 @@ public class ExecutorProxyService {
     private final RestTemplate restTemplate;
     private final ExecutorRegistryMapper executorRegistryMapper;
 
+    /** 服务间通信协议（http/https） */
+    @Value("${zestflow.admin.protocol:http}")
+    private String protocol;
+
     /**
      * 通过 appCode 解析到 Executor 地址并执行 GET 请求
      *
@@ -53,7 +58,7 @@ public class ExecutorProxyService {
         try {
             String json = restTemplate.getForObject(url, String.class);
             if (json == null) return emptyPage();
-            return enrichWithAppCode(json, appCode, baseUrl.replace("http://", ""));
+            return enrichWithAppCode(json, appCode, baseUrl.replace(protocol + "://", ""));
         } catch (ResourceAccessException e) {
             log.warn("Executor 不可达 appCode={} url={}", appCode, url);
             return emptyPage();
@@ -100,7 +105,7 @@ public class ExecutorProxyService {
      */
     public String getDirect(String host, int port, String path, String query) {
         try {
-            String url = "http://" + host + ":" + port + path + (query != null ? query : "");
+            String url = protocol + "://" + host + ":" + port + path + (query != null ? query : "");
             String json = restTemplate.getForObject(url, String.class);
             return json;
         } catch (ResourceAccessException e) {
@@ -195,7 +200,7 @@ public class ExecutorProxyService {
             return null;
         }
         ExecutorRegistryPO executor = executors.get(0);
-        return "http://" + executor.getExecutorHost() + ":" + executor.getExecutorPort();
+        return protocol + "://" + executor.getExecutorHost() + ":" + executor.getExecutorPort();
     }
 
     private String resolveExecutorUrl(String appCode, String path, String query) {
@@ -310,7 +315,7 @@ public class ExecutorProxyService {
                         .eq(ExecutorRegistryPO::getAppCode, appCode)
                         .eq(ExecutorRegistryPO::getStatus, 1));
         return executors.stream()
-                .map(e -> "http://" + e.getExecutorHost() + ":" + e.getExecutorPort())
+                .map(e -> protocol + "://" + e.getExecutorHost() + ":" + e.getExecutorPort())
                 .collect(Collectors.toList());
     }
 

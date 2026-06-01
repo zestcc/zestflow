@@ -32,6 +32,10 @@ public class LogController {
     @Value("${zestflow.collector.api-url:}")
     private String collectorApiUrl;
 
+    /** 服务间通信协议（http/https） */
+    @Value("${zestflow.admin.protocol:http}")
+    private String protocol;
+
     /**
      * 查询事件日志（分页）
      */
@@ -116,14 +120,14 @@ public class LogController {
         if (appCode != null) {
             List<CollectorRegistryVO> matched = collectorRegistryService.listOnlineByAppCode(appCode);
             if (!matched.isEmpty()) {
-                return "http://" + matched.get(0).getCollectorHost() + ":" + matched.get(0).getCollectorPort();
+                return protocol + "://" + matched.get(0).getCollectorHost() + ":" + matched.get(0).getCollectorPort();
             }
         }
         // 2. 任意在线采集器
         List<CollectorRegistryVO> collectors = collectorRegistryService.listAllOnline();
         if (!collectors.isEmpty()) {
             CollectorRegistryVO c = collectors.get(0);
-            return "http://" + c.getCollectorHost() + ":" + c.getCollectorPort();
+            return protocol + "://" + c.getCollectorHost() + ":" + c.getCollectorPort();
         }
         // 3. 配置兜底
         if (collectorApiUrl != null && !collectorApiUrl.isEmpty()) {

@@ -15,6 +15,8 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
+
 /**
  * Admin → Executor HTTP 客户端
  * <p>
@@ -30,6 +32,10 @@ public class ExecutorClient {
             .connectTimeout(Duration.ofSeconds(5))
             .build();
 
+    /** 服务间通信协议（http/https） */
+    @Value("${zestflow.admin.protocol:http}")
+    private String protocol;
+
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
 
     /**
@@ -42,7 +48,7 @@ public class ExecutorClient {
      * @return 执行结果
      */
     public ChainExecuteResultDTO execute(String host, int port, String chainCode, Map<String, Object> params) {
-        String url = "http://" + host + ":" + port + "/execute";
+        String url = protocol + "://" + host + ":" + port + "/execute";
 
         ChainExecuteRequestDTO request = new ChainExecuteRequestDTO();
         request.setChainCode(chainCode);

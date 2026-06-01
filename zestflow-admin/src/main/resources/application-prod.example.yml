@@ -53,6 +53,8 @@ zestflow:
   upload:
     avatar-dir: uploads/avatars
   admin:
+    # 内部服务间通信协议（http/https），生产环境如用反向代理 SSL 可改为 https
+    protocol: http
     tenant-id: 1
     system-user: sys
     default-user:

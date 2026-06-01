@@ -13,6 +13,7 @@ import com.zestflow.admin.client.ExecutorProxyService;
 import com.zestflow.admin.service.TenantAppContext;
 import com.zestflow.common.model.dto.ChainExecuteRequestDTO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Primary;
@@ -47,6 +48,10 @@ public class PlaygroundServiceImpl implements PlaygroundService {
     private final PlaygroundRateLimiter rateLimiter;
     private final TenantAppContext tenantAppContext;
     private final RestTemplate restTemplate;
+
+    /** 演示场景链执行超时（毫秒），默认 30s */
+    @Value("${zestflow.playground.execute-timeout-ms:30000}")
+    private long executeTimeoutMs;
 
     @Override
     public Map<String, Object> executeScene(String sceneCode, Map<String, Object> params, String requestIp) {
@@ -97,7 +102,7 @@ public class PlaygroundServiceImpl implements PlaygroundService {
                         .chainCode(scene.getChainCode())
                         .params(params)
                         .source("playground")
-                        .timeoutMs(30_000L)
+                        .timeoutMs(executeTimeoutMs)
                         .build();
 
                 String body = MAPPER.writeValueAsString(request);
