@@ -7,6 +7,7 @@ import com.zestflow.common.model.dto.NodeResultDTO;
 import com.zestflow.common.spi.EventCollector;
 import com.zestflow.executor.chain.ChainDefinition;
 import com.zestflow.executor.chain.ChainDefinition.ChainEdge;
+import com.zestflow.executor.chain.ChainLoader;
 import com.zestflow.executor.chain.ChainManager;
 import com.zestflow.executor.chain.NodeDefinition;
 import com.zestflow.executor.interceptor.InterceptorChain;
@@ -35,6 +36,7 @@ class DefaultChainExecutionEngineIntegrationTest {
     @Mock private ChainManager chainManager;
     @Mock private NodeRunner nodeRunner;
     @Mock private EventCollector eventCollector;
+    @Mock private ChainLoader chainLoader;
     @Captor private ArgumentCaptor<ChainEvent> eventCaptor;
 
     private final ChainInstanceManager instanceManager = new ChainInstanceManager();
@@ -50,6 +52,7 @@ class DefaultChainExecutionEngineIntegrationTest {
                 chainManager, dagSorter, nodeRunner, instanceManager,
                 eventCollector, interceptorChain, properties
         );
+        engine.setChainLoader(chainLoader);
     }
 
     @AfterEach
@@ -109,6 +112,8 @@ class DefaultChainExecutionEngineIntegrationTest {
     @Test
     void chainNotFoundReturnsFailed() {
         when(chainManager.get("non-existent")).thenReturn(null);
+        when(chainLoader.reloadChainLocal(any(), any(), any()))
+                .thenReturn(new ChainLoader.ChainReloadResult(false, "链定义不存在", 0));
 
         ChainExecuteResultDTO result = engine.execute("non-existent", Map.of());
 
