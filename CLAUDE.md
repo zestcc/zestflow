@@ -950,6 +950,12 @@ zestflow:
 | 2026-06 | `ChainEvent` 公共模型 + `ChainEventPO` 新增 `appCode` 字段；所有 INSERT/SELECT/映射全链路同步 |
 | 2026-06 | `ExecutionTrace` 新增 `appCode` 字段 |
 | 2026-06 | `chain_event` 表 DDL 新增 `app_code` 列；`chain_id`/`node_id` 注释改为「编码」|
+| 2026-06 | 日志页执行图重设计：饱和配色（成功绿/失败红/运行橙/未执行灰）+ 结构节点智能着色（开始有事件即绿、结束 CHAIN_COMPLETED 才绿）|
+| 2026-06 | 日志页执行图新增 PNG 导出（4x SVGT → Canvas 高清）|
+| 2026-06 | 日志页全屏弹窗去掉 title，图例移入弹窗内 |
+| 2026-06 | 修复 `MyMetaObjectHandler` 字段名 `createTime` → `createdAt`，新增 `updatedAt` 自动填充 |
+| 2026-06 | `ChainGraphSnapshotService` 显式设置 `createdAt`/`updatedAt` 绕开 MetaObjectHandler 限制 |
+| 2026-06 | 连线标签文字样式修复：使用 `defaultLabel` + `text` 选择器，`#303133` 深色 + 白色描边抗锯齿 |
 
 ## 新机器初始化（事件系统修复已提交，commit c1b1faa）
 

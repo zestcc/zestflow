@@ -130,7 +130,9 @@
 
         <h4 style="margin:20px 0 12px;display:flex;align-items:center;gap:8px">
           {{ $t('logs.traceFlow') }}
-          <el-tag size="small" v-if="graphLegend" style="margin-left:8px">{{ graphLegend }}</el-tag>
+          <el-button v-if="!graphError && !graphLoading && execGraph" text size="small" type="primary" @click="exportPNG" style="margin-left:8px;font-size:13px">
+            <el-icon style="font-size:14px;margin-right:2px"><Download /></el-icon>PNG
+          </el-button>
           <el-button v-if="!graphError && !graphLoading && execGraph" text size="small" type="primary" @click="openFullscreen" style="margin-left:auto;font-size:13px">
             <el-icon style="font-size:14px;margin-right:2px"><FullScreen /></el-icon>{{ $t('logs.expand') }}
           </el-button>
@@ -162,8 +164,13 @@
     </el-drawer>
 
     <!-- 流程图全屏弹窗 -->
-    <el-dialog v-model="fullscreenVisible" :title="graphLegend || $t('logs.traceFlow')" fullscreen destroy-on-close @closed="destroyFullscreenGraph">
-      <div ref="fullscreenContainer" style="width:100%;height:calc(100vh - 120px);border-radius:6px;background:#fafafa" />
+    <el-dialog v-model="fullscreenVisible" fullscreen destroy-on-close @closed="destroyFullscreenGraph">
+      <div class="graph-legend">
+        <span class="legend-item"><span class="legend-dot dot-success" />{{ $t('logs.success') }}</span>
+        <span class="legend-item"><span class="legend-dot dot-failed" />{{ $t('logs.failure') }}</span>
+        <span class="legend-item"><span class="legend-dot dot-pending" />{{ $t('logs.notExecuted') }}</span>
+      </div>
+      <div ref="fullscreenContainer" style="width:100%;height:calc(100vh - 160px);border-radius:6px;background:#fafafa" />
     </el-dialog>
   </div>
 </template>
@@ -171,8 +178,9 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, nextTick, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Loading, FullScreen } from '@element-plus/icons-vue'
+import { Loading, FullScreen, Download } from '@element-plus/icons-vue'
 import { Graph } from '@antv/x6'
+import { Export } from '@antv/x6-plugin-export'
 import type { EventQueryParams, ExecutionTrace } from '@/api/logs'
 import { queryExecutionTraces, getExecutionTrace, getSnapshot } from '@/api/logs'
 import { executorApi, type AppOption } from '@/api/executor'
@@ -303,9 +311,6 @@ async function showDetail(row: ExecutionTrace) {
         const snapshotRes: any = await getSnapshot(chainCode, detail.startTime || Date.now())
         const graphData = snapshotRes?.graphData
         if (graphData) {
-          if (snapshotRes.version) {
-            graphLegend.value = 'v' + snapshotRes.version
-          }
           await nextTick()
           renderExecGraph(graphData, detail.events || [])
         } else {
@@ -336,35 +341,21 @@ onUnmounted(() => {
 
 // ====== X6 执行状态图 ======
 
-/** 只读执行图节点颜色（与设计编辑器一致） */
-const execNodeColors: Record<string, string> = {
-  start: '#22c55e',
-  task: '#3b82f6',
-  condition: '#f59e0b',
-  multicondition: '#8b5cf6',
-  loader: '#06b6d4',
-  parser: '#ec4899',
-  script: '#8b5cf6',
-  subchain: '#06b6d4',
-  iterator: '#f97316',
-  end: '#6b7280',
-}
-
 function registerExecShapes() {
   function reg(name: string, def: any) {
     try { Graph.registerNode(name, def) } catch { /* ignore duplicate HMR */ }
   }
 
-  // 矩形类节点
+  // 矩形类节点（日志视图使用统一中性底色，执行状态靠着色区分）
   const rectTypes = [
-    { name: 'flow-start', fill: '#22c55e', rx: 20, label: '开始' },
-    { name: 'flow-end', fill: '#6b7280', rx: 20, label: '结束' },
-    { name: 'flow-task', fill: '#3b82f6', rx: 8, label: '执行元件' },
-    { name: 'flow-loader', fill: '#06b6d4', rx: 8, label: '加载器' },
-    { name: 'flow-parser', fill: '#ec4899', rx: 8, label: '解析器' },
-    { name: 'flow-script', fill: '#8b5cf6', rx: 8, label: '脚本' },
-    { name: 'flow-subchain', fill: '#14b8a6', rx: 23, label: '子链' },
-    { name: 'flow-iterator', fill: '#f97316', rx: 8, label: '迭代器' },
+    { name: 'flow-start', rx: 20, label: '开始' },
+    { name: 'flow-end', rx: 20, label: '结束' },
+    { name: 'flow-task', rx: 8, label: '执行元件' },
+    { name: 'flow-loader', rx: 8, label: '加载器' },
+    { name: 'flow-parser', rx: 8, label: '解析器' },
+    { name: 'flow-script', rx: 8, label: '脚本' },
+    { name: 'flow-subchain', rx: 23, label: '子链' },
+    { name: 'flow-iterator', rx: 8, label: '迭代器' },
   ]
   for (const s of rectTypes) {
     reg(s.name, {
@@ -372,8 +363,8 @@ function registerExecShapes() {
       width: 160, height: 46,
       markup: [{ tagName: 'rect', selector: 'body' }, { tagName: 'text', selector: 'label' }],
       attrs: {
-        body: { rx: s.rx, ry: s.rx, fill: s.fill, stroke: 'none' },
-        label: { text: s.label, fill: '#fff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle' },
+        body: { rx: s.rx, ry: s.rx, fill: '#d4d4d4', stroke: '#a0a4a8', strokeWidth: 1 },
+        label: { text: s.label, fill: '#303133', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle' },
       },
     })
   }
@@ -384,8 +375,8 @@ function registerExecShapes() {
     width: 100, height: 80,
     markup: [{ tagName: 'polygon', selector: 'body' }, { tagName: 'text', selector: 'label' }],
     attrs: {
-      body: { refPoints: '50,0 100,40 50,80 0,40', fill: '#f59e0b', stroke: 'none' },
-      label: { text: '判断', fill: '#fff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle' },
+      body: { refPoints: '50,0 100,40 50,80 0,40', fill: '#d4d4d4', stroke: '#a0a4a8', strokeWidth: 1 },
+      label: { text: '判断', fill: '#303133', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle' },
     },
   })
 
@@ -394,8 +385,8 @@ function registerExecShapes() {
     width: 120, height: 80,
     markup: [{ tagName: 'polygon', selector: 'body' }, { tagName: 'text', selector: 'label' }],
     attrs: {
-      body: { refPoints: '85,0 120,40 85,80 35,80 0,40 35,0', fill: '#8b5cf6', stroke: 'none' },
-      label: { text: '选择器', fill: '#fff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle' },
+      body: { refPoints: '85,0 120,40 85,80 35,80 0,40 35,0', fill: '#d4d4d4', stroke: '#a0a4a8', strokeWidth: 1 },
+      label: { text: '选择器', fill: '#303133', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle' },
     },
   })
 }
@@ -449,13 +440,66 @@ function renderExecGraph(graphDataStr: string, events: any[]) {
       attrs: {
         line: { stroke: '#94a3b8', strokeWidth: 2, targetMarker: { name: 'classic', size: 8 } },
       },
+      defaultLabel: {
+        attrs: { text: { fill: '#303133', fontSize: 12, stroke: '#fff', strokeWidth: 2, paintOrder: 'stroke' } },
+      },
     },
   })
 
+  g.use(new Export())
   g.fromJSON(graphData)
   applyExecutionColors(g, events)
   g.zoomToFit({ padding: 20, maxScale: 1.5 })
   execGraph.value = g
+}
+
+/** 导出 PNG（4x 高清） */
+function exportPNG() {
+  if (!execGraph.value || !graphContainer.value) return
+  const g = execGraph.value
+  const rect = g.getContentBBox()
+  if (!rect || rect.width === 0) return
+  const svgEl = graphContainer.value.querySelector<SVGSVGElement>('.x6-graph-svg')
+  if (!svgEl) return
+  const clone = svgEl.cloneNode(true) as SVGSVGElement
+  const pad = 40
+  const scale = 4
+  const w = Math.ceil(rect.width + pad * 2)
+  const h = Math.ceil(rect.height + pad * 2)
+  const vw = w * scale
+  const vh = h * scale
+  clone.setAttribute('width', String(vw))
+  clone.setAttribute('height', String(vh))
+  clone.setAttribute('viewBox', `${rect.x - pad} ${rect.y - pad} ${w} ${h}`)
+  const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+  bg.setAttribute('width', '100%'); bg.setAttribute('height', '100%'); bg.setAttribute('fill', '#fafafa')
+  clone.insertBefore(bg, clone.firstChild)
+  const svgStr = new XMLSerializer().serializeToString(clone)
+  const svgUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr)
+  const img = new Image()
+  img.onload = () => {
+    const canvas = document.createElement('canvas')
+    canvas.width = vw; canvas.height = vh
+    const ctx = canvas.getContext('2d')!
+    ctx.fillStyle = '#fafafa'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.drawImage(img, 0, 0)
+    const link = document.createElement('a')
+    link.download = `execution-${Date.now()}.png`
+    link.href = canvas.toDataURL('image/png')
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+  img.onerror = () => {
+    const link = document.createElement('a')
+    link.download = `execution-${Date.now()}.svg`
+    link.href = svgUri
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+  img.src = svgUri
 }
 
 function destroyExecGraph() {
@@ -485,29 +529,43 @@ function applyExecutionColors(g: Graph, events: any[]) {
     }
   }
 
+  const hasChainCompleted = events.some(e => e.eventType === 'CHAIN_COMPLETED')
+
   g.getNodes().forEach(node => {
     const data = node.getData() || {}
     const componentId = data.componentId
-    const status = componentId ? nodeStatusMap.get(componentId) : undefined
+    const shape = node.shape || ''
+
+    // 开始/结束节点：结构节点无 componentId，按链执行状态着色
+    let status = componentId ? nodeStatusMap.get(componentId) : undefined
+    if (!status) {
+      if (shape === 'flow-start' && events.length > 0) {
+        status = 'success'
+      } else if (shape === 'flow-end' && hasChainCompleted) {
+        status = 'success'
+      }
+    }
 
     if (status === 'success') {
-      node.attr('body/stroke', '#52c41a')
-      node.attr('body/strokeWidth', 3)
+      node.attr('body/fill', '#4caf50')
+      node.attr('body/stroke', '#388e3c')
+      node.attr('body/strokeWidth', 2)
+      node.attr('label/fill', '#fff')
     } else if (status === 'failed') {
-      node.attr('body/stroke', '#ff4d4f')
-      node.attr('body/strokeWidth', 3)
+      node.attr('body/fill', '#f44336')
+      node.attr('body/stroke', '#d32f2f')
+      node.attr('body/strokeWidth', 2)
+      node.attr('label/fill', '#fff')
     } else if (status === 'running') {
-      node.attr('body/stroke', '#faad14')
-      node.attr('body/strokeWidth', 3)
+      node.attr('body/fill', '#ff9800')
+      node.attr('body/stroke', '#f57c00')
+      node.attr('body/strokeWidth', 2)
       node.attr('body/strokeDasharray', '4,2')
+      node.attr('label/fill', '#fff')
     } else {
-      // 未执行：降低饱和度
-      const fill = node.attr('body/fill') as string
-      if (fill && fill.startsWith('#')) {
-        const dimColor = fill + '88'
-        node.attr('body/fill', dimColor)
-      }
-      node.attr('body/stroke', '#d9d9d9')
+      // 未执行：中性灰
+      node.attr('body/fill', '#d4d4d4')
+      node.attr('body/stroke', '#a0a4a8')
       node.attr('body/strokeWidth', 1)
     }
   })
@@ -569,6 +627,9 @@ function renderFullscreenGraph() {
       attrs: {
         line: { stroke: '#94a3b8', strokeWidth: 2, targetMarker: { name: 'classic', size: 8 } },
       },
+      defaultLabel: {
+        attrs: { text: { fill: '#303133', fontSize: 12, stroke: '#fff', strokeWidth: 2, paintOrder: 'stroke' } },
+      },
     },
   })
 
@@ -610,7 +671,7 @@ function destroyFullscreenGraph() {
 .legend-dot {
   display: inline-block; width: 10px; height: 10px; border-radius: 50%;
 }
-.dot-success { background: #52c41a; }
-.dot-failed  { background: #ff4d4f; }
-.dot-pending { background: #d9d9d9; }
+.dot-success { background: #4caf50; }
+.dot-failed  { background: #f44336; }
+.dot-pending { background: #d4d4d4; border: 1px solid #a0a4a8; }
 </style>

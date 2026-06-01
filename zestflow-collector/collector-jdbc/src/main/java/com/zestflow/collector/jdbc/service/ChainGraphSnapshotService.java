@@ -40,6 +40,7 @@ public class ChainGraphSnapshotService {
 
         // 插入新版本
         int newVersion = (maxVer != null ? maxVer : 0) + 1;
+        LocalDateTime now = LocalDateTime.now();
         ChainGraphSnapshotPO po = ChainGraphSnapshotPO.builder()
                 .chainCode(chainCode)
                 .version(newVersion)
@@ -48,6 +49,8 @@ public class ChainGraphSnapshotService {
                 .tenantId(tenantId)
                 .appCode(appCode)
                 .createdBy(createdBy)
+                .createdAt(now)
+                .updatedAt(now)
                 .build();
         snapshotMapper.insert(po);
         log.info("快照已保存 chainCode={} version={} tenantId={}", chainCode, newVersion, tenantId);
