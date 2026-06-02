@@ -65,13 +65,13 @@ powershell -File .\scripts\blackbox\run-enterprise-gate.ps1 -RequireEnterprisePr
 | Admin 集群 ShedLock | 单元 + cluster 构建 | OfflineMonitor / TenantCleanup / ChainSync 全任务 |
 | Collector 8 路由 | 单元 | CollectorServerHandlerTest (32) |
 
-**仍建议手工或下一迭代自动化**：playground 关闭 404（E2E 在 playground.enabled=false 时已探测）。
+**仍建议手工或下一迭代自动化**：无（Layer B 已含 playground 关闭探测脚本）。
 
-**E2E 已覆盖（Layer B）**：链 **publish + active-codes**（`run-chain-publish-e2e.ps1`）、调度 trigger、Actuator 健康、deploy-mode/cache 探测、仪表盘运行时拓扑（需 `npm run build` 同步 static）。
+**E2E 已覆盖（Layer B）**：链 **publish + active-codes**（`run-chain-publish-e2e.ps1`）、**全生命周期 create→publish→execute**（`run-chain-lifecycle-e2e.ps1`）、**RBAC 越权边界**（`run-rbac-horizontal-e2e.ps1`）、调度 trigger、Actuator 健康（含 HTTP 探活）、deploy-mode/cache 探测、仪表盘运行时拓扑（需 `npm run build` 同步 static）。
 
-**Layer C — security-e2e Profile**（需重启 Admin + Executor）：`registry-token` / `executor-access-token` 401 成对验证（`run-security-token-e2e.ps1`；门禁 `-RequireSecurityProfile`）。
+**Layer C — security-e2e Profile**（需重启 Admin + Executor + Collector）：`registry-token` / `executor-access-token` / `collector access-token` 401 成对验证（`run-security-token-e2e.ps1`；门禁 `-RequireSecurityProfile`）。
 
-**仍建议手工或下一迭代**：设计器 graph 保存全链路、链从零创建到 execute。
+**Layer C — playground-disabled-e2e**：`run-playground-disabled-e2e.ps1`；门禁 `-RequirePlaygroundDisabledProfile`。
 
 ---
 
@@ -101,13 +101,17 @@ zestflow:
 # Admin
 zestflow.admin.registry-token: e2e-security-registry-token
 zestflow.admin.executor-access-token: e2e-security-executor-token
+zestflow.collector.access-token: e2e-security-collector-token
 
 # Executor（须一致）
 zestflow.executor.access-token: e2e-security-executor-token
 zestflow.executor.registry-token: e2e-security-registry-token
+
+# Collector JDBC
+zestflow.collector.access-token: e2e-security-collector-token
 ```
 
-启动（**两者都要重启**）：
+启动（**Admin + Executor + Collector 都要重启**）：
 
 ```powershell
 # Admin
@@ -115,6 +119,9 @@ mvn spring-boot:run -pl zestflow-admin -Dspring-boot.run.profiles=local,security
 
 # Executor
 mvn spring-boot:run -pl zestflow-executor-test -Dspring-boot.run.profiles=local,security-e2e
+
+# Collector JDBC
+mvn spring-boot:run -pl zestflow-collector/collector-jdbc -Dspring-boot.run.profiles=local,security-e2e
 
 # 验证
 .\scripts\blackbox\run-security-token-e2e.ps1

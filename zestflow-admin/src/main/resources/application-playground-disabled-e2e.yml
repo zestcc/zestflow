@@ -1,0 +1,4 @@
+# playground 关闭 E2E — 启动 Admin: profiles=local,playground-disabled-e2e
+zestflow:
+  playground:
+    enabled: false

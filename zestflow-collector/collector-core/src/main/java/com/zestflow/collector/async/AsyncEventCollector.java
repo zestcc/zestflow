@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 
 /**
- * 异步事件采集器 — 内存队列 → 批量代理 → 下游 Collector（对标 Logstash/RabbitMQ publisher confirm 异步层）。
+ * 异步事件采集器 — 内存队列 → 多 worker 批量 drain → 下游 Collector（对标 Logstash pipeline workers）。
  */
 public class AsyncEventCollector implements EventCollector {
 
@@ -23,7 +23,7 @@ public class AsyncEventCollector implements EventCollector {
     private final BlockingQueue<ChainEvent> queue;
     private final EventCollector delegate;
     private final AsyncCollectorSettings config;
-    private final Thread workerThread;
+    private final List<Thread> workerThreads;
     private final DiskFallbackStore diskFallbackStore;
     private volatile boolean running = true;
     private final CircuitBreaker circuitBreaker;
@@ -41,12 +41,17 @@ public class AsyncEventCollector implements EventCollector {
         this.diskFallbackStore = config.diskFallbackEnabled()
                 ? new DiskFallbackStore(config.diskFallbackDir()) : null;
 
-        this.workerThread = new Thread(this::drainLoop, "zestflow-async-collector-drain");
-        this.workerThread.setDaemon(true);
-        this.workerThread.start();
+        int workers = config.drainWorkerCount();
+        this.workerThreads = new ArrayList<>(workers);
+        for (int i = 0; i < workers; i++) {
+            Thread worker = new Thread(this::drainLoop, "zestflow-async-collector-drain-" + i);
+            worker.setDaemon(true);
+            workerThreads.add(worker);
+            worker.start();
+        }
 
-        log.info("AsyncEventCollector 启动 queueCapacity={} batchSize={} diskFallback={} delegate={}",
-                config.queueCapacity(), config.batchSize(), config.diskFallbackEnabled(), delegate.getName());
+        log.info("AsyncEventCollector 启动 queueCapacity={} batchSize={} workers={} diskFallback={} delegate={}",
+                config.queueCapacity(), config.batchSize(), workers, config.diskFallbackEnabled(), delegate.getName());
     }
 
     @Override
@@ -79,11 +84,15 @@ public class AsyncEventCollector implements EventCollector {
     public void destroy() {
         log.info("AsyncEventCollector 开始关闭...");
         running = false;
-        LockSupport.unpark(workerThread);
-        try {
-            workerThread.join(config.shutdownTimeoutMs());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+        for (Thread worker : workerThreads) {
+            LockSupport.unpark(worker);
+        }
+        for (Thread worker : workerThreads) {
+            try {
+                worker.join(config.shutdownTimeoutMs());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
         drainBatch();
         int remaining = queue.size();

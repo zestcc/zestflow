@@ -64,6 +64,13 @@ zestflow:
       type: caffeine
       maximum-size: 10000
       ttl-seconds: 60
+    health-probe:
+      enabled: true
+      executor-path: /health
+      collector-path: /collector/health
+    reconcile:
+      enabled: true
+      interval-ms: 120000
   tenant:
     # 租户模式：single（单租户）/ multi（多租户）
     mode: multi

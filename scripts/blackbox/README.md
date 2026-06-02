@@ -9,7 +9,10 @@
 | `e2e-scene-policy.json` | 场景策略：**全绿 / 一部分绿 / 报错跳过** |
 | `run-enterprise-gate.ps1` | **发布门禁**：mvn test + fullGreen E2E + 多租户/IP + 安全 token（可选） |
 | `run-chain-publish-e2e.ps1` | 链 publish → active-codes → 可选 rollback |
-| `run-security-token-e2e.ps1` | registry-token + executor-access-token 401 成对（需 `security-e2e` profile） |
+| `run-chain-lifecycle-e2e.ps1` | 创建设计/链 → 绑定 → 发布 → Netty `/execute` |
+| `run-rbac-horizontal-e2e.ps1` | 无 JWT / 无效 JWT 访问受保护 API 应 401/403 |
+| `run-playground-disabled-e2e.ps1` | playground.enabled=false 时 list/execute 404 |
+| `run-security-token-e2e.ps1` | registry + executor + collector token 401 成对（需 `security-e2e` profile） |
 | `run-registry-token-e2e.ps1` | 兼容入口（仅 registry 段，委托 security 脚本） |
 | `run-perf-gate.ps1` | **Phase 2c 性能门禁**：JMH 编排层 P99.9 + 并发 HTTP 压测 + 可选运行时黑盒 |
 | `run-full-perf.ps1` | **全盘压测**：perf-gate + P-03 队列 + P-04 轮询 + Netty + Playground + Collector |

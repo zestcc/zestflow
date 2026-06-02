@@ -55,6 +55,6 @@ public class CollectorProperties {
                 batchSize, batchMaxWaitMs, queueCapacity,
                 diskFallbackEnabled, diskFallbackDir,
                 circuitBreakerThreshold, circuitBreakerCooldownMs,
-                shutdownTimeoutMs, diskReplayIntervalMs);
+                shutdownTimeoutMs, diskReplayIntervalMs, poolSize);
     }
 }

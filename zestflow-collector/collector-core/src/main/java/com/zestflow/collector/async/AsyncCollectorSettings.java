@@ -12,6 +12,12 @@ public record AsyncCollectorSettings(
         int circuitBreakerThreshold,
         int circuitBreakerCooldownMs,
         long shutdownTimeoutMs,
-        long diskReplayIntervalMs
+        long diskReplayIntervalMs,
+        int drainWorkerCount
 ) {
+    public AsyncCollectorSettings {
+        if (drainWorkerCount < 1) {
+            drainWorkerCount = 1;
+        }
+    }
 }

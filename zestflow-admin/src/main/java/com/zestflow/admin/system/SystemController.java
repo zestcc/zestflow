@@ -43,7 +43,9 @@ public class SystemController {
         String executorAccessToken = environment.getProperty("zestflow.admin.executor-access-token", "");
         out.put("security", Map.of(
                 "registryTokenConfigured", registryToken != null && !registryToken.isBlank(),
-                "executorAccessTokenConfigured", executorAccessToken != null && !executorAccessToken.isBlank()
+                "executorAccessTokenConfigured", executorAccessToken != null && !executorAccessToken.isBlank(),
+                "collectorAccessTokenConfigured", environment.getProperty("zestflow.collector.access-token", "") != null
+                        && !environment.getProperty("zestflow.collector.access-token", "").isBlank()
         ));
         out.put("admin", Map.of(
                 "deployMode", deployProperties.getDeployMode(),

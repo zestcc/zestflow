@@ -20,13 +20,15 @@ public class CollectorAsyncProperties {
     private int circuitBreakerCooldownMs = 30_000;
     private long shutdownTimeoutMs = 5000;
     private long diskReplayIntervalMs = 5000;
+    /** 异步 drain 工作线程数（对标 Logstash pipeline workers / RabbitMQ prefetch consumers） */
+    private int drainWorkerCount = 1;
 
     public AsyncCollectorSettings toSettings() {
         return new AsyncCollectorSettings(
                 batchSize, batchMaxWaitMs, queueCapacity,
                 diskFallbackEnabled, diskFallbackDir,
                 circuitBreakerThreshold, circuitBreakerCooldownMs,
-                shutdownTimeoutMs, diskReplayIntervalMs);
+                shutdownTimeoutMs, diskReplayIntervalMs, drainWorkerCount);
     }
 
     public int getBatchSize() { return batchSize; }
@@ -49,4 +51,6 @@ public class CollectorAsyncProperties {
     public void setShutdownTimeoutMs(long shutdownTimeoutMs) { this.shutdownTimeoutMs = shutdownTimeoutMs; }
     public long getDiskReplayIntervalMs() { return diskReplayIntervalMs; }
     public void setDiskReplayIntervalMs(long diskReplayIntervalMs) { this.diskReplayIntervalMs = diskReplayIntervalMs; }
+    public int getDrainWorkerCount() { return drainWorkerCount; }
+    public void setDrainWorkerCount(int drainWorkerCount) { this.drainWorkerCount = drainWorkerCount; }
 }

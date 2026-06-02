@@ -494,7 +494,8 @@ public class ExecutorProxyService {
         return "{\"records\":[],\"total\":0,\"current\":1,\"size\":10}";
     }
 
-    private HttpHeaders executorHeaders() {
+    /** 供漂移对账、探活等内部组件复用 */
+    public HttpHeaders executorHeaders() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         if (executorAccessToken != null && !executorAccessToken.isEmpty()) {

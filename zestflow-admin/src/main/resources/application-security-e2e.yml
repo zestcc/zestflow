@@ -5,3 +5,5 @@ zestflow:
   admin:
     registry-token: e2e-security-registry-token
     executor-access-token: e2e-security-executor-token
+  collector:
+    access-token: e2e-security-collector-token

@@ -2,8 +2,10 @@
 param(
     [string]$BaseAdmin = "http://127.0.0.1:8080",
     [string]$BaseNetty = "http://127.0.0.1:20550",
+    [string]$BaseCollector = "http://127.0.0.1:20650",
     [string]$RegistryToken = "e2e-security-registry-token",
     [string]$ExecutorAccessToken = "e2e-security-executor-token",
+    [string]$CollectorAccessToken = "e2e-security-collector-token",
     [string]$RegistryPath = "/api/registry/executor/heartbeat",
     [switch]$AllowSkip,
     [switch]$SkipExecutorTests
@@ -109,11 +111,34 @@ if (-not $SkipExecutorTests) {
     }
 }
 
-$pass = $registryOk -and $executorOk
+# --- Collector access token ---
+$collectorOk = $true
+function Invoke-Collector($token) {
+    $headers = @{}
+    if ($token) { $headers["X-Collector-Token"] = $token }
+    $body = '{"page":1,"pageSize":1}'
+    $r = Invoke-Http POST "$BaseCollector/collector/events/query" $body $headers 10
+    return $r.status
+}
+$colHealth = Invoke-Http GET "$BaseCollector/collector/health" $null $null 10
+$noCol = Invoke-Collector ""
+$badCol = Invoke-Collector "wrong-collector-token"
+$okCol = Invoke-Collector $CollectorAccessToken
+Write-Host "collector health=$($colHealth.status) no-token=$noCol wrong=$badCol valid=$okCol"
+if ($noCol -eq 401 -and $badCol -eq 401 -and $okCol -ge 200 -and $okCol -lt 300) {
+    $collectorOk = $true
+} elseif ($noCol -ge 200 -and $noCol -lt 300) {
+    Write-Host "Collector token 未开启（非 security-e2e profile）" -ForegroundColor Yellow
+    if ($AllowSkip) { $collectorOk = $true } else { $collectorOk = $false }
+} else {
+    $collectorOk = $false
+}
+
+$pass = $registryOk -and $executorOk -and $collectorOk
 if ($pass) {
     Write-Host "PASS" -ForegroundColor Green
     exit 0
 }
-Write-Host "FAIL registry=$registryOk executor=$executorOk" -ForegroundColor Red
+Write-Host "FAIL registry=$registryOk executor=$executorOk collector=$collectorOk" -ForegroundColor Red
 if ($AllowSkip) { exit 2 }
 exit 1

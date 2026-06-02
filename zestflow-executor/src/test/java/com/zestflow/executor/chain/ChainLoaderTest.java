@@ -13,6 +13,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.util.List;
 import java.util.Map;
@@ -23,7 +25,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@org.mockito.junit.jupiter.MockitoSettings(strictness = org.mockito.quality.Strictness.LENIENT)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class ChainLoaderTest {
 
     @Mock ChainManager chainManager;
@@ -81,9 +83,9 @@ class ChainLoaderTest {
     @Test
     void reloadChainLocalDoesNotSaveVersionOnValidationFailure() throws Exception {
         ChainPO chain = ChainPO.builder()
-                .code("CHN001").status(4).designCode("DSN001").build();
+                .code("CHN001").status(4).designCode("DSN001").version(1).build();
         DesignPO design = DesignPO.builder()
-                .code("DSN001").graphData("{}").chainData("{}").build();
+                .code("DSN001").graphData("{\"nodes\":[]}").chainData("{\"version\":1}").build();
 
         when(chainRepo.get("CHN001")).thenReturn(chain);
         when(designRepo.get("DSN001")).thenReturn(design);
@@ -189,9 +191,9 @@ class ChainLoaderTest {
     @Test
     void loadAllChainsNotifiesAdminOnSuccess() {
         ChainPO chain = ChainPO.builder()
-                .code("CHN001").status(4).designCode("DSN001").build();
+                .code("CHN001").status(4).designCode("DSN001").version(1).build();
         DesignPO design = DesignPO.builder()
-                .code("DSN001").graphData("{}").chainData("{}").build();
+                .code("DSN001").graphData("{\"nodes\":[]}").chainData("{\"version\":1}").build();
         ChainDefinition definition = mock(ChainDefinition.class);
         when(definition.getCode()).thenReturn("CHN001");
         when(definition.nodeCount()).thenReturn(2);

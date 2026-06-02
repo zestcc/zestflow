@@ -36,7 +36,7 @@ class AsyncEventPublisherTest {
                 10, 50, 256,
                 false, "./target/test-fallback",
                 3, 200,
-                3000, 1000);
+                3000, 1000, 1);
     }
 
     @BeforeEach

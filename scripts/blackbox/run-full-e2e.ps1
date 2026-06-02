@@ -221,6 +221,14 @@ Add-F "admin" "chains-active-codes" $r.ok $r.status $r.ms ""
 $chainPubOk = ($LASTEXITCODE -eq 0)
 Add-F "admin" "chain-publish-e2e" $chainPubOk $(if ($chainPubOk) { 200 } else { 500 }) 0 $(if ($LASTEXITCODE -eq 2) { "skipped" } else { "publish+active-codes" })
 
+& "$PSScriptRoot\run-chain-lifecycle-e2e.ps1" -BaseAdmin $BaseAdmin -BaseNetty $BaseNetty -AppCode $policyRaw.appCode
+$chainLifeOk = ($LASTEXITCODE -eq 0)
+Add-F "admin" "chain-lifecycle-e2e" $chainLifeOk $(if ($chainLifeOk) { 200 } else { 500 }) 0 $(if ($LASTEXITCODE -eq 2) { "skipped" } else { "create-publish-execute" })
+
+& "$PSScriptRoot\run-rbac-horizontal-e2e.ps1" -BaseAdmin $BaseAdmin -AppCode $policyRaw.appCode
+$rbacOk = ($LASTEXITCODE -eq 0)
+Add-F "security" "rbac-horizontal-e2e" $rbacOk $(if ($rbacOk) { 200 } else { 403 }) 0 $(if ($LASTEXITCODE -eq 2) { "skipped" } else { "no-jwt-denied" })
+
 $r = Invoke-Api GET "$BaseAdmin/api/schedules?page=1&size=1" $null $h
 $scheduleId = $null
 if ($r.ok) {

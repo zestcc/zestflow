@@ -50,4 +50,26 @@ class CollectorQueryAggregatorTest {
         assertThat(page.getList()).hasSize(1);
         assertThat(page.getList().get(0).getEventId()).isEqualTo("e1");
     }
+
+    @Test
+    void mergeEventPages_usesMaxShardTotalNotSum() {
+        when(collectorRegistryService.listAllOnline()).thenReturn(List.of(
+                CollectorRegistryVO.builder().collectorHost("h1").collectorPort(20650).build(),
+                CollectorRegistryVO.builder().collectorHost("h2").collectorPort(20651).build()));
+
+        EventQueryResult e1 = new EventQueryResult();
+        e1.setEventId("e1");
+        EventQueryResult e2 = new EventQueryResult();
+        e2.setEventId("e2");
+
+        when(queryClient.queryEvents(eq("http://h1:20650"), any()))
+                .thenReturn(new PageResult<>(List.of(e1), 100L, 1, 10));
+        when(queryClient.queryEvents(eq("http://h2:20651"), any()))
+                .thenReturn(new PageResult<>(List.of(e2), 80L, 1, 10));
+
+        PageResult<EventQueryResult> page = aggregator.queryEvents(new EventQuery(), null);
+
+        assertThat(page.getTotal()).isEqualTo(100L);
+        assertThat(page.getList()).hasSize(2);
+    }
 }

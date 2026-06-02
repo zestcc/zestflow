@@ -109,10 +109,10 @@ public class CollectorQueryAggregator {
             List<CompletableFuture<PageResult<EventQueryResult>>> futures, EventQuery query) {
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
         Map<String, EventQueryResult> dedup = new LinkedHashMap<>();
-        long total = 0;
+        long totalHint = 0;
         for (CompletableFuture<PageResult<EventQueryResult>> future : futures) {
             PageResult<EventQueryResult> page = future.getNow(emptyPage(query));
-            total += page.getTotal();
+            totalHint = Math.max(totalHint, page.getTotal());
             for (EventQueryResult item : page.getList()) {
                 if (item.getEventId() != null) {
                     dedup.putIfAbsent(item.getEventId(), item);
@@ -126,17 +126,17 @@ public class CollectorQueryAggregator {
         int from = Math.max(0, (query.getPage() - 1) * query.getPageSize());
         int to = Math.min(merged.size(), from + query.getPageSize());
         List<EventQueryResult> slice = from >= merged.size() ? List.of() : merged.subList(from, to);
-        return new PageResult<>(slice, Math.max(merged.size(), total), query.getPage(), query.getPageSize());
+        return new PageResult<>(slice, Math.max(merged.size(), totalHint), query.getPage(), query.getPageSize());
     }
 
     private PageResult<ExecutionTrace> mergeExecutionPages(
             List<CompletableFuture<PageResult<ExecutionTrace>>> futures, EventQuery query) {
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
         Map<String, ExecutionTrace> dedup = new LinkedHashMap<>();
-        long total = 0;
+        long totalHint = 0;
         for (CompletableFuture<PageResult<ExecutionTrace>> future : futures) {
             PageResult<ExecutionTrace> page = future.getNow(emptyExecutionPage(query));
-            total += page.getTotal();
+            totalHint = Math.max(totalHint, page.getTotal());
             for (ExecutionTrace item : page.getList()) {
                 if (item.getExecutionId() != null) {
                     dedup.putIfAbsent(item.getExecutionId(), item);
@@ -150,7 +150,7 @@ public class CollectorQueryAggregator {
         int from = Math.max(0, (query.getPage() - 1) * query.getPageSize());
         int to = Math.min(merged.size(), from + query.getPageSize());
         List<ExecutionTrace> slice = from >= merged.size() ? List.of() : merged.subList(from, to);
-        return new PageResult<>(slice, Math.max(merged.size(), total), query.getPage(), query.getPageSize());
+        return new PageResult<>(slice, Math.max(merged.size(), totalHint), query.getPage(), query.getPageSize());
     }
 
     private static PageResult<EventQueryResult> emptyPage(EventQuery query) {

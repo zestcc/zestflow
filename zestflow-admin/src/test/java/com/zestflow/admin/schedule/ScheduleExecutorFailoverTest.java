@@ -35,7 +35,6 @@ class ScheduleExecutorFailoverTest {
     void setUp() {
         primary = executor("exec-a", "host-a", 20550);
         backup = executor("exec-b", "host-b", 20550);
-        when(routeStrategy.name()).thenReturn("round_robin");
     }
 
     @Test

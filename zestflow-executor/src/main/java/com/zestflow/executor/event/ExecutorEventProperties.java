@@ -20,13 +20,15 @@ public class ExecutorEventProperties {
     private int circuitBreakerCooldownMs = 30_000;
     private long shutdownTimeoutMs = 5000;
     private long diskReplayIntervalMs = 5000;
+    /** 异步 drain 工作线程数（与 Collector 侧 pool-size 语义一致） */
+    private int drainWorkerCount = 1;
 
     public AsyncCollectorSettings toSettings() {
         return new AsyncCollectorSettings(
                 batchSize, batchMaxWaitMs, queueCapacity,
                 diskFallbackEnabled, diskFallbackDir,
                 circuitBreakerThreshold, circuitBreakerCooldownMs,
-                shutdownTimeoutMs, diskReplayIntervalMs);
+                shutdownTimeoutMs, diskReplayIntervalMs, drainWorkerCount);
     }
 
     public boolean isAsyncEnabled() {
@@ -115,5 +117,13 @@ public class ExecutorEventProperties {
 
     public void setDiskReplayIntervalMs(long diskReplayIntervalMs) {
         this.diskReplayIntervalMs = diskReplayIntervalMs;
+    }
+
+    public int getDrainWorkerCount() {
+        return drainWorkerCount;
+    }
+
+    public void setDrainWorkerCount(int drainWorkerCount) {
+        this.drainWorkerCount = drainWorkerCount;
     }
 }

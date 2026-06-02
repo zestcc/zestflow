@@ -171,9 +171,9 @@ class ComponentSmokeTest {
 
     private void invokeParamValidator(ComponentMeta meta, ChainContext ctx, Method method) {
         try {
-            Object[] hostArgs = new Object[]{ctx};
-            Parameter[] hostParams = new Parameter[0];
-            method.invoke(meta.getTargetBean(), (Object) hostArgs, (Object) hostParams);
+            Object[] execArgs = new Object[]{ctx};
+            Parameter[] execParams = new Parameter[0];
+            method.invoke(meta.getTargetBean(), execArgs, execParams);
         } catch (Exception e) {
             Throwable cause = e.getCause() != null ? e.getCause() : e;
             throw new AssertionError("参数校验器冒烟失败: " + meta.getExecuteId() + ": " + cause.getMessage(), cause);

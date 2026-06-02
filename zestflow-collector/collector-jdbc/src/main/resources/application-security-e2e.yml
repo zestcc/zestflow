@@ -1,0 +1,4 @@
+# Collector 安全开关 E2E — 与 Admin security-e2e 成对启动
+zestflow:
+  collector:
+    access-token: e2e-security-collector-token

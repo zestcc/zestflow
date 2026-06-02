@@ -21,10 +21,14 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class ZestFlowAdminHealthIndicator implements HealthIndicator {
 
+    /** 自定义降级状态（Spring Boot 无内置 DEGRADED，对标 K8s Degraded） */
+    static final Status DEGRADED = new Status("DEGRADED");
+
     private final AdminDeployProperties deployProperties;
     private final AdminCacheProperties cacheProperties;
     private final CollectorRegistryService collectorRegistryService;
     private final ExecutorRegistryMapper executorRegistryMapper;
+    private final AdminNodeReachabilityService reachabilityService;
     private final Environment environment;
 
     @Override
@@ -36,13 +40,29 @@ public class ZestFlowAdminHealthIndicator implements HealthIndicator {
                 new LambdaQueryWrapper<ExecutorRegistryPO>()
                         .eq(ExecutorRegistryPO::getStatus, RegistryConstants.STATUS_ONLINE));
 
-        Health.Builder builder = Health.status(resolveStatus(redisRequired, redisConfigured, onlineCollectors, onlineExecutors))
+        AdminNodeReachabilityService.NodeProbeSummary probe = reachabilityService.probeRegisteredNodes();
+
+        Health.Builder builder = Health.status(resolveStatus(
+                        redisRequired, redisConfigured, onlineCollectors, onlineExecutors, probe))
                 .withDetail("deployMode", deployProperties.getDeployMode())
                 .withDetail("cacheType", cacheProperties.getType())
                 .withDetail("redisInfrastructureRequired", redisRequired)
                 .withDetail("redisConfigured", redisConfigured)
                 .withDetail("onlineCollectors", onlineCollectors)
                 .withDetail("onlineExecutors", onlineExecutors);
+
+        if (probe.enabled()) {
+            builder.withDetail("executorsReachable", probe.executorsReachable())
+                    .withDetail("executorsUnreachable", probe.executorsUnreachable())
+                    .withDetail("collectorsReachable", probe.collectorsReachable())
+                    .withDetail("collectorsUnreachable", probe.collectorsUnreachable());
+            if (!probe.unreachableExecutorIds().isEmpty()) {
+                builder.withDetail("unreachableExecutors", probe.unreachableExecutorIds());
+            }
+            if (!probe.unreachableCollectorIds().isEmpty()) {
+                builder.withDetail("unreachableCollectors", probe.unreachableCollectorIds());
+            }
+        }
 
         if (redisRequired && !redisConfigured) {
             builder.withDetail("warning", "需要 Redis 但未配置 spring.data.redis.host");
@@ -53,18 +73,25 @@ public class ZestFlowAdminHealthIndicator implements HealthIndicator {
         if (onlineExecutors == 0) {
             builder.withDetail("executorWarning", "无在线执行器，链执行与调度不可用");
         }
+        if (probe.enabled() && probe.hasUnreachableNodes()) {
+            builder.withDetail("probeWarning", "注册在线但 HTTP 探活失败的节点");
+        }
         return builder.build();
     }
 
     private static Status resolveStatus(boolean redisRequired,
                                         boolean redisConfigured,
                                         int onlineCollectors,
-                                        long onlineExecutors) {
+                                        long onlineExecutors,
+                                        AdminNodeReachabilityService.NodeProbeSummary probe) {
         if (redisRequired && !redisConfigured) {
             return Status.DOWN;
         }
         if (onlineCollectors == 0 || onlineExecutors == 0) {
-            return new Status("DEGRADED");
+            return DEGRADED;
+        }
+        if (probe.enabled() && probe.hasUnreachableNodes()) {
+            return DEGRADED;
         }
         return Status.UP;
     }

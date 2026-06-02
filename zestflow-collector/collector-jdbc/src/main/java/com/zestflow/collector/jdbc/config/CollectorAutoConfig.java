@@ -44,16 +44,22 @@ public class CollectorAutoConfig {
      */
     @Bean(destroyMethod = "destroy")
     @ConditionalOnMissingBean(EventCollector.class)
-    public EventCollector asyncEventCollector(ChainEventMapper chainEventMapper,
-                                               CollectorProperties properties,
-                                               ObjectProvider<MeterRegistry> meterRegistry) {
+    @ConditionalOnProperty(prefix = "zestflow.collector", name = "async-enabled",
+            havingValue = "true", matchIfMissing = true)
+    public AsyncEventCollector asyncEventCollector(ChainEventMapper chainEventMapper,
+                                                   CollectorProperties properties,
+                                                   ObjectProvider<MeterRegistry> meterRegistry) {
         JdbcEventCollector delegate = new JdbcEventCollector(chainEventMapper);
-        if (properties.isAsyncEnabled()) {
-            AsyncEventCollector async = new AsyncEventCollector(delegate, properties.toAsyncSettings());
-            meterRegistry.ifAvailable(registry -> CollectorMetricsSupport.bindIfAvailable(async, registry));
-            return async;
-        }
-        return delegate;
+        AsyncEventCollector async = new AsyncEventCollector(delegate, properties.toAsyncSettings());
+        meterRegistry.ifAvailable(registry -> CollectorMetricsSupport.bindIfAvailable(async, registry));
+        return async;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(EventCollector.class)
+    @ConditionalOnProperty(prefix = "zestflow.collector", name = "async-enabled", havingValue = "false")
+    public EventCollector jdbcEventCollector(ChainEventMapper chainEventMapper) {
+        return new JdbcEventCollector(chainEventMapper);
     }
 
     @Bean
