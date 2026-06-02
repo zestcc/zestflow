@@ -22,6 +22,10 @@
             <groupId>cn.zestflow.www</groupId>
             <artifactId>zestflow-common</artifactId>
         </dependency>
+        <dependency>
+            <groupId>cn.zestflow.www</groupId>
+            <artifactId>collector-core</artifactId>
+        </dependency>
 
         <!-- Spring Boot 自动装配支持 -->
         <dependency>
@@ -80,13 +84,7 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-jdbc</artifactId>
         </dependency>
-        <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-core</artifactId>
-            <optional>true</optional>
-        </dependency>
-
-        <!-- MockHttpServletRequest：Netty 进程内转发 MVC，仅 compile 引入 mock 包 -->
+        <!-- MockHttpServletRequest：Netty 进程内转发 MVC -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-test</artifactId>

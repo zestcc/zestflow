@@ -1,8 +1,15 @@
 package com.zestflow.executor.registry;
 
 import com.zestflow.common.spi.EventCollector;
+import com.zestflow.executor.event.AsyncEventPublisher;
+import com.zestflow.executor.event.EventPublisher;
+import com.zestflow.executor.event.ExecutorEventProperties;
+import com.zestflow.executor.event.SyncEventPublisher;
+import com.zestflow.executor.chain.ChainDefinitionBuilder;
 import com.zestflow.executor.chain.ChainLoader;
+import com.zestflow.executor.chain.ChainManager;
 import com.zestflow.executor.chain.ChainReloadMonitor;
+import com.zestflow.executor.chain.ChainValidator;
 import com.zestflow.executor.chain.ExecutorChainProperties;
 import com.zestflow.executor.config.ExecutorSchedulingConfig;
 import com.zestflow.executor.engine.*;
@@ -24,6 +31,8 @@ import com.zestflow.executor.design.DesignRepository;
 import com.zestflow.executor.server.ExecutorServer;
 import com.zestflow.executor.controller.ExecutionController;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.beans.factory.ObjectProvider;
@@ -37,7 +46,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @AutoConfiguration
-@EnableConfigurationProperties({ExecutorProperties.class, ExecutorChainProperties.class})
+@EnableConfigurationProperties({ExecutorProperties.class, ExecutorChainProperties.class, ExecutorEventProperties.class})
 @Import({ExecutorDataSourceConfig.class, ExecutorSchedulingConfig.class})
 public class ExecutorAutoConfig {
 
@@ -187,15 +196,38 @@ public class ExecutorAutoConfig {
         return new ParamValidator(validatorProvider.getIfAvailable());
     }
 
+    @Bean(destroyMethod = "destroy")
+    @ConditionalOnBean(EventCollector.class)
+    @ConditionalOnProperty(prefix = "zestflow.executor.event", name = "async-enabled",
+            havingValue = "true", matchIfMissing = true)
+    public AsyncEventPublisher asyncEventPublisher(EventCollector eventCollector,
+                                                    ExecutorEventProperties eventProperties) {
+        return new AsyncEventPublisher(eventCollector, eventProperties.toSettings(),
+                eventProperties.getOfferTimeoutMs());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(AsyncEventPublisher.class)
+    @ConditionalOnBean(EventCollector.class)
+    public EventPublisher syncEventPublisher(EventCollector eventCollector) {
+        return new SyncEventPublisher(eventCollector);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(EventPublisher.class)
+    public EventPublisher noopEventPublisher() {
+        return EventPublisher.noop();
+    }
+
     @Bean
     public NodeRunner nodeRunner(ComponentScanner componentScanner,
-                                 java.util.Optional<EventCollector> eventCollector,
+                                 EventPublisher eventPublisher,
                                  InterceptorChain interceptorChain,
                                  LifecycleExecutor lifecycleExecutor,
                                  RetryExecutor retryExecutor,
                                  ChainManager chainManager,
                                  ExecutorProperties properties) {
-        return new NodeRunner(componentScanner, eventCollector.orElse(null),
+        return new NodeRunner(componentScanner, eventPublisher,
                 interceptorChain, lifecycleExecutor, retryExecutor, chainManager, properties);
     }
 
@@ -204,12 +236,12 @@ public class ExecutorAutoConfig {
                                                              DagSorter dagSorter,
                                                              NodeRunner nodeRunner,
                                                              ChainInstanceManager instanceManager,
-                                                             java.util.Optional<EventCollector> eventCollector,
+                                                             EventPublisher eventPublisher,
                                                              InterceptorChain interceptorChain,
                                                              ExecutorProperties properties,
                                                              ChainLoader chainLoader) {
         DefaultChainExecutionEngine engine = new DefaultChainExecutionEngine(chainManager, dagSorter, nodeRunner,
-                instanceManager, eventCollector.orElse(null), interceptorChain, properties);
+                instanceManager, eventPublisher, interceptorChain, properties);
         // setter 注入打破循环依赖：NodeRunner → ChainExecutionEngine, ChainExecutionEngine → ChainLoader
         engine.setChainLoader(chainLoader);
         nodeRunner.setChainExecutionEngine(engine);

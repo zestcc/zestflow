@@ -7,7 +7,7 @@ import com.zestflow.common.constant.ChainConstants;
 import com.zestflow.common.model.dto.ChainEvent;
 import com.zestflow.common.model.dto.ChainExecuteResultDTO;
 import com.zestflow.common.model.dto.NodeResultDTO;
-import com.zestflow.common.spi.EventCollector;
+import com.zestflow.executor.event.EventPublisher;
 import com.zestflow.executor.chain.ChainDefinition;
 import com.zestflow.executor.chain.ChainDefinition.ChainEdge;
 import com.zestflow.executor.chain.ChainLoader;
@@ -55,7 +55,7 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
     private final DagSorter dagSorter;
     private final NodeRunner nodeRunner;
     private final ChainInstanceManager instanceManager;
-    private final EventCollector eventCollector;
+    private final EventPublisher eventPublisher;
     private final InterceptorChain interceptorChain;
     private final ExecutorProperties properties;
     private final String appCode;
@@ -78,13 +78,13 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
     public DefaultChainExecutionEngine(ChainManager chainManager,
                                        DagSorter dagSorter, NodeRunner nodeRunner,
                                        ChainInstanceManager instanceManager,
-                                       EventCollector eventCollector, InterceptorChain interceptorChain,
+                                       EventPublisher eventPublisher, InterceptorChain interceptorChain,
                                        ExecutorProperties properties) {
         this.chainManager = chainManager;
         this.dagSorter = dagSorter;
         this.nodeRunner = nodeRunner;
         this.instanceManager = instanceManager;
-        this.eventCollector = eventCollector;
+        this.eventPublisher = eventPublisher != null ? eventPublisher : EventPublisher.noop();
         this.interceptorChain = interceptorChain;
         this.properties = properties;
         this.appCode = properties.getAppCode();
@@ -325,7 +325,7 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
     }
 
     private void publishFinalChainEvent(String chainCode, ChainInstance instance, ChainStateMachine stateMachine) {
-        if (eventCollector == null) {
+        if (eventPublisher == EventPublisher.NOOP) {
             return;
         }
         if (!stateMachine.isTerminated()) {
@@ -493,11 +493,11 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
      * 发布链级事件
      */
     private void publishChainEvent(ChainEvent.EventType eventType, String chainCode, ChainInstance instance) {
-        if (eventCollector == null) {
+        if (eventPublisher == EventPublisher.NOOP) {
             return;
         }
         ChainContext context = instance.getContext();
-        eventCollector.collect(ChainEvent.builder()
+        eventPublisher.publish(ChainEvent.builder()
                 .eventId(UUID.randomUUID().toString())
                 .eventType(eventType)
                 .executionId(instance.getInstanceId())

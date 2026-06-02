@@ -6,6 +6,7 @@ import com.zestflow.common.model.dto.ChainExecuteResultDTO;
 import com.zestflow.common.model.dto.ComponentRef;
 import com.zestflow.common.model.dto.NodeResultDTO;
 import com.zestflow.common.spi.EventCollector;
+import com.zestflow.executor.event.SyncEventPublisher;
 import com.zestflow.executor.chain.ChainManager;
 import com.zestflow.executor.chain.NodeDefinition;
 import com.zestflow.executor.context.ChainContext;
@@ -57,7 +58,7 @@ class NodeRunnerTest {
         when(executorProperties.getPort()).thenReturn(9999);
         when(executorProperties.getAppName()).thenReturn("test-app");
         executorId = "test-app@127.0.0.1:9999";
-        nodeRunner = new NodeRunner(componentScanner, eventCollector,
+        nodeRunner = new NodeRunner(componentScanner, new SyncEventPublisher(eventCollector),
                 interceptorChain, lifecycleExecutor, retryExecutor, chainManager, executorProperties);
         nodeRunner.setChainExecutionEngine(chainExecutionEngine);
     }

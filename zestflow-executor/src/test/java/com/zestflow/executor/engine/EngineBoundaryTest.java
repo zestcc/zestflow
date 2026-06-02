@@ -4,6 +4,7 @@ import com.zestflow.common.constant.ChainConstants;
 import com.zestflow.common.model.dto.ChainExecuteResultDTO;
 import com.zestflow.common.model.dto.NodeResultDTO;
 import com.zestflow.common.spi.EventCollector;
+import com.zestflow.executor.event.SyncEventPublisher;
 import com.zestflow.executor.chain.ChainDefinition;
 import com.zestflow.executor.chain.ChainDefinition.ChainEdge;
 import com.zestflow.executor.chain.ChainLoader;
@@ -54,7 +55,7 @@ class EngineBoundaryTest {
     void setUp() {
         engine = new DefaultChainExecutionEngine(
                 chainManager, dagSorter, nodeRunner, instanceManager,
-                eventCollector, interceptorChain, properties
+                new SyncEventPublisher(eventCollector), interceptorChain, properties
         );
         engine.setChainLoader(chainLoader);
     }
