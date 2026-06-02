@@ -15,6 +15,8 @@ import com.zestflow.executor.chain.ChainRepository;
 import com.zestflow.executor.design.DesignPO;
 import com.zestflow.executor.design.DesignRepository;
 import com.zestflow.executor.engine.ChainExecutionEngine;
+import com.zestflow.executor.engine.ExecutionIdempotencyGuard;
+import com.zestflow.executor.registry.ExecutorProperties;
 import com.zestflow.executor.scanner.ComponentScanner;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -44,6 +46,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -66,6 +69,9 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
     private String accessToken;
     /** 链执行业务线程池（/execute 专用，避免阻塞 Netty EventLoop） */
     private ChainExecuteThreadPool executeThreadPool;
+    private ExecutionIdempotencyGuard idempotencyGuard;
+    private ExecutorProperties executorProperties;
+    private final AtomicBoolean acceptingExecuteRequests = new AtomicBoolean(true);
 
     public ServerHandler(ChainExecutionEngine chainExecutionEngine, ChainRepository chainRepo, DesignRepository designRepo) {
         this(chainExecutionEngine, chainRepo, designRepo, null, null);
@@ -892,7 +898,20 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
 
     // ==================== 执行链 ====================
 
+    /**
+     * 优雅关闭 — 拒绝新的 /execute，在途请求由线程池与引擎 destroy 宽限期消化。
+     */
+    public void beginShutdown() {
+        acceptingExecuteRequests.set(false);
+        log.info("Executor 已停止接受新的 /execute 请求");
+    }
+
     private void handleExecute(ChannelHandlerContext ctx, String body) {
+        if (!acceptingExecuteRequests.get()) {
+            writeResponse(ctx, HttpResponseStatus.SERVICE_UNAVAILABLE,
+                    "{\"code\":503,\"message\":\"executor shutting down\"}");
+            return;
+        }
         if (executeThreadPool != null) {
             executeThreadPool.execute(() -> doHandleExecute(ctx, body));
             return;
@@ -904,8 +923,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
         try {
             log.info("收到执行请求 body={}", body);
             ChainExecuteRequestDTO request = MAPPER.readValue(body, ChainExecuteRequestDTO.class);
-            ChainExecuteResultDTO result = chainExecutionEngine.execute(
-                    request.getChainCode(), request.getParams());
+            ChainExecuteResultDTO result = executeWithIdempotency(request);
             String json = MAPPER.writeValueAsString(result);
             writeResponse(ctx, HttpResponseStatus.OK, json);
         } catch (Exception e) {
@@ -913,6 +931,18 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
             writeResponse(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR,
                     "{\"code\":500,\"message\":\"" + e.getMessage() + "\"}");
         }
+    }
+
+    private ChainExecuteResultDTO executeWithIdempotency(ChainExecuteRequestDTO request) {
+        if (idempotencyGuard == null || executorProperties == null || !executorProperties.isIdempotencyEnabled()) {
+            return chainExecutionEngine.execute(request.getChainCode(), request.getParams());
+        }
+        String key = request.resolveIdempotencyKey();
+        return idempotencyGuard.execute(
+                key,
+                executorProperties.getIdempotencyTtlMs(),
+                executorProperties.getIdempotencyWaitMs(),
+                () -> chainExecutionEngine.execute(request.getChainCode(), request.getParams()));
     }
 
     // ==================== 端点扫描 ====================

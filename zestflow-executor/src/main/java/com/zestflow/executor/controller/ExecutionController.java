@@ -6,7 +6,8 @@ import com.zestflow.common.model.dto.ChainExecuteResultDTO;
 import com.zestflow.executor.chain.ChainDefinition;
 import com.zestflow.executor.chain.ChainManager;
 import com.zestflow.executor.engine.ChainExecutionEngine;
-import lombok.RequiredArgsConstructor;
+import com.zestflow.executor.engine.ExecutionIdempotencyGuard;
+import com.zestflow.executor.registry.ExecutorProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,11 +28,22 @@ import java.util.Set;
  */
 @Slf4j
 @RestController
-@RequiredArgsConstructor
 public class ExecutionController {
 
     private final ChainExecutionEngine executionEngine;
     private final ChainManager chainManager;
+    private final ExecutionIdempotencyGuard idempotencyGuard;
+    private final ExecutorProperties executorProperties;
+
+    public ExecutionController(ChainExecutionEngine executionEngine,
+                               ChainManager chainManager,
+                               ExecutionIdempotencyGuard idempotencyGuard,
+                               ExecutorProperties executorProperties) {
+        this.executionEngine = executionEngine;
+        this.chainManager = chainManager;
+        this.idempotencyGuard = idempotencyGuard;
+        this.executorProperties = executorProperties;
+    }
 
     @PostMapping("/execute")
     public ResponseEntity<Map<String, Object>> execute(@RequestBody ChainExecuteRequestDTO request) {
@@ -39,7 +51,7 @@ public class ExecutionController {
         log.info("统一执行端点请求 chainCode={}", chainCode);
 
         long startTime = System.currentTimeMillis();
-        ChainExecuteResultDTO result = executionEngine.execute(chainCode, request.getParams());
+        ChainExecuteResultDTO result = executeWithIdempotency(request);
 
         if (result.getStatus() == ChainConstants.CHAIN_FAILED) {
             log.warn("链执行失败 chainCode={} error={}", chainCode, result.getErrorMessage());
@@ -53,6 +65,17 @@ public class ExecutionController {
         return ResponseEntity.ok(buildResponse(true, chainCode, result.getInstanceId(),
                 result.getStatus(), result.getCostMs() != null ? result.getCostMs() : System.currentTimeMillis() - startTime,
                 terminalOutputs, null));
+    }
+
+    private ChainExecuteResultDTO executeWithIdempotency(ChainExecuteRequestDTO request) {
+        if (!executorProperties.isIdempotencyEnabled()) {
+            return executionEngine.execute(request.getChainCode(), request.getParams());
+        }
+        return idempotencyGuard.execute(
+                request.resolveIdempotencyKey(),
+                executorProperties.getIdempotencyTtlMs(),
+                executorProperties.getIdempotencyWaitMs(),
+                () -> executionEngine.execute(request.getChainCode(), request.getParams()));
     }
 
     private Map<String, Object> buildResponse(boolean success, String chainCode,

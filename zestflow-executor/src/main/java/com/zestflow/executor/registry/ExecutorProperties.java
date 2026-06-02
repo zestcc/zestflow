@@ -121,6 +121,18 @@ public class ExecutorProperties implements EnvironmentAware {
     /** 链执行线程池队列容量 */
     private int executePoolQueueCapacity = 256;
 
+    /** 关闭时等待在途链执行完成的最长时间（毫秒） */
+    private long shutdownGracePeriodMs = 15_000;
+
+    /** 是否启用执行幂等（idempotencyKey / traceId） */
+    private boolean idempotencyEnabled = true;
+
+    /** 幂等结果缓存 TTL（毫秒） */
+    private long idempotencyTtlMs = 300_000;
+
+    /** 并发重复请求等待在途执行的最长时间（毫秒） */
+    private long idempotencyWaitMs = 60_000;
+
     public int resolveExecutePoolCoreSize() {
         int cpus = Runtime.getRuntime().availableProcessors();
         return executePoolCoreSize > 0 ? executePoolCoreSize : cpus;

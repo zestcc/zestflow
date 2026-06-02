@@ -4,6 +4,8 @@ import com.zestflow.executor.chain.ChainLoader;
 import com.zestflow.executor.chain.ChainRepository;
 import com.zestflow.executor.design.DesignRepository;
 import com.zestflow.executor.engine.ChainExecutionEngine;
+import com.zestflow.executor.engine.ExecutionIdempotencyGuard;
+import com.zestflow.executor.registry.ExecutorProperties;
 import com.zestflow.executor.scanner.ComponentScanner;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
@@ -36,7 +38,8 @@ public class ExecutorServer {
     public ExecutorServer(int port, ChainExecutionEngine engine,
                           ChainRepository chainRepo, DesignRepository designRepo,
                           ComponentScanner componentScanner, ChainLoader chainLoader,
-                          String accessToken, ExecutorProperties properties) {
+                          String accessToken, ExecutorProperties properties,
+                          ExecutionIdempotencyGuard idempotencyGuard) {
         this.port = port;
         this.accessToken = accessToken;
         this.executeThreadPool = new ChainExecuteThreadPool(
@@ -47,6 +50,8 @@ public class ExecutorServer {
         this.serverHandler = new ServerHandler(engine, chainRepo, designRepo, componentScanner, chainLoader);
         this.serverHandler.setAccessToken(accessToken);
         this.serverHandler.setExecuteThreadPool(executeThreadPool);
+        this.serverHandler.setIdempotencyGuard(idempotencyGuard);
+        this.serverHandler.setExecutorProperties(properties);
     }
 
     public void setRequestMappingHandlerMapping(
@@ -99,6 +104,7 @@ public class ExecutorServer {
     }
 
     public void stop() {
+        serverHandler.beginShutdown();
         if (executeThreadPool != null) {
             executeThreadPool.shutdown();
         }
