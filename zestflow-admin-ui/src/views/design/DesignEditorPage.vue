@@ -1210,6 +1210,41 @@ function updateNodeVisual(node: Node) {
   node.attr('label/text', data.label || typeLabel(nt))
 }
 
+/** 加载后修正连线：同列/同行短距用直线，避免 manhattan 在近距离绕圈 */
+function normalizeLoadedEdges() {
+  if (!graph) return
+  const COL_THRESHOLD = 48
+  const ROW_THRESHOLD = 36
+  graph.getEdges().forEach(e => {
+    const src = e.getSourceNode()
+    const tgt = e.getTargetNode()
+    if (!src || !tgt) return
+    const sb = src.getBBox()
+    const tb = tgt.getBBox()
+    const srcCx = sb.x + sb.width / 2
+    const tgtCx = tb.x + tb.width / 2
+    const srcCy = sb.y + sb.height / 2
+    const tgtCy = tb.y + tb.height / 2
+    const dx = Math.abs(srcCx - tgtCx)
+    const dy = tgtCy - srcCy
+    if (dx <= COL_THRESHOLD && dy > 0 && dy < 400) {
+      e.setRouter({ name: 'normal' })
+      e.setConnector({ name: 'normal' })
+      return
+    }
+    if (Math.abs(dy) <= ROW_THRESHOLD && tb.x > sb.x + sb.width * 0.3) {
+      e.setRouter({ name: 'normal' })
+      e.setConnector({ name: 'normal' })
+      return
+    }
+    const r = e.getRouter()
+    if (r?.name === 'orth') {
+      e.setRouter({ name: 'manhattan', args: { padding: { top: 15, bottom: 15, left: 15, right: 15 }, step: 10 } })
+      e.setConnector('rounded')
+    }
+  })
+}
+
 // ====== 获取形状名 ======
 function getShapeForType(nodeType: string): string {
   return {
@@ -2040,15 +2075,7 @@ async function loadDesign() {
           const nodeType = n.getData()?.nodeType || 'task'
           n.setProp('ports', { groups: { handle: handleGroup }, items: getPorts(nodeType) })
         })
-        // 旧数据迁移：所有折线连线使用 manhattan 路由获得更优路径
-        graph.getEdges().forEach(e => {
-          const r = e.getRouter()
-          const c = e.getConnector()
-          if (r?.name === 'orth' || c?.name === 'rounded') {
-            e.setRouter({ name: 'manhattan', args: { padding: { top: 15, bottom: 15, left: 15, right: 15 }, step: 10 } })
-            e.setConnector('rounded')
-          }
-        })
+        normalizeLoadedEdges()
         graph.zoomToFit({ padding: 60, maxScale: 1 })
         return
       }

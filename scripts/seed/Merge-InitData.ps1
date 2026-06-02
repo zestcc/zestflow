@@ -82,4 +82,8 @@ foreach ($line in $adminHeader) { [void]$adminOut.Add($line) }
 foreach ($line in $adminGenLines) { [void]$adminOut.Add($line) }
 [System.IO.File]::WriteAllLines($adminInit, $adminOut.ToArray(), $utf8)
 
+# 同步日志库 chain_graph_snapshot（从合并后的 executor initData 提取）
+$logSeedScript = Join-Path $PSScriptRoot 'Generate-LogSnapshotSeed.ps1'
+& $logSeedScript
+
 Write-Host "Merged executor=$execInit admin=$adminInit"

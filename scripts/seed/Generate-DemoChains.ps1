@@ -13,11 +13,12 @@ function Escape-Sql([string]$s) {
 }
 
 function Expand-SerialChain($chain, $stressList) {
+    $stepPrefix = -join ([char]0x6B65, [char]0x9AA4)
     $stressList = @($stressList)[0..74]
     $nodes = @(); $edges = @(); $i = 1
     foreach ($comp in $stressList) {
         $nid = "n$i"
-        $label = "步骤$i"
+        $label = "$stepPrefix$i"
         $nodes += [ordered]@{
             id = $nid; label = $label; type = 'NORMAL'
             component = $comp; componentName = $label
@@ -41,71 +42,346 @@ function Normalize-Node($n) {
     return $node
 }
 
-function Build-ChainData($chain) {
-    $nodes = @(); $edges = @()
+function Resolve-ChainGraph($chain) {
     if ($chain.serialFrom) {
         $list = $data.($chain.serialFrom)
-        $g = Expand-SerialChain $chain $list
-        $nodes = $g.nodes; $edges = $g.edges
-    } else {
-        foreach ($n in $chain.nodes) { $nodes += (Normalize-Node $n) }
-        foreach ($e in $chain.edges) {
-            $edge = [ordered]@{ source = $e.source; target = $e.target }
-            if ($e.label) { $edge.label = $e.label }
-            $edges += $edge
+        return Expand-SerialChain $chain $list
+    }
+    $nodes = @(); $edges = @()
+    foreach ($n in $chain.nodes) { $nodes += (Normalize-Node $n) }
+    foreach ($e in $chain.edges) {
+        $edge = [ordered]@{ source = $e.source; target = $e.target }
+        if ($e.label) { $edge.label = $e.label }
+        $edges += $edge
+    }
+    return @{ nodes = $nodes; edges = $edges }
+}
+
+function Get-VisualMeta($node) {
+    switch ($node.type) {
+        'SCRIPT' { return @{ shape = 'flow-script'; nodeType = 'script'; w = 160; h = 46 } }
+        'SUB_CHAIN' { return @{ shape = 'flow-subchain'; nodeType = 'subchain'; w = 160; h = 46 } }
+        'ITERATOR' { return @{ shape = 'flow-iterator'; nodeType = 'iterator'; w = 160; h = 46 } }
+        'CONDITION' {
+            $comp = $node.component
+            if ($comp -eq 'handleAfterSale' -or $comp -eq 'routePromotion') {
+                return @{ shape = 'flow-multicondition'; nodeType = 'multicondition'; w = 120; h = 80 }
+            }
+            return @{ shape = 'flow-condition'; nodeType = 'condition'; w = 100; h = 80 }
+        }
+        default {
+            switch ($node.component) {
+                'loadUserInfo' { return @{ shape = 'flow-loader'; nodeType = 'loader'; w = 160; h = 46 } }
+                'parseOrderResult' { return @{ shape = 'flow-parser'; nodeType = 'parser'; w = 160; h = 46 } }
+                default { return @{ shape = 'flow-task'; nodeType = 'task'; w = 160; h = 46 } }
+            }
         }
     }
+}
+
+function New-GraphCellId() {
+    return [guid]::NewGuid().ToString()
+}
+
+function New-StartEndCell($id, $shape, $label, $nodeType, $x, $y) {
+    return [ordered]@{
+        id = $id
+        shape = $shape
+        position = [ordered]@{ x = $x; y = $y }
+        size = [ordered]@{ width = 148; height = 40 }
+        visible = $true
+        attrs = [ordered]@{ label = [ordered]@{ text = $label } }
+        data = [ordered]@{ label = $label; nodeType = $nodeType }
+    }
+}
+
+function New-BizCell($node, $x, $y) {
+    $meta = Get-VisualMeta $node
+    $comp = if ($node.component) { $node.component } elseif ($node.subChainCode) { $node.subChainCode } else { $node.type }
+    $cell = [ordered]@{
+        id = $node.id
+        shape = $meta.shape
+        position = [ordered]@{ x = $x; y = $y }
+        size = [ordered]@{ width = $meta.w; height = $meta.h }
+        visible = $true
+        attrs = [ordered]@{ label = [ordered]@{ text = $node.label } }
+        data = [ordered]@{
+            label = $node.label
+            nodeType = $meta.nodeType
+            componentId = $comp
+            componentName = $node.label
+        }
+    }
+    if ($node.script) { $cell.data.script = $node.script }
+    if ($node.subChainCode) { $cell.data.subChainCode = $node.subChainCode }
+    return $cell
+}
+
+function Get-EdgePorts($sx, $sy, $tx, $ty) {
+    $dx = $tx - $sx
+    $dy = $ty - $sy
+    if ([math]::Abs($dy) -ge [math]::Abs($dx)) {
+        if ($dy -ge 0) { return @{ sourcePort = 'b'; targetPort = 't' } }
+        return @{ sourcePort = 't'; targetPort = 'b' }
+    }
+    if ($dx -ge 0) { return @{ sourcePort = 'r'; targetPort = 'l' } }
+    return @{ sourcePort = 'l'; targetPort = 'r' }
+}
+
+function New-EdgeCell($sourceId, $targetId, $label, $positions, $zIndex) {
+    $sp = $positions[$sourceId]
+    $tp = $positions[$targetId]
+    $ports = Get-EdgePorts $sp.x $sp.y $tp.x $tp.y
+    $dx = [math]::Abs($tp.x - $sp.x)
+    $dy = [math]::Abs($tp.y - $sp.y)
+    # 同列/同行短距：直线，避免 manhattan 绕圈
+    if ($dx -le 30 -or $dy -le 30) {
+        $router = [ordered]@{ name = 'normal' }
+        $connector = [ordered]@{ name = 'normal' }
+    } else {
+        $router = [ordered]@{
+            name = 'manhattan'
+            args = [ordered]@{
+                padding = [ordered]@{ top = 24; bottom = 24; left = 24; right = 24 }
+                step = 10
+            }
+        }
+        $connector = [ordered]@{ name = 'rounded' }
+    }
+    $edge = [ordered]@{
+        shape = 'edge'
+        id = (New-GraphCellId)
+        zIndex = $zIndex
+        router = $router
+        connector = $connector
+        source = [ordered]@{ cell = $sourceId; port = $ports.sourcePort }
+        target = [ordered]@{ cell = $targetId; port = $ports.targetPort }
+        attrs = [ordered]@{
+            line = [ordered]@{
+                stroke = '#94a3b8'
+                strokeWidth = 2
+                targetMarker = [ordered]@{ name = 'classic'; size = 8 }
+            }
+        }
+    }
+    if ($label) {
+        $edge.labels = @([ordered]@{
+            attrs = [ordered]@{ label = [ordered]@{ text = $label; fill = '#475569'; fontSize = 12 } }
+        })
+    }
+    return $edge
+}
+
+function Test-IsPureSerial($nodes, $edges) {
+    if ($nodes.Count -le 1) { return $true }
+    if ($edges.Count -ne ($nodes.Count - 1)) { return $false }
+    $out = @{}; $in = @{}
+    foreach ($n in $nodes) { $out[$n.id] = 0; $in[$n.id] = 0 }
+    foreach ($e in $edges) {
+        if ($out.ContainsKey($e.source)) { $out[$e.source]++ }
+        if ($in.ContainsKey($e.target)) { $in[$e.target]++ }
+    }
+    foreach ($v in $out.Values) { if ($v -gt 1) { return $false } }
+    foreach ($v in $in.Values) { if ($v -gt 1) { return $false } }
+    return $true
+}
+
+function Test-HasBranching($nodes, $edges) {
+    $out = @{}; $in = @{}
+    foreach ($n in $nodes) { $out[$n.id] = 0; $in[$n.id] = 0 }
+    foreach ($e in $edges) {
+        if ($out.ContainsKey($e.source)) { $out[$e.source]++ }
+        if ($in.ContainsKey($e.target)) { $in[$e.target]++ }
+    }
+    foreach ($v in $out.Values) { if ($v -gt 1) { return $true } }
+    foreach ($v in $in.Values) { if ($v -gt 1) { return $true } }
+    return $false
+}
+
+function Get-LayoutSize($node) {
+    $meta = Get-VisualMeta $node
+    return @{ w = $meta.w; h = $meta.h }
+}
+
+function Layout-VerticalFlow($nodes) {
+    $positions = @{}
+    $centerX = 260
+    $y = 110
+    $gap = 72
+    foreach ($n in $nodes) {
+        $sz = Get-LayoutSize $n
+        $x = $centerX - [math]::Round($sz.w / 2.0)
+        $positions[$n.id] = @{ x = $x; y = $y }
+        $y += $sz.h + $gap
+    }
+    return @{
+        positions = $positions
+        startX = ($centerX - 74); startY = 40
+        endX = ($centerX - 74); endY = ($y + 32)
+    }
+}
+
+function Layout-Pipeline($nodes) {
+    $positions = @{}
+    $gap = 56; $y = 220
+    $x = 40 + 148 + $gap
+    foreach ($n in $nodes) {
+        $sz = Get-LayoutSize $n
+        $positions[$n.id] = @{ x = $x; y = ($y - [math]::Round(($sz.h - 46) / 2)) }
+        $x += $sz.w + $gap
+    }
+    $last = $nodes[-1]
+    $lastSz = Get-LayoutSize $last
+    $lastX = $positions[$last.id].x
+    return @{
+        positions = $positions
+        startX = 40; startY = ($y - 20)
+        endX = ($lastX + $lastSz.w + $gap); endY = ($y - 20)
+    }
+}
+
+function Layout-StressSnake($nodes) {
+    $positions = @{}
+    $cols = 5; $stepX = 220; $stepY = 100
+    $baseX = 40; $baseY = 120
+    for ($i = 0; $i -lt $nodes.Count; $i++) {
+        $row = [math]::Floor($i / $cols)
+        $col = $i % $cols
+        if ($row % 2 -eq 1) { $col = $cols - 1 - $col }
+        $positions[$nodes[$i].id] = @{
+            x = $baseX + $col * $stepX
+            y = $baseY + $row * $stepY
+        }
+    }
+    $maxRow = [math]::Floor(($nodes.Count - 1) / $cols)
+    $centerX = $baseX + (($cols - 1) * $stepX / 2)
+    return @{
+        positions = $positions
+        startX = [math]::Round($centerX); startY = 40
+        endX = [math]::Round($centerX); endY = ($baseY + ($maxRow + 1) * $stepY + 20)
+    }
+}
+
+function Layout-Dag($nodes, $edges) {
+    $layer = @{}
+    foreach ($n in $nodes) { $layer[$n.id] = 0 }
+    $changed = $true
+    while ($changed) {
+        $changed = $false
+        foreach ($e in $edges) {
+            $next = $layer[$e.source] + 1
+            if ($next -gt $layer[$e.target]) {
+                $layer[$e.target] = $next
+                $changed = $true
+            }
+        }
+    }
+    $groups = @{}
+    foreach ($n in $nodes) {
+        $lv = $layer[$n.id]
+        if (-not $groups.ContainsKey($lv)) { $groups[$lv] = [System.Collections.Generic.List[object]]::new() }
+        [void]$groups[$lv].Add($n)
+    }
+    $positions = @{}
+    $hGap = 280; $vGap = 130; $baseY = 120
+    $maxLayer = ($groups.Keys | Measure-Object -Maximum).Maximum
+    foreach ($lv in ($groups.Keys | Sort-Object)) {
+        $group = @($groups[$lv])
+        $count = $group.Count
+        $rowWidth = ($count - 1) * $hGap
+        $startX = -($rowWidth / 2.0)
+        for ($i = 0; $i -lt $count; $i++) {
+            $n = $group[$i]
+            $positions[$n.id] = @{
+                x = [math]::Round($startX + $i * $hGap)
+                y = [math]::Round($baseY + $lv * $vGap)
+            }
+        }
+    }
+    $avgX = 0
+    if ($positions.Count -gt 0) {
+        $avgX = [math]::Round(($positions.Values | ForEach-Object { $_.x } | Measure-Object -Average).Average)
+    }
+    foreach ($id in @($positions.Keys)) {
+        $positions[$id] = @{ x = ($positions[$id].x - $avgX + 240); y = $positions[$id].y }
+    }
+    $centerX = 240
+    return @{
+        positions = $positions
+        startX = $centerX; startY = 40
+        endX = $centerX; endY = ($baseY + ($maxLayer + 1) * $vGap + 20)
+    }
+}
+
+function Resolve-Layout($chain, $nodes, $edges) {
+    if ($chain.serialFrom) { return Layout-StressSnake $nodes }
+    if (Test-HasBranching $nodes $edges) { return Layout-Dag $nodes $edges }
+    return Layout-VerticalFlow $nodes
+}
+
+function Build-GraphData($chain) {
+    $lblStart = -join ([char]0x5F00, [char]0x59CB)
+    $lblEnd = -join ([char]0x7ED3, [char]0x675F)
+    $resolved = Resolve-ChainGraph $chain
+    $nodes = @($resolved.nodes)
+    $edges = @($resolved.edges)
+
+    $layout = Resolve-Layout $chain $nodes $edges
+    $positions = $layout.positions
+
+    $startId = '_start'
+    $endId = '_end'
+    $positions[$startId] = @{ x = $layout.startX; y = $layout.startY }
+    $positions[$endId] = @{ x = $layout.endX; y = $layout.endY }
+
+    $cells = @()
+    $cells += New-StartEndCell $startId 'flow-start' $lblStart 'start' $layout.startX $layout.startY
+    foreach ($n in $nodes) {
+        $pos = $positions[$n.id]
+        $cells += New-BizCell $n $pos.x $pos.y
+    }
+    $cells += New-StartEndCell $endId 'flow-end' $lblEnd 'end' $layout.endX $layout.endY
+
+    $inDeg = @{}; $outDeg = @{}
+    foreach ($n in $nodes) { $inDeg[$n.id] = 0; $outDeg[$n.id] = 0 }
+    foreach ($e in $edges) {
+        if ($inDeg.ContainsKey($e.target)) { $inDeg[$e.target]++ }
+        if ($outDeg.ContainsKey($e.source)) { $outDeg[$e.source]++ }
+    }
+
+    $z = 1
+    foreach ($e in $edges) {
+        $cells += New-EdgeCell $e.source $e.target $e.label $positions $z
+        $z++
+    }
+    foreach ($n in $nodes) {
+        if ($inDeg[$n.id] -eq 0) {
+            $cells += New-EdgeCell $startId $n.id $null $positions $z
+            $z++
+        }
+    }
+    foreach ($n in $nodes) {
+        if ($outDeg[$n.id] -eq 0) {
+            $cells += New-EdgeCell $n.id $endId $null $positions $z
+            $z++
+        }
+    }
+
+    return (@{ cells = $cells } | ConvertTo-Json -Compress -Depth 12)
+}
+
+function Build-ChainData($chain) {
+    $resolved = Resolve-ChainGraph $chain
     $root = [ordered]@{
         code = $chain.code
         version = 1
-        nodes = $nodes
-        edges = $edges
+        nodes = @($resolved.nodes)
+        edges = @($resolved.edges)
     }
     if ($chain.errorStrategy) {
         $root.config = @{ errorStrategy = $chain.errorStrategy }
     }
     return ($root | ConvertTo-Json -Compress -Depth 12)
-}
-
-function Build-GraphData($chain) {
-    $cells = @()
-    if ($chain.serialFrom) {
-        $list = $data.($chain.serialFrom)
-        $x = 40; $y = 40; $col = 0
-        for ($i = 0; $i -lt $list.Count; $i++) {
-            $comp = $list[$i]
-            if ($col -ge 5) { $col = 0; $y += 80 }
-            $cells += [ordered]@{
-                id = "task-$comp-$i"; shape = 'flow-task'
-                position = [ordered]@{ x = (40 + $col * 180); y = $y }
-                size = [ordered]@{ width = 140; height = 40 }
-                attrs = [ordered]@{ label = [ordered]@{ text = "S$($i + 1)" } }
-                data = [ordered]@{ label = "S$($i + 1)"; nodeType = 'task'; componentId = $comp; componentName = $comp }
-            }
-            $col++
-        }
-    } else {
-        $x = 80
-        foreach ($n in $chain.nodes) {
-            $shape = switch ($n.type) {
-                'CONDITION' { 'flow-condition' }
-                'SCRIPT' { 'flow-task' }
-                'SUB_CHAIN' { 'flow-task' }
-                'ITERATOR' { 'flow-task' }
-                default { 'flow-task' }
-            }
-            $comp = if ($n.component) { $n.component } else { $n.type }
-            $cells += [ordered]@{
-                id = "cell-$($n.id)"; shape = $shape
-                position = [ordered]@{ x = $x; y = 200 }
-                size = [ordered]@{ width = 160; height = 46 }
-                attrs = [ordered]@{ label = [ordered]@{ text = $n.label } }
-                data = [ordered]@{ label = $n.label; nodeType = 'task'; componentId = $comp; componentName = $n.label }
-            }
-            $x += 200
-        }
-    }
-    return (@{ cells = $cells } | ConvertTo-Json -Compress -Depth 10)
 }
 
 $chains = @($data.chains)

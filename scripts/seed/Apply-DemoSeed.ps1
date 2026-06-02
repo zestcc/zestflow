@@ -28,5 +28,11 @@ if (-not (Test-Path $MysqlBin)) { Write-Error "mysql not found: $MysqlBin" }
 & $MysqlBin -h $MysqlHost -u $MysqlUser --default-character-set=utf8mb4 -e "source $($cleanup -replace '\\','/')" 2>&1 | Out-Host
 & $MysqlBin -h $MysqlHost -u $MysqlUser --default-character-set=utf8mb4 -e "source $($execData -replace '\\','/')" 2>&1 | Out-Host
 & $MysqlBin -h $MysqlHost -u $MysqlUser --default-character-set=utf8mb4 -e "source $($adminData -replace '\\','/')" 2>&1 | Out-Host
+$logData = Join-Path $Root 'zestflow-collector\collector-jdbc\src\main\resources\db\initData.sql'
+if (Test-Path $logData) {
+    & $MysqlBin -h $MysqlHost -u $MysqlUser --default-character-set=utf8mb4 -e "source $($logData -replace '\\','/')" 2>&1 | Out-Host
+} else {
+    Write-Warning "Missing log initData: $logData — run scripts/seed/Generate-LogSnapshotSeed.ps1 first"
+}
 Remove-Item Env:MYSQL_PWD -ErrorAction SilentlyContinue
-Write-Host 'Done: cleanup + executor initData + admin initData'
+Write-Host 'Done: cleanup + executor initData + admin initData + log snapshot initData'
