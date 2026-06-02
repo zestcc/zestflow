@@ -17,10 +17,7 @@ import com.zestflow.executor.fallback.FallbackStrategy;
 import com.zestflow.executor.fallback.DefaultFallbackStrategy;
 import com.zestflow.executor.interceptor.*;
 import com.zestflow.executor.lifecycle.*;
-import com.zestflow.executor.metrics.ExecutorMicrometerBinder;
 import com.zestflow.executor.param.ParamConverterRegistry;
-import io.micrometer.core.instrument.binder.MeterBinder;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import com.zestflow.executor.param.resolver.ContextTypeResolver;
 import com.zestflow.executor.param.resolver.ParameterResolver;
 import com.zestflow.executor.param.resolver.ZestParamResolver;
@@ -204,6 +201,10 @@ public class ExecutorAutoConfig {
         return new ParamValidator(validatorProvider.getIfAvailable());
     }
 
+    /**
+     * Spring 销毁顺序：ExecutorServer → chainExecutionEngine → asyncEventPublisher
+     * （依赖链创建顺序的逆序），保证先停接入、再等执行、最后 drain 事件队列。
+     */
     @Bean(destroyMethod = "destroy")
     @ConditionalOnBean(EventCollector.class)
     @ConditionalOnProperty(prefix = "zestflow.executor.event", name = "async-enabled",
@@ -264,17 +265,11 @@ public class ExecutorAutoConfig {
     }
 
     @Bean
-    public MetricsInterceptor metricsInterceptor(
-            ObjectProvider<io.micrometer.core.instrument.MeterRegistry> meterRegistryProvider) {
-        return new MetricsInterceptor(meterRegistryProvider.getIfAvailable());
+    public MetricsInterceptor metricsInterceptor(ObjectProvider<ChainMetricsSink> metricsSinkProvider) {
+        return new MetricsInterceptor(metricsSinkProvider.getIfAvailable());
     }
 
-    @Bean
-    @ConditionalOnClass(name = "io.micrometer.core.instrument.MeterRegistry")
-    public MeterBinder executorMicrometerBinder(MetricsInterceptor metricsInterceptor,
-                                                 com.zestflow.executor.chain.ChainManager chainManager) {
-        return new ExecutorMicrometerBinder(metricsInterceptor, chainManager);
-    }
+    // Micrometer 绑定见 {@link com.zestflow.executor.metrics.ExecutorMicrometerAutoConfiguration}
 
     @Bean
     public AuthInterceptor authInterceptor(ExecutorProperties properties) {

@@ -1,2 +1,3 @@
 com.zestflow.executor.registry.ExecutorAutoConfig
+com.zestflow.executor.metrics.ExecutorMicrometerAutoConfiguration
 com.zestflow.executor.config.ExecutorEndpointConfig

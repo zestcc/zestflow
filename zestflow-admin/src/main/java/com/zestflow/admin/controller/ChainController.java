@@ -22,8 +22,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import org.springframework.scheduling.annotation.Scheduled;
-import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
 
@@ -140,8 +138,6 @@ public class ChainController {
     }
 
     /** 链同步状态 TTL（内存/Redis 统一过期策略） */
-    private static final Duration SYNC_CACHE_TTL = Duration.ofMinutes(5);
-
     /**
      * 接收 Executor 上报的链同步状态
      */
@@ -179,15 +175,6 @@ public class ChainController {
         } catch (Exception e) {
             return "{\"code\":500,\"message\":\"查询同步状态失败\"}";
         }
-    }
-
-    /**
-     * 定期清理过期的同步状态缓存，防止内存泄漏
-     */
-    @Scheduled(fixedRate = 60000)
-    public void evictStaleSyncStatus() {
-        long cutoff = System.currentTimeMillis() - SYNC_CACHE_TTL.toMillis();
-        runtimeStateStore.evictStaleChainSync(cutoff);
     }
 
     @GetMapping("/{code}")

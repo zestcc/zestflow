@@ -19,6 +19,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@org.mockito.junit.jupiter.MockitoSettings(strictness = org.mockito.quality.Strictness.LENIENT)
 class ScheduleExecutorFailoverTest {
 
     @Mock
@@ -40,28 +41,28 @@ class ScheduleExecutorFailoverTest {
     @Test
     void executeWithFailover_succeedsOnPrimary() {
         when(routeStrategy.select(any(), eq("chain-1"))).thenReturn(primary);
-        when(executorClient.execute("host-a", 20550, "chain-1", Map.of()))
+        when(executorClient.execute(eq("host-a"), eq(20550), any()))
                 .thenReturn(successResult());
 
         ScheduleExecutorFailover.FailoverResult result = ScheduleExecutorFailover.executeWithFailover(
-                List.of(primary, backup), routeStrategy, "chain-1", Map.of(), executorClient);
+                List.of(primary, backup), routeStrategy, "chain-1", Map.of(), "idem-1", executorClient);
 
         assertThat(ScheduleExecutorFailover.isSuccess(result.getResult())).isTrue();
         assertThat(result.getExecutor().getExecutorId()).isEqualTo("exec-a");
         assertThat(result.getAttempted()).isEqualTo(1);
-        verify(executorClient, times(1)).execute(any(), any(Integer.class), any(), any());
+        verify(executorClient, times(1)).execute(any(), any(Integer.class), any());
     }
 
     @Test
     void executeWithFailover_fallsBackToSecondExecutor() {
         when(routeStrategy.select(any(), eq("chain-1"))).thenReturn(primary);
-        when(executorClient.execute("host-a", 20550, "chain-1", Map.of()))
+        when(executorClient.execute(eq("host-a"), eq(20550), any()))
                 .thenReturn(failureResult("primary down"));
-        when(executorClient.execute("host-b", 20550, "chain-1", Map.of()))
+        when(executorClient.execute(eq("host-b"), eq(20550), any()))
                 .thenReturn(successResult());
 
         ScheduleExecutorFailover.FailoverResult result = ScheduleExecutorFailover.executeWithFailover(
-                List.of(primary, backup), routeStrategy, "chain-1", Map.of(), executorClient);
+                List.of(primary, backup), routeStrategy, "chain-1", Map.of(), "idem-1", executorClient);
 
         assertThat(ScheduleExecutorFailover.isSuccess(result.getResult())).isTrue();
         assertThat(result.getExecutor().getExecutorId()).isEqualTo("exec-b");

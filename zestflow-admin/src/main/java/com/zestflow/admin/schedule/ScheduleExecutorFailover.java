@@ -1,6 +1,7 @@
 package com.zestflow.admin.schedule;
 
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
+import com.zestflow.common.model.dto.ChainExecuteRequestDTO;
 import com.zestflow.common.model.dto.ChainExecuteResultDTO;
 import lombok.Value;
 
@@ -30,11 +31,14 @@ public final class ScheduleExecutorFailover {
 
     /**
      * 先走路由策略选主节点，失败后按 executorId 顺序尝试其余在线节点。
+     * <p>
+     * 所有 failover 尝试共用同一幂等键，避免切换节点时重复执行。
      */
     public static FailoverResult executeWithFailover(List<ExecutorRegistryPO> online,
                                                      RouteStrategy strategy,
                                                      String chainCode,
                                                      Map<String, Object> params,
+                                                     String idempotencyKey,
                                                      ExecutorClient client) {
         if (online == null || online.isEmpty()) {
             ChainExecuteResultDTO empty = new ChainExecuteResultDTO();
@@ -60,7 +64,8 @@ public final class ScheduleExecutorFailover {
 
         for (ExecutorRegistryPO executor : ordered) {
             attempted++;
-            last = client.execute(executor.getExecutorHost(), executor.getExecutorPort(), chainCode, params);
+            last = client.execute(executor.getExecutorHost(), executor.getExecutorPort(),
+                    buildRequest(chainCode, params, idempotencyKey));
             used = executor;
             if (isSuccess(last)) {
                 return new FailoverResult(used, last, attempted);
@@ -86,5 +91,19 @@ public final class ScheduleExecutorFailover {
 
     public static boolean isSuccess(ChainExecuteResultDTO result) {
         return result != null && result.getStatus() != null && result.getStatus() == EXECUTE_SUCCESS;
+    }
+
+    private static ChainExecuteRequestDTO buildRequest(String chainCode,
+                                                         Map<String, Object> params,
+                                                         String idempotencyKey) {
+        ChainExecuteRequestDTO request = ChainExecuteRequestDTO.builder()
+                .chainCode(chainCode)
+                .params(params)
+                .source("admin-schedule")
+                .build();
+        if (idempotencyKey != null && !idempotencyKey.isBlank()) {
+            request.setIdempotencyKey(idempotencyKey);
+        }
+        return request;
     }
 }

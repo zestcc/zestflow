@@ -7,28 +7,21 @@ import com.zestflow.admin.repository.TenantIpMappingMapper;
 import com.zestflow.admin.repository.TenantMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
 /**
- * 租户清理任务 — 定期清理不活跃的 IP 租户映射
- * <p>
- * 扫描超过 1 小时无活动的 tenant_ip_mapping 记录并删除，同时更新对应租户的 lastActiveAt。
+ * 租户清理逻辑 — 供单机 / 集群调度入口复用。
  */
 @Slf4j
-@Component
+@Service
 @RequiredArgsConstructor
-public class TenantCleanupJob {
+public class TenantCleanupService {
 
     private final TenantIpMappingMapper tenantIpMappingMapper;
     private final TenantMapper tenantMapper;
 
-    /**
-     * 每 5 分钟扫描一次，清理 1 小时无活动的 IP 租户映射
-     */
-    @Scheduled(fixedRate = 300_000)
     public void cleanupInactiveIpMappings() {
         LocalDateTime threshold = LocalDateTime.now().minusHours(1);
         int deleted = tenantIpMappingMapper.delete(
@@ -40,10 +33,6 @@ public class TenantCleanupJob {
         }
     }
 
-    /**
-     * 每 5 分钟扫描一次，更新不活跃租户的 lastActiveAt 为空闲状态标记
-     */
-    @Scheduled(fixedRate = 300_000)
     public void updateInactiveTenants() {
         LocalDateTime threshold = LocalDateTime.now().minusHours(1);
         TenantPO updateEntity = new TenantPO();

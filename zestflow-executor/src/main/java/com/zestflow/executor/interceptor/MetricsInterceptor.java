@@ -2,23 +2,18 @@ package com.zestflow.executor.interceptor;
 
 import com.zestflow.executor.chain.NodeDefinition;
 import com.zestflow.executor.context.ChainContext;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 
 /**
  * 指标拦截器 — 记录链/节点执行次数和耗时。
  * <p>
- * Phase 2a：若注入 {@link MeterRegistry}（Spring Boot Actuator / Micrometer），
- * 同步导出 {@code zestflow.chain.*} 指标，支持 P99.9 分位数。
+ * Micrometer 导出通过可选 {@link ChainMetricsSink} 完成，嵌入模式无 Actuator 时不依赖 micrometer-core。
  */
 @Slf4j
 public class MetricsInterceptor implements ChainInterceptor, NodeInterceptor {
@@ -26,7 +21,7 @@ public class MetricsInterceptor implements ChainInterceptor, NodeInterceptor {
     private static final int MAX_CHAIN_METRICS = 512;
     private static final int MAX_NODE_METRICS = 2048;
 
-    private final MeterRegistry meterRegistry;
+    private final ChainMetricsSink metricsSink;
 
     /** 链级指标（日志/调试） */
     private final Map<String, ChainMetrics> chainMetrics = new ConcurrentHashMap<>();
@@ -35,11 +30,11 @@ public class MetricsInterceptor implements ChainInterceptor, NodeInterceptor {
     private final Map<String, NodeMetrics> nodeMetrics = new ConcurrentHashMap<>();
 
     public MetricsInterceptor() {
-        this(null);
+        this(ChainMetricsSink.NOOP);
     }
 
-    public MetricsInterceptor(MeterRegistry meterRegistry) {
-        this.meterRegistry = meterRegistry;
+    public MetricsInterceptor(ChainMetricsSink metricsSink) {
+        this.metricsSink = metricsSink != null ? metricsSink : ChainMetricsSink.NOOP;
     }
 
     private static class ChainMetrics {
@@ -70,7 +65,7 @@ public class MetricsInterceptor implements ChainInterceptor, NodeInterceptor {
             metrics.successCount.increment();
             metrics.totalCostMs.addAndGet(ctx.getElapsedMs());
         }
-        recordChainMicrometer(chainCode, "success", ctx.getElapsedMs());
+        metricsSink.recordChainExecution(chainCode, "success", ctx.getElapsedMs());
     }
 
     @Override
@@ -79,7 +74,7 @@ public class MetricsInterceptor implements ChainInterceptor, NodeInterceptor {
         if (metrics != null) {
             metrics.failCount.increment();
         }
-        recordChainMicrometer(chainCode, "failure", ctx.getElapsedMs());
+        metricsSink.recordChainExecution(chainCode, "failure", ctx.getElapsedMs());
     }
 
     @Override
@@ -93,7 +88,7 @@ public class MetricsInterceptor implements ChainInterceptor, NodeInterceptor {
         if (metrics != null) {
             metrics.successCount.increment();
         }
-        recordNodeMicrometer(node.getId(), "success");
+        metricsSink.recordNodeExecution(node.getId(), "success");
     }
 
     @Override
@@ -102,41 +97,12 @@ public class MetricsInterceptor implements ChainInterceptor, NodeInterceptor {
         if (metrics != null) {
             metrics.failCount.increment();
         }
-        recordNodeMicrometer(node.getId(), "failure");
+        metricsSink.recordNodeExecution(node.getId(), "failure");
     }
 
     @Override
     public int order() {
         return 0;
-    }
-
-    private void recordChainMicrometer(String chainCode, String outcome, long elapsedMs) {
-        if (meterRegistry == null) {
-            return;
-        }
-        Counter.builder("zestflow.chain.executions")
-                .tag("chain", chainCode)
-                .tag("outcome", outcome)
-                .register(meterRegistry)
-                .increment();
-        Timer.builder("zestflow.chain.duration")
-                .tag("chain", chainCode)
-                .tag("outcome", outcome)
-                .publishPercentiles(0.5, 0.95, 0.99, 0.999)
-                .publishPercentileHistogram()
-                .register(meterRegistry)
-                .record(elapsedMs, TimeUnit.MILLISECONDS);
-    }
-
-    private void recordNodeMicrometer(String nodeId, String outcome) {
-        if (meterRegistry == null) {
-            return;
-        }
-        Counter.builder("zestflow.node.executions")
-                .tag("node", nodeId)
-                .tag("outcome", outcome)
-                .register(meterRegistry)
-                .increment();
     }
 
     private ChainMetrics ensureChainMetric(String chainCode) {

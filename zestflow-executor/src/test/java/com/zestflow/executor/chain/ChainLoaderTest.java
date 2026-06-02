@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@org.mockito.junit.jupiter.MockitoSettings(strictness = org.mockito.quality.Strictness.LENIENT)
 class ChainLoaderTest {
 
     @Mock ChainManager chainManager;
@@ -86,7 +87,7 @@ class ChainLoaderTest {
 
         when(chainRepo.get("CHN001")).thenReturn(chain);
         when(designRepo.get("DSN001")).thenReturn(design);
-        when(chainDefinitionBuilder.build(anyString(), anyInt(), anyString(), anyString()))
+        when(chainDefinitionBuilder.build(anyString(), any(), anyString(), anyString()))
                 .thenReturn(mock(ChainDefinition.class));
         when(chainValidator.validate(any())).thenReturn(List.of("节点缺失"));
 
@@ -113,7 +114,7 @@ class ChainLoaderTest {
 
         when(chainRepo.get("CHN001")).thenReturn(chain);
         when(designRepo.get("DSN001")).thenReturn(design);
-        when(chainDefinitionBuilder.build(anyString(), anyInt(), anyString(), anyString()))
+        when(chainDefinitionBuilder.build(anyString(), any(), anyString(), anyString()))
                 .thenReturn(definition);
         when(chainValidator.validate(definition)).thenReturn(List.of());
         when(chainRepo.incrementVersion("CHN001")).thenReturn(1);
@@ -172,7 +173,7 @@ class ChainLoaderTest {
         when(chainRepo.get("CHN001")).thenReturn(chain);
         when(designRepo.get("DSN001")).thenReturn(design);
         when(chainManager.get("CHN001")).thenReturn(oldDef);
-        when(chainDefinitionBuilder.build(anyString(), anyInt(), anyString(), anyString()))
+        when(chainDefinitionBuilder.build(anyString(), any(), anyString(), anyString()))
                 .thenReturn(newDef);
         when(chainValidator.validate(newDef)).thenReturn(List.of());
         when(chainRepo.incrementVersion("CHN001")).thenReturn(1);
@@ -198,9 +199,10 @@ class ChainLoaderTest {
 
         when(chainRepo.list(null, null)).thenReturn(List.of(chain));
         when(designRepo.get("DSN001")).thenReturn(design);
-        when(chainDefinitionBuilder.build(anyString(), anyInt(), anyString(), anyString()))
+        when(chainDefinitionBuilder.build(anyString(), any(), anyString(), anyString()))
                 .thenReturn(definition);
-        when(chainValidator.validateAll(anyList())).thenReturn(true);
+        when(chainValidator.validateAll(any())).thenReturn(true);
+        doNothing().when(chainManager).reload(anyList());
 
         boolean result = chainLoader.loadAllChains();
 

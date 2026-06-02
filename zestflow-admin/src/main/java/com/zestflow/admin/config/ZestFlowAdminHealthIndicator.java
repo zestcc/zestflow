@@ -64,7 +64,7 @@ public class ZestFlowAdminHealthIndicator implements HealthIndicator {
             return Status.DOWN;
         }
         if (onlineCollectors == 0 || onlineExecutors == 0) {
-            return Status.DEGRADED;
+            return new Status("DEGRADED");
         }
         return Status.UP;
     }

@@ -15,6 +15,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -40,7 +41,7 @@ class ZestFlowAdminHealthIndicatorTest {
     void health_standaloneWithoutRedis_isUpWhenNodesOnline() {
         deployProperties.setDeployMode("standalone");
         cacheProperties.setType("caffeine");
-        when(collectorRegistryService.listAllOnline()).thenReturn(List.of(new com.zestflow.admin.model.vo.CollectorRegistryVO()));
+        when(collectorRegistryService.listAllOnline()).thenReturn(List.of(mock(com.zestflow.admin.model.vo.CollectorRegistryVO.class)));
         when(executorRegistryMapper.selectCount(any())).thenReturn(1L);
 
         ZestFlowAdminHealthIndicator indicator = new ZestFlowAdminHealthIndicator(
@@ -70,6 +71,6 @@ class ZestFlowAdminHealthIndicatorTest {
         ZestFlowAdminHealthIndicator indicator = new ZestFlowAdminHealthIndicator(
                 deployProperties, cacheProperties, collectorRegistryService, executorRegistryMapper, environment);
 
-        assertThat(indicator.health().getStatus()).isEqualTo(Status.DEGRADED);
+        assertThat(indicator.health().getStatus()).isEqualTo(new Status("DEGRADED"));
     }
 }

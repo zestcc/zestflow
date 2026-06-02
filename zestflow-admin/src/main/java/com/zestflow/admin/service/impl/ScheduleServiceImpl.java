@@ -15,6 +15,7 @@ import com.zestflow.admin.model.vo.ScheduleVO;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import com.zestflow.admin.repository.ScheduleLogMapper;
 import com.zestflow.admin.repository.ScheduleMapper;
+import com.zestflow.admin.schedule.ScheduleIdempotencyKeys;
 import com.zestflow.admin.schedule.ExecutorClient;
 import com.zestflow.admin.schedule.RouteStrategy;
 import com.zestflow.admin.schedule.ScheduleExecutorFailover;
@@ -169,10 +170,19 @@ public class ScheduleServiceImpl implements ScheduleService {
         return voPage;
     }
 
+    public ScheduleLogVO doTrigger(SchedulePO schedule, String triggerType) {
+        String idempotencyKey = "manual".equals(triggerType)
+                ? ScheduleIdempotencyKeys.forManualTrigger(schedule.getId())
+                : null;
+        return doTrigger(schedule, triggerType, idempotencyKey);
+    }
+
     /**
      * 执行一次调度触发（供调度扫描与 trigger() 调用）
+     *
+     * @param idempotencyKey 幂等键；cron 扫描应传入 {@link ScheduleIdempotencyKeys#forCronFire}
      */
-    public ScheduleLogVO doTrigger(SchedulePO schedule, String triggerType) {
+    public ScheduleLogVO doTrigger(SchedulePO schedule, String triggerType, String idempotencyKey) {
         long startTime = System.currentTimeMillis();
         LocalDateTime now = LocalDateTime.now();
 
@@ -201,7 +211,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         @SuppressWarnings("unchecked")
         Map<String, Object> params = parseParams(schedule.getParams());
         ScheduleExecutorFailover.FailoverResult failover = ScheduleExecutorFailover.executeWithFailover(
-                onlineExecutors, strategy, schedule.getChainCode(), params, executorClient);
+                onlineExecutors, strategy, schedule.getChainCode(), params, idempotencyKey, executorClient);
 
         ExecutorRegistryPO target = failover.getExecutor();
         ChainExecuteResultDTO result = failover.getResult();

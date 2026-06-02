@@ -233,7 +233,7 @@ class ScheduleServiceImplTest {
                 .status(3) // CHAIN_SUCCESS
                 .costMs(100L)
                 .build();
-        when(executorClient.execute(anyString(), anyInt(), anyString(), anyMap()))
+        when(executorClient.execute(anyString(), anyInt(), any()))
                 .thenReturn(execResult);
 
         ScheduleLogVO logVO = scheduleService.trigger(1L);

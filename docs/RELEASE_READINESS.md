@@ -61,7 +61,8 @@ powershell -File .\scripts\blackbox\run-enterprise-gate.ps1 -RequireEnterprisePr
 | CONTINUE 失败策略 | Layer B | SCN20260602000001 |
 | 多租户行级隔离 | Layer C | SCN20260602000002 租户 B 专属 |
 | IP → 租户映射 | Layer C | X-Forwarded-For 10.0.0.101/102 |
-| 路由策略 | 单元 | RouteStrategyTest |
+| 调度 trigger | Layer B | full-e2e + **幂等键** `schedule-{id}-cron-{fireMs}` |
+| Admin 集群 ShedLock | 单元 + cluster 构建 | OfflineMonitor / TenantCleanup / ChainSync 全任务 |
 | Collector 8 路由 | 单元 | CollectorServerHandlerTest (32) |
 
 **仍建议手工或下一迭代自动化**：playground 关闭 404（E2E 在 playground.enabled=false 时已探测）。
@@ -154,6 +155,9 @@ mvn spring-boot:run -pl zestflow-executor-test -Dspring-boot.run.profiles=local,
 - [x] `run-enterprise-gate.ps1` Layer A+B 全 PASS（本地，2026-06-02）
 - [x] 灌库：`Apply-DemoSeed.ps1`（含租户 B + IP 映射 + `SCN20260602000002`）
 - [x] Admin `enterprise-e2e` + `-RequireEnterpriseProfile` 全 PASS（multi 隔离 + IP 演示）
+- [x] Admin 集群 ShedLock：调度 / 离线检测 / 租户清理 / 链同步缓存（`-Pcluster` + `deploy-mode=cluster`）
+- [x] Admin→Executor 幂等键贯通（调度 cron/manual、试验场）
+- [x] 嵌入模式默认单层 async（starter `zestflow-starter-defaults.properties`）
 - [ ] Admin + Executor `security-e2e` + `-RequireSecurityProfile` 全 PASS（registry / executor token）
 - [x] 前端改动后 `cd zestflow-admin-ui && npm run build`（产物写入 admin static）
 - [x] `mvn package` 全反应堆 `-DskipTests` 通过

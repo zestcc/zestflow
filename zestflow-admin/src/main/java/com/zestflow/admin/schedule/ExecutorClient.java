@@ -6,6 +6,7 @@ import com.zestflow.common.model.dto.ChainExecuteRequestDTO;
 import com.zestflow.common.model.dto.ChainExecuteResultDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.net.URI;
@@ -14,8 +15,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Map;
-
-import org.springframework.beans.factory.annotation.Value;
 
 /**
  * Admin → Executor HTTP 客户端
@@ -43,20 +42,26 @@ public class ExecutorClient {
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
 
     /**
-     * 向指定执行器发送链执行请求
-     *
-     * @param host      执行器 host
-     * @param port      执行器 port
-     * @param chainCode 链编码
-     * @param params    执行参数
-     * @return 执行结果
+     * 向指定执行器发送链执行请求（无幂等键）。
      */
     public ChainExecuteResultDTO execute(String host, int port, String chainCode, Map<String, Object> params) {
+        ChainExecuteRequestDTO request = ChainExecuteRequestDTO.builder()
+                .chainCode(chainCode)
+                .params(params)
+                .source("admin-schedule")
+                .build();
+        return execute(host, port, request);
+    }
+
+    /**
+     * 向指定执行器发送链执行请求（含幂等键 / traceId）。
+     */
+    public ChainExecuteResultDTO execute(String host, int port, ChainExecuteRequestDTO request) {
         String url = protocol + "://" + host + ":" + port + "/execute";
 
-        ChainExecuteRequestDTO request = new ChainExecuteRequestDTO();
-        request.setChainCode(chainCode);
-        request.setParams(params);
+        if (request.getSource() == null || request.getSource().isBlank()) {
+            request.setSource("admin");
+        }
 
         try {
             String json = objectMapper.writeValueAsString(request);
@@ -75,9 +80,9 @@ public class ExecutorClient {
 
             if (response.statusCode() != 200) {
                 log.warn("执行器返回非200状态码 host={}:{} chainCode={} status={}",
-                        host, port, chainCode, response.statusCode());
+                        host, port, request.getChainCode(), response.statusCode());
                 ChainExecuteResultDTO error = new ChainExecuteResultDTO();
-                error.setChainCode(chainCode);
+                error.setChainCode(request.getChainCode());
                 error.setStatus(2);
                 error.setErrorMessage("执行器返回状态码: " + response.statusCode());
                 return error;
@@ -86,16 +91,16 @@ public class ExecutorClient {
             return objectMapper.readValue(response.body(), ChainExecuteResultDTO.class);
 
         } catch (JsonProcessingException e) {
-            log.error("序列化执行请求失败 chainCode={}", chainCode, e);
+            log.error("序列化执行请求失败 chainCode={}", request.getChainCode(), e);
             ChainExecuteResultDTO error = new ChainExecuteResultDTO();
-            error.setChainCode(chainCode);
+            error.setChainCode(request.getChainCode());
             error.setStatus(2);
             error.setErrorMessage("请求序列化失败: " + e.getMessage());
             return error;
         } catch (Exception e) {
-            log.error("调用执行器失败 host={}:{} chainCode={}", host, port, chainCode, e);
+            log.error("调用执行器失败 host={}:{} chainCode={}", host, port, request.getChainCode(), e);
             ChainExecuteResultDTO error = new ChainExecuteResultDTO();
-            error.setChainCode(chainCode);
+            error.setChainCode(request.getChainCode());
             error.setStatus(2);
             error.setErrorMessage("调用执行器失败: " + e.getMessage());
             return error;

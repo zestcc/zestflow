@@ -53,7 +53,7 @@ class ScheduleScanServiceTest {
 
         scheduleScanService.scanAndTriggerDueSchedules();
 
-        verify(scheduleService, never()).doTrigger(any(), any());
+        verify(scheduleService, never()).doTrigger(any(), any(), any());
     }
 
     @Test
@@ -64,7 +64,7 @@ class ScheduleScanServiceTest {
         scheduleScanService.scanAndTriggerDueSchedules();
 
         ArgumentCaptor<SchedulePO> scheduleCaptor = ArgumentCaptor.forClass(SchedulePO.class);
-        verify(scheduleService).doTrigger(scheduleCaptor.capture(), org.mockito.ArgumentMatchers.eq("cron"));
+        verify(scheduleService).doTrigger(scheduleCaptor.capture(), org.mockito.ArgumentMatchers.eq("cron"), any());
         assertThat(scheduleCaptor.getValue().getId()).isEqualTo(1L);
     }
 
@@ -78,6 +78,6 @@ class ScheduleScanServiceTest {
 
         scheduleScanService.scanAndTriggerDueSchedules();
 
-        verify(scheduleService, never()).doTrigger(any(), any());
+        verify(scheduleService, never()).doTrigger(any(), any(), any());
     }
 }

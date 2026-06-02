@@ -60,7 +60,8 @@ public class ScheduleScanService {
                 if (!nextTime.isAfter(now)) {
                     log.info("调度触发 scheduleId={} chainCode={} cron={}",
                             schedule.getId(), schedule.getChainCode(), schedule.getCron());
-                    scheduleService.doTrigger(schedule, "cron");
+                    scheduleService.doTrigger(schedule, "cron",
+                            ScheduleIdempotencyKeys.forCronFire(schedule.getId(), nextTime));
                 }
             } catch (Exception e) {
                 log.error("调度扫描异常 scheduleId={}", schedule.getId(), e);

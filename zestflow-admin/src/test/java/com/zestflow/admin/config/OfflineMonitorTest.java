@@ -26,8 +26,8 @@ class OfflineMonitorTest {
     @Mock
     private CollectorRegistryMapper collectorRegistryMapper;
 
-    private OfflineMonitor newMonitor() {
-        return new OfflineMonitor(executorRegistryMapper, collectorRegistryMapper);
+    private OfflineMonitorService newService() {
+        return new OfflineMonitorService(executorRegistryMapper, collectorRegistryMapper);
     }
 
     @Test
@@ -41,8 +41,8 @@ class OfflineMonitorTest {
             when(executorRegistryMapper.update(any(), any())).thenReturn(2);
             when(collectorRegistryMapper.update(any(), any())).thenReturn(1);
 
-            OfflineMonitor monitor = newMonitor();
-            monitor.checkOffline();
+            OfflineMonitorService service = newService();
+            service.checkOffline();
 
             verify(executorRegistryMapper).update(any(), any());
         }
@@ -59,8 +59,8 @@ class OfflineMonitorTest {
             when(executorRegistryMapper.update(any(), any())).thenReturn(0);
             when(collectorRegistryMapper.update(any(), any())).thenReturn(0);
 
-            OfflineMonitor monitor = newMonitor();
-            monitor.checkOffline();
+            OfflineMonitorService service = newService();
+            service.checkOffline();
 
             verify(executorRegistryMapper).update(any(), any());
         }
@@ -77,8 +77,8 @@ class OfflineMonitorTest {
             when(executorRegistryMapper.delete(any())).thenReturn(3);
             when(collectorRegistryMapper.delete(any())).thenReturn(2);
 
-            OfflineMonitor monitor = newMonitor();
-            monitor.cleanupStaleAbnormal();
+            OfflineMonitorService service = newService();
+            service.cleanupStaleAbnormal();
 
             verify(executorRegistryMapper).delete(any());
         }
@@ -95,8 +95,8 @@ class OfflineMonitorTest {
             when(executorRegistryMapper.delete(any())).thenReturn(0);
             when(collectorRegistryMapper.delete(any())).thenReturn(0);
 
-            OfflineMonitor monitor = newMonitor();
-            monitor.cleanupStaleAbnormal();
+            OfflineMonitorService service = newService();
+            service.cleanupStaleAbnormal();
 
             verify(executorRegistryMapper).delete(any());
         }
@@ -121,10 +121,10 @@ class OfflineMonitorTest {
             when(collectorRegistryMapper.update(any(), any())).thenReturn(0);
             when(collectorRegistryMapper.delete(any())).thenReturn(0);
 
-            OfflineMonitor monitor = newMonitor();
+            OfflineMonitorService service = newService();
 
-            assertThatCode(monitor::checkOffline).doesNotThrowAnyException();
-            assertThatCode(monitor::cleanupStaleAbnormal).doesNotThrowAnyException();
+            assertThatCode(service::checkOffline).doesNotThrowAnyException();
+            assertThatCode(service::cleanupStaleAbnormal).doesNotThrowAnyException();
         }
     }
 }

@@ -18,10 +18,15 @@ zestflow:
     execute-endpoint-enabled: true
     # 与 Admin zestflow.admin.registry-token 保持一致（本地开发可留空）
     registry-token:
+    # 嵌入模式：Executor 侧异步发布事件；Collector 侧建议同步写入（见下方 collector.async-enabled）
+    event:
+      async-enabled: true
   playground:
     scan-packages:
       - com.zestflow.test.controller
   collector:
+    # 与 starter 一致：关闭 Collector 二层 async，避免双队列
+    async-enabled: false
     registry:
       port: 20650
 
