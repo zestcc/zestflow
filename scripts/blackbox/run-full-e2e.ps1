@@ -148,6 +148,11 @@ if ($feat.ok) {
             if ($j.tenant.mode) { $tenantMode = $j.tenant.mode }
             if ($j.tenant.ipDemoMode) { $ipDemoMode = $j.tenant.ipDemoMode }
         }
+        if ($j.admin) {
+            Add-C "runtime" "zestflow.admin.deploy-mode" $j.admin.deployMode "standalone=no Redis required"
+            Add-C "runtime" "zestflow.admin.cache.type" $j.admin.cacheType "independent from deploy-mode"
+            Add-C "runtime" "zestflow.admin.redis-required" $j.admin.redisRequired "false on typical single-node"
+        }
     } catch {}
 }
 Add-C "runtime" "zestflow.playground.enabled" $pgEnabled "from /api/system/features"
@@ -156,7 +161,6 @@ Add-C "runtime" "zestflow.tenant.ip-demo-mode" $ipDemoMode "profile enterprise-e
 Add-C "runtime" "zestflow.admin.registry-token" "empty=dev-open" "ON: set token + restart, wrong header -> 401"
 Add-C "runtime" "zestflow.executor.access-token" "empty=dev-open" "ON: set token on both sides + restart"
 Add-C "runtime" "zestflow.mail.enabled" "see application-local.yml" "false=NoopMailService, true=SmtpMailService"
-Add-C "runtime" "zestflow.admin.cache.type" "simple/caffeine/redis" "restart to switch"
 
 Add-F "config" "system-features" $feat.ok $feat.status $feat.ms "playground=$pgEnabled"
 
@@ -195,6 +199,28 @@ foreach ($m in $modules) {
 
 $r = Invoke-Api POST "$BaseAdmin/api/logs/events/query" '{"page":1,"size":5}' $h
 Add-F "admin" "logs-events" $r.ok $r.status $r.ms ""
+
+$r = Invoke-Api GET "$BaseAdmin/actuator/health/zestFlowAdmin" $null $null 10
+Add-F "admin" "actuator-zestFlowAdmin" ($r.ok -and $r.body -match 'deployMode') $r.status $r.ms ""
+
+$r = Invoke-Api GET "$BaseAdmin/api/chains/active-codes?appCode=$($policyRaw.appCode)" $null $h
+Add-F "admin" "chains-active-codes" $r.ok $r.status $r.ms ""
+
+$r = Invoke-Api GET "$BaseAdmin/api/schedules?page=1&size=1" $null $h
+$scheduleId = $null
+if ($r.ok) {
+    try {
+        $schedBody = ConvertFrom-Json $r.body
+        if ($schedBody.records -and $schedBody.records.Count -gt 0) { $scheduleId = $schedBody.records[0].id }
+        elseif ($schedBody.data.records -and $schedBody.data.records.Count -gt 0) { $scheduleId = $schedBody.data.records[0].id }
+    } catch {}
+}
+if ($scheduleId) {
+    $r2 = Invoke-Api POST "$BaseAdmin/api/schedules/$scheduleId/trigger" $null $h 60
+    Add-F "admin" "schedule-trigger" $r2.ok $r2.status $r2.ms "id=$scheduleId"
+} else {
+    Add-F "admin" "schedule-trigger" $true 0 0 "skipped-no-schedule"
+}
 
 # --- Executor netty ---
 $r = Invoke-Api GET "$BaseNetty/health" $null $null

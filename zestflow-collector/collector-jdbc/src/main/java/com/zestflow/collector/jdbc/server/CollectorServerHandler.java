@@ -24,6 +24,8 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
 
 /**
  * Collector Netty HTTP 处理器 — 替代 Spring MVC Controller
@@ -40,13 +42,16 @@ public class CollectorServerHandler extends SimpleChannelInboundHandler<FullHttp
     private final EventQueryService eventQueryService;
     private final ChainGraphSnapshotService snapshotService;
     private final String accessToken;
+    private final ExecutorService queryExecutor;
 
     public CollectorServerHandler(EventQueryService eventQueryService,
                                   ChainGraphSnapshotService snapshotService,
-                                  String accessToken) {
+                                  String accessToken,
+                                  ExecutorService queryExecutor) {
         this.eventQueryService = eventQueryService;
         this.snapshotService = snapshotService;
         this.accessToken = accessToken;
+        this.queryExecutor = queryExecutor;
     }
 
     @Override
@@ -99,10 +104,11 @@ public class CollectorServerHandler extends SimpleChannelInboundHandler<FullHttp
         if (parts.length == 4 && "events".equals(parts[2]) && "query".equals(parts[3])
                 && method == HttpMethod.POST) {
             EventQuery query = MAPPER.readValue(body, EventQuery.class);
-            List<com.zestflow.common.model.dto.ChainEvent> list = eventQueryService.queryEvents(query);
-            long total = eventQueryService.countEvents(query);
-            writeResponse(ctx, HttpResponseStatus.OK, toJson(Result.success(
-                    new PageResult<>(list, total, query.getPage(), query.getPageSize()))));
+            runBlockingQuery(ctx, () -> {
+                List<com.zestflow.common.model.dto.ChainEvent> list = eventQueryService.queryEvents(query);
+                long total = eventQueryService.countEvents(query);
+                return toJson(Result.success(new PageResult<>(list, total, query.getPage(), query.getPageSize())));
+            });
             return true;
         }
 
@@ -110,8 +116,7 @@ public class CollectorServerHandler extends SimpleChannelInboundHandler<FullHttp
         if (parts.length == 4 && "events".equals(parts[2]) && "stats".equals(parts[3])
                 && method == HttpMethod.POST) {
             EventStatsQuery query = MAPPER.readValue(body, EventStatsQuery.class);
-            EventStats stats = eventQueryService.queryStats(query);
-            writeResponse(ctx, HttpResponseStatus.OK, toJson(Result.success(stats)));
+            runBlockingQuery(ctx, () -> toJson(Result.success(eventQueryService.queryStats(query))));
             return true;
         }
 
@@ -119,23 +124,24 @@ public class CollectorServerHandler extends SimpleChannelInboundHandler<FullHttp
         if (parts.length == 4 && "events".equals(parts[2]) && "executions".equals(parts[3])
                 && method == HttpMethod.POST) {
             EventQuery query = MAPPER.readValue(body, EventQuery.class);
-            List<ExecutionTrace> list = eventQueryService.queryExecutionTraces(query);
-            long total = eventQueryService.countExecutionTraces(query);
-            writeResponse(ctx, HttpResponseStatus.OK, toJson(Result.success(
-                    new PageResult<>(list, total, query.getPage(), query.getPageSize()))));
+            runBlockingQuery(ctx, () -> {
+                List<ExecutionTrace> list = eventQueryService.queryExecutionTraces(query);
+                long total = eventQueryService.countExecutionTraces(query);
+                return toJson(Result.success(new PageResult<>(list, total, query.getPage(), query.getPageSize())));
+            });
             return true;
         }
 
         // GET /collector/events/{eventId}
         if (parts.length == 4 && "events".equals(parts[2]) && method == HttpMethod.GET) {
             String eventId = parts[3];
-            com.zestflow.common.model.dto.ChainEvent event = eventQueryService.getById(eventId);
-            if (event == null) {
-                writeResponse(ctx, HttpResponseStatus.NOT_FOUND,
-                        toJson(Result.fail(404, "NOT_FOUND", "Event not found")));
-            } else {
-                writeResponse(ctx, HttpResponseStatus.OK, toJson(Result.success(event)));
-            }
+            runBlockingQuery(ctx, () -> {
+                com.zestflow.common.model.dto.ChainEvent event = eventQueryService.getById(eventId);
+                if (event == null) {
+                    return toJson(Result.fail(404, "NOT_FOUND", "Event not found"));
+                }
+                return toJson(Result.success(event));
+            });
             return true;
         }
 
@@ -143,13 +149,13 @@ public class CollectorServerHandler extends SimpleChannelInboundHandler<FullHttp
         if (parts.length == 5 && "events".equals(parts[2]) && "executions".equals(parts[3])
                 && method == HttpMethod.GET) {
             String executionId = parts[4];
-            ExecutionTrace trace = eventQueryService.getExecutionTrace(executionId);
-            if (trace == null) {
-                writeResponse(ctx, HttpResponseStatus.NOT_FOUND,
-                        toJson(Result.fail(404, "NOT_FOUND", "Execution trace not found")));
-            } else {
-                writeResponse(ctx, HttpResponseStatus.OK, toJson(Result.success(trace)));
-            }
+            runBlockingQuery(ctx, () -> {
+                ExecutionTrace trace = eventQueryService.getExecutionTrace(executionId);
+                if (trace == null) {
+                    return toJson(Result.fail(404, "NOT_FOUND", "Execution trace not found"));
+                }
+                return toJson(Result.success(trace));
+            });
             return true;
         }
 
@@ -181,17 +187,51 @@ public class CollectorServerHandler extends SimpleChannelInboundHandler<FullHttp
             }
             long timestamp = Long.parseLong(timestampStr);
             Long tenantId = tenantIdStr != null ? Long.parseLong(tenantIdStr) : null;
-            ChainSnapshotDTO dto = snapshotService.findSnapshotAt(chainCode, timestamp, tenantId);
-            if (dto == null) {
-                writeResponse(ctx, HttpResponseStatus.NOT_FOUND,
-                        toJson(Result.fail(404, "NOT_FOUND", "Snapshot not found")));
-            } else {
-                writeResponse(ctx, HttpResponseStatus.OK, toJson(Result.success(dto)));
-            }
+            runBlockingQuery(ctx, () -> {
+                ChainSnapshotDTO dto = snapshotService.findSnapshotAt(chainCode, timestamp, tenantId);
+                if (dto == null) {
+                    return toJson(Result.fail(404, "NOT_FOUND", "Snapshot not found"));
+                }
+                return toJson(Result.success(dto));
+            });
             return true;
         }
 
         return false;
+    }
+
+    /**
+     * 在独立线程池执行阻塞 JDBC 查询，避免占用 Netty EventLoop
+     */
+    private void runBlockingQuery(ChannelHandlerContext ctx, Callable<String> query) {
+        Runnable work = () -> {
+            try {
+                String body = query.call();
+                HttpResponseStatus status = body.contains("\"code\":404") ? HttpResponseStatus.NOT_FOUND
+                        : HttpResponseStatus.OK;
+                writeResponse(ctx, status, body);
+            } catch (Exception e) {
+                log.error("Collector 查询失败", e);
+                writeResponse(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                        toJson(Result.fail(500, e.getMessage())));
+            }
+        };
+        if (queryExecutor == null) {
+            work.run();
+            return;
+        }
+        queryExecutor.submit(() -> {
+            try {
+                String body = query.call();
+                HttpResponseStatus status = body.contains("\"code\":404") ? HttpResponseStatus.NOT_FOUND
+                        : HttpResponseStatus.OK;
+                ctx.channel().eventLoop().execute(() -> writeResponse(ctx, status, body));
+            } catch (Exception e) {
+                log.error("Collector 查询失败", e);
+                ctx.channel().eventLoop().execute(() -> writeResponse(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                        toJson(Result.fail(500, e.getMessage()))));
+            }
+        });
     }
 
     @Override

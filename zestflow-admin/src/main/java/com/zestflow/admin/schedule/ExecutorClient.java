@@ -36,6 +36,10 @@ public class ExecutorClient {
     @Value("${zestflow.admin.protocol:http}")
     private String protocol;
 
+    /** Admin → Executor Netty 鉴权（与 zestflow.executor.access-token 一致） */
+    @Value("${zestflow.admin.executor-access-token:}")
+    private String executorAccessToken;
+
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
 
     /**
@@ -56,10 +60,14 @@ public class ExecutorClient {
 
         try {
             String json = objectMapper.writeValueAsString(request);
-            HttpRequest httpRequest = HttpRequest.newBuilder()
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
                     .uri(URI.create(url))
                     .timeout(REQUEST_TIMEOUT)
-                    .header("Content-Type", "application/json")
+                    .header("Content-Type", "application/json");
+            if (executorAccessToken != null && !executorAccessToken.isEmpty()) {
+                builder.header("X-Access-Token", executorAccessToken);
+            }
+            HttpRequest httpRequest = builder
                     .POST(HttpRequest.BodyPublishers.ofString(json))
                     .build();
 

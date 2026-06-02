@@ -106,7 +106,8 @@ mvn test -pl zestflow-admin,zestflow-executor -am
 | `zestflow.executor.access-token` | 空 | Netty 校验 Token | 空=放行 | 直连 Netty POST |
 | `zestflow.tenant.mode` | `single` | `multi` 启用 MP 租户行插件 | 不过滤 `tenant_id` | 重启后创建第二租户 + 数据隔离 |
 | `zestflow.tenant.ip-demo-mode` | `disabled` | `enabled` 时 `TenantIpFilter` 按 IP 映射租户 | 不启用过滤器 | 不同 IP 访问看 `tenant_id` |
-| `zestflow.admin.cache.type` | `simple`/`caffeine` | `redis` 启用 `AdminRedisCacheConfig` | 无 Redis 时用本地缓存 | 改 type + 配 `spring.data.redis.*` 重启 |
+| `zestflow.admin.deploy-mode` | `standalone` | cluster 启用 Redis 运行时状态 | 单机默认内存，**无需 Redis** | 多 Admin 副本时改为 cluster + `spring.data.redis.*` |
+| `zestflow.admin.cache.type` | `caffeine` | `redis` 启用 RedisCacheManager | 单机默认 Caffeine | 与 deploy-mode 独立；多副本建议 redis |
 
 ### 4.1 试验场关闭示例
 

@@ -14,6 +14,8 @@ import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.timeout.IdleStateHandler;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -27,6 +29,7 @@ public class CollectorServer {
 
     private final int port;
     private final CollectorServerHandler serverHandler;
+    private final ExecutorService queryExecutor;
 
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
@@ -36,7 +39,14 @@ public class CollectorServer {
                            ChainGraphSnapshotService snapshotService,
                            String accessToken) {
         this.port = port;
-        this.serverHandler = new CollectorServerHandler(eventQueryService, snapshotService, accessToken);
+        this.queryExecutor = Executors.newFixedThreadPool(
+                Math.max(2, Runtime.getRuntime().availableProcessors()),
+                r -> {
+                    Thread t = new Thread(r, "zestflow-collector-query");
+                    t.setDaemon(true);
+                    return t;
+                });
+        this.serverHandler = new CollectorServerHandler(eventQueryService, snapshotService, accessToken, queryExecutor);
     }
 
     public void start() throws InterruptedException {
@@ -88,6 +98,17 @@ public class CollectorServer {
         }
         if (workerGroup != null) {
             workerGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS);
+        }
+        if (queryExecutor != null) {
+            queryExecutor.shutdown();
+            try {
+                if (!queryExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    queryExecutor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                queryExecutor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
         }
         log.info("采集器 Netty 服务已关闭");
     }

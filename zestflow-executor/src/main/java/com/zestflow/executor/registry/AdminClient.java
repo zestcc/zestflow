@@ -17,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -173,6 +174,9 @@ public class AdminClient {
     }
 
     private List<String> parseAddresses() {
-        return List.of(properties.getAdminAddresses().split(","));
+        return Arrays.stream(properties.getAdminAddresses().split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
     }
 }

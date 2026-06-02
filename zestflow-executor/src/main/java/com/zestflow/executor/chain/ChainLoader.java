@@ -6,6 +6,7 @@ import com.zestflow.executor.design.DesignRepository;
 import com.zestflow.common.model.dto.ChainSyncDTO;
 import com.zestflow.executor.engine.NodeRunner;
 import com.zestflow.executor.registry.AdminClient;
+import com.zestflow.executor.registry.ExecutorProperties;
 import com.zestflow.executor.scanner.ComponentScanner;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -37,6 +38,7 @@ public class ChainLoader implements ApplicationRunner, Ordered {
     private final DesignRepository designRepo;
     private final NodeRunner nodeRunner;
     private final AdminClient adminClient;
+    private final ExecutorProperties executorProperties;
 
     @Data
     @AllArgsConstructor
@@ -94,7 +96,7 @@ public class ChainLoader implements ApplicationRunner, Ordered {
                     }
 
                     ChainDefinition definition = chainDefinitionBuilder.build(
-                            chain.getCode(), ChainConstants.CHAIN_INIT,
+                            chain.getCode(), chain.getVersion(),
                             design.getChainData(), design.getGraphData());
                     definitions.add(definition);
 
@@ -135,13 +137,21 @@ public class ChainLoader implements ApplicationRunner, Ordered {
      * 从本地 DB 热加载链定义（Admin 推送发布时调用）
      * <p>
      * 如果入参携带 graphData，先持久化到设计表，再从本地 DB 读取构建；
-     * 否则直接从本地 DB 读取最新数据构建。
-     *
-     * @param chainCode 链编码
-     * @param graphData 设计图谱 JSON（可选，null 时从 DB 读取）
-     * @return 加载结果
+     * 否则直接从本地 DB 读取最新数据构建。会递增版本并保存快照。
      */
     public ChainReloadResult reloadChainLocal(String chainCode, String graphData, String chainData) {
+        return reloadChainInternal(chainCode, graphData, chainData, true, true);
+    }
+
+    /**
+     * 轮询热加载 — 仅重建内存 ChainDefinition，不递增 DB 版本（对标 LiteFlow/Nacos 配置刷新）。
+     */
+    public ChainReloadResult reloadFromDatabase(String chainCode) {
+        return reloadChainInternal(chainCode, null, null, false, false);
+    }
+
+    private ChainReloadResult reloadChainInternal(String chainCode, String graphData, String chainData,
+                                                   boolean persistGraph, boolean incrementVersion) {
         try {
             // 1. 检查链是否存在
             ChainPO chain = chainRepo.get(chainCode);
@@ -159,7 +169,7 @@ public class ChainLoader implements ApplicationRunner, Ordered {
             }
 
             // 3. 如果推送了图形数据，先持久化到设计表
-            if (graphData != null && !graphData.isEmpty()) {
+            if (persistGraph && graphData != null && !graphData.isEmpty()) {
                 designRepo.saveGraph(designCode, graphData, chainData, null);
                 log.info("推送 graphData/chainData 已持久化 designCode={}", designCode);
             }
@@ -176,8 +186,9 @@ public class ChainLoader implements ApplicationRunner, Ordered {
             }
 
             // 5. 从 JSON 构建链定义（优先使用 chainData）
+            int version = chain.getVersion() != null ? chain.getVersion() : 1;
             ChainDefinition definition = chainDefinitionBuilder.build(chainCode,
-                    ChainConstants.CHAIN_INIT, actualChainData, actualGraphData);
+                    version, actualChainData, actualGraphData);
 
             // 6. 校验
             List<String> errors = chainValidator.validate(definition);
@@ -186,15 +197,18 @@ public class ChainLoader implements ApplicationRunner, Ordered {
                 return new ChainReloadResult(false, "校验失败: " + String.join("; ", errors), 0);
             }
 
-            // 6.5 版本化：递增版本号并保存快照（失败不影响加载）
-            int newVersion = 1;
-            try {
-                newVersion = chainRepo.incrementVersion(chainCode);
-                chainRepo.saveVersionSnapshot(chainCode, newVersion, designCode,
-                        actualGraphData, actualChainData, null);
-                log.info("版本快照已保存 code={} version={}", chainCode, newVersion);
-            } catch (Exception e) {
-                log.warn("保存版本快照失败（不影响热加载）code={}", chainCode, e);
+            // 6.5 版本化：发布热加载时递增版本并保存快照（轮询刷新跳过）
+            int newVersion = version;
+            if (incrementVersion) {
+                try {
+                    newVersion = chainRepo.incrementVersion(chainCode);
+                    definition.setVersion(newVersion);
+                    chainRepo.saveVersionSnapshot(chainCode, newVersion, designCode,
+                            actualGraphData, actualChainData, null);
+                    log.info("版本快照已保存 code={} version={}", chainCode, newVersion);
+                } catch (Exception e) {
+                    log.warn("保存版本快照失败（不影响热加载）code={}", chainCode, e);
+                }
             }
 
             // 7. 加载到 ChainManager
@@ -207,8 +221,10 @@ public class ChainLoader implements ApplicationRunner, Ordered {
             log.info("链热加载成功 code={} nodes={} layers={}",
                     chainCode, definition.nodeCount(), definition.layerCount());
 
-            // 通知 Admin 同步状态
-            notifyAdminSync(List.of(definition), "READY", null);
+            // 通知 Admin 同步状态（轮询刷新不上报，避免 Admin 状态抖动）
+            if (incrementVersion) {
+                notifyAdminSync(List.of(definition), "READY", null);
+            }
 
             return new ChainReloadResult(true, null, definition.nodeCount());
 
@@ -228,13 +244,22 @@ public class ChainLoader implements ApplicationRunner, Ordered {
                     .map(ChainDefinition::getCode)
                     .collect(java.util.stream.Collectors.toList());
             ChainSyncDTO sync = ChainSyncDTO.builder()
+                    .executorId(resolveExecutorId())
                     .loadedChains(loadedCodes)
                     .status(status)
                     .errorMessage(errorMessage)
+                    .timestamp(System.currentTimeMillis())
                     .build();
             adminClient.notifyChainSync(sync);
         } catch (Exception e) {
             log.debug("通知 Admin 链同步失败（忽略）: {}", e.getMessage());
         }
+    }
+
+    private String resolveExecutorId() {
+        return String.format("%s@%s:%d",
+                executorProperties.getAppCode(),
+                executorProperties.getHost(),
+                executorProperties.getPort());
     }
 }

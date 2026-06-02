@@ -51,6 +51,10 @@ public class ExecutorRegistrar implements ApplicationRunner {
 
     private String executorId;
 
+    public String getExecutorId() {
+        return executorId;
+    }
+
     public boolean isRegistered() {
         return registered.get();
     }
@@ -73,6 +77,14 @@ public class ExecutorRegistrar implements ApplicationRunner {
     public void destroy() {
         log.info("执行器关闭，开始注销 executorId={}", executorId);
         heartbeatScheduler.shutdown();
+        try {
+            if (!heartbeatScheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+                heartbeatScheduler.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            heartbeatScheduler.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
         if (registered.get()) {
             adminClient.deregister(executorId);
         }

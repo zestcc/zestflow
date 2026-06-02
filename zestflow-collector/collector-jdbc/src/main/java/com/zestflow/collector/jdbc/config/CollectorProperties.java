@@ -1,5 +1,6 @@
 package com.zestflow.collector.jdbc.config;
 
+import com.zestflow.collector.async.AsyncCollectorSettings;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -42,4 +43,18 @@ public class CollectorProperties {
 
     /** 关闭等待时间（毫秒） */
     private long shutdownTimeoutMs = 5000;
+
+    /** HTTP 客户端超时（毫秒，注册/心跳） */
+    private int httpTimeoutMs = 5000;
+
+    /** 磁盘降级回放间隔（毫秒） */
+    private long diskReplayIntervalMs = 5000;
+
+    public AsyncCollectorSettings toAsyncSettings() {
+        return new AsyncCollectorSettings(
+                batchSize, batchMaxWaitMs, queueCapacity,
+                diskFallbackEnabled, diskFallbackDir,
+                circuitBreakerThreshold, circuitBreakerCooldownMs,
+                shutdownTimeoutMs, diskReplayIntervalMs);
+    }
 }

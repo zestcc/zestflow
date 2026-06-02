@@ -592,33 +592,45 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
                     forkJoinPool));
         }
 
+        if (futures.isEmpty()) {
+            return List.of();
+        }
+
+        if (instance.isStopped() || instance.isTimedOut()) {
+            cancelPendingFutures(futures);
+            return List.of();
+        }
+
+        long waitMs = safeWaitMs(instance.getRemainingMs());
+        if (waitMs == 0 && instance.hasDeadline()) {
+            cancelPendingFutures(futures);
+            return List.of(nodeFailure(null, ChainConstants.NODE_TIMEOUT, "并行层执行超时"));
+        }
+
+        CompletableFuture<Void> all = CompletableFuture.allOf(
+                futures.toArray(new CompletableFuture[0]));
+        try {
+            all.get(waitMs, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            log.warn("并行层等待超时 chainCode={} instanceId={}",
+                    definition.getCode(), instance.getInstanceId());
+            cancelPendingFutures(futures);
+            return List.of(nodeFailure(null, ChainConstants.NODE_TIMEOUT, "并行层执行超时"));
+        } catch (Exception e) {
+            log.error("并行层执行异常 chainCode={}", definition.getCode(), e);
+            cancelPendingFutures(futures);
+            return List.of(nodeFailure(null, ChainConstants.NODE_FAILED, e.getMessage()));
+        }
+
         List<NodeResultDTO> results = new ArrayList<>();
         for (CompletableFuture<ParallelNodeOutcome> future : futures) {
-            if (instance.isStopped() || instance.isTimedOut()) {
-                cancelPendingFutures(futures);
-                break;
+            ParallelNodeOutcome outcome = future.getNow(null);
+            if (outcome == null) {
+                results.add(nodeFailure(null, ChainConstants.NODE_FAILED, "并行节点未完成"));
+                continue;
             }
-            try {
-                long waitMs = safeWaitMs(instance.getRemainingMs());
-                if (waitMs == 0 && instance.hasDeadline()) {
-                    cancelPendingFutures(futures);
-                    break;
-                }
-                ParallelNodeOutcome outcome = future.get(waitMs, TimeUnit.MILLISECONDS);
-                context.mergeFrom(outcome.forkedContext());
-                results.add(outcome.result());
-            } catch (TimeoutException e) {
-                log.warn("并行节点等待超时 chainCode={} instanceId={}",
-                        definition.getCode(), instance.getInstanceId());
-                cancelPendingFutures(futures);
-                results.add(nodeFailure(null, ChainConstants.NODE_TIMEOUT, "并行节点执行超时"));
-                break;
-            } catch (Exception e) {
-                log.error("并行节点执行异常", e);
-                cancelPendingFutures(futures);
-                results.add(nodeFailure(null, ChainConstants.NODE_FAILED, e.getMessage()));
-                break;
-            }
+            context.mergeFrom(outcome.forkedContext());
+            results.add(outcome.result());
         }
         return results;
     }

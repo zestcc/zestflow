@@ -1,18 +1,10 @@
-package com.zestflow.collector.jdbc.collector;
+package com.zestflow.collector.async;
 
-import com.zestflow.collector.jdbc.config.CollectorProperties;
 import com.zestflow.common.model.dto.ChainEvent;
 import com.zestflow.common.spi.EventCollector;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -22,47 +14,39 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 
 /**
- * 异步事件采集器 — 三级流水线：内存队列 → 批量代理 → 下游 Collector
- * <p>
- * 装饰 {@link JdbcEventCollector} 或其他 {@link EventCollector} 实现，提供：
- * <ul>
- *   <li>有界队列 + offer() 非阻塞入队，绝不阻塞业务线程</li>
- *   <li>独立线程批量拉取，按批次转发给下游 Collector</li>
- *   <li>熔断器：连续失败 N 次后暂停采集一个冷却周期</li>
- *   <li>磁盘降级（可选）：队列满或熔断开启时写入本地文件</li>
- * </ul>
+ * 异步事件采集器 — 内存队列 → 批量代理 → 下游 Collector（对标 Logstash/RabbitMQ publisher confirm 异步层）。
  */
-@Slf4j
 public class AsyncEventCollector implements EventCollector {
 
+    private static final Logger log = LoggerFactory.getLogger(AsyncEventCollector.class);
+
     private final BlockingQueue<ChainEvent> queue;
-
     private final EventCollector delegate;
-
-    private final CollectorProperties config;
-
+    private final AsyncCollectorSettings config;
     private final Thread workerThread;
-
+    private final DiskFallbackStore diskFallbackStore;
     private volatile boolean running = true;
-
     private final CircuitBreaker circuitBreaker;
-
     private final AtomicInteger publishedCount = new AtomicInteger(0);
     private final AtomicInteger droppedCount = new AtomicInteger(0);
+    private final AtomicInteger replayedCount = new AtomicInteger(0);
+    private long lastReplayAttemptMs = 0;
 
-    public AsyncEventCollector(EventCollector delegate, CollectorProperties config) {
+    public AsyncEventCollector(EventCollector delegate, AsyncCollectorSettings config) {
         this.delegate = delegate;
         this.config = config;
-        this.queue = new LinkedBlockingQueue<>(config.getQueueCapacity());
-        this.circuitBreaker = new CircuitBreaker(config.getCircuitBreakerThreshold(),
-                config.getCircuitBreakerCooldownMs());
+        this.queue = new LinkedBlockingQueue<>(config.queueCapacity());
+        this.circuitBreaker = new CircuitBreaker(config.circuitBreakerThreshold(),
+                config.circuitBreakerCooldownMs());
+        this.diskFallbackStore = config.diskFallbackEnabled()
+                ? new DiskFallbackStore(config.diskFallbackDir()) : null;
 
         this.workerThread = new Thread(this::drainLoop, "zestflow-async-collector-drain");
         this.workerThread.setDaemon(true);
         this.workerThread.start();
 
-        log.info("AsyncEventCollector 启动 queueCapacity={} batchSize={} delegate={}",
-                config.getQueueCapacity(), config.getBatchSize(), delegate.getName());
+        log.info("AsyncEventCollector 启动 queueCapacity={} batchSize={} diskFallback={} delegate={}",
+                config.queueCapacity(), config.batchSize(), config.diskFallbackEnabled(), delegate.getName());
     }
 
     @Override
@@ -74,8 +58,8 @@ public class AsyncEventCollector implements EventCollector {
         boolean offered = queue.offer(event);
         if (!offered) {
             droppedCount.incrementAndGet();
-            if (config.isDiskFallbackEnabled()) {
-                writeToDisk(event);
+            if (diskFallbackStore != null) {
+                diskFallbackStore.append(event);
             } else {
                 log.warn("事件队列已满，丢弃事件 eventId={}", event.getEventId());
             }
@@ -87,45 +71,49 @@ public class AsyncEventCollector implements EventCollector {
         if (events == null || events.isEmpty()) {
             return;
         }
-        // 批量入口也逐个入队，由 drain 线程统一批量提交
         for (ChainEvent event : events) {
             collect(event);
         }
     }
 
-    /**
-     * 优雅关闭：等待已入队事件处理完成
-     */
     public void destroy() {
         log.info("AsyncEventCollector 开始关闭...");
         running = false;
         LockSupport.unpark(workerThread);
         try {
-            workerThread.join(config.getShutdownTimeoutMs());
+            workerThread.join(config.shutdownTimeoutMs());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
         drainBatch();
         int remaining = queue.size();
         if (remaining > 0) {
-            log.warn("关闭时丢弃 {} 条未处理事件", remaining);
+            if (diskFallbackStore != null) {
+                queue.forEach(diskFallbackStore::append);
+                queue.clear();
+                log.warn("关闭时将 {} 条未处理事件写入磁盘降级", remaining);
+            } else {
+                log.warn("关闭时丢弃 {} 条未处理事件", remaining);
+                queue.clear();
+            }
         }
-        log.info("AsyncEventCollector 已关闭, 总处理={} 丢弃={}",
-                publishedCount.get(), droppedCount.get());
+        log.info("AsyncEventCollector 已关闭, 总处理={} 丢弃={} 回放={}",
+                publishedCount.get(), droppedCount.get(), replayedCount.get());
     }
 
     private void drainLoop() {
         while (running) {
             try {
-                ChainEvent first = queue.poll(config.getBatchMaxWaitMs(), TimeUnit.MILLISECONDS);
+                tryReplayFromDisk();
+
+                ChainEvent first = queue.poll(config.batchMaxWaitMs(), TimeUnit.MILLISECONDS);
                 if (first == null) {
                     continue;
                 }
 
-                List<ChainEvent> batch = new ArrayList<>(config.getBatchSize());
+                List<ChainEvent> batch = new ArrayList<>(config.batchSize());
                 batch.add(first);
-                queue.drainTo(batch, config.getBatchSize() - 1);
-
+                queue.drainTo(batch, config.batchSize() - 1);
                 processBatch(batch);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -136,14 +124,41 @@ public class AsyncEventCollector implements EventCollector {
         }
     }
 
+    private void tryReplayFromDisk() {
+        if (diskFallbackStore == null || circuitBreaker.isOpen()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastReplayAttemptMs < config.diskReplayIntervalMs()) {
+            return;
+        }
+        lastReplayAttemptMs = now;
+
+        DiskFallbackStore.SpoolBatch spool = diskFallbackStore.pollBatch(config.batchSize());
+        if (spool.isEmpty()) {
+            return;
+        }
+        try {
+            delegate.collectBatch(spool.events());
+            publishedCount.addAndGet(spool.events().size());
+            replayedCount.addAndGet(spool.events().size());
+            diskFallbackStore.acknowledge(spool);
+            circuitBreaker.recordSuccess();
+            log.info("磁盘降级回放成功 size={}", spool.events().size());
+        } catch (Exception e) {
+            log.warn("磁盘降级回放失败，保留 spool 待下次重试 size={}", spool.events().size(), e);
+            circuitBreaker.recordFailure();
+        }
+    }
+
     private void processBatch(List<ChainEvent> batch) {
         if (batch.isEmpty()) {
             return;
         }
 
         if (circuitBreaker.isOpen()) {
-            if (config.isDiskFallbackEnabled()) {
-                batch.forEach(this::writeToDisk);
+            if (diskFallbackStore != null) {
+                batch.forEach(diskFallbackStore::append);
             } else {
                 log.warn("熔断器开启，丢弃 {} 条事件", batch.size());
             }
@@ -158,14 +173,25 @@ public class AsyncEventCollector implements EventCollector {
         } catch (Exception e) {
             log.error("批量提交失败 collector={} size={}", delegate.getName(), batch.size(), e);
             circuitBreaker.recordFailure();
-            if (config.isDiskFallbackEnabled()) {
-                batch.forEach(this::writeToDisk);
+            if (diskFallbackStore != null) {
+                batch.forEach(diskFallbackStore::append);
+            } else {
+                requeueBatch(batch);
+            }
+        }
+    }
+
+    private void requeueBatch(List<ChainEvent> batch) {
+        for (ChainEvent event : batch) {
+            if (!queue.offer(event)) {
+                droppedCount.incrementAndGet();
+                log.warn("批量失败重入队时队列已满，丢弃事件 eventId={}", event.getEventId());
             }
         }
     }
 
     private void drainBatch() {
-        List<ChainEvent> remaining = new ArrayList<>(config.getBatchSize());
+        List<ChainEvent> remaining = new ArrayList<>(config.batchSize());
         queue.drainTo(remaining);
         if (!remaining.isEmpty()) {
             try {
@@ -175,23 +201,6 @@ public class AsyncEventCollector implements EventCollector {
             }
         }
     }
-
-    private void writeToDisk(ChainEvent event) {
-        try {
-            Path dir = Paths.get(config.getDiskFallbackDir());
-            Files.createDirectories(dir);
-            String fileName = "events-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + ".log";
-            Path file = dir.resolve(fileName);
-            String line = event.getEventId() + "|" + event.getTimestamp() + "|"
-                    + event.getEventType() + "|" + event.getChainId() + System.lineSeparator();
-            Files.writeString(file, line, StandardCharsets.UTF_8,
-                    StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-        } catch (IOException e) {
-            log.error("磁盘降级写入失败 eventId={}", event.getEventId(), e);
-        }
-    }
-
-    // ========== 熔断器 ==========
 
     static class CircuitBreaker {
         private final int threshold;
@@ -231,8 +240,6 @@ public class AsyncEventCollector implements EventCollector {
         }
     }
 
-    // ========== Getter（测试/监控用） ==========
-
     public int getPublishedCount() {
         return publishedCount.get();
     }
@@ -241,11 +248,19 @@ public class AsyncEventCollector implements EventCollector {
         return droppedCount.get();
     }
 
+    public int getReplayedCount() {
+        return replayedCount.get();
+    }
+
     public int getQueueSize() {
         return queue.size();
     }
 
     public boolean isCircuitOpen() {
         return circuitBreaker.isOpen();
+    }
+
+    public int getDiskSpoolPending() {
+        return diskFallbackStore != null ? diskFallbackStore.countPendingEvents() : 0;
     }
 }

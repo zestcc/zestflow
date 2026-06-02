@@ -1,6 +1,9 @@
 package com.zestflow.admin.system;
 
+import com.zestflow.admin.config.AdminCacheProperties;
+import com.zestflow.admin.config.AdminRedisConditions;
 import com.zestflow.admin.config.TenantModeConfig;
+import com.zestflow.admin.runtime.AdminDeployProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.env.Environment;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,9 +23,11 @@ public class SystemController {
 
     private final Environment environment;
     private final TenantModeConfig tenantModeConfig;
+    private final AdminDeployProperties deployProperties;
+    private final AdminCacheProperties cacheProperties;
 
     /**
-     * 获取系统特性开关状态，前端据此控制菜单显隐；E2E 用于探测运行时租户/IP 模式
+     * 获取系统特性开关状态，前端/E2E 探测运行时配置
      */
     @GetMapping("/features")
     public Map<String, Object> getFeatures() {
@@ -37,6 +42,11 @@ public class SystemController {
         String registryToken = environment.getProperty("zestflow.admin.registry-token", "");
         out.put("security", Map.of(
                 "registryTokenConfigured", registryToken != null && !registryToken.isBlank()
+        ));
+        out.put("admin", Map.of(
+                "deployMode", deployProperties.getDeployMode(),
+                "cacheType", cacheProperties.getType(),
+                "redisRequired", AdminRedisConditions.isRedisInfrastructureRequired(environment)
         ));
         return out;
     }

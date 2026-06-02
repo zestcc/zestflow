@@ -1,6 +1,5 @@
 package com.zestflow.executor.server;
 
-import com.zestflow.common.constant.RegistryConstants;
 import com.zestflow.executor.chain.ChainLoader;
 import com.zestflow.executor.chain.ChainRepository;
 import com.zestflow.executor.design.DesignRepository;
@@ -28,6 +27,7 @@ public class ExecutorServer {
     private final ServerHandler serverHandler;
     private final String accessToken;
     private final ChainExecuteThreadPool executeThreadPool;
+    private final int idleTimeoutSeconds;
 
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
@@ -43,6 +43,7 @@ public class ExecutorServer {
                 properties.resolveExecutePoolCoreSize(),
                 properties.resolveExecutePoolMaxSize(),
                 properties.getExecutePoolQueueCapacity());
+        this.idleTimeoutSeconds = Math.max(60, properties.getHeartbeatInterval() * 2);
         this.serverHandler = new ServerHandler(engine, chainRepo, designRepo, componentScanner, chainLoader);
         this.serverHandler.setAccessToken(accessToken);
         this.serverHandler.setExecuteThreadPool(executeThreadPool);
@@ -88,8 +89,7 @@ public class ExecutorServer {
                         ch.pipeline()
                                 .addLast(new HttpServerCodec())
                                 .addLast(new HttpObjectAggregator(1048576))
-                                .addLast(new IdleStateHandler(
-                                        0, 0, RegistryConstants.DEFAULT_HEARTBEAT_INTERVAL_SECONDS * 2))
+                                .addLast(new IdleStateHandler(0, 0, idleTimeoutSeconds))
                                 .addLast(serverHandler);
                     }
                 });

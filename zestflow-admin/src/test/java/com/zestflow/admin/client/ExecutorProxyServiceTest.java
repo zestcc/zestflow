@@ -41,30 +41,22 @@ class ExecutorProxyServiceTest {
     }
 
     @Test
-    void resolveExecutorBaseUrl_roundRobinCyclesThroughExecutors() {
-        ExecutorRegistryPO e1 = executor("host-a", 20550);
-        ExecutorRegistryPO e2 = executor("host-b", 20550);
-        ExecutorRegistryPO e3 = executor("host-c", 20550);
+    void resolveExecutorBaseUrl_usesPrimaryExecutorDeterministically() {
+        ExecutorRegistryPO e1 = executor("exec-b", "host-b", 20550);
+        ExecutorRegistryPO e2 = executor("exec-a", "host-a", 20550);
+        ExecutorRegistryPO e3 = executor("exec-c", "host-c", 20550);
         when(executorRegistryMapper.selectList(any())).thenReturn(List.of(e1, e2, e3));
 
         String u1 = proxyService.resolveExecutorBaseUrl("app");
         String u2 = proxyService.resolveExecutorBaseUrl("app");
-        String u3 = proxyService.resolveExecutorBaseUrl("app");
-        String u4 = proxyService.resolveExecutorBaseUrl("app");
-        String u5 = proxyService.resolveExecutorBaseUrl("app");
-        String u6 = proxyService.resolveExecutorBaseUrl("app");
 
         assertThat(u1).isEqualTo("http://host-a:20550");
-        assertThat(u2).isEqualTo("http://host-b:20550");
-        assertThat(u3).isEqualTo("http://host-c:20550");
-        assertThat(u4).isEqualTo("http://host-a:20550");
-        assertThat(u5).isEqualTo("http://host-b:20550");
-        assertThat(u6).isEqualTo("http://host-c:20550");
+        assertThat(u2).isEqualTo("http://host-a:20550");
     }
 
     @Test
     void resolveExecutorBaseUrl_singleExecutor_alwaysReturnsSame() {
-        ExecutorRegistryPO e1 = executor("host-a", 20550);
+        ExecutorRegistryPO e1 = executor("exec-a", "host-a", 20550);
         when(executorRegistryMapper.selectList(any())).thenReturn(List.of(e1));
 
         String u1 = proxyService.resolveExecutorBaseUrl("app");
@@ -102,7 +94,7 @@ class ExecutorProxyServiceTest {
     @Test
     void executeOnExecutor_post_shouldAttachAccessTokenHeader() {
         ReflectionTestUtils.setField(proxyService, "executorAccessToken", "exec-secret");
-        when(executorRegistryMapper.selectList(any())).thenReturn(List.of(executor("host-a", 20550)));
+        when(executorRegistryMapper.selectList(any())).thenReturn(List.of(executor("exec-a", "host-a", 20550)));
         when(restTemplate.postForObject(any(String.class), any(HttpEntity.class), eq(String.class)))
                 .thenReturn("{\"code\":200}");
 
@@ -118,7 +110,7 @@ class ExecutorProxyServiceTest {
     @Test
     void executeOnExecutor_get_shouldAttachAccessTokenHeader() throws Exception {
         ReflectionTestUtils.setField(proxyService, "executorAccessToken", "exec-secret");
-        when(executorRegistryMapper.selectList(any())).thenReturn(List.of(executor("host-a", 20550)));
+        when(executorRegistryMapper.selectList(any())).thenReturn(List.of(executor("exec-a", "host-a", 20550)));
         when(restTemplate.exchange(any(RequestEntity.class), eq(String.class)))
                 .thenReturn(org.springframework.http.ResponseEntity.ok("{}"));
 
@@ -132,8 +124,9 @@ class ExecutorProxyServiceTest {
                 eq(String.class));
     }
 
-    private static ExecutorRegistryPO executor(String host, int port) {
+    private static ExecutorRegistryPO executor(String executorId, String host, int port) {
         ExecutorRegistryPO po = new ExecutorRegistryPO();
+        po.setExecutorId(executorId);
         po.setExecutorHost(host);
         po.setExecutorPort(port);
         po.setStatus(RegistryConstants.STATUS_ONLINE);

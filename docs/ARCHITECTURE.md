@@ -1539,8 +1539,9 @@ flowchart TD
 | `jwt.secret` | 开发默认值 | **生产必须覆盖** |
 | `jwt.expiration` | 86400000 | 毫秒 |
 | `admin.protocol` | http | 访问 Executor |
+| `admin.deploy-mode` | standalone | 运行时状态：standalone=内存 / cluster=Redis |
+| `admin.cache.type` | caffeine | 权限缓存：simple / caffeine / redis（与 deploy-mode 独立） |
 | `collector.api-url` | http://localhost:20650 | Collector 兜底 |
-| `admin.cache.type` | caffeine | 可选 redis |
 | `mail.enabled` | false | 邮件开关 |
 
 ### 11.4 配置同步规范
@@ -1599,7 +1600,8 @@ graph TB
 | 降级 | `FallbackStrategy` | Default（仅日志） | `@Bean` 替换 |
 | 路由 | `RouteStrategy` | RoundRobin | schedule.route_strategy |
 | 邮件 | `MailService` | Noop / Smtp | mail.enabled |
-| 缓存 | CacheManager | Caffeine | cache.type=redis |
+| 缓存 | CacheManager | Caffeine | cache.type=redis；单机 standalone 无需 Redis |
+| 运行时状态 | AdminRuntimeStateStore | 内存 | deploy-mode=cluster 时用 Redis |
 
 ---
 

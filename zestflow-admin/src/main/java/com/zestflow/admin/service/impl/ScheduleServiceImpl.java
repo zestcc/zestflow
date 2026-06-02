@@ -175,8 +175,8 @@ public class ScheduleServiceImpl implements ScheduleService {
         long startTime = System.currentTimeMillis();
         LocalDateTime now = LocalDateTime.now();
 
-        // 1. 查找在线执行器
-        List<ExecutorRegistryPO> onlineExecutors = findOnlineExecutors();
+        // 1. 查找当前应用下的在线执行器
+        List<ExecutorRegistryPO> onlineExecutors = findOnlineExecutors(schedule.getAppCode());
 
         ScheduleLogPO logPo = new ScheduleLogPO();
         logPo.setScheduleId(schedule.getId());
@@ -236,11 +236,13 @@ public class ScheduleServiceImpl implements ScheduleService {
         return toLogVO(logPo);
     }
 
-    List<ExecutorRegistryPO> findOnlineExecutors() {
-        return executorRegistryMapper.selectList(
-                new LambdaQueryWrapper<ExecutorRegistryPO>()
-                        .eq(ExecutorRegistryPO::getStatus, RegistryConstants.STATUS_ONLINE)
-        );
+    List<ExecutorRegistryPO> findOnlineExecutors(String appCode) {
+        LambdaQueryWrapper<ExecutorRegistryPO> wrapper = new LambdaQueryWrapper<ExecutorRegistryPO>()
+                .eq(ExecutorRegistryPO::getStatus, RegistryConstants.STATUS_ONLINE);
+        if (appCode != null && !appCode.isBlank()) {
+            wrapper.eq(ExecutorRegistryPO::getAppCode, appCode);
+        }
+        return executorRegistryMapper.selectList(wrapper);
     }
 
     private RouteStrategy findStrategy(String name) {

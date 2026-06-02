@@ -9,6 +9,7 @@ import com.zestflow.admin.client.ExecutorProxyService;
 import com.zestflow.admin.client.ExecutorProxyService.BroadcastResult;
 import com.zestflow.admin.client.ExecutorProxyService.ExecutorResult;
 import com.zestflow.admin.constant.ErrorCode;
+import com.zestflow.admin.runtime.AdminRuntimeStateStore;
 import com.zestflow.admin.service.PermissionService;
 import com.zestflow.admin.util.SecurityUtils;
 import com.zestflow.common.exception.BizException;
@@ -25,7 +26,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 链管理 — 所有数据通过 HTTP 代理到具体 Executor 端
@@ -37,12 +37,11 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ChainController {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    /** 发布进度缓存 chainCode → [publishedCount, totalCount] */
-    private static final ConcurrentHashMap<String, int[]> PUBLISH_PROGRESS = new ConcurrentHashMap<>();
 
     private final ExecutorProxyService proxyService;
     private final PermissionService permissionService;
     private final CollectorClient collectorClient;
+    private final AdminRuntimeStateStore runtimeStateStore;
 
     @GetMapping
     public String listByAppCode(
@@ -86,7 +85,7 @@ public class ChainController {
         int status = node.has("status") ? node.get("status").asInt() : 0;
         // 优先从发布缓存读取
         int publishedCount = 0;
-        int[] cached = PUBLISH_PROGRESS.get(code);
+        int[] cached = runtimeStateStore.getPublishProgress(code).orElse(null);
         if (cached != null) {
             publishedCount = cached[0];
             totalExecutors = cached[1];
@@ -140,9 +139,8 @@ public class ChainController {
         }
     }
 
-    /** 链同步状态内存缓存：executorId → ChainSyncDTO */
+    /** 链同步状态 TTL（内存/Redis 统一过期策略） */
     private static final Duration SYNC_CACHE_TTL = Duration.ofMinutes(5);
-    private static final ConcurrentHashMap<String, com.zestflow.common.model.dto.ChainSyncDTO> CHAIN_SYNC_STATUS = new ConcurrentHashMap<>();
 
     /**
      * 接收 Executor 上报的链同步状态
@@ -151,10 +149,13 @@ public class ChainController {
     public String receiveChainSync(@RequestBody String syncJson) {
         try {
             com.zestflow.common.model.dto.ChainSyncDTO sync = MAPPER.readValue(syncJson, com.zestflow.common.model.dto.ChainSyncDTO.class);
+            if (sync.getExecutorId() == null || sync.getExecutorId().isBlank()) {
+                return "{\"code\":400,\"message\":\"executorId 不能为空\"}";
+            }
             if (sync.getTimestamp() == null) {
                 sync.setTimestamp(System.currentTimeMillis());
             }
-            CHAIN_SYNC_STATUS.put(sync.getExecutorId(), sync);
+            runtimeStateStore.saveChainSync(sync);
             log.info("收到链同步通知 executorId={} status={} loaded={}", sync.getExecutorId(), sync.getStatus(),
                     sync.getLoadedChains() != null ? sync.getLoadedChains().size() : 0);
         } catch (Exception e) {
@@ -168,13 +169,13 @@ public class ChainController {
     public String getSyncStatus(@RequestParam(required = false) String executorId) {
         try {
             if (executorId != null && !executorId.isEmpty()) {
-                com.zestflow.common.model.dto.ChainSyncDTO sync = CHAIN_SYNC_STATUS.get(executorId);
+                com.zestflow.common.model.dto.ChainSyncDTO sync = runtimeStateStore.getChainSync(executorId).orElse(null);
                 if (sync == null) {
                     return "{\"code\":404,\"message\":\"未找到同步记录\"}";
                 }
                 return MAPPER.writeValueAsString(sync);
             }
-            return MAPPER.writeValueAsString(CHAIN_SYNC_STATUS);
+            return MAPPER.writeValueAsString(runtimeStateStore.getAllChainSync());
         } catch (Exception e) {
             return "{\"code\":500,\"message\":\"查询同步状态失败\"}";
         }
@@ -186,7 +187,7 @@ public class ChainController {
     @Scheduled(fixedRate = 60000)
     public void evictStaleSyncStatus() {
         long cutoff = System.currentTimeMillis() - SYNC_CACHE_TTL.toMillis();
-        CHAIN_SYNC_STATUS.entrySet().removeIf(e -> e.getValue().getTimestamp() < cutoff);
+        runtimeStateStore.evictStaleChainSync(cutoff);
     }
 
     @GetMapping("/{code}")
@@ -317,9 +318,13 @@ public class ChainController {
                 for (ExecutorResult r : reloadResult.getResults()) {
                     if (r.isOk()) {
                         try {
-                            proxyService.executeOnExecutor(appCode, "PUT",
-                                    "/api/chains/" + code + "/reload", rollbackBody);
-                            log.info("回滚成功 executor={}", r.getUrl());
+                            ExecutorResult rollbackResult = proxyService.executeOnExecutorUrl(
+                                    r.getUrl(), "PUT", "/api/chains/" + code + "/reload", rollbackBody);
+                            if (rollbackResult.isOk()) {
+                                log.info("回滚成功 executor={}", r.getUrl());
+                            } else {
+                                log.error("回滚失败 executor={} msg={}", r.getUrl(), rollbackResult.getMessage());
+                            }
                         } catch (Exception re) {
                             log.error("回滚失败 executor={}", r.getUrl(), re);
                         }
@@ -331,12 +336,12 @@ public class ChainController {
         }
 
         // 缓存发布进度
-        PUBLISH_PROGRESS.put(code,
-                new int[]{reloadResult.getSuccess(), reloadResult.getTotal()});
+        runtimeStateStore.savePublishProgress(code,
+                reloadResult.getSuccess(), reloadResult.getTotal());
 
         if (reloadResult.isAllSuccess() && reloadResult.getTotal() > 0) {
             String statusPayload = "{\"status\":4,\"appCode\":\"" + appCode + "\"}";
-            proxyService.executeOnExecutor(appCode, "PUT", "/api/chains/" + code, statusPayload);
+            proxyService.broadcastToExecutors(appCode, "PUT", "/api/chains/" + code, statusPayload);
             log.info("链发布成功 code={} appCode={}", code, appCode);
         }
 

@@ -21,10 +21,15 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -53,8 +58,23 @@ public class ExecutorProxyService {
     @Value("${zestflow.admin.executor-access-token:}")
     private String executorAccessToken;
 
-    /** 轮询计数器 */
-    private final AtomicInteger roundRobinCounter = new AtomicInteger(0);
+    /** 读请求 fan-out 线程池 */
+    private final ExecutorService readExecutor = Executors.newFixedThreadPool(
+            Math.min(8, Math.max(2, Runtime.getRuntime().availableProcessors())),
+            r -> {
+                Thread t = new Thread(r, "zestflow-executor-read");
+                t.setDaemon(true);
+                return t;
+            });
+
+    /** 广播专用线程池，避免占用 ForkJoinPool.commonPool */
+    private final ExecutorService broadcastExecutor = Executors.newFixedThreadPool(
+            Math.min(8, Math.max(2, Runtime.getRuntime().availableProcessors())),
+            r -> {
+                Thread t = new Thread(r, "zestflow-executor-broadcast");
+                t.setDaemon(true);
+                return t;
+            });
 
     /**
      * 通过 appCode 解析到 Executor 地址并执行 GET 请求
@@ -65,15 +85,25 @@ public class ExecutorProxyService {
      * @return 等价的空数据 JSON（executor 不可达时）
      */
     public String getFromExecutor(String appCode, String path, String query) {
-        String baseUrl = resolveExecutorBaseUrl(appCode);
-        if (baseUrl == null) {
+        List<ExecutorRegistryPO> executors = findOnlineExecutors(appCode);
+        if (executors.isEmpty()) {
             return emptyPage();
         }
+        if (executors.size() == 1 || !isMergeableListPath(path)) {
+            return fetchFromExecutor(selectPrimary(executors), path, query, appCode);
+        }
+        return mergePagedFromExecutors(executors, path, query, appCode);
+    }
+
+    private String fetchFromExecutor(ExecutorRegistryPO executor, String path, String query, String appCode) {
+        String baseUrl = toBaseUrl(executor);
         String url = baseUrl + path + (query != null ? query : "");
         try {
             HttpEntity<Void> entity = new HttpEntity<>(executorHeaders());
             String json = restTemplate.exchange(url, HttpMethod.GET, entity, String.class).getBody();
-            if (json == null) return emptyPage();
+            if (json == null) {
+                return emptyPage();
+            }
             return enrichWithAppCode(json, appCode, baseUrl.replace(protocol + "://", ""));
         } catch (ResourceAccessException e) {
             log.warn("Executor 不可达 appCode={} url={}", appCode, url);
@@ -93,26 +123,40 @@ public class ExecutorProxyService {
      * 通过 appCode 解析到 Executor 地址并执行 GET 请求（不分页，返回数组）
      */
     public String getArrayFromExecutor(String appCode, String path, String query) {
-        String url = resolveExecutorUrl(appCode, path, query);
-        if (url == null) {
+        List<ExecutorRegistryPO> executors = findOnlineExecutors(appCode);
+        if (executors.isEmpty()) {
             return "[]";
         }
+        if (executors.size() == 1) {
+            return fetchArrayFromExecutor(selectPrimary(executors), path, query, appCode);
+        }
+        return mergeArrayFromExecutors(executors, path, query, appCode);
+    }
+
+    private String fetchArrayFromExecutor(ExecutorRegistryPO executor, String path, String query, String appCode) {
+        String baseUrl = toBaseUrl(executor);
+        String url = baseUrl + path + (query != null ? query : "");
         try {
             HttpEntity<Void> entity = new HttpEntity<>(executorHeaders());
             String json = restTemplate.exchange(url, HttpMethod.GET, entity, String.class).getBody();
-            if (json == null) return "[]";
-            // 尝试解析为分页格式，提取 records
+            if (json == null) {
+                return "[]";
+            }
             JsonNode root = MAPPER.readTree(json);
             if (root.has("records")) {
                 enrichRecords(root.get("records"), appCode);
                 return MAPPER.writeValueAsString(root.get("records"));
+            }
+            if (root.isArray()) {
+                enrichRecords(root, appCode);
+                return MAPPER.writeValueAsString(root);
             }
             return json;
         } catch (ResourceAccessException e) {
             log.warn("Executor 不可达 appCode={}", appCode);
             return "[]";
         } catch (Exception e) {
-            log.error("代理 GET 请求失败 appCode={}", appCode, e);
+            log.error("代理 GET 数组请求失败 appCode={}", appCode, e);
             return "[]";
         }
     }
@@ -152,84 +196,221 @@ public class ExecutorProxyService {
     }
 
     /**
-     * 通过 appCode 解析到 Executor 并执行 POST/PUT/DELETE
+     * 通过 appCode 解析到 Executor 并执行 POST/PUT/DELETE（多实例时广播）或 GET（单实例轮询）
      */
     public String executeOnExecutor(String appCode, String method, String path, String body) {
-        String url = resolveExecutorUrl(appCode, path, null);
-        if (url == null) {
+        String upper = method.toUpperCase();
+        if ("POST".equals(upper) || "PUT".equals(upper) || "DELETE".equals(upper)) {
+            List<String> urls = resolveAllExecutorUrls(appCode);
+            if (urls.isEmpty()) {
+                return "{\"code\":500,\"message\":\"无可用执行器\"}";
+            }
+            if (urls.size() == 1) {
+                ExecutorResult result = executeOnExecutorUrl(urls.get(0), upper, path, body);
+                if (result.isOk()) {
+                    return enrichWithAppCode(
+                            result.getResponseBody() != null ? result.getResponseBody() : "{\"code\":200}",
+                            appCode);
+                }
+                return result.getResponseBody() != null ? result.getResponseBody()
+                        : "{\"code\":500,\"message\":\"" + escapeJson(result.getMessage()) + "\"}";
+            }
+            BroadcastResult broadcast = broadcastToExecutors(appCode, upper, path, body);
+            if (broadcast.isAllSuccess()) {
+                String firstBody = broadcast.getResults().stream()
+                        .filter(ExecutorResult::isOk)
+                        .map(ExecutorResult::getResponseBody)
+                        .filter(Objects::nonNull)
+                        .findFirst()
+                        .orElse("{\"code\":200,\"message\":\"success\"}");
+                return enrichWithAppCode(firstBody, appCode);
+            }
+            return String.format("{\"code\":207,\"message\":\"部分执行器操作失败 success=%d/%d\"}",
+                    broadcast.getSuccess(), broadcast.getTotal());
+        }
+
+        String baseUrl = resolveExecutorBaseUrl(appCode);
+        if (baseUrl == null) {
             return "{\"code\":500,\"message\":\"无可用执行器\"}";
         }
+        String url = baseUrl + path;
         try {
-            String json;
-            switch (method.toUpperCase()) {
-                case "GET":
-                    json = restTemplate.exchange(
-                            RequestEntity.get(new java.net.URI(url)).headers(executorHeaders()).build(),
-                            String.class).getBody();
-                    break;
-                case "POST":
-                    json = restTemplate.postForObject(url, new HttpEntity<>(body, executorHeaders()), String.class);
-                    break;
-                case "PUT":
-                    json = restTemplate.exchange(
-                            RequestEntity.put(new java.net.URI(url))
-                                    .headers(executorHeaders())
-                                    .body(body),
-                            String.class).getBody();
-                    break;
-                case "DELETE":
-                    json = restTemplate.exchange(
-                            RequestEntity.delete(new java.net.URI(url))
-                                    .headers(executorHeaders())
-                                    .build(),
-                            String.class).getBody();
-                    break;
-                default:
-                    return "{\"code\":405,\"message\":\"不支持的请求方法\"}";
-            }
+            String json = restTemplate.exchange(
+                    RequestEntity.get(new java.net.URI(url)).headers(executorHeaders()).build(),
+                    String.class).getBody();
             return enrichWithAppCode(json, appCode);
         } catch (ResourceAccessException e) {
             log.warn("Executor 不可达 appCode={} url={}", appCode, url);
             return "{\"code\":500,\"message\":\"执行器不可达\"}";
         } catch (org.springframework.web.client.HttpClientErrorException e) {
-            // Executor 返回 4xx，透传响应体
             String respBody = e.getResponseBodyAsString();
             if (respBody != null && !respBody.isBlank()) return respBody;
             return "{\"code\":500,\"message\":\"执行器请求失败\"}";
         } catch (Exception e) {
-            log.error("代理请求失败 appCode={} url={}", appCode, url, e);
+            log.error("代理 GET 请求失败 appCode={} url={}", appCode, url, e);
             return "{\"code\":500,\"message\":\"代理请求失败\"}";
         }
     }
 
     /**
-     * 通过 appCode 查找可用的 Executor 地址（轮询）
-     *
-     * @return URL 基础地址，如 http://192.168.1.10:9999
+     * 向指定 Executor 基础地址发送写操作（用于发布回滚等精确路由）
+     */
+    public ExecutorResult executeOnExecutorUrl(String baseUrl, String method, String path, String body) {
+        return executeOnExecutorUrlInternal(baseUrl, method.toUpperCase(), path, body);
+    }
+
+    private ExecutorResult executeOnExecutorUrlInternal(String baseUrl, String upper, String path, String body) {
+        try {
+            String fullUrl = baseUrl + path;
+            String json;
+            switch (upper) {
+                case "POST":
+                    json = restTemplate.postForObject(fullUrl, new HttpEntity<>(body, executorHeaders()), String.class);
+                    break;
+                case "PUT":
+                    json = restTemplate.exchange(
+                            RequestEntity.put(new java.net.URI(fullUrl))
+                                    .headers(executorHeaders())
+                                    .body(body != null ? body : "{}"),
+                            String.class).getBody();
+                    break;
+                case "DELETE":
+                    json = restTemplate.exchange(
+                            RequestEntity.delete(new java.net.URI(fullUrl))
+                                    .headers(executorHeaders())
+                                    .build(),
+                            String.class).getBody();
+                    break;
+                default:
+                    return new ExecutorResult(baseUrl, false, "不支持的方法: " + upper, null);
+            }
+            return parseExecutorResponse(baseUrl, json);
+        } catch (ResourceAccessException e) {
+            log.warn("Executor 不可达 url={}", baseUrl);
+            return new ExecutorResult(baseUrl, false, "执行器不可达", null);
+        } catch (Exception e) {
+            log.error("代理请求失败 url={}", baseUrl, e);
+            return new ExecutorResult(baseUrl, false, e.getMessage(), null);
+        }
+    }
+
+    /**
+     * 通过 appCode 查找主 Executor（executorId 字典序最小，读路径稳定）
      */
     public String resolveExecutorBaseUrl(String appCode) {
-        if (appCode == null || appCode.isBlank()) {
-            log.warn("appCode 为空");
-            return null;
-        }
-        List<ExecutorRegistryPO> executors = executorRegistryMapper.selectList(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ExecutorRegistryPO>()
-                        .eq(ExecutorRegistryPO::getAppCode, appCode)
-                        .eq(ExecutorRegistryPO::getStatus, 1));
+        List<ExecutorRegistryPO> executors = findOnlineExecutors(appCode);
         if (executors.isEmpty()) {
             log.warn("应用无可用执行器 appCode={}", appCode);
             return null;
         }
-        // 轮询选择
-        int index = roundRobinCounter.getAndIncrement() % executors.size();
-        ExecutorRegistryPO executor = executors.get(index);
+        return toBaseUrl(selectPrimary(executors));
+    }
+
+    private List<ExecutorRegistryPO> findOnlineExecutors(String appCode) {
+        if (appCode == null || appCode.isBlank()) {
+            return List.of();
+        }
+        return executorRegistryMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ExecutorRegistryPO>()
+                        .eq(ExecutorRegistryPO::getAppCode, appCode)
+                        .eq(ExecutorRegistryPO::getStatus, 1));
+    }
+
+    private ExecutorRegistryPO selectPrimary(List<ExecutorRegistryPO> executors) {
+        return executors.stream()
+                .sorted(Comparator.comparing(ExecutorRegistryPO::getExecutorId, Comparator.nullsLast(String::compareTo)))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private String toBaseUrl(ExecutorRegistryPO executor) {
         return protocol + "://" + executor.getExecutorHost() + ":" + executor.getExecutorPort();
     }
 
-    private String resolveExecutorUrl(String appCode, String path, String query) {
-        String baseUrl = resolveExecutorBaseUrl(appCode);
-        if (baseUrl == null) return null;
-        return baseUrl + path + (query != null ? query : "");
+    private boolean isMergeableListPath(String path) {
+        return "/api/chains".equals(path) || "/api/designs".equals(path) || "/api/components".equals(path);
+    }
+
+    private String mergePagedFromExecutors(List<ExecutorRegistryPO> executors, String path, String query, String appCode) {
+        List<CompletableFuture<String>> futures = executors.stream()
+                .map(executor -> CompletableFuture.supplyAsync(
+                        () -> fetchFromExecutor(executor, path, query, appCode), readExecutor))
+                .toList();
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+        Map<String, JsonNode> dedup = new LinkedHashMap<>();
+        long total = 0;
+        int page = 1;
+        int size = 10;
+        for (CompletableFuture<String> future : futures) {
+            try {
+                JsonNode root = MAPPER.readTree(future.getNow(emptyPage()));
+                if (root.has("total")) {
+                    total = Math.max(total, root.get("total").asLong());
+                }
+                if (root.has("current")) {
+                    page = root.get("current").asInt();
+                }
+                if (root.has("size")) {
+                    size = root.get("size").asInt();
+                }
+                if (root.has("records") && root.get("records").isArray()) {
+                    for (JsonNode record : root.get("records")) {
+                        String key = record.has("code") ? record.get("code").asText()
+                                : (record.has("id") ? record.get("id").asText() : record.toString());
+                        dedup.putIfAbsent(key, record);
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("合并 Executor 分页响应失败 path={}", path, e);
+            }
+        }
+        ArrayNode merged = MAPPER.createArrayNode();
+        dedup.values().forEach(merged::add);
+        enrichRecords(merged, appCode);
+        ObjectNode pageObj = MAPPER.createObjectNode();
+        pageObj.set("records", merged);
+        pageObj.put("total", Math.max(merged.size(), total));
+        pageObj.put("current", page);
+        pageObj.put("size", size);
+        try {
+            return MAPPER.writeValueAsString(pageObj);
+        } catch (Exception e) {
+            return emptyPage();
+        }
+    }
+
+    private String mergeArrayFromExecutors(List<ExecutorRegistryPO> executors, String path, String query, String appCode) {
+        List<CompletableFuture<String>> futures = executors.stream()
+                .map(executor -> CompletableFuture.supplyAsync(
+                        () -> fetchArrayFromExecutor(executor, path, query, appCode), readExecutor))
+                .toList();
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+        Map<String, JsonNode> dedup = new LinkedHashMap<>();
+        for (CompletableFuture<String> future : futures) {
+            try {
+                JsonNode root = MAPPER.readTree(future.getNow("[]"));
+                if (root.isArray()) {
+                    for (JsonNode item : root) {
+                        String key = item.has("path") ? item.get("path").asText()
+                                : (item.has("code") ? item.get("code").asText()
+                                : (item.has("className") ? item.get("className").asText() : item.toString()));
+                        dedup.putIfAbsent(key, item);
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("合并 Executor 数组响应失败 path={}", path, e);
+            }
+        }
+        ArrayNode merged = MAPPER.createArrayNode();
+        dedup.values().forEach(merged::add);
+        enrichRecords(merged, appCode);
+        try {
+            return MAPPER.writeValueAsString(merged);
+        } catch (Exception e) {
+            return "[]";
+        }
     }
 
     /**
@@ -314,6 +495,7 @@ public class ExecutorProxyService {
         private String url;
         private boolean ok;
         private String message;
+        private String responseBody;
     }
 
     @Data
@@ -329,25 +511,39 @@ public class ExecutorProxyService {
         }
 
         public static BroadcastResult fail(String message) {
-            ExecutorResult err = new ExecutorResult("N/A", false, message);
+            ExecutorResult err = new ExecutorResult("N/A", false, message, null);
             return new BroadcastResult(0, 0, false, List.of(err));
         }
+    }
+
+    private ExecutorResult parseExecutorResponse(String baseUrl, String json) {
+        if (json == null) {
+            return new ExecutorResult(baseUrl, false, "响应为空", null);
+        }
+        try {
+            JsonNode node = MAPPER.readTree(json);
+            boolean ok = (node.has("code") && node.get("code").asInt() == 200)
+                    || (node.has("success") && node.get("success").asBoolean());
+            String message = node.has("message") ? node.get("message").asText() : (ok ? "OK" : "FAIL");
+            return new ExecutorResult(baseUrl, ok, message, json);
+        } catch (Exception e) {
+            return new ExecutorResult(baseUrl, true, "OK", json);
+        }
+    }
+
+    private static String escapeJson(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     /**
      * 获取应用下所有在线执行器的 HTTP 基础地址
      */
     public List<String> resolveAllExecutorUrls(String appCode) {
-        if (appCode == null || appCode.isBlank()) {
-            log.warn("appCode 为空");
-            return List.of();
-        }
-        List<ExecutorRegistryPO> executors = executorRegistryMapper.selectList(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ExecutorRegistryPO>()
-                        .eq(ExecutorRegistryPO::getAppCode, appCode)
-                        .eq(ExecutorRegistryPO::getStatus, 1));
-        return executors.stream()
-                .map(e -> protocol + "://" + e.getExecutorHost() + ":" + e.getExecutorPort())
+        return findOnlineExecutors(appCode).stream()
+                .map(this::toBaseUrl)
                 .collect(Collectors.toList());
     }
 
@@ -372,41 +568,15 @@ public class ExecutorProxyService {
                 try {
                     String fullUrl = baseUrl + path;
                     log.info("广播请求 {} {} {}", method, fullUrl, body != null ? body : "");
-                    String json;
-                    switch (method.toUpperCase()) {
-                        case "PUT":
-                            json = restTemplate.exchange(
-                                    RequestEntity.put(new java.net.URI(fullUrl))
-                                            .headers(executorHeaders())
-                                            .body(body != null ? body : "{}"),
-                                    String.class).getBody();
-                            break;
-                        case "POST":
-                            json = restTemplate.postForObject(fullUrl,
-                                    new HttpEntity<>(body != null ? body : "{}", executorHeaders()), String.class);
-                            break;
-                        default:
-                            return new ExecutorResult(baseUrl, false, "不支持的方法: " + method);
-                    }
-                    if (json == null) {
-                        return new ExecutorResult(baseUrl, false, "响应为空");
-                    }
-                    JsonNode node = MAPPER.readTree(json);
-                    boolean ok = (node.has("code") && node.get("code").asInt() == 200)
-                            || (node.has("success") && node.get("success").asBoolean());
-                    return new ExecutorResult(baseUrl, ok,
-                            node.has("message") ? node.get("message").asText() : (ok ? "OK" : "FAIL"));
-                } catch (ResourceAccessException e) {
-                    log.warn("广播执行器不可达 url={}", baseUrl);
-                    return new ExecutorResult(baseUrl, false, "执行器不可达");
+                    return executeOnExecutorUrlInternal(baseUrl, method.toUpperCase(), path, body);
                 } catch (Exception e) {
                     log.error("广播请求失败 url={}", baseUrl, e);
-                    return new ExecutorResult(baseUrl, false, e.getMessage());
+                    return new ExecutorResult(baseUrl, false, e.getMessage(), null);
                 }
-            }).orTimeout(30, TimeUnit.SECONDS)
+            }, broadcastExecutor).orTimeout(30, TimeUnit.SECONDS)
               .exceptionally(e -> {
                   log.warn("广播执行器超时或异常 url={} err={}", baseUrl, e.getMessage());
-                  return new ExecutorResult(baseUrl, false, "超时或异常: " + e.getMessage());
+                  return new ExecutorResult(baseUrl, false, "超时或异常: " + e.getMessage(), null);
               });
             futures.add(future);
         }

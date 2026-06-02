@@ -1,7 +1,10 @@
 package com.zestflow.executor.registry;
 
 import com.zestflow.common.spi.EventCollector;
-import com.zestflow.executor.chain.*;
+import com.zestflow.executor.chain.ChainLoader;
+import com.zestflow.executor.chain.ChainReloadMonitor;
+import com.zestflow.executor.chain.ExecutorChainProperties;
+import com.zestflow.executor.config.ExecutorSchedulingConfig;
 import com.zestflow.executor.engine.*;
 import com.zestflow.executor.fallback.FallbackStrategy;
 import com.zestflow.executor.fallback.DefaultFallbackStrategy;
@@ -30,8 +33,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @AutoConfiguration
-@EnableConfigurationProperties(ExecutorProperties.class)
-@Import(ExecutorDataSourceConfig.class)
+@EnableConfigurationProperties({ExecutorProperties.class, ExecutorChainProperties.class})
+@Import({ExecutorDataSourceConfig.class, ExecutorSchedulingConfig.class})
 public class ExecutorAutoConfig {
 
     @Bean(initMethod = "start", destroyMethod = "stop")
@@ -55,8 +58,13 @@ public class ExecutorAutoConfig {
     }
 
     @Bean
-    public RestTemplate zestflowRestTemplate() {
+    public RestTemplate zestflowRestTemplate(ExecutorProperties properties) {
         RestTemplate restTemplate = new RestTemplate();
+        org.springframework.http.client.SimpleClientHttpRequestFactory factory =
+                new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(properties.getTimeoutMs());
+        factory.setReadTimeout(properties.getTimeoutMs());
+        restTemplate.setRequestFactory(factory);
         // 默认 StringHttpMessageConverter 用 ISO-8859-1，中文会变 ????
         restTemplate.getMessageConverters().stream()
                 .filter(c -> c instanceof org.springframework.http.converter.StringHttpMessageConverter)
@@ -78,6 +86,16 @@ public class ExecutorAutoConfig {
                                                Environment environment,
                                                ComponentScanner componentScanner) {
         return new ExecutorRegistrar(adminClient, properties, executorServer, environment, componentScanner);
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "zestflow.executor.chain", name = "auto-reload",
+            havingValue = "true", matchIfMissing = true)
+    public ChainReloadMonitor chainReloadMonitor(ChainRepository chainRepo,
+                                                  DesignRepository designRepo,
+                                                  ChainManager chainManager,
+                                                  ChainLoader chainLoader) {
+        return new ChainReloadMonitor(chainRepo, designRepo, chainManager, chainLoader);
     }
 
     // ==================== 组件扫描 ====================
@@ -119,9 +137,10 @@ public class ExecutorAutoConfig {
                                    ChainRepository chainRepo,
                                    DesignRepository designRepo,
                                    NodeRunner nodeRunner,
-                                   AdminClient adminClient) {
+                                   AdminClient adminClient,
+                                   ExecutorProperties executorProperties) {
         return new ChainLoader(chainManager, componentScanner,
-                chainValidator, chainDefinitionBuilder, chainRepo, designRepo, nodeRunner, adminClient);
+                chainValidator, chainDefinitionBuilder, chainRepo, designRepo, nodeRunner, adminClient, executorProperties);
     }
 
     // ==================== 参数解析器 ====================

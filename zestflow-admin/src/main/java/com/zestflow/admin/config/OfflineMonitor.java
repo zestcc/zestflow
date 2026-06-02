@@ -1,6 +1,8 @@
 package com.zestflow.admin.config;
 
+import com.zestflow.admin.model.entity.CollectorRegistryPO;
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
+import com.zestflow.admin.repository.CollectorRegistryMapper;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import com.zestflow.common.constant.RegistryConstants;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -17,6 +19,7 @@ import java.time.LocalDateTime;
 public class OfflineMonitor {
 
     private final ExecutorRegistryMapper executorRegistryMapper;
+    private final CollectorRegistryMapper collectorRegistryMapper;
 
     private static final int DEAD_TIMEOUT_SECONDS =
             RegistryConstants.DEFAULT_HEARTBEAT_INTERVAL_SECONDS * RegistryConstants.DEAD_TIMEOUT_MULTIPLIER;
@@ -37,6 +40,16 @@ public class OfflineMonitor {
         if (updated > 0) {
             log.warn("离线检测：{} 个执行器已标记为异常离线（超时 {}s）", updated, DEAD_TIMEOUT_SECONDS);
         }
+
+        int collectorUpdated = collectorRegistryMapper.update(null,
+                Wrappers.<CollectorRegistryPO>lambdaUpdate()
+                        .set(CollectorRegistryPO::getStatus, RegistryConstants.STATUS_ABNORMAL)
+                        .eq(CollectorRegistryPO::getStatus, RegistryConstants.STATUS_ONLINE)
+                        .lt(CollectorRegistryPO::getLastHeartbeat, deadline));
+
+        if (collectorUpdated > 0) {
+            log.warn("离线检测：{} 个采集器已标记为异常离线（超时 {}s）", collectorUpdated, DEAD_TIMEOUT_SECONDS);
+        }
     }
 
     /**
@@ -56,6 +69,15 @@ public class OfflineMonitor {
 
         if (deleted > 0) {
             log.info("清理过期异常记录：{} 条（超过 {}h 未恢复）", deleted, ABNORMAL_CLEANUP_HOURS);
+        }
+
+        int collectorDeleted = collectorRegistryMapper.delete(
+                Wrappers.<CollectorRegistryPO>lambdaQuery()
+                        .eq(CollectorRegistryPO::getStatus, RegistryConstants.STATUS_ABNORMAL)
+                        .lt(CollectorRegistryPO::getLastHeartbeat, deadline));
+
+        if (collectorDeleted > 0) {
+            log.info("清理过期异常采集器记录：{} 条（超过 {}h 未恢复）", collectorDeleted, ABNORMAL_CLEANUP_HOURS);
         }
     }
 }

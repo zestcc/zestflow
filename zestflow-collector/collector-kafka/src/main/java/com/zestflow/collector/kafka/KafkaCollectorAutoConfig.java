@@ -1,6 +1,8 @@
 package com.zestflow.collector.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zestflow.collector.async.AsyncEventCollector;
+import com.zestflow.collector.async.CollectorAsyncProperties;
 import com.zestflow.common.spi.EventCollector;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -16,7 +18,7 @@ import org.springframework.kafka.core.KafkaTemplate;
  */
 @AutoConfiguration
 @ConditionalOnClass(KafkaTemplate.class)
-@EnableConfigurationProperties(KafkaCollectorAutoConfig.KafkaCollectorProperties.class)
+@EnableConfigurationProperties({KafkaCollectorAutoConfig.KafkaCollectorProperties.class, CollectorAsyncProperties.class})
 public class KafkaCollectorAutoConfig {
 
     @Bean
@@ -24,8 +26,13 @@ public class KafkaCollectorAutoConfig {
     @ConditionalOnProperty(prefix = "zestflow.collector.kafka", name = "topic")
     public EventCollector kafkaEventCollector(KafkaTemplate<String, String> kafkaTemplate,
                                                KafkaCollectorProperties properties,
+                                               CollectorAsyncProperties asyncProperties,
                                                ObjectMapper objectMapper) {
-        return new KafkaEventCollector(kafkaTemplate, properties.getTopic(), objectMapper);
+        EventCollector delegate = new KafkaEventCollector(kafkaTemplate, properties.getTopic(), objectMapper);
+        if (asyncProperties.isAsyncEnabled()) {
+            return new AsyncEventCollector(delegate, asyncProperties.toSettings());
+        }
+        return delegate;
     }
 
     @ConfigurationProperties(prefix = "zestflow.collector.kafka")

@@ -38,6 +38,7 @@ public class RegistryServiceImpl implements RegistryService {
             existing.setLastHeartbeat(LocalDateTime.now());
             if (dto.getAppName() != null) existing.setAppName(dto.getAppName());
             if (dto.getAppCode() != null) existing.setAppCode(dto.getAppCode());
+            syncComponentDict(dto);
             executorRegistryMapper.updateById(existing);
             log.info("执行器重新注册 executorId={} host={}:{}", dto.getExecutorId(), dto.getHost(), dto.getPort());
         } else {
@@ -61,10 +62,14 @@ public class RegistryServiceImpl implements RegistryService {
                 dictTypeService.ensureDictData("app_type", dto.getAppCode(), appLabel);
             }
             // 自动创建元件类型字典项
-            if (dto.getComponents() != null) {
-                for (ComponentDTO comp : dto.getComponents()) {
-                    dictTypeService.ensureDictData("component_type", comp.getComponentType(), comp.getComponentType());
-                }
+            syncComponentDict(dto);
+        }
+    }
+
+    private void syncComponentDict(RegisterDTO dto) {
+        if (dto.getComponents() != null) {
+            for (ComponentDTO comp : dto.getComponents()) {
+                dictTypeService.ensureDictData("component_type", comp.getComponentType(), comp.getComponentType());
             }
         }
     }

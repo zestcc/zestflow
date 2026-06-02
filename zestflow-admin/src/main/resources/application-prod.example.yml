@@ -58,6 +58,8 @@ zestflow:
     registry-token: your-registry-token
     # 与 zestflow.executor.access-token 一致
     executor-access-token: your-executor-access-token
+    # deploy-mode：运行时状态 — standalone / cluster（多 Admin 副本）
+    deploy-mode: standalone
     tenant-id: 1
     system-user: sys
     default-user:
@@ -65,11 +67,12 @@ zestflow:
       password: admin123
       email: admin@example.com
     cache:
-      # 缓存类型：simple（默认，零依赖）/ caffeine（生产本地）/ redis（集群共享）
-      # type: redis 时需配置 spring.data.redis.* 连接信息
       type: caffeine
       maximum-size: 10000
       ttl-seconds: 60
+    runtime-state:
+      # 仅 deploy-mode=cluster 时生效
+      ttl-seconds: 300
   tenant:
     # 租户模式：single（单租户）/ multi（多租户）
     mode: single
@@ -81,7 +84,8 @@ zestflow:
     # 开关：true 启用系统演示功能（含演示场景、演示记录、试验场）
     enabled: true
   collector:
-    # Collector 地址通过注册表自动发现，无需配置
+    # Collector 地址通过注册表自动发现；无注册时可配置 api-url 兜底
+    api-url: http://your-collector-host:20650
     access-token: ''
   mail:
     # 总开关：启用邮件发送
@@ -115,7 +119,16 @@ logging:
   level:
     com.zestflow: info
 
-# Redis 连接（cache.type=redis 时启用）
+# Redis（按需启用，单机 standalone + cache.type=caffeine 可整段省略）：
+#   deploy-mode=cluster     → 运行时状态跨实例共享
+#   cache.type=redis        → 权限等业务缓存跨实例共享
+#
+# 多机 Admin 推荐同时开启：
+# zestflow:
+#   admin:
+#     deploy-mode: cluster
+#     cache:
+#       type: redis
 # spring:
 #   data:
 #     redis:

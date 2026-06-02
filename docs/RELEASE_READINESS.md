@@ -64,7 +64,11 @@ powershell -File .\scripts\blackbox\run-enterprise-gate.ps1 -RequireEnterprisePr
 | 路由策略 | 单元 | RouteStrategyTest |
 | Collector 8 路由 | 单元 | CollectorServerHandlerTest (32) |
 
-**仍建议手工或下一迭代自动化**：链 CRUD 发布全链路、调度 trigger、playground 关闭 404、registry-token 401。
+**仍建议手工或下一迭代自动化**：playground 关闭 404（E2E 在 playground.enabled=false 时已探测）。
+
+**E2E 已覆盖（Layer B）**：链 active-codes、调度 trigger（有种子时）、Actuator `zestflowAdmin` 健康、deploy-mode/cache 探测。
+
+**仍建议手工**：链 CRUD 发布全链路、registry-token 401 成对配置验证。
 
 ---
 

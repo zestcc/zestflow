@@ -45,6 +45,12 @@ zestflow:
     registry-token:
     # Admin → Executor Netty 鉴权（与 zestflow.executor.access-token 一致，非用户 JWT）
     executor-access-token:
+    # Admin HTTP 客户端超时（毫秒，连接+读取）
+    http-timeout-ms: 5000
+    # deploy-mode：运行时状态 — standalone 单机默认（内存，无需 Redis）/ cluster 多 Admin 副本
+    deploy-mode: standalone
+    runtime-state:
+      ttl-seconds: 300
     # 内部服务间通信协议（http/https）
     protocol: http
     tenant-id: 1
@@ -54,13 +60,9 @@ zestflow:
       password: admin123
       email: admin@zestflow.com
     cache:
-      # 缓存类型：simple（默认，零依赖）/ caffeine（生产本地）/ redis（集群共享）
-      # 本地开发在 application-local.yml 中覆盖为 simple
-      # 使用 redis 时需配置 spring.data.redis.* 连接信息
+      # 业务缓存，与 deploy-mode 独立：simple / caffeine（默认）/ redis
       type: caffeine
-      # Caffeine 最大条目数
       maximum-size: 10000
-      # 缓存 TTL（秒）
       ttl-seconds: 60
   tenant:
     # 租户模式：single（单租户）/ multi（多租户）

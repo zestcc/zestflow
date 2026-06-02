@@ -4,8 +4,10 @@ import com.zestflow.admin.service.CollectorRegistryService;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
 import java.nio.charset.StandardCharsets;
@@ -18,8 +20,12 @@ import java.nio.charset.StandardCharsets;
 public class CollectorConfig {
 
     @Bean
-    public RestTemplate restTemplate() {
+    public RestTemplate restTemplate(@Value("${zestflow.admin.http-timeout-ms:5000}") int timeoutMs) {
         RestTemplate restTemplate = new RestTemplate();
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(timeoutMs);
+        factory.setReadTimeout(timeoutMs);
+        restTemplate.setRequestFactory(factory);
         // 默认 StringHttpMessageConverter 用 ISO-8859-1，中文会变 ????
         restTemplate.getMessageConverters().stream()
                 .filter(c -> c instanceof org.springframework.http.converter.StringHttpMessageConverter)

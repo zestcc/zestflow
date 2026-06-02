@@ -33,22 +33,16 @@ zestflow:
     #   password: 123456
     #   driver-class-name: com.mysql.cj.jdbc.Driver
 
-    # ---- 事件采集配置 ----
-    event:
-      # 事件缓冲队列容量
-      queue-capacity: 8192
-      # 批量提交大小
-      batch-size: 200
-      # 批量提交最大等待时间（毫秒）
-      batch-max-wait-ms: 500
-      # 熔断阈值（连续失败次数，0 表示不熔断）
-      circuit-breaker-threshold: 10
-      # 熔断冷却时间（毫秒）
-      circuit-breaker-cooldown-ms: 30000
-      # 是否启用磁盘降级
-      disk-fallback-enabled: false
-      # 磁盘降级目录
-      disk-fallback-dir: ./collector-fallback
+    # ---- 事件采集配置（实际生效项见 zestflow.collector.*，由 collector-jdbc 模块绑定） ----
+    # event:
+    #   queue-capacity: 8192
+    #   batch-size: 200
+    #   batch-max-wait-ms: 500
+    #   circuit-breaker-threshold: 10
+    #   circuit-breaker-cooldown-ms: 30000
+    #   disk-fallback-enabled: false
+    #   disk-fallback-dir: ./collector-fallback
+    #   disk-replay-interval-ms: 5000
 
     # ---- 链执行配置 ----
     chain:

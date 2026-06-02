@@ -1001,7 +1001,9 @@ zestflow:
 ### Redis 分布式缓存（条件装配）
 
 - pom.xml 添加 `spring-boot-starter-data-redis` 依赖，但 `RedisAutoConfiguration` 在主应用排除
-- `zestflow.admin.cache.type=redis` 时启用 AdminRedisCacheConfig，提供 Lettuce + RedisCacheManager
+- `zestflow.admin.deploy-mode=standalone`（默认）：运行时状态走内存，**无需 Redis**
+- `zestflow.admin.deploy-mode=cluster`：运行时状态走 Redis（需 `spring.data.redis.*`）
+- `zestflow.admin.cache.type=redis` 时启用 Redis 权限缓存（与 deploy-mode 独立，按需共享 `AdminSharedRedisConfig` 连接）
 - 默认 `type=caffeine`，Redis 依赖在 classpath 上但不激活，零改动
 - Redis 连接使用标准 `spring.data.redis.*` 配置
 

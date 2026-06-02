@@ -3,7 +3,9 @@ package com.zestflow.admin.config;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.zestflow.admin.model.entity.CollectorRegistryPO;
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
+import com.zestflow.admin.repository.CollectorRegistryMapper;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,6 +23,13 @@ class OfflineMonitorTest {
     @Mock
     private ExecutorRegistryMapper executorRegistryMapper;
 
+    @Mock
+    private CollectorRegistryMapper collectorRegistryMapper;
+
+    private OfflineMonitor newMonitor() {
+        return new OfflineMonitor(executorRegistryMapper, collectorRegistryMapper);
+    }
+
     @Test
     void checkOffline_marksStaleOnlineAsAbnormal() {
         try (MockedStatic<Wrappers> wrappers = mockStatic(Wrappers.class)) {
@@ -30,8 +39,9 @@ class OfflineMonitorTest {
             when(mockWrapper.lt(any(), any())).thenReturn(mockWrapper);
             wrappers.when(Wrappers::lambdaUpdate).thenReturn(mockWrapper);
             when(executorRegistryMapper.update(any(), any())).thenReturn(2);
+            when(collectorRegistryMapper.update(any(), any())).thenReturn(1);
 
-            OfflineMonitor monitor = new OfflineMonitor(executorRegistryMapper);
+            OfflineMonitor monitor = newMonitor();
             monitor.checkOffline();
 
             verify(executorRegistryMapper).update(any(), any());
@@ -47,8 +57,9 @@ class OfflineMonitorTest {
             when(mockWrapper.lt(any(), any())).thenReturn(mockWrapper);
             wrappers.when(Wrappers::lambdaUpdate).thenReturn(mockWrapper);
             when(executorRegistryMapper.update(any(), any())).thenReturn(0);
+            when(collectorRegistryMapper.update(any(), any())).thenReturn(0);
 
-            OfflineMonitor monitor = new OfflineMonitor(executorRegistryMapper);
+            OfflineMonitor monitor = newMonitor();
             monitor.checkOffline();
 
             verify(executorRegistryMapper).update(any(), any());
@@ -64,8 +75,9 @@ class OfflineMonitorTest {
             when(mockWrapper.lt(any(), any())).thenReturn(mockWrapper);
             wrappers.when(Wrappers::lambdaQuery).thenReturn(mockWrapper);
             when(executorRegistryMapper.delete(any())).thenReturn(3);
+            when(collectorRegistryMapper.delete(any())).thenReturn(2);
 
-            OfflineMonitor monitor = new OfflineMonitor(executorRegistryMapper);
+            OfflineMonitor monitor = newMonitor();
             monitor.cleanupStaleAbnormal();
 
             verify(executorRegistryMapper).delete(any());
@@ -81,8 +93,9 @@ class OfflineMonitorTest {
             when(mockWrapper.lt(any(), any())).thenReturn(mockWrapper);
             wrappers.when(Wrappers::lambdaQuery).thenReturn(mockWrapper);
             when(executorRegistryMapper.delete(any())).thenReturn(0);
+            when(collectorRegistryMapper.delete(any())).thenReturn(0);
 
-            OfflineMonitor monitor = new OfflineMonitor(executorRegistryMapper);
+            OfflineMonitor monitor = newMonitor();
             monitor.cleanupStaleAbnormal();
 
             verify(executorRegistryMapper).delete(any());
@@ -105,8 +118,10 @@ class OfflineMonitorTest {
 
             when(executorRegistryMapper.update(any(), any())).thenReturn(0);
             when(executorRegistryMapper.delete(any())).thenReturn(0);
+            when(collectorRegistryMapper.update(any(), any())).thenReturn(0);
+            when(collectorRegistryMapper.delete(any())).thenReturn(0);
 
-            OfflineMonitor monitor = new OfflineMonitor(executorRegistryMapper);
+            OfflineMonitor monitor = newMonitor();
 
             assertThatCode(monitor::checkOffline).doesNotThrowAnyException();
             assertThatCode(monitor::cleanupStaleAbnormal).doesNotThrowAnyException();

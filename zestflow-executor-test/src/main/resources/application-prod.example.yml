@@ -34,6 +34,12 @@ zestflow:
       driver-class-name: com.mysql.cj.jdbc.Driver
     # Admin 服务地址
     admin-addresses: http://localhost:8080
+    # 与 Admin zestflow.admin.registry-token 一致
+    registry-token: your-registry-token
+    # 与 Admin zestflow.admin.executor-access-token 一致
+    access-token: your-executor-access-token
+    # 注册/心跳 HTTP 超时（毫秒）
+    timeout-ms: 5000
     # Netty /execute 业务线程池（避免阻塞 EventLoop）
     execute-pool-core-size: 8
     execute-pool-max-size: 16
@@ -52,3 +58,5 @@ zestflow:
       driver-class-name: com.mysql.cj.jdbc.Driver
     registry:
       port: 20650
+    access-token: your-collector-access-token
+    disk-fallback-enabled: true

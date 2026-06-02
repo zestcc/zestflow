@@ -4,6 +4,7 @@ import com.zestflow.executor.design.DesignPO;
 import com.zestflow.executor.design.DesignRepository;
 import com.zestflow.executor.engine.NodeRunner;
 import com.zestflow.executor.registry.AdminClient;
+import com.zestflow.executor.registry.ExecutorProperties;
 import com.zestflow.executor.scanner.ComponentScanner;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,6 +33,7 @@ class ChainLoaderTest {
     @Mock DesignRepository designRepo;
     @Mock NodeRunner nodeRunner;
     @Mock AdminClient adminClient;
+    @Mock ExecutorProperties executorProperties;
 
     @Captor ArgumentCaptor<Set<String>> nodeIdCaptor;
 
@@ -39,8 +41,11 @@ class ChainLoaderTest {
 
     @BeforeEach
     void setUp() {
+        when(executorProperties.getAppCode()).thenReturn("test-app");
+        when(executorProperties.getHost()).thenReturn("127.0.0.1");
+        when(executorProperties.getPort()).thenReturn(20550);
         chainLoader = new ChainLoader(chainManager, componentScanner,
-                chainValidator, chainDefinitionBuilder, chainRepo, designRepo, nodeRunner, adminClient);
+                chainValidator, chainDefinitionBuilder, chainRepo, designRepo, nodeRunner, adminClient, executorProperties);
     }
 
     // ==================== reloadChainLocal — version snapshot ====================
@@ -133,7 +138,7 @@ class ChainLoaderTest {
     @Test
     void reloadChainLocalAdminClientNullDoesNotThrow() {
         ChainLoader loaderWithoutAdmin = new ChainLoader(chainManager, componentScanner,
-                chainValidator, chainDefinitionBuilder, chainRepo, designRepo, nodeRunner, null);
+                chainValidator, chainDefinitionBuilder, chainRepo, designRepo, nodeRunner, null, executorProperties);
 
         ChainPO chain = ChainPO.builder()
                 .code("CHN001").status(0).build();

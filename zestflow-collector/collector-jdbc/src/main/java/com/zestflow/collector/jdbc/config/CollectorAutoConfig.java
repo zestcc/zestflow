@@ -1,6 +1,6 @@
 package com.zestflow.collector.jdbc.config;
 
-import com.zestflow.collector.jdbc.collector.AsyncEventCollector;
+import com.zestflow.collector.async.AsyncEventCollector;
 import com.zestflow.collector.jdbc.collector.JdbcEventCollector;
 import com.zestflow.collector.jdbc.controller.CollectorController;
 import com.zestflow.collector.jdbc.controller.GraphSnapshotController;
@@ -22,6 +22,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import com.zestflow.collector.jdbc.metrics.CollectorMetricsBinder;
+import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.web.client.RestTemplate;
 
@@ -41,10 +44,14 @@ public class CollectorAutoConfig {
     @Bean(destroyMethod = "destroy")
     @ConditionalOnMissingBean(EventCollector.class)
     public EventCollector asyncEventCollector(ChainEventMapper chainEventMapper,
-                                               CollectorProperties properties) {
+                                               CollectorProperties properties,
+                                               ObjectProvider<MeterRegistry> meterRegistry) {
         JdbcEventCollector delegate = new JdbcEventCollector(chainEventMapper);
         if (properties.isAsyncEnabled()) {
-            return new AsyncEventCollector(delegate, properties);
+            AsyncEventCollector async = new AsyncEventCollector(delegate, properties.toAsyncSettings());
+            meterRegistry.ifAvailable(registry ->
+                    new CollectorMetricsBinder(async).bindTo(registry));
+            return async;
         }
         return delegate;
     }
@@ -117,8 +124,14 @@ public class CollectorAutoConfig {
      */
     @Bean
     @ConditionalOnMissingBean
-    public RestTemplate collectorRestTemplate() {
-        return new RestTemplate();
+    public RestTemplate collectorRestTemplate(CollectorProperties properties) {
+        RestTemplate restTemplate = new RestTemplate();
+        org.springframework.http.client.SimpleClientHttpRequestFactory factory =
+                new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(properties.getHttpTimeoutMs());
+        factory.setReadTimeout(properties.getHttpTimeoutMs());
+        restTemplate.setRequestFactory(factory);
+        return restTemplate;
     }
 
     @Bean

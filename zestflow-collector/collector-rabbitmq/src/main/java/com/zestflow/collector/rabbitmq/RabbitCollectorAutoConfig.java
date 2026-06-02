@@ -1,6 +1,8 @@
 package com.zestflow.collector.rabbitmq;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zestflow.collector.async.AsyncEventCollector;
+import com.zestflow.collector.async.CollectorAsyncProperties;
 import com.zestflow.common.spi.EventCollector;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -17,7 +19,7 @@ import org.springframework.context.annotation.Bean;
  */
 @AutoConfiguration
 @ConditionalOnClass(RabbitTemplate.class)
-@EnableConfigurationProperties(RabbitCollectorAutoConfig.RabbitCollectorProperties.class)
+@EnableConfigurationProperties({RabbitCollectorAutoConfig.RabbitCollectorProperties.class, CollectorAsyncProperties.class})
 public class RabbitCollectorAutoConfig {
 
     @Bean
@@ -25,9 +27,14 @@ public class RabbitCollectorAutoConfig {
     @ConditionalOnProperty(prefix = "zestflow.collector.rabbitmq", name = "exchange")
     public EventCollector rabbitEventCollector(RabbitTemplate rabbitTemplate,
                                                 RabbitCollectorProperties properties,
+                                                CollectorAsyncProperties asyncProperties,
                                                 ObjectMapper objectMapper) {
-        return new RabbitEventCollector(rabbitTemplate, properties.getExchange(),
+        EventCollector delegate = new RabbitEventCollector(rabbitTemplate, properties.getExchange(),
                 properties.getRoutingKey(), objectMapper);
+        if (asyncProperties.isAsyncEnabled()) {
+            return new AsyncEventCollector(delegate, asyncProperties.toSettings());
+        }
+        return delegate;
     }
 
     @Bean
