@@ -1,6 +1,7 @@
 package com.zestflow.collector.jdbc.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zestflow.collector.jdbc.metrics.CollectorMetricsProvider;
 import com.zestflow.collector.jdbc.service.ChainGraphSnapshotService;
 import com.zestflow.collector.spi.EventQueryService;
 import com.zestflow.common.model.Result;
@@ -43,15 +44,22 @@ public class CollectorServerHandler extends SimpleChannelInboundHandler<FullHttp
     private final ChainGraphSnapshotService snapshotService;
     private final String accessToken;
     private final ExecutorService queryExecutor;
+    private final CollectorMetricsProvider metricsProvider;
 
     public CollectorServerHandler(EventQueryService eventQueryService,
                                   ChainGraphSnapshotService snapshotService,
                                   String accessToken,
-                                  ExecutorService queryExecutor) {
+                                  ExecutorService queryExecutor,
+                                  CollectorMetricsProvider metricsProvider) {
         this.eventQueryService = eventQueryService;
         this.snapshotService = snapshotService;
         this.accessToken = accessToken;
         this.queryExecutor = queryExecutor;
+        this.metricsProvider = metricsProvider != null ? metricsProvider : noopMetricsProvider();
+    }
+
+    private static CollectorMetricsProvider noopMetricsProvider() {
+        return new CollectorMetricsProvider(null, new com.zestflow.collector.jdbc.config.CollectorProperties());
     }
 
     @Override
@@ -89,7 +97,7 @@ public class CollectorServerHandler extends SimpleChannelInboundHandler<FullHttp
 
         // GET /collector/health
         if (parts.length == 3 && "health".equals(parts[2]) && method == HttpMethod.GET) {
-            writeResponse(ctx, HttpResponseStatus.OK, toJson(Result.success()));
+            writeResponse(ctx, HttpResponseStatus.OK, toJson(Result.success(metricsProvider.healthDetails())));
             return true;
         }
 

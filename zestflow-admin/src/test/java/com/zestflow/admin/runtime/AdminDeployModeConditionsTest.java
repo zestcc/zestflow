@@ -6,6 +6,8 @@ import org.springframework.core.env.Environment;
 import org.springframework.mock.env.MockEnvironment;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class AdminDeployModeConditionsTest {
 
@@ -32,26 +34,8 @@ class AdminDeployModeConditionsTest {
     }
 
     private static ConditionContext context(Environment environment) {
-        return new ConditionContext() {
-            @Override
-            public Environment getEnvironment() {
-                return environment;
-            }
-
-            @Override
-            public org.springframework.beans.factory.config.ConfigurableListableBeanFactory getRegistry() {
-                return null;
-            }
-
-            @Override
-            public org.springframework.core.io.ResourceLoader getResourceLoader() {
-                return null;
-            }
-
-            @Override
-            public ClassLoader getClassLoader() {
-                return null;
-            }
-        };
+        ConditionContext context = mock(ConditionContext.class);
+        when(context.getEnvironment()).thenReturn(environment);
+        return context;
     }
 }

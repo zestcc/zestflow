@@ -10,6 +10,7 @@ import com.zestflow.collector.jdbc.registry.CollectorAdminClient;
 import com.zestflow.collector.jdbc.registry.CollectorRegistrar;
 import com.zestflow.collector.jdbc.registry.CollectorRegistryProperties;
 import com.zestflow.collector.jdbc.server.CollectorServer;
+import com.zestflow.collector.jdbc.metrics.CollectorMetricsProvider;
 import com.zestflow.collector.jdbc.service.ChainGraphSnapshotService;
 import com.zestflow.collector.jdbc.service.JdbcEventQueryService;
 import com.zestflow.common.spi.EventCollector;
@@ -68,6 +69,13 @@ public class CollectorAutoConfig {
         return new MyMetaObjectHandler();
     }
 
+    @Bean
+    @ConditionalOnMissingBean
+    public CollectorMetricsProvider collectorMetricsProvider(EventCollector eventCollector,
+                                                                CollectorProperties properties) {
+        return new CollectorMetricsProvider(eventCollector, properties);
+    }
+
     // ==================== Collector Netty 服务 ====================
 
     /**
@@ -81,9 +89,11 @@ public class CollectorAutoConfig {
     public CollectorServer collectorServer(EventQueryService eventQueryService,
                                             ChainGraphSnapshotService snapshotService,
                                             CollectorRegistryProperties registryProperties,
-                                            CollectorProperties collectorProperties) {
+                                            CollectorProperties collectorProperties,
+                                            CollectorMetricsProvider metricsProvider) {
         int port = registryProperties.getPort() > 0 ? registryProperties.getPort() : 20650;
-        return new CollectorServer(port, eventQueryService, snapshotService, collectorProperties.getAccessToken());
+        return new CollectorServer(port, eventQueryService, snapshotService,
+                collectorProperties.getAccessToken(), metricsProvider);
     }
 
     // ==================== REST 控制器（Netty 禁用时降级）====================
@@ -93,8 +103,9 @@ public class CollectorAutoConfig {
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "zestflow.collector", name = "netty-enabled", havingValue = "false")
     public CollectorController collectorController(EventQueryService eventQueryService,
-                                                    CollectorProperties properties) {
-        return new CollectorController(eventQueryService, properties);
+                                                    CollectorProperties properties,
+                                                    CollectorMetricsProvider metricsProvider) {
+        return new CollectorController(eventQueryService, properties, metricsProvider);
     }
 
     // ==================== 图数据快照 ====================

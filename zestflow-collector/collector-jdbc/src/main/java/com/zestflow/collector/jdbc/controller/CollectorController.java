@@ -1,6 +1,7 @@
 package com.zestflow.collector.jdbc.controller;
 
 import com.zestflow.collector.jdbc.config.CollectorProperties;
+import com.zestflow.collector.jdbc.metrics.CollectorMetricsProvider;
 import com.zestflow.common.protocol.EventQuery;
 import com.zestflow.common.protocol.EventStats;
 import com.zestflow.common.protocol.EventStatsQuery;
@@ -29,6 +30,7 @@ public class CollectorController {
 
     private final EventQueryService eventQueryService;
     private final CollectorProperties properties;
+    private final CollectorMetricsProvider metricsProvider;
 
     /**
      * 查询事件列表（分页）
@@ -108,7 +110,7 @@ public class CollectorController {
      */
     @GetMapping("/health")
     public Result<?> health() {
-        return Result.success();
+        return Result.success(metricsProvider.healthDetails());
     }
 
     private boolean checkToken(HttpServletRequest request) {

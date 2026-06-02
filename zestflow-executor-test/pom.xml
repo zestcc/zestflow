@@ -48,6 +48,16 @@
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
+        <!-- Phase 2a：Micrometer + Actuator（Spring Boot 标准可观测性） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
         <!-- Flyway 日志数据库迁移 -->
         <dependency>
             <groupId>org.flywaydb</groupId>

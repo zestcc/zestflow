@@ -1,5 +1,6 @@
 package com.zestflow.admin.config;
 
+import com.zestflow.admin.runtime.AdminClusterBuildSupport;
 import com.zestflow.admin.runtime.AdminDeployProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +45,10 @@ public class AdminProductionGuard {
             String redisHost = environment.getProperty("spring.data.redis.host");
             if (!StringUtils.hasText(redisHost)) {
                 log.error("[prod] deploy-mode=cluster 必须配置 spring.data.redis.host");
+                failed = true;
+            }
+            if (!AdminClusterBuildSupport.isClusterArtifact()) {
+                log.error("[prod] deploy-mode=cluster 须使用 mvn -Pcluster 构建以启用 ShedLock 调度锁");
                 failed = true;
             }
         } else {

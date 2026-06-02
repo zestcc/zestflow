@@ -62,6 +62,7 @@
         <jackson.version>2.17.1</jackson.version>
         <groovy.version>4.0.18</groovy.version>
         <junit.version>5.10.2</junit.version>
+        <shedlock.version>5.16.0</shedlock.version>
 
         <!-- ============ 模块版本（独立管理，可各自发布） ============ -->
         <zestflow-common.version>1.0.0-SNAPSHOT</zestflow-common.version>
@@ -154,6 +155,16 @@
                 <artifactId>groovy-jsr223</artifactId>
                 <version>${groovy.version}</version>
             </dependency>
+            <dependency>
+                <groupId>net.javacrumbs.shedlock</groupId>
+                <artifactId>shedlock-spring</artifactId>
+                <version>${shedlock.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.javacrumbs.shedlock</groupId>
+                <artifactId>shedlock-provider-redis-spring</artifactId>
+                <version>${shedlock.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -202,6 +213,7 @@
                         <forkCount>1</forkCount>
                         <reuseForks>true</reuseForks>
                         <argLine>--add-opens java.base/java.lang=ALL-UNNAMED</argLine>
+                        <excludedGroups>perf</excludedGroups>
                     </configuration>
                 </plugin>
             </plugins>
@@ -209,6 +221,21 @@
     </build>
 
     <profiles>
+        <profile>
+            <id>perf</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <excludedGroups combine.self="override"/>
+                            <groups>perf</groups>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
         <profile>
             <id>release</id>
             <build>

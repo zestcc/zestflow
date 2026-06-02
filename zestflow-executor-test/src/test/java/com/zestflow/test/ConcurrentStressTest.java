@@ -1,11 +1,13 @@
 package com.zestflow.test;
 
 import com.zestflow.common.model.Result;
+import com.zestflow.common.util.LatencyPercentiles;
+import com.zestflow.test.dto.InventoryRequest;
 import com.zestflow.test.dto.OrderRequest;
 import com.zestflow.test.dto.PaymentRequest;
-import com.zestflow.test.dto.InventoryRequest;
 import com.zestflow.test.dto.WorkflowRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,24 +23,25 @@ import java.util.concurrent.atomic.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * 并发压测 — 多线程并发调用 Controller API
- * <p>
- * 验证：线程安全、无数据串扰、无死锁、无 OOM
+ * Phase 2c — 并发压测 + P99.9 延迟门禁（HTTP 全栈，含 Spring + 引擎 + 业务元件）。
  */
 @Slf4j
 @SpringBootTest(classes = TestApplication.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
+@Tag("perf")
 class ConcurrentStressTest {
-
-    @Autowired
-    private TestRestTemplate rest;
 
     private static final int THREAD_COUNT = 20;
     private static final int REQUESTS_PER_THREAD = 5;
 
-    /**
-     * 并发创建订单 + 支付 + 库存查询 — 混合场景
-     */
+    /** diamond 20 并发 P99.9 上限（ms） */
+    private static final long DIAMOND_P999_LIMIT_MS = 5_000L;
+    /** long-50 × 10 并发 P99.9 上限（ms） */
+    private static final long LONG50_P999_LIMIT_MS = 60_000L;
+
+    @Autowired
+    private TestRestTemplate rest;
+
     @Test
     void mixedConcurrentScenario() throws Exception {
         int total = THREAD_COUNT * REQUESTS_PER_THREAD;
@@ -55,7 +58,6 @@ class ConcurrentStressTest {
                 pool.submit(() -> {
                     long start = System.currentTimeMillis();
                     try {
-                        // 每个请求交替调用不同 API
                         boolean isOrder = (threadIdx + reqIdx) % 3 == 0;
                         boolean isPayment = (threadIdx + reqIdx) % 3 == 1;
                         if (isOrder) {
@@ -106,34 +108,29 @@ class ConcurrentStressTest {
             }
         }
 
-        boolean allDone = latch.await(60, TimeUnit.SECONDS);
+        assertThat(latch.await(60, TimeUnit.SECONDS)).as("所有请求应在 60s 内完成").isTrue();
         pool.shutdown();
 
-        double avgCost = costs.stream().mapToLong(Long::longValue).average().orElse(0);
-        long maxCost = costs.stream().mapToLong(Long::longValue).max().orElse(0);
+        LatencyPercentiles stats = LatencyPercentiles.fromMillis(costs);
+        log.info("[perf-gate] mixedConcurrent {} success={} fail={}",
+                stats, successCount.get(), failCount.get());
 
-        log.info("并发测试完成 total={} success={} fail={} avg={}ms max={}ms",
-                total, successCount.get(), failCount.get(), String.format("%.1f", avgCost), maxCost);
-
-        assertThat(allDone).as("所有请求应在 60s 内完成").isTrue();
         assertThat(successCount.get()).isEqualTo(total);
-        assertThat(failCount.get()).isEqualTo(0);
+        assertThat(failCount.get()).isZero();
     }
 
-    /**
-     * 同一链编码并发执行 — 验证重入安全
-     */
     @Test
     void sameChainConcurrentExecution() throws Exception {
-        String sharedCode = "stress-shared-chain-" + UUID.randomUUID().toString().substring(0, 8);
         int threads = 20;
         AtomicInteger successCount = new AtomicInteger(0);
         AtomicInteger failCount = new AtomicInteger(0);
+        ConcurrentLinkedQueue<Long> costs = new ConcurrentLinkedQueue<>();
         CountDownLatch latch = new CountDownLatch(threads);
 
         for (int i = 0; i < threads; i++) {
             int idx = i;
             new Thread(() -> {
+                long start = System.currentTimeMillis();
                 try {
                     var req = WorkflowRequest.builder().scenario("diamond").build();
                     HttpHeaders headers = new HttpHeaders();
@@ -153,29 +150,36 @@ class ConcurrentStressTest {
                     failCount.incrementAndGet();
                     log.error("同链并发异常 thread={}", idx, e);
                 } finally {
+                    costs.add(System.currentTimeMillis() - start);
                     latch.countDown();
                 }
             }).start();
         }
 
-        boolean allDone = latch.await(30, TimeUnit.SECONDS);
-        log.info("同链并发测试 threads={} success={} fail={}", threads, successCount.get(), failCount.get());
-        assertThat(allDone).isTrue();
+        assertThat(latch.await(30, TimeUnit.SECONDS)).isTrue();
+
+        LatencyPercentiles stats = LatencyPercentiles.fromMillis(costs);
+        log.info("[perf-gate] diamond×{} {} success={} fail={}",
+                threads, stats, successCount.get(), failCount.get());
+
         assertThat(successCount.get()).isEqualTo(threads);
+        assertThat(failCount.get()).isZero();
+        assertThat(stats.p999Ms())
+                .as("diamond 20 并发 P99.9")
+                .isLessThanOrEqualTo(DIAMOND_P999_LIMIT_MS);
     }
 
-    /**
-     * 长链 50 节点 × 10 并发 — 验证长链无死锁
-     */
     @Test
     void longChainConcurrent() throws Exception {
         int threads = 10;
         AtomicInteger successCount = new AtomicInteger(0);
         AtomicInteger failCount = new AtomicInteger(0);
+        ConcurrentLinkedQueue<Long> costs = new ConcurrentLinkedQueue<>();
         CountDownLatch latch = new CountDownLatch(threads);
 
         for (int i = 0; i < threads; i++) {
             new Thread(() -> {
+                long start = System.currentTimeMillis();
                 try {
                     var req = WorkflowRequest.builder().scenario("long-50").build();
                     HttpHeaders headers = new HttpHeaders();
@@ -194,20 +198,25 @@ class ConcurrentStressTest {
                 } catch (Exception e) {
                     failCount.incrementAndGet();
                 } finally {
+                    costs.add(System.currentTimeMillis() - start);
                     latch.countDown();
                 }
             }).start();
         }
 
-        boolean allDone = latch.await(60, TimeUnit.SECONDS);
-        log.info("长链并发测试 threads={} success={} fail={}", threads, successCount.get(), failCount.get());
-        assertThat(allDone).isTrue();
+        assertThat(latch.await(60, TimeUnit.SECONDS)).isTrue();
+
+        LatencyPercentiles stats = LatencyPercentiles.fromMillis(costs);
+        log.info("[perf-gate] long-50×{} {} success={} fail={}",
+                threads, stats, successCount.get(), failCount.get());
+
         assertThat(successCount.get()).isEqualTo(threads);
+        assertThat(failCount.get()).isZero();
+        assertThat(stats.p999Ms())
+                .as("long-50 10 并发 P99.9")
+                .isLessThanOrEqualTo(LONG50_P999_LIMIT_MS);
     }
 
-    /**
-     * 迭代器大批量 × 5 并发 — 验证 ITERATOR 并发安全
-     */
     @Test
     void iteratorConcurrent() throws Exception {
         int threads = 5;
@@ -242,9 +251,8 @@ class ConcurrentStressTest {
             }).start();
         }
 
-        boolean allDone = latch.await(60, TimeUnit.SECONDS);
-        log.info("迭代器并发测试 threads={} success={}", threads, successCount.get());
-        assertThat(allDone).isTrue();
+        assertThat(latch.await(60, TimeUnit.SECONDS)).isTrue();
+        log.info("[perf-gate] iterator×{} success={}", threads, successCount.get());
         assertThat(successCount.get()).isEqualTo(threads);
     }
 }

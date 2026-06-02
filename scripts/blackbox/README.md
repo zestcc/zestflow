@@ -8,6 +8,9 @@
 | `run-full-e2e.ps1` | 全流程：登录、features、租户、Admin 各模块、Collector、**全部试验场场景**、安全矩阵 |
 | `e2e-scene-policy.json` | 场景策略：**全绿 / 一部分绿 / 报错跳过** |
 | `run-enterprise-gate.ps1` | **发布门禁**：mvn test + fullGreen E2E + 多租户/IP（可选） |
+| `run-perf-gate.ps1` | **Phase 2c 性能门禁**：JMH 编排层 P99.9 + 并发 HTTP 压测 + 可选运行时黑盒 |
+| `run-full-perf.ps1` | **全盘压测**：perf-gate + P-03 队列 + P-04 轮询 + Netty + Playground + Collector |
+| `perf-gate-policy.json` | P99.9 SLA 阈值（引擎 / HTTP / blackbox / phase2b） |
 | `run-tenant-multi-e2e.ps1` | 多租户 JWT 隔离（需 `enterprise-e2e` profile） |
 | `run-ip-demo-e2e.ps1` | IP → 租户隔离（需 `multi` + `ip-demo-mode=enabled`） |
 
@@ -15,12 +18,12 @@
 
 ## 运行前提
 
-1. `JAVA_HOME=D:\IT\JAVA\JAVA17`
+1. `JAVA_HOME=D:\IT\JDK17\jdk-17.0.19+10`（需指向含 `bin\java.exe` 的 JDK 根目录）
 2. 已启动 `zestflow-admin`（8080）与 `zestflow-executor-test`（Netty 20550、Collector 20650）
 3. MySQL 与 `application-local.yml` 已配置；种子已灌：`scripts/seed/Apply-DemoSeed.ps1`
 
 ```powershell
-$env:JAVA_HOME = "D:\IT\JAVA\JAVA17"
+$env:JAVA_HOME = "D:\IT\JDK17\jdk-17.0.19+10"
 cd D:\WORK\Project\zestflow
 .\scripts\blackbox\run-full-e2e.ps1
 ```
@@ -72,6 +75,20 @@ cd D:\WORK\Project\zestflow
 
 # 重启 Admin：-Dspring-boot.run.profiles=local,enterprise-e2e 后
 .\scripts\blackbox\run-enterprise-gate.ps1 -RequireEnterpriseProfile
+
+# Phase 2c 性能门禁（JMH + 并发压测，不依赖 Admin 运行时）
+.\scripts\blackbox\run-perf-gate.ps1
+
+# 全盘压测（需 Admin:8080 + Netty:20550 已启动）
+.\scripts\blackbox\run-full-perf.ps1
+
+# Phase 2a 指标（运行时，executor-test 启用 Actuator 后）
+# http://127.0.0.1:8081/actuator/metrics/zestflow.chain.duration
+# http://127.0.0.1:8081/actuator/prometheus
+# Collector 队列：GET http://127.0.0.1:20650/collector/health （含 queueSize/droppedCount）
+
+# 企业门禁 + 性能门禁一并跑
+.\scripts\blackbox\run-enterprise-gate.ps1 -RequirePerfProfile
 ```
 
 CI 上仅跑 Layer A（`mvn test`），与门禁脚本前四步一致；Layer B/C 需本地或自建 Runner。

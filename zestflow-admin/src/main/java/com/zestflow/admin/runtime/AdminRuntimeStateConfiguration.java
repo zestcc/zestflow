@@ -23,6 +23,12 @@ public class AdminRuntimeStateConfiguration {
     public void logDeployMode() {
         if (deployProperties.isCluster()) {
             log.info("Admin deploy-mode=cluster：发布进度/链同步使用 Redis（需 spring.data.redis.*）");
+            if (AdminClusterBuildSupport.isClusterArtifact()) {
+                log.info("ShedLock 已启用：集群 cron 调度扫描由 Redis 分布式锁串行化");
+            } else {
+                log.warn("deploy-mode=cluster 但未检测到 cluster 构建产物（须 mvn -Pcluster），"
+                        + "ShedLock 未打包，多副本 cron 可能重复触发");
+            }
         } else {
             log.info("Admin deploy-mode=standalone：发布进度/链同步使用本地内存，无需 Redis");
         }

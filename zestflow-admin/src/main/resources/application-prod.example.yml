@@ -123,7 +123,7 @@ logging:
 #   deploy-mode=cluster     → 运行时状态跨实例共享
 #   cache.type=redis        → 权限等业务缓存跨实例共享
 #
-# 多机 Admin 推荐同时开启：
+# 多机 Admin 推荐同时开启（须 mvn package -Pcluster 构建以打包 ShedLock 调度锁）：
 # zestflow:
 #   admin:
 #     deploy-mode: cluster

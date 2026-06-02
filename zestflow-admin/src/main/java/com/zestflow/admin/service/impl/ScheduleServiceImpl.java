@@ -169,7 +169,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     /**
-     * 执行一次调度触发（供 ScheduleMonitor 和 trigger() 调用）
+     * 执行一次调度触发（供调度扫描与 trigger() 调用）
      */
     public ScheduleLogVO doTrigger(SchedulePO schedule, String triggerType) {
         long startTime = System.currentTimeMillis();

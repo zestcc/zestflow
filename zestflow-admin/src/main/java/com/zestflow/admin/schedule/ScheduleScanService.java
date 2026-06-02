@@ -8,8 +8,7 @@ import com.zestflow.admin.repository.ScheduleMapper;
 import com.zestflow.admin.service.impl.ScheduleServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -17,21 +16,18 @@ import java.time.ZonedDateTime;
 import java.util.List;
 
 /**
- * 调度监控器 — 定期扫描启用的调度，检查 cron 是否需要触发
- * <p>
- * 每 15 秒扫描一次，对标 xxl-job 的调度轮询机制。
+ * 调度扫描逻辑 — 供单机 / 集群两种 {@link org.springframework.scheduling.annotation.Scheduled} 入口复用。
  */
 @Slf4j
-@Component
+@Service
 @RequiredArgsConstructor
-public class ScheduleMonitor {
+public class ScheduleScanService {
 
     private final ScheduleMapper scheduleMapper;
     private final ScheduleLogMapper scheduleLogMapper;
     private final ScheduleServiceImpl scheduleService;
 
-    @Scheduled(fixedDelay = 15_000)
-    public void scan() {
+    public void scanAndTriggerDueSchedules() {
         List<SchedulePO> enabledSchedules = scheduleMapper.selectList(
                 new LambdaQueryWrapper<SchedulePO>()
                         .eq(SchedulePO::getStatus, 1)
@@ -55,7 +51,9 @@ public class ScheduleMonitor {
                         : now.minusMinutes(5).atZone(ZoneId.systemDefault());
 
                 ZonedDateTime next = cronExpression.next(afterDate);
-                if (next == null) continue;
+                if (next == null) {
+                    continue;
+                }
 
                 LocalDateTime nextTime = next.toLocalDateTime();
 
@@ -70,7 +68,7 @@ public class ScheduleMonitor {
         }
     }
 
-    private LocalDateTime getLastTriggerTime(Long scheduleId) {
+    LocalDateTime getLastTriggerTime(Long scheduleId) {
         ScheduleLogPO lastLog = scheduleLogMapper.selectOne(
                 new LambdaQueryWrapper<ScheduleLogPO>()
                         .eq(ScheduleLogPO::getScheduleId, scheduleId)

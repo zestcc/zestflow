@@ -2,16 +2,23 @@ package com.zestflow.executor.interceptor;
 
 import com.zestflow.executor.chain.NodeDefinition;
 import com.zestflow.executor.context.ChainContext;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 
 /**
- * 指标拦截器 — 记录链/节点执行次数和耗时
+ * 指标拦截器 — 记录链/节点执行次数和耗时。
+ * <p>
+ * Phase 2a：若注入 {@link MeterRegistry}（Spring Boot Actuator / Micrometer），
+ * 同步导出 {@code zestflow.chain.*} 指标，支持 P99.9 分位数。
  */
 @Slf4j
 public class MetricsInterceptor implements ChainInterceptor, NodeInterceptor {
@@ -19,11 +26,21 @@ public class MetricsInterceptor implements ChainInterceptor, NodeInterceptor {
     private static final int MAX_CHAIN_METRICS = 512;
     private static final int MAX_NODE_METRICS = 2048;
 
-    /** 链级指标 */
+    private final MeterRegistry meterRegistry;
+
+    /** 链级指标（日志/调试） */
     private final Map<String, ChainMetrics> chainMetrics = new ConcurrentHashMap<>();
 
-    /** 节点级指标 */
+    /** 节点级指标（日志/调试） */
     private final Map<String, NodeMetrics> nodeMetrics = new ConcurrentHashMap<>();
+
+    public MetricsInterceptor() {
+        this(null);
+    }
+
+    public MetricsInterceptor(MeterRegistry meterRegistry) {
+        this.meterRegistry = meterRegistry;
+    }
 
     private static class ChainMetrics {
         final LongAdder invokeCount = new LongAdder();
@@ -41,8 +58,6 @@ public class MetricsInterceptor implements ChainInterceptor, NodeInterceptor {
         final AtomicLong totalCostMs = new AtomicLong(0);
     }
 
-    // ==================== ChainInterceptor ====================
-
     @Override
     public void beforeChain(String chainCode, ChainContext ctx) {
         ensureChainMetric(chainCode).invokeCount.increment();
@@ -55,6 +70,7 @@ public class MetricsInterceptor implements ChainInterceptor, NodeInterceptor {
             metrics.successCount.increment();
             metrics.totalCostMs.addAndGet(ctx.getElapsedMs());
         }
+        recordChainMicrometer(chainCode, "success", ctx.getElapsedMs());
     }
 
     @Override
@@ -63,9 +79,8 @@ public class MetricsInterceptor implements ChainInterceptor, NodeInterceptor {
         if (metrics != null) {
             metrics.failCount.increment();
         }
+        recordChainMicrometer(chainCode, "failure", ctx.getElapsedMs());
     }
-
-    // ==================== NodeInterceptor ====================
 
     @Override
     public void beforeNode(NodeDefinition node, ChainContext ctx) {
@@ -78,6 +93,7 @@ public class MetricsInterceptor implements ChainInterceptor, NodeInterceptor {
         if (metrics != null) {
             metrics.successCount.increment();
         }
+        recordNodeMicrometer(node.getId(), "success");
     }
 
     @Override
@@ -86,6 +102,7 @@ public class MetricsInterceptor implements ChainInterceptor, NodeInterceptor {
         if (metrics != null) {
             metrics.failCount.increment();
         }
+        recordNodeMicrometer(node.getId(), "failure");
     }
 
     @Override
@@ -93,7 +110,34 @@ public class MetricsInterceptor implements ChainInterceptor, NodeInterceptor {
         return 0;
     }
 
-    // ==================== 指标查询 ====================
+    private void recordChainMicrometer(String chainCode, String outcome, long elapsedMs) {
+        if (meterRegistry == null) {
+            return;
+        }
+        Counter.builder("zestflow.chain.executions")
+                .tag("chain", chainCode)
+                .tag("outcome", outcome)
+                .register(meterRegistry)
+                .increment();
+        Timer.builder("zestflow.chain.duration")
+                .tag("chain", chainCode)
+                .tag("outcome", outcome)
+                .publishPercentiles(0.5, 0.95, 0.99, 0.999)
+                .publishPercentileHistogram()
+                .register(meterRegistry)
+                .record(elapsedMs, TimeUnit.MILLISECONDS);
+    }
+
+    private void recordNodeMicrometer(String nodeId, String outcome) {
+        if (meterRegistry == null) {
+            return;
+        }
+        Counter.builder("zestflow.node.executions")
+                .tag("node", nodeId)
+                .tag("outcome", outcome)
+                .register(meterRegistry)
+                .increment();
+    }
 
     private ChainMetrics ensureChainMetric(String chainCode) {
         evictIfNeeded(chainMetrics, MAX_CHAIN_METRICS, chainCode);
@@ -116,9 +160,6 @@ public class MetricsInterceptor implements ChainInterceptor, NodeInterceptor {
         }
     }
 
-    /**
-     * 打印链指标
-     */
     public void printChainMetrics(String chainCode) {
         ChainMetrics m = chainMetrics.get(chainCode);
         if (m == null) {
@@ -130,9 +171,6 @@ public class MetricsInterceptor implements ChainInterceptor, NodeInterceptor {
                 m.failCount.sum(), m.totalCostMs.get());
     }
 
-    /**
-     * 打印节点指标
-     */
     public void printNodeMetrics(String nodeId) {
         NodeMetrics m = nodeMetrics.get(nodeId);
         if (m == null) {

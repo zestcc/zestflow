@@ -23,6 +23,7 @@ import com.zestflow.executor.controller.ExecutionController;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -220,8 +221,9 @@ public class ExecutorAutoConfig {
     }
 
     @Bean
-    public MetricsInterceptor metricsInterceptor() {
-        return new MetricsInterceptor();
+    public MetricsInterceptor metricsInterceptor(
+            ObjectProvider<io.micrometer.core.instrument.MeterRegistry> meterRegistryProvider) {
+        return new MetricsInterceptor(meterRegistryProvider.getIfAvailable());
     }
 
     @Bean

@@ -1,9 +1,10 @@
 # ZestFlow 开源发布前企业级质量门禁（单元测试 + 黑盒 + 多租户/IP 可选层）
 param(
-    [string]$JavaHome = "D:\IT\JAVA\JAVA17",
+    [string]$JavaHome = $(if ($env:JAVA_HOME) { $env:JAVA_HOME } else { "D:\IT\JDK17\jdk-17.0.19+10" }),
     [switch]$SkipMavenTest,
     [switch]$SkipRuntimeE2e,
     [switch]$RequireEnterpriseProfile,
+    [switch]$RequirePerfProfile,
     [int]$SceneTimeoutSec = 300
 )
 
@@ -30,6 +31,7 @@ function Write-GateReport {
         hint = @{
             fullGreen = ".\scripts\blackbox\run-full-e2e.ps1 -E2eProfile fullGreen"
             enterprise = "Admin: -Dspring-boot.run.profiles=local,enterprise-e2e then gate with -RequireEnterpriseProfile"
+            perf = ".\scripts\blackbox\run-perf-gate.ps1 or run-enterprise-gate.ps1 -RequirePerfProfile"
         }
     }
     Set-Content -Path $GateJson -Value ($report | ConvertTo-Json -Depth 6) -Encoding UTF8
@@ -99,6 +101,13 @@ switch ($LASTEXITCODE) {
     0 { Add-Phase "ip-demo-e2e" $true "passed" }
     2 { Add-Phase "ip-demo-e2e" $(-not $RequireEnterpriseProfile) $(if ($RequireEnterpriseProfile) { "required-but-skipped" } else { "skipped-not-enterprise-profile" }) }
     default { Add-Phase "ip-demo-e2e" $false "exit=$LASTEXITCODE" }
+}
+
+if ($RequirePerfProfile) {
+    & "$PSScriptRoot\run-perf-gate.ps1" -JavaHome $JavaHome -SkipRuntimeBlackbox
+    Add-Phase "perf-gate-phase2c" ($LASTEXITCODE -eq 0) "exit=$LASTEXITCODE"
+} else {
+    Add-Phase "perf-gate-phase2c" $true "skipped-use-RequirePerfProfile"
 }
 
 Write-GateReport

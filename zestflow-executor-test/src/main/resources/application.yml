@@ -24,3 +24,19 @@ zestflow:
   collector:
     registry:
       port: 20650
+
+# Phase 2a — Spring Boot Actuator + Micrometer（对标 Prometheus/Grafana）
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    distribution:
+      percentiles-histogram:
+        zestflow.chain.duration: true
+      percentiles:
+        zestflow.chain.duration: 0.5,0.95,0.99,0.999
