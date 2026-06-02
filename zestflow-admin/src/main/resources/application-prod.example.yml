@@ -91,6 +91,11 @@ zestflow:
     verify-email:
       subject: "ZestFlow - 邮箱验证"
 
+management:
+  endpoints.web.exposure.include: health,info,metrics
+  endpoint.health.show-details: when-authorized
+  endpoint.health.probes.enabled: true
+
 mybatis-plus:
   mapper-locations: classpath:mapper/*.xml
   type-aliases-package: com.zestflow.admin.model.entity

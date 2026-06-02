@@ -56,7 +56,6 @@
         <dependency>
             <groupId>org.apache.groovy</groupId>
             <artifactId>groovy-jsr223</artifactId>
-            <version>4.0.18</version>
         </dependency>
 
         <!-- Jackson JSON 处理 -->

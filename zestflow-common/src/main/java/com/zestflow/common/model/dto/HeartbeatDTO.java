@@ -19,5 +19,6 @@ public class HeartbeatDTO implements Serializable {
     private String executorId;
 
     /** 执行器状态：1-正常 0-过载 */
+    @Builder.Default
     private int status = 1;
 }

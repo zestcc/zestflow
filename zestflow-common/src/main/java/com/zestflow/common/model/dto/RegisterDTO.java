@@ -28,6 +28,7 @@ public class RegisterDTO implements Serializable {
     private String appCode;
 
     /** 应用名称（为空则默认等于 appCode） */
+    @Builder.Default
     private String appName = "";
 
     /** 扩展元数据 JSON */

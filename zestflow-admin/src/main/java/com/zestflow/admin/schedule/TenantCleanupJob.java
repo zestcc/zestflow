@@ -46,14 +46,16 @@ public class TenantCleanupJob {
     @Scheduled(fixedRate = 300_000)
     public void updateInactiveTenants() {
         LocalDateTime threshold = LocalDateTime.now().minusHours(1);
+        TenantPO updateEntity = new TenantPO();
+        updateEntity.setStatus(0);
         int updated = tenantMapper.update(
-                null,
+                updateEntity,
                 new LambdaQueryWrapper<TenantPO>()
                         .lt(TenantPO::getLastActiveAt, threshold)
                         .eq(TenantPO::getStatus, 1)
         );
         if (updated > 0) {
-            log.debug("租户活跃状态检查：{} 个租户超过 1 小时无活动", updated);
+            log.info("租户活跃状态检查：{} 个租户超过 1 小时无活动，已标记为不活跃", updated);
         }
     }
 }
