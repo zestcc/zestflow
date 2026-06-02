@@ -1,0 +1,5 @@
+# 与 Admin application-security-e2e.yml 成对；须同时重启 Admin + Executor
+zestflow:
+  executor:
+    access-token: e2e-security-executor-token
+    registry-token: e2e-security-registry-token

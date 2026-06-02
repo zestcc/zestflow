@@ -1,9 +1,11 @@
-# Layer B/C 黑盒 E2E — 需 MySQL + Admin + Executor 进程，默认不在 GitHub 托管 Runner 上自动跑。
-# 触发：Actions 页手动 Run workflow；或 fork 后配置 self-hosted runner + secrets。
+# Layer B/C 黑盒 E2E — 需 MySQL + Admin + Executor + Collector 进程。
+# GitHub 托管 Runner 无法启动完整栈；Layer A 单元测试在此 workflow 中自动跑。
+# Layer B 请在本地或带标签 self-hosted Runner 上执行 scripts/blackbox/run-enterprise-gate.ps1
 #
 # 本地等价命令（Windows）：
 #   powershell -File scripts/blackbox/run-enterprise-gate.ps1
-#   powershell -File scripts/blackbox/run-enterprise-gate.ps1 -RequireEnterpriseProfile
+#   powershell -File scripts/blackbox/run-chain-publish-e2e.ps1
+#   powershell -File scripts/blackbox/run-registry-token-e2e.ps1 -ValidToken "your-token"
 
 name: E2E (manual)
 
@@ -11,7 +13,23 @@ on:
   workflow_dispatch:
     inputs:
       require_enterprise_profile:
-        description: 'Require multi + ip-demo (Admin must start with profile enterprise-e2e)'
+        description: 'Self-hosted: require multi + ip-demo profile'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      require_security_profile:
+        description: 'Self-hosted: require security-e2e token profile'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      run_runtime_e2e:
+        description: 'Self-hosted only: run enterprise gate (Layer B/C)'
         required: false
         default: 'false'
         type: choice
@@ -19,20 +37,79 @@ on:
           - 'false'
           - 'true'
 
+concurrency:
+  group: e2e-manual-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
-  placeholder:
-    name: E2E not on GitHub-hosted runners
+  unit-tests:
+    name: Layer A — Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: maven
+
+      - name: Test zestflow-common
+        run: mvn -B test -pl zestflow-common
+
+      - name: Test zestflow-executor
+        run: mvn -B test -pl zestflow-executor -am
+
+      - name: Test collector-jdbc
+        run: mvn -B test -pl zestflow-collector/collector-jdbc -am
+
+      - name: Test zestflow-admin
+        run: mvn -B test -pl zestflow-admin -am
+
+  runtime-e2e:
+    name: Layer B/C — Runtime E2E (self-hosted)
+    needs: unit-tests
+    if: inputs.run_runtime_e2e == 'true'
+    runs-on: [self-hosted, zestflow]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enterprise gate
+        shell: pwsh
+        run: |
+          $args = @()
+          if ('${{ inputs.require_enterprise_profile }}' -eq 'true') {
+            $args += '-RequireEnterpriseProfile'
+          }
+          if ('${{ inputs.require_security_profile }}' -eq 'true') {
+            $args += '-RequireSecurityProfile'
+          }
+          & ./scripts/blackbox/run-enterprise-gate.ps1 -SkipMavenTest @args
+
+  instructions:
+    name: Layer B/C — Local instructions
+    needs: unit-tests
+    if: inputs.run_runtime_e2e != 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: Instructions
+      - uses: actions/checkout@v4
+
+      - name: Print runtime E2E guide
         run: |
-          echo "ZestFlow Layer B/C E2E requires:"
-          echo "  - MySQL 8 with zestflow_admin / business / log schemas"
-          echo "  - Admin :8080, Executor Netty :20550, Collector :20650"
+          echo "Layer A (unit tests) passed."
           echo ""
-          echo "Run locally:"
+          echo "Layer B/C requires MySQL 8 + Admin :8080 + Executor :20550 + Collector :20650"
+          echo ""
+          echo "Local (Windows PowerShell):"
           echo "  scripts/blackbox/run-enterprise-gate.ps1"
-          echo "  scripts/blackbox/run-enterprise-gate.ps1 -RequireEnterpriseProfile"
+          echo "  scripts/blackbox/run-chain-publish-e2e.ps1"
+          echo "  scripts/blackbox/run-security-token-e2e.ps1"
+          echo "  profiles=local,security-e2e on Admin + Executor, then gate -RequireSecurityProfile"
           echo ""
+          echo "Self-hosted CI: re-run workflow with run_runtime_e2e=true and runner labels [self-hosted, zestflow]"
           echo "See docs/RELEASE_READINESS.md"
-          exit 1

@@ -1,0 +1,7 @@
+# 安全开关 E2E 验收 Profile（需重启 Admin + Executor 后跑 run-security-token-e2e.ps1）
+# 启动：mvn spring-boot:run -pl zestflow-admin -Dspring-boot.run.profiles=local,security-e2e
+# Executor：mvn spring-boot:run -pl zestflow-executor-test -Dspring-boot.run.profiles=local,security-e2e
+zestflow:
+  admin:
+    registry-token: e2e-security-registry-token
+    executor-access-token: e2e-security-executor-token

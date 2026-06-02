@@ -10,7 +10,10 @@ import com.zestflow.executor.fallback.FallbackStrategy;
 import com.zestflow.executor.fallback.DefaultFallbackStrategy;
 import com.zestflow.executor.interceptor.*;
 import com.zestflow.executor.lifecycle.*;
+import com.zestflow.executor.metrics.ExecutorMicrometerBinder;
 import com.zestflow.executor.param.ParamConverterRegistry;
+import io.micrometer.core.instrument.binder.MeterBinder;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import com.zestflow.executor.param.resolver.ContextTypeResolver;
 import com.zestflow.executor.param.resolver.ParameterResolver;
 import com.zestflow.executor.param.resolver.ZestParamResolver;
@@ -224,6 +227,13 @@ public class ExecutorAutoConfig {
     public MetricsInterceptor metricsInterceptor(
             ObjectProvider<io.micrometer.core.instrument.MeterRegistry> meterRegistryProvider) {
         return new MetricsInterceptor(meterRegistryProvider.getIfAvailable());
+    }
+
+    @Bean
+    @ConditionalOnClass(name = "io.micrometer.core.instrument.MeterRegistry")
+    public MeterBinder executorMicrometerBinder(MetricsInterceptor metricsInterceptor,
+                                                 com.zestflow.executor.chain.ChainManager chainManager) {
+        return new ExecutorMicrometerBinder(metricsInterceptor, chainManager);
     }
 
     @Bean

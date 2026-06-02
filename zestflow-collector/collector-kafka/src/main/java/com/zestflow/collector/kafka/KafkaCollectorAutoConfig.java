@@ -3,7 +3,10 @@ package com.zestflow.collector.kafka;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zestflow.collector.async.AsyncEventCollector;
 import com.zestflow.collector.async.CollectorAsyncProperties;
+import com.zestflow.collector.async.metrics.CollectorMetricsSupport;
 import com.zestflow.common.spi.EventCollector;
+import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -27,10 +30,13 @@ public class KafkaCollectorAutoConfig {
     public EventCollector kafkaEventCollector(KafkaTemplate<String, String> kafkaTemplate,
                                                KafkaCollectorProperties properties,
                                                CollectorAsyncProperties asyncProperties,
-                                               ObjectMapper objectMapper) {
+                                               ObjectMapper objectMapper,
+                                               ObjectProvider<MeterRegistry> meterRegistry) {
         EventCollector delegate = new KafkaEventCollector(kafkaTemplate, properties.getTopic(), objectMapper);
         if (asyncProperties.isAsyncEnabled()) {
-            return new AsyncEventCollector(delegate, asyncProperties.toSettings());
+            AsyncEventCollector async = new AsyncEventCollector(delegate, asyncProperties.toSettings());
+            meterRegistry.ifAvailable(registry -> CollectorMetricsSupport.bindIfAvailable(async, registry));
+            return async;
         }
         return delegate;
     }

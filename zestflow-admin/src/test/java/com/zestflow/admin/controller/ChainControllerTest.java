@@ -161,6 +161,39 @@ class ChainControllerTest {
         verify(proxyService).resolveAllExecutorUrls("app-a");
     }
 
+    @Test
+    void publish_allExecutorsSuccess_returnsSuccessPayload() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(1L, true, 1L));
+
+        when(proxyService.resolveAllExecutorUrls("app-a"))
+                .thenReturn(java.util.List.of("http://exec-a:20550"));
+        when(proxyService.getFromExecutor(eq("app-a"), anyString(), isNull()))
+                .thenReturn("{\"code\":\"c1\",\"designCode\":\"DSN001\",\"status\":2}")
+                .thenReturn("{\"code\":\"c1\",\"designCode\":\"DSN001\",\"status\":2}");
+        when(proxyService.getFromExecutor(eq("app-a"), eq("/api/designs/DSN001"), isNull()))
+                .thenReturn("{\"code\":\"DSN001\",\"graphData\":\"{\\\"nodes\\\":[]}\",\"chainData\":\"{}\"}");
+
+        ExecutorProxyService.BroadcastResult broadcast = ExecutorProxyService.BroadcastResult.of(
+                1, 1, java.util.List.of(new ExecutorProxyService.ExecutorResult("http://exec-a:20550", true, "OK", "{}")));
+        when(proxyService.broadcastToExecutors(eq("app-a"), eq("PUT"), contains("/reload"), anyString()))
+                .thenReturn(broadcast);
+        when(proxyService.broadcastToExecutors(eq("app-a"), eq("PUT"), eq("/api/chains/c1"), anyString()))
+                .thenReturn(broadcast);
+
+        String json = chainController.publish("c1", "app-a");
+        ObjectMapper mapper = new ObjectMapper();
+        var root = mapper.readTree(json);
+        var data = root.get("data");
+
+        org.assertj.core.api.Assertions.assertThat(root.get("code").asInt()).isEqualTo(200);
+        org.assertj.core.api.Assertions.assertThat(data.get("success").asInt()).isEqualTo(1);
+        org.assertj.core.api.Assertions.assertThat(data.get("total").asInt()).isEqualTo(1);
+        verify(runtimeStateStore).savePublishProgress("c1", 1, 1);
+        verify(collectorClient).syncSnapshot(any());
+    }
+
     // ==================== activeCodes / getByCode / versions ====================
 
     @Test

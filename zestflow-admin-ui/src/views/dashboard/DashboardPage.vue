@@ -2,6 +2,26 @@
   <div class="dashboard">
     <h2>{{ $t('dashboard.title') }}</h2>
 
+    <el-alert v-if="features?.admin" type="info" :closable="false" class="runtime-banner" show-icon>
+      <template #title>{{ $t('dashboard.runtimeTitle') }}</template>
+      <div class="runtime-tags">
+        <el-tag size="small" effect="plain">{{ $t('dashboard.deployMode') }}: {{ features.admin.deployMode }}</el-tag>
+        <el-tag size="small" effect="plain">{{ $t('dashboard.cacheType') }}: {{ features.admin.cacheType }}</el-tag>
+        <el-tag size="small" :type="features.admin.redisRequired ? 'warning' : 'success'">
+          {{ features.admin.redisRequired ? $t('dashboard.redisRequired') : $t('dashboard.redisNotRequired') }}
+        </el-tag>
+        <el-tag v-if="features.security" size="small" :type="features.security.registryTokenConfigured ? 'success' : 'info'">
+          {{ $t('dashboard.registryToken') }}:
+          {{ features.security.registryTokenConfigured ? $t('dashboard.registryTokenOn') : $t('dashboard.registryTokenOff') }}
+        </el-tag>
+        <el-tag v-if="features.security?.executorAccessTokenConfigured != null" size="small"
+          :type="features.security.executorAccessTokenConfigured ? 'success' : 'info'">
+          {{ $t('dashboard.executorAccessToken') }}:
+          {{ features.security.executorAccessTokenConfigured ? $t('dashboard.registryTokenOn') : $t('dashboard.registryTokenOff') }}
+        </el-tag>
+      </div>
+    </el-alert>
+
     <!-- 执行器概览 -->
     <h3 class="section-title">执行器</h3>
     <el-row :gutter="20" class="cards">
@@ -141,7 +161,10 @@
 import { ref, onMounted } from 'vue'
 import { dashboardApi } from '@/api/dashboard'
 import { queryExecutionTraces } from '@/api/logs'
+import { getFeatures, type Features } from '@/api/system'
 import type { DashboardStatsVO } from '@/api/dashboard'
+
+const features = ref<Features | null>(null)
 
 const stats = ref<DashboardStatsVO>({
   totalApps: 0,
@@ -203,7 +226,14 @@ async function fetchRecentExecutions() {
   } catch {}
 }
 
+async function fetchFeatures() {
+  try {
+    features.value = await getFeatures()
+  } catch {}
+}
+
 onMounted(() => {
+  fetchFeatures()
   fetchStats()
   fetchRecentExecutions()
 })
@@ -214,6 +244,17 @@ onMounted(() => {
   margin: 0 0 24px;
   font-size: 22px;
   color: #303133;
+}
+
+.runtime-banner {
+  margin-bottom: 20px;
+}
+
+.runtime-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
 }
 
 .section-title {

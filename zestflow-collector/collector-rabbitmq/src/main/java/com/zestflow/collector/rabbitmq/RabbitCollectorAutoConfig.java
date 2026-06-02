@@ -3,7 +3,10 @@ package com.zestflow.collector.rabbitmq;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zestflow.collector.async.AsyncEventCollector;
 import com.zestflow.collector.async.CollectorAsyncProperties;
+import com.zestflow.collector.async.metrics.CollectorMetricsSupport;
 import com.zestflow.common.spi.EventCollector;
+import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -28,11 +31,14 @@ public class RabbitCollectorAutoConfig {
     public EventCollector rabbitEventCollector(RabbitTemplate rabbitTemplate,
                                                 RabbitCollectorProperties properties,
                                                 CollectorAsyncProperties asyncProperties,
-                                                ObjectMapper objectMapper) {
+                                                ObjectMapper objectMapper,
+                                                ObjectProvider<MeterRegistry> meterRegistry) {
         EventCollector delegate = new RabbitEventCollector(rabbitTemplate, properties.getExchange(),
                 properties.getRoutingKey(), objectMapper);
         if (asyncProperties.isAsyncEnabled()) {
-            return new AsyncEventCollector(delegate, asyncProperties.toSettings());
+            AsyncEventCollector async = new AsyncEventCollector(delegate, asyncProperties.toSettings());
+            meterRegistry.ifAvailable(registry -> CollectorMetricsSupport.bindIfAvailable(async, registry));
+            return async;
         }
         return delegate;
     }

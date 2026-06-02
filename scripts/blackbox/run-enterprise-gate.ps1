@@ -4,6 +4,7 @@ param(
     [switch]$SkipMavenTest,
     [switch]$SkipRuntimeE2e,
     [switch]$RequireEnterpriseProfile,
+    [switch]$RequireSecurityProfile,
     [switch]$RequirePerfProfile,
     [int]$SceneTimeoutSec = 300
 )
@@ -31,6 +32,7 @@ function Write-GateReport {
         hint = @{
             fullGreen = ".\scripts\blackbox\run-full-e2e.ps1 -E2eProfile fullGreen"
             enterprise = "Admin: -Dspring-boot.run.profiles=local,enterprise-e2e then gate with -RequireEnterpriseProfile"
+            security = "Admin+Executor: profiles=local,security-e2e then gate with -RequireSecurityProfile"
             perf = ".\scripts\blackbox\run-perf-gate.ps1 or run-enterprise-gate.ps1 -RequirePerfProfile"
         }
     }
@@ -67,6 +69,8 @@ if ($SkipRuntimeE2e) {
     Add-Phase "runtime-e2e" $true "skipped"
     Add-Phase "tenant-multi-e2e" $true "skipped"
     Add-Phase "ip-demo-e2e" $true "skipped"
+    Add-Phase "security-token-e2e" $true "skipped"
+    Add-Phase "perf-gate-phase2c" $true "skipped"
     Write-GateReport
 }
 
@@ -82,6 +86,8 @@ if (-not $adminUp) {
     Add-Phase "runtime-e2e" $false "Admin :8080 not reachable"
     Add-Phase "tenant-multi-e2e" $false "skipped-no-admin"
     Add-Phase "ip-demo-e2e" $false "skipped-no-admin"
+    Add-Phase "security-token-e2e" $false "skipped-no-admin"
+    Add-Phase "perf-gate-phase2c" $false "skipped-no-admin"
     Write-GateReport
 }
 
@@ -101,6 +107,14 @@ switch ($LASTEXITCODE) {
     0 { Add-Phase "ip-demo-e2e" $true "passed" }
     2 { Add-Phase "ip-demo-e2e" $(-not $RequireEnterpriseProfile) $(if ($RequireEnterpriseProfile) { "required-but-skipped" } else { "skipped-not-enterprise-profile" }) }
     default { Add-Phase "ip-demo-e2e" $false "exit=$LASTEXITCODE" }
+}
+
+$allowSecuritySkip = -not $RequireSecurityProfile
+& "$PSScriptRoot\run-security-token-e2e.ps1" -AllowSkip:$allowSecuritySkip
+switch ($LASTEXITCODE) {
+    0 { Add-Phase "security-token-e2e" $true "passed" }
+    2 { Add-Phase "security-token-e2e" $(-not $RequireSecurityProfile) $(if ($RequireSecurityProfile) { "required-but-skipped" } else { "skipped-not-security-profile" }) }
+    default { Add-Phase "security-token-e2e" $false "exit=$LASTEXITCODE" }
 }
 
 if ($RequirePerfProfile) {

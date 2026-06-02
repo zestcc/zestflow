@@ -66,13 +66,17 @@ powershell -File .\scripts\blackbox\run-enterprise-gate.ps1 -RequireEnterprisePr
 
 **仍建议手工或下一迭代自动化**：playground 关闭 404（E2E 在 playground.enabled=false 时已探测）。
 
-**E2E 已覆盖（Layer B）**：链 active-codes、调度 trigger（有种子时）、Actuator `zestflowAdmin` 健康、deploy-mode/cache 探测。
+**E2E 已覆盖（Layer B）**：链 **publish + active-codes**（`run-chain-publish-e2e.ps1`）、调度 trigger、Actuator 健康、deploy-mode/cache 探测、仪表盘运行时拓扑（需 `npm run build` 同步 static）。
 
-**仍建议手工**：链 CRUD 发布全链路、registry-token 401 成对配置验证。
+**Layer C — security-e2e Profile**（需重启 Admin + Executor）：`registry-token` / `executor-access-token` 401 成对验证（`run-security-token-e2e.ps1`；门禁 `-RequireSecurityProfile`）。
+
+**仍建议手工或下一迭代**：设计器 graph 保存全链路、链从零创建到 execute。
 
 ---
 
-## 4. enterprise-e2e Profile
+## 4. 可选 E2E Profile
+
+### 4.1 enterprise-e2e（多租户 + IP 演示）
 
 文件：`zestflow-admin/src/main/resources/application-enterprise-e2e.yml`
 
@@ -82,6 +86,43 @@ zestflow:
     mode: multi
     ip-demo-mode: enabled
 ```
+
+启动 Admin：`profiles=local,enterprise-e2e` → `run-enterprise-gate.ps1 -RequireEnterpriseProfile`
+
+### 4.2 security-e2e（机器鉴权成对）
+
+文件：
+
+- `zestflow-admin/src/main/resources/application-security-e2e.yml`
+- `zestflow-executor-test/src/main/resources/application-security-e2e.yml`
+
+```yaml
+# Admin
+zestflow.admin.registry-token: e2e-security-registry-token
+zestflow.admin.executor-access-token: e2e-security-executor-token
+
+# Executor（须一致）
+zestflow.executor.access-token: e2e-security-executor-token
+zestflow.executor.registry-token: e2e-security-registry-token
+```
+
+启动（**两者都要重启**）：
+
+```powershell
+# Admin
+mvn spring-boot:run -pl zestflow-admin -Dspring-boot.run.profiles=local,security-e2e
+
+# Executor
+mvn spring-boot:run -pl zestflow-executor-test -Dspring-boot.run.profiles=local,security-e2e
+
+# 验证
+.\scripts\blackbox\run-security-token-e2e.ps1
+.\scripts\blackbox\run-enterprise-gate.ps1 -SkipMavenTest -RequireSecurityProfile
+```
+
+---
+
+## 5. enterprise-e2e 种子说明
 
 种子数据（`initData.sql`）：
 
@@ -93,7 +134,7 @@ zestflow:
 
 ---
 
-## 5. 安全与可靠性
+## 6. 安全与可靠性
 
 | 项 | 默认开发 | 生产建议 |
 |----|----------|----------|
@@ -107,12 +148,14 @@ zestflow:
 
 ---
 
-## 6. 发布前 Checklist
+## 7. 发布前 Checklist
 
 - [ ] GitHub **CI**（Layer A）全绿：`.github/workflows/ci.yml`（**首次 push 后**在 Actions 查看）
 - [x] `run-enterprise-gate.ps1` Layer A+B 全 PASS（本地，2026-06-02）
 - [x] 灌库：`Apply-DemoSeed.ps1`（含租户 B + IP 映射 + `SCN20260602000002`）
 - [x] Admin `enterprise-e2e` + `-RequireEnterpriseProfile` 全 PASS（multi 隔离 + IP 演示）
+- [ ] Admin + Executor `security-e2e` + `-RequireSecurityProfile` 全 PASS（registry / executor token）
+- [x] 前端改动后 `cd zestflow-admin-ui && npm run build`（产物写入 admin static）
 - [x] `mvn package` 全反应堆 `-DskipTests` 通过
 - [x] README / 门禁文档已指向 `RELEASE_READINESS.md`
 
@@ -133,7 +176,7 @@ Badge（仓库 push 后可用）：
 
 ---
 
-## 7. 相关文档
+## 8. 相关文档
 
 - [FULL_E2E_TEST_REPORT.md](./FULL_E2E_TEST_REPORT.md)
 - [BLACKBOX_TEST_REPORT.md](./BLACKBOX_TEST_REPORT.md)

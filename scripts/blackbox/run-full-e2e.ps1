@@ -201,10 +201,25 @@ $r = Invoke-Api POST "$BaseAdmin/api/logs/events/query" '{"page":1,"size":5}' $h
 Add-F "admin" "logs-events" $r.ok $r.status $r.ms ""
 
 $r = Invoke-Api GET "$BaseAdmin/actuator/health/zestFlowAdmin" $null $null 10
-Add-F "admin" "actuator-zestFlowAdmin" ($r.ok -and $r.body -match 'deployMode') $r.status $r.ms ""
+$healthOk = $r.ok -and ($r.body -match 'deployMode')
+if ($r.ok) {
+    try {
+        $healthJson = ConvertFrom-Json $r.body
+        $healthStatus = $healthJson.status
+        Add-C "runtime" "zestflow.admin.health.status" $healthStatus "UP/DEGRADED/DOWN"
+        if ($healthJson.components.zestFlowAdmin.details.onlineExecutors -ne $null) {
+            Add-C "runtime" "zestflow.admin.health.onlineExecutors" $healthJson.components.zestFlowAdmin.details.onlineExecutors ""
+        }
+    } catch {}
+}
+Add-F "admin" "actuator-zestFlowAdmin" $healthOk $r.status $r.ms ""
 
 $r = Invoke-Api GET "$BaseAdmin/api/chains/active-codes?appCode=$($policyRaw.appCode)" $null $h
 Add-F "admin" "chains-active-codes" $r.ok $r.status $r.ms ""
+
+& "$PSScriptRoot\run-chain-publish-e2e.ps1" -BaseAdmin $BaseAdmin -AppCode $policyRaw.appCode
+$chainPubOk = ($LASTEXITCODE -eq 0)
+Add-F "admin" "chain-publish-e2e" $chainPubOk $(if ($chainPubOk) { 200 } else { 500 }) 0 $(if ($LASTEXITCODE -eq 2) { "skipped" } else { "publish+active-codes" })
 
 $r = Invoke-Api GET "$BaseAdmin/api/schedules?page=1&size=1" $null $h
 $scheduleId = $null

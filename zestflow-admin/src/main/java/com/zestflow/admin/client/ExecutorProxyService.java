@@ -332,27 +332,21 @@ public class ExecutorProxyService {
     }
 
     private String mergePagedFromExecutors(List<ExecutorRegistryPO> executors, String path, String query, String appCode) {
+        PagedQueryParser.ParsedPage clientPage = PagedQueryParser.parse(query);
+        String fanOutQuery = PagedQueryParser.forFanOut(query, PagedQueryParser.DEFAULT_FAN_OUT_SIZE);
         List<CompletableFuture<String>> futures = executors.stream()
                 .map(executor -> CompletableFuture.supplyAsync(
-                        () -> fetchFromExecutor(executor, path, query, appCode), readExecutor))
+                        () -> fetchFromExecutor(executor, path, fanOutQuery, appCode), readExecutor))
                 .toList();
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 
         Map<String, JsonNode> dedup = new LinkedHashMap<>();
-        long total = 0;
-        int page = 1;
-        int size = 10;
+        long totalHint = 0;
         for (CompletableFuture<String> future : futures) {
             try {
                 JsonNode root = MAPPER.readTree(future.getNow(emptyPage()));
                 if (root.has("total")) {
-                    total = Math.max(total, root.get("total").asLong());
-                }
-                if (root.has("current")) {
-                    page = root.get("current").asInt();
-                }
-                if (root.has("size")) {
-                    size = root.get("size").asInt();
+                    totalHint = Math.max(totalHint, root.get("total").asLong());
                 }
                 if (root.has("records") && root.get("records").isArray()) {
                     for (JsonNode record : root.get("records")) {
@@ -365,19 +359,41 @@ public class ExecutorProxyService {
                 log.warn("合并 Executor 分页响应失败 path={}", path, e);
             }
         }
+        List<JsonNode> mergedList = new ArrayList<>(dedup.values());
+        mergedList.sort(Comparator.comparing(
+                ExecutorProxyService::extractUpdatedAtSortKey,
+                Comparator.nullsLast(Comparator.reverseOrder())));
+
+        int from = Math.max(0, (clientPage.page() - 1) * clientPage.size());
+        int to = Math.min(mergedList.size(), from + clientPage.size());
+        List<JsonNode> slice = from >= mergedList.size() ? List.of() : mergedList.subList(from, to);
+
         ArrayNode merged = MAPPER.createArrayNode();
-        dedup.values().forEach(merged::add);
+        slice.forEach(merged::add);
         enrichRecords(merged, appCode);
         ObjectNode pageObj = MAPPER.createObjectNode();
         pageObj.set("records", merged);
-        pageObj.put("total", Math.max(merged.size(), total));
-        pageObj.put("current", page);
-        pageObj.put("size", size);
+        pageObj.put("total", Math.max(mergedList.size(), totalHint));
+        pageObj.put("current", clientPage.page());
+        pageObj.put("size", clientPage.size());
         try {
             return MAPPER.writeValueAsString(pageObj);
         } catch (Exception e) {
             return emptyPage();
         }
+    }
+
+    private static String extractUpdatedAtSortKey(JsonNode record) {
+        if (record == null || !record.isObject()) {
+            return null;
+        }
+        if (record.has("updatedAt") && !record.get("updatedAt").isNull()) {
+            return record.get("updatedAt").asText();
+        }
+        if (record.has("createdAt") && !record.get("createdAt").isNull()) {
+            return record.get("createdAt").asText();
+        }
+        return null;
     }
 
     private String mergeArrayFromExecutors(List<ExecutorRegistryPO> executors, String path, String query, String appCode) {

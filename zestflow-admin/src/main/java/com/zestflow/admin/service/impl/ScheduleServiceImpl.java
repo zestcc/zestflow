@@ -17,6 +17,7 @@ import com.zestflow.admin.repository.ScheduleLogMapper;
 import com.zestflow.admin.repository.ScheduleMapper;
 import com.zestflow.admin.schedule.ExecutorClient;
 import com.zestflow.admin.schedule.RouteStrategy;
+import com.zestflow.admin.schedule.ScheduleExecutorFailover;
 import com.zestflow.admin.service.ScheduleService;
 import com.zestflow.admin.service.TenantAppContext;
 import com.zestflow.common.constant.RegistryConstants;
@@ -195,12 +196,18 @@ public class ScheduleServiceImpl implements ScheduleService {
             return toLogVO(logPo);
         }
 
-        // 2. 路由选择
+        // 2. 路由 + failover 执行（对标 xxl-job 失败切换）
         RouteStrategy strategy = findStrategy(schedule.getRouteStrategy());
-        ExecutorRegistryPO target = strategy.select(onlineExecutors, schedule.getChainCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> params = parseParams(schedule.getParams());
+        ScheduleExecutorFailover.FailoverResult failover = ScheduleExecutorFailover.executeWithFailover(
+                onlineExecutors, strategy, schedule.getChainCode(), params, executorClient);
+
+        ExecutorRegistryPO target = failover.getExecutor();
+        ChainExecuteResultDTO result = failover.getResult();
         if (target == null) {
             logPo.setStatus(2);
-            logPo.setErrorMessage("路由策略未选中执行器");
+            logPo.setErrorMessage(result != null ? result.getErrorMessage() : "路由失败");
             logPo.setCostMs(System.currentTimeMillis() - startTime);
             scheduleLogMapper.insert(logPo);
             return toLogVO(logPo);
@@ -210,28 +217,25 @@ public class ScheduleServiceImpl implements ScheduleService {
         logPo.setExecutorAddress(target.getExecutorHost() + ":" + target.getExecutorPort());
         logPo.setRouteStrategy(strategy.name());
 
-        // 3. 发送执行请求
-        @SuppressWarnings("unchecked")
-        Map<String, Object> params = parseParams(schedule.getParams());
-        ChainExecuteResultDTO result = executorClient.execute(
-                target.getExecutorHost(), target.getExecutorPort(),
-                schedule.getChainCode(), params);
-
-        // 4. 记录结果
+        // 3. 记录结果
         long costMs = System.currentTimeMillis() - startTime;
         logPo.setCostMs(costMs);
-        if (result.getStatus() != null && result.getStatus() == 3) {
+        if (ScheduleExecutorFailover.isSuccess(result)) {
             logPo.setStatus(1); // 成功
         } else {
             logPo.setStatus(2); // 失败
+            if (failover.getAttempted() > 1) {
+                log.warn("调度 failover 全部失败 scheduleId={} attempted={} lastError={}",
+                        schedule.getId(), failover.getAttempted(), result.getErrorMessage());
+            }
         }
         logPo.setErrorMessage(result.getErrorMessage());
         scheduleLogMapper.insert(logPo);
 
-        log.info("调度触发完成 scheduleId={} chainCode={} executor={}:{} status={} cost={}ms",
+        log.info("调度触发完成 scheduleId={} chainCode={} executor={}:{} status={} cost={}ms attempted={}",
                 schedule.getId(), schedule.getChainCode(),
                 target.getExecutorHost(), target.getExecutorPort(),
-                logPo.getStatus(), costMs);
+                logPo.getStatus(), costMs, failover.getAttempted());
 
         return toLogVO(logPo);
     }

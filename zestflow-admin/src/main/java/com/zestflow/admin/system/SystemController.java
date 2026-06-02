@@ -40,8 +40,10 @@ public class SystemController {
                 "ipDemoMode", tenantModeConfig.getIpDemoMode() != null ? tenantModeConfig.getIpDemoMode() : "disabled"
         ));
         String registryToken = environment.getProperty("zestflow.admin.registry-token", "");
+        String executorAccessToken = environment.getProperty("zestflow.admin.executor-access-token", "");
         out.put("security", Map.of(
-                "registryTokenConfigured", registryToken != null && !registryToken.isBlank()
+                "registryTokenConfigured", registryToken != null && !registryToken.isBlank(),
+                "executorAccessTokenConfigured", executorAccessToken != null && !executorAccessToken.isBlank()
         ));
         out.put("admin", Map.of(
                 "deployMode", deployProperties.getDeployMode(),

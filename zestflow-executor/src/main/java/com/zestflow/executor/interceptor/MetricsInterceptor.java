@@ -160,6 +160,23 @@ public class MetricsInterceptor implements ChainInterceptor, NodeInterceptor {
         }
     }
 
+    /** 供 {@link com.zestflow.executor.metrics.ExecutorMicrometerBinder} 汇总绑定 */
+    public long getTotalChainInvocations() {
+        return chainMetrics.values().stream().mapToLong(m -> m.invokeCount.sum()).sum();
+    }
+
+    public long getTotalChainSuccesses() {
+        return chainMetrics.values().stream().mapToLong(m -> m.successCount.sum()).sum();
+    }
+
+    public long getTotalChainFailures() {
+        return chainMetrics.values().stream().mapToLong(m -> m.failCount.sum()).sum();
+    }
+
+    public long getTotalChainCostMs() {
+        return chainMetrics.values().stream().mapToLong(m -> m.totalCostMs.get()).sum();
+    }
+
     public void printChainMetrics(String chainCode) {
         ChainMetrics m = chainMetrics.get(chainCode);
         if (m == null) {
