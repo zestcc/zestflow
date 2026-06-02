@@ -92,6 +92,20 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
 
     /** 关闭 ForkJoinPool + 清理过期实例，释放线程资源 */
     public void destroy() {
+        long graceMs = properties.getShutdownGracePeriodMs();
+        if (graceMs > 0) {
+            int running = instanceManager.countRunning();
+            if (running > 0) {
+                log.info("等待在途链执行完成 running={} graceMs={}", running, graceMs);
+                try {
+                    if (!instanceManager.awaitIdle(graceMs)) {
+                        log.warn("关闭宽限期结束，仍有 {} 条链在执行", instanceManager.countRunning());
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
         instanceManager.cleanupCompleted();
         forkJoinPool.shutdown();
         try {

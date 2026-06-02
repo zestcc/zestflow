@@ -30,4 +30,20 @@ public class ChainExecuteRequestDTO {
 
     /** 链路追踪 ID */
     private String traceId;
+
+    /** 幂等键 — 与 traceId 二选一；相同键在 TTL 内返回同一执行结果 */
+    private String idempotencyKey;
+
+    /**
+     * 解析实际幂等键：优先 idempotencyKey，否则 traceId。
+     */
+    public String resolveIdempotencyKey() {
+        if (idempotencyKey != null && !idempotencyKey.isBlank()) {
+            return idempotencyKey.trim();
+        }
+        if (traceId != null && !traceId.isBlank()) {
+            return traceId.trim();
+        }
+        return null;
+    }
 }

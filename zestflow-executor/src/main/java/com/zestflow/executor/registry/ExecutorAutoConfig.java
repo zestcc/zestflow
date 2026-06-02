@@ -50,24 +50,32 @@ import java.util.List;
 @Import({ExecutorDataSourceConfig.class, ExecutorSchedulingConfig.class})
 public class ExecutorAutoConfig {
 
+    @Bean
+    public ExecutionIdempotencyGuard executionIdempotencyGuard() {
+        return new ExecutionIdempotencyGuard();
+    }
+
     @Bean(initMethod = "start", destroyMethod = "stop")
     public ExecutorServer executorServer(ExecutorProperties properties,
                                           ChainExecutionEngine chainExecutionEngine,
                                           ChainRepository chainRepo,
                                           DesignRepository designRepo,
                                           ComponentScanner componentScanner,
-                                          ChainLoader chainLoader) {
+                                          ChainLoader chainLoader,
+                                          ExecutionIdempotencyGuard idempotencyGuard) {
         return new ExecutorServer(properties.getPort(), chainExecutionEngine,
                 chainRepo, designRepo, componentScanner, chainLoader,
-                properties.getAccessToken(), properties);
+                properties.getAccessToken(), properties, idempotencyGuard);
     }
 
     @Bean
     @ConditionalOnProperty(prefix = "zestflow.executor", name = "execute-endpoint-enabled",
             havingValue = "true", matchIfMissing = false)
     public ExecutionController executionController(ChainExecutionEngine chainExecutionEngine,
-                                                    ChainManager chainManager) {
-        return new ExecutionController(chainExecutionEngine, chainManager);
+                                                    ChainManager chainManager,
+                                                    ExecutionIdempotencyGuard idempotencyGuard,
+                                                    ExecutorProperties properties) {
+        return new ExecutionController(chainExecutionEngine, chainManager, idempotencyGuard, properties);
     }
 
     @Bean

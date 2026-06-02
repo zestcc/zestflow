@@ -101,4 +101,27 @@ public class ChainInstanceManager {
             return expired;
         });
     }
+
+    /**
+     * 仍在运行中的实例数量
+     */
+    public int countRunning() {
+        return (int) instances.stream()
+                .filter(inst -> inst.getStateMachine().isRunning())
+                .count();
+    }
+
+    /**
+     * 等待所有运行中实例结束，超时返回 false。
+     */
+    public boolean awaitIdle(long timeoutMs) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + Math.max(0, timeoutMs);
+        while (System.currentTimeMillis() < deadline) {
+            if (countRunning() == 0) {
+                return true;
+            }
+            Thread.sleep(50);
+        }
+        return countRunning() == 0;
+    }
 }
