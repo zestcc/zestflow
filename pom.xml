@@ -6,7 +6,7 @@
 
     <groupId>cn.zestflow.www</groupId>
     <artifactId>zestflow</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <packaging>pom</packaging>
 
     <name>ZestFlow</name>
@@ -21,16 +21,25 @@
     </licenses>
 
     <scm>
-        <url>https://github.com/zestcc/zestflow</url>
-        <connection>scm:git:https://github.com/zestcc/zestflow.git</connection>
+        <url>https://gitee.com/zestcc/zestflow</url>
+        <connection>scm:git:https://gitee.com/zestcc/zestflow.git</connection>
+        <developerConnection>scm:git:https://gitee.com/zestcc/zestflow.git</developerConnection>
     </scm>
 
     <developers>
         <developer>
-            <name>zest</name>
-            <email>zest@zestflow.cn</email>
+            <id>zestflow</id>
+            <name>zestflow</name>
+            <email>zestcc@126.com</email>
         </developer>
     </developers>
+
+    <issueManagement>
+        <system>Gitee</system>
+        <url>https://gitee.com/zestcc/zestflow/issues</url>
+    </issueManagement>
+
+    <!-- Central Portal 发布：由 central-publishing-maven-plugin 上传 bundle，无需 oss.sonatype.org -->
 
     <modules>
         <module>zestflow-common</module>
@@ -65,14 +74,17 @@
         <shedlock.version>5.16.0</shedlock.version>
 
         <!-- ============ 模块版本（独立管理，可各自发布） ============ -->
-        <zestflow-common.version>1.0.0-SNAPSHOT</zestflow-common.version>
-        <zestflow-executor.version>1.0.0-SNAPSHOT</zestflow-executor.version>
-        <collector-core.version>1.0.0-SNAPSHOT</collector-core.version>
-        <collector-jdbc.version>1.0.0-SNAPSHOT</collector-jdbc.version>
-        <collector-kafka.version>1.0.0-SNAPSHOT</collector-kafka.version>
-        <collector-rabbitmq.version>1.0.0-SNAPSHOT</collector-rabbitmq.version>
-        <zestflow-starter.version>1.0.0-SNAPSHOT</zestflow-starter.version>
-        <zestflow-admin.version>1.0.0-SNAPSHOT</zestflow-admin.version>
+        <zestflow-common.version>1.0.0</zestflow-common.version>
+        <zestflow-executor.version>1.0.0</zestflow-executor.version>
+        <collector-core.version>1.0.0</collector-core.version>
+        <collector-jdbc.version>1.0.0</collector-jdbc.version>
+        <collector-kafka.version>1.0.0</collector-kafka.version>
+        <collector-rabbitmq.version>1.0.0</collector-rabbitmq.version>
+        <zestflow-starter.version>1.0.0</zestflow-starter.version>
+        <zestflow-admin.version>1.0.0</zestflow-admin.version>
+
+        <!-- release profile：本地验证加 -Dgpg.skip=true；正式发布勿跳过 -->
+        <gpg.skip>false</gpg.skip>
     </properties>
 
     <dependencyManagement>
@@ -120,7 +132,6 @@
                 <groupId>cn.zestflow.www</groupId>
                 <artifactId>zestflow-starter</artifactId>
                 <version>${zestflow-starter.version}</version>
-                <type>pom</type>
             </dependency>
             <dependency>
                 <groupId>cn.zestflow.www</groupId>
@@ -242,6 +253,14 @@
                 <plugins>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-deploy-plugin</artifactId>
+                        <version>3.1.2</version>
+                        <configuration>
+                            <deployAtEnd>true</deployAtEnd>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-source-plugin</artifactId>
                         <version>3.3.0</version>
                         <executions>
@@ -255,6 +274,10 @@
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
                         <version>3.6.3</version>
+                        <configuration>
+                            <doclint>none</doclint>
+                            <quiet>true</quiet>
+                        </configuration>
                         <executions>
                             <execution>
                                 <id>attach-javadocs</id>
@@ -266,6 +289,9 @@
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
                         <version>3.1.0</version>
+                        <configuration>
+                            <skip>${gpg.skip}</skip>
+                        </configuration>
                         <executions>
                             <execution>
                                 <id>sign-artifacts</id>
@@ -275,14 +301,15 @@
                         </executions>
                     </plugin>
                     <plugin>
-                        <groupId>org.sonatype.plugins</groupId>
-                        <artifactId>nexus-staging-maven-plugin</artifactId>
-                        <version>1.6.13</version>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.10.0</version>
                         <extensions>true</extensions>
                         <configuration>
-                            <serverId>ossrh</serverId>
-                            <nexusUrl>https://oss.sonatype.org</nexusUrl>
-                            <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <waitUntil>published</waitUntil>
+                            <deploymentName>ZestFlow 1.0.0</deploymentName>
                         </configuration>
                     </plugin>
                 </plugins>

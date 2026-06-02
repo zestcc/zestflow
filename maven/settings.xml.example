@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Maven Central（Central Portal）发布配置示例
+  复制到 %USERPROFILE%\.m2\settings.xml 或合并其中的 <servers> / <profiles> 段
+
+  前置条件：
+  1. central.sonatype.com 命名空间 cn.zestflow.www 已注册
+  2. Central Portal → Account / User Token → Generate User Token
+  3. Gpg4win 已安装，私钥已导入（Key ID: 5B28B71AF1128C97）
+  4. 公钥已在 keyserver（zestflow <zestcc@126.com>）
+
+  注意：OSSRH（oss.sonatype.org）已下线，必须使用 Central Portal User Token，server id 为 central。
+-->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0
+          https://maven.apache.org/xsd/settings-1.2.0.xsd">
+
+    <servers>
+        <server>
+            <id>central</id>
+            <!-- Central Portal → https://central.sonatype.com/usertoken → Generate User Token -->
+            <username>YOUR_SONATYPE_TOKEN_USERNAME</username>
+            <password>YOUR_SONATYPE_TOKEN_PASSWORD</password>
+        </server>
+    </servers>
+
+    <profiles>
+        <profile>
+            <id>gpg</id>
+            <properties>
+                <gpg.executable>C:\Program Files\GnuPG\bin\gpg.exe</gpg.executable>
+                <gpg.passphrase>YOUR_GPG_PASSPHRASE</gpg.passphrase>
+            </properties>
+        </profile>
+    </profiles>
+
+    <activeProfiles>
+        <activeProfile>gpg</activeProfile>
+    </activeProfiles>
+
+</settings>

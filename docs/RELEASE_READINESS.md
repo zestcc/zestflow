@@ -158,6 +158,72 @@ mvn spring-boot:run -pl zestflow-executor-test -Dspring-boot.run.profiles=local,
 - [x] 前端改动后 `cd zestflow-admin-ui && npm run build`（产物写入 admin static）
 - [x] `mvn package` 全反应堆 `-DskipTests` 通过
 - [x] README / 门禁文档已指向 `RELEASE_READINESS.md`
+- [ ] Maven Central 首发：`mvn clean deploy -Prelease -DskipTests`（见下方 §8）
+
+---
+
+## 8. Maven Central 首发（cn.zestflow.www）
+
+**发布 artifact（9 个）：** `zestflow`、`zestflow-common`、`zestflow-executor`、`zestflow-starter`、`zestflow-collector`、`collector-core`、`collector-jdbc`、`collector-kafka`、`collector-rabbitmq`
+
+**不发布：** `zestflow-admin`、`zestflow-executor-test`（`maven-deploy-plugin skip=true`）
+
+### 已完成（代码侧）
+
+- [x] 版本 `1.0.0`、`distributionManagement`、`release` profile
+- [x] developer / issueManagement 元数据（`zestcc@126.com`）
+- [x] 发布脚本：[`scripts/maven/verify-release.ps1`](../scripts/maven/verify-release.ps1)、[`scripts/maven/publish-central.ps1`](../scripts/maven/publish-central.ps1)
+- [x] settings 模板：[`maven/settings.xml.example`](../maven/settings.xml.example)
+
+### 明日待你完成（私钥 + Token）
+
+| 步骤 | 操作 |
+|------|------|
+| 1 | 安装 [Gpg4win](https://www.gpg4win.org/download.html) |
+| 2 | 从原机器导出私钥：`gpg --export-secret-keys 5B28B71AF1128C97 > zestflow-secret.asc` |
+| 3 | 本机导入：`gpg --import zestflow-secret.asc` |
+| 4 | 验证：`gpg --list-secret-keys --keyid-format LONG`（应有 `sec ... 5B28B71AF1128C97`） |
+| 5 | 复制 `maven/settings.xml.example` → `%USERPROFILE%\.m2\settings.xml`，填入 **Central Portal User Token** + **GPG 口令** |
+| 6 | 执行正式发布（见下） |
+
+**Central Portal User Token（不是旧 OSSRH 密码）：**
+
+- 入口：https://central.sonatype.com/usertoken
+- 或：Account → Generate User Token
+- `settings.xml` 里 `<server><id>central</id>`（**不是** `ossrh`）
+- Token 只显示一次，务必保存
+
+**GPG 公钥（已上传 keyserver）：**
+
+- UID: `zestflow <zestcc@126.com>`
+- Key ID: `5B28B71AF1128C97`
+- Fingerprint: `3C3D03110B28D04E5C92B6075B28B71AF1128C97`
+
+### 命令
+
+```powershell
+# 需 JDK 17 — 今日可先验证 release 构件（无需 GPG / Token）
+powershell -File scripts/maven/verify-release.ps1
+
+# 明日私钥 + settings.xml 就绪后 — 一键发布
+powershell -File scripts/maven/publish-central.ps1
+```
+
+等价手动命令：
+
+```powershell
+$env:JAVA_HOME = "D:\IT\JAVA\JAVA17"   # 按本机路径
+
+# 验证
+mvn clean verify -Prelease -DskipTests "-Dgpg.skip=true"
+
+# 发布（勿加 gpg.skip）
+mvn clean deploy -Prelease -DskipTests
+```
+
+上传后在 [Central Portal → Deployments](https://central.sonatype.com/publishing/deployments) 确认状态为 **Published**（`autoPublish=true` 通常自动完成）。索引可见约数分钟~2 小时。
+
+> **说明：** OSSRH（`oss.sonatype.org`）已于 2025-06 下线；本项目已改用 `central-publishing-maven-plugin` + Central Portal User Token。
 
 ---
 
