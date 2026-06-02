@@ -2,72 +2,87 @@ package com.zestflow.test.component;
 
 import com.zestflow.executor.annotation.ZestComponent;
 import com.zestflow.executor.annotation.ZestExecute;
-import com.zestflow.executor.context.ChainContext;
+import com.zestflow.executor.annotation.ZestParam;
+import com.zestflow.executor.annotation.ZestSelector;
+import com.zestflow.executor.annotation.ZestTag;
+import com.zestflow.test.component.model.marketing.MarketingResults;
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.Map;
 
 @Slf4j
 @ZestComponent("marketing")
 public class MarketingHandler {
 
     @ZestExecute(value = "createCampaign", name = "创建营销活动")
-    public Map<String, Object> createCampaign(ChainContext ctx) {
+    public MarketingResults.CreateCampaignResult createCampaign() {
         log.info("营销-创建活动");
-        return Map.of("campaignId", "CAM" + System.currentTimeMillis(), "type", "FULL_REDUCE");
+        return new MarketingResults.CreateCampaignResult("CAM" + System.currentTimeMillis(), "FULL_REDUCE");
     }
 
     @ZestExecute(value = "issueCoupon", name = "发放优惠券")
-    public Map<String, Object> issueCoupon(ChainContext ctx) {
+    public MarketingResults.IssueCouponResult issueCoupon() {
         log.info("营销-发放优惠券");
-        return Map.of("couponId", "CPN" + System.currentTimeMillis(), "value", 20.0);
+        return new MarketingResults.IssueCouponResult("CPN" + System.currentTimeMillis(), 20.0);
     }
 
     @ZestExecute(value = "calcDiscount", name = "计算折扣")
-    public Map<String, Object> calcDiscount(ChainContext ctx) {
-        log.info("营销-计算折扣");
-        return Map.of("originalPrice", 200.0, "discountPrice", 160.0);
+    public MarketingResults.CalcDiscountResult calcDiscount(
+            @ZestParam(value = "amount", defaultValue = "200") double amount) {
+        log.info("营销-计算折扣 amount={}", amount);
+        return new MarketingResults.CalcDiscountResult(amount, amount * 0.8);
     }
 
     @ZestExecute(value = "applyPromotion", name = "应用促销")
-    public Map<String, Object> applyPromotion(ChainContext ctx) {
+    public MarketingResults.ApplyPromotionResult applyPromotion() {
         log.info("营销-应用促销");
-        return Map.of("promotionType", "SECONDS_HALF", "reducedAmount", 50.0);
+        return new MarketingResults.ApplyPromotionResult("SECONDS_HALF", 50.0);
     }
 
     @ZestExecute(value = "sendPushPromotion", name = "推送促销消息")
-    public Map<String, Object> sendPushPromotion(ChainContext ctx) {
+    public MarketingResults.SendPushPromotionResult sendPushPromotion() {
         log.info("营销-推送促销");
-        return Map.of("sentCount", 10000, "channel", "PUSH");
+        return new MarketingResults.SendPushPromotionResult(10000, "PUSH");
     }
 
     @ZestExecute(value = "redeemPoints", name = "积分兑换")
-    public Map<String, Object> redeemPoints(ChainContext ctx) {
-        log.info("营销-积分兑换");
-        return Map.of("pointsUsed", 1000, "reward", "满100减10券");
+    public MarketingResults.PointsRedeemResult redeemPoints(MarketingResults.CashbackResult cashback) {
+        int points = (int) (cashback.cashbackAmount() * 100);
+        log.info("营销-积分入账 cashback={} points={}", cashback.cashbackAmount(), points);
+        return new MarketingResults.PointsRedeemResult(points, "满100减10券");
     }
 
     @ZestExecute(value = "checkUserTag", name = "用户标签匹配")
-    public Map<String, Object> checkUserTag(ChainContext ctx) {
-        log.info("营销-用户标签匹配");
-        return Map.of("matched", true, "tags", new String[]{"高消费", "VIP"});
+    public MarketingResults.CheckUserTagResult checkUserTag(
+            @ZestParam(value = "userId", required = false) String userId) {
+        log.info("营销-用户标签匹配 userId={}", userId);
+        return new MarketingResults.CheckUserTagResult(true, new String[]{"高消费", "VIP"});
     }
 
     @ZestExecute(value = "calcCashback", name = "计算返现")
-    public Map<String, Object> calcCashback(ChainContext ctx) {
-        log.info("营销-计算返现");
-        return Map.of("cashbackAmount", 15.0, "rule", "ORDER_AMOUNT_5%");
+    public MarketingResults.CashbackResult calcCashback(
+            @ZestParam(value = "amount", defaultValue = "300") double amount) {
+        double cashback = Math.round(amount * 0.05 * 100.0) / 100.0;
+        log.info("营销-计算返现 amount={} cashback={}", amount, cashback);
+        return new MarketingResults.CashbackResult(cashback, "ORDER_AMOUNT_5%");
     }
 
     @ZestExecute(value = "groupBuyProcess", name = "拼团处理")
-    public Map<String, Object> groupBuyProcess(ChainContext ctx) {
+    public MarketingResults.GroupBuyProcessResult groupBuyProcess() {
         log.info("营销-拼团处理");
-        return Map.of("groupId", "GRP" + System.currentTimeMillis(), "members", 3);
+        return new MarketingResults.GroupBuyProcessResult("GRP" + System.currentTimeMillis(), 3);
     }
 
     @ZestExecute(value = "seckillValidate", name = "秒杀校验")
-    public Map<String, Object> seckillValidate(ChainContext ctx) {
-        log.info("营销-秒杀校验");
-        return Map.of("available", true, "stock", 50);
+    public MarketingResults.SeckillValidateResult seckillValidate(
+            @ZestParam(value = "productId", required = false) String productId) {
+        log.info("营销-秒杀校验 productId={}", productId);
+        return new MarketingResults.SeckillValidateResult(true, 50);
+    }
+
+    @ZestSelector(value = "routePromotion", name = "促销路由")
+    @ZestTag(name = "发券", value = "coupon")
+    @ZestTag(name = "返现", value = "cashback")
+    public String routePromotion() {
+        log.info("营销-促销路由");
+        return "coupon";
     }
 }

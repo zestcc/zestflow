@@ -1,0 +1,230 @@
+﻿{
+    "functional":  [
+                       {
+                           "category":  "security",
+                           "name":  "admin-no-token",
+                           "method":  "GET",
+                           "url":  "http://127.0.0.1:8080/api/dashboard/stats",
+                           "status":  403,
+                           "ok":  true,
+                           "latencyMs":  208,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "security",
+                           "name":  "playground-no-token",
+                           "method":  "GET",
+                           "url":  "http://127.0.0.1:8080/api/playground/scenes/list-all",
+                           "status":  403,
+                           "ok":  true,
+                           "latencyMs":  5,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "security",
+                           "name":  "registry-no-token-dev",
+                           "method":  "POST",
+                           "url":  "http://127.0.0.1:8080/api/registry/register",
+                           "status":  200,
+                           "ok":  true,
+                           "latencyMs":  82,
+                           "note":  "dev-open"
+                       },
+                       {
+                           "category":  "auth",
+                           "name":  "login-ok",
+                           "method":  "POST",
+                           "url":  "http://127.0.0.1:8080/api/auth/login",
+                           "status":  200,
+                           "ok":  true,
+                           "latencyMs":  66,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "auth",
+                           "name":  "login-bad-password",
+                           "method":  "POST",
+                           "url":  "http://127.0.0.1:8080/api/auth/login",
+                           "status":  200,
+                           "ok":  true,
+                           "latencyMs":  66,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "executor",
+                           "name":  "netty-health",
+                           "method":  "GET",
+                           "url":  "http://127.0.0.1:20550/health",
+                           "status":  200,
+                           "ok":  true,
+                           "latencyMs":  13,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "executor",
+                           "name":  "netty-business-api",
+                           "method":  "POST",
+                           "url":  "http://127.0.0.1:20550/api/orders/handleApplyAfterSale",
+                           "status":  200,
+                           "ok":  true,
+                           "latencyMs":  12,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "executor",
+                           "name":  "netty-chains",
+                           "method":  "GET",
+                           "url":  "http://127.0.0.1:20550/api/chains",
+                           "status":  200,
+                           "ok":  true,
+                           "latencyMs":  13,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "executor",
+                           "name":  "netty-endpoints",
+                           "method":  "GET",
+                           "url":  "http://127.0.0.1:20550/api/endpoints",
+                           "status":  200,
+                           "ok":  true,
+                           "latencyMs":  27,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "userinfo",
+                           "method":  "GET",
+                           "url":  "http://127.0.0.1:8080/api/auth/userinfo",
+                           "status":  200,
+                           "ok":  true,
+                           "latencyMs":  15,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "dashboard",
+                           "method":  "GET",
+                           "url":  "http://127.0.0.1:8080/api/dashboard/stats",
+                           "status":  200,
+                           "ok":  true,
+                           "latencyMs":  34,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "chains-proxy",
+                           "method":  "GET",
+                           "url":  "http://127.0.0.1:8080/api/chains?appCode=demo-app\u0026page=1\u0026size=5",
+                           "status":  200,
+                           "ok":  true,
+                           "latencyMs":  14,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "playground",
+                           "name":  "execute-api-via-netty",
+                           "method":  "POST",
+                           "url":  "SCN20260601000229",
+                           "status":  200,
+                           "ok":  true,
+                           "latencyMs":  28,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "playground",
+                           "name":  "execute-hello-chain",
+                           "method":  "POST",
+                           "url":  "SCN20260531000001",
+                           "status":  200,
+                           "ok":  true,
+                           "latencyMs":  17,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "playground",
+                           "name":  "endpoints-no-tomcat-url",
+                           "method":  "GET",
+                           "url":  "available-endpoints",
+                           "status":  200,
+                           "ok":  true,
+                           "latencyMs":  18,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "playground",
+                           "name":  "rate-limit-30",
+                           "method":  "POST",
+                           "url":  "execute-x35",
+                           "status":  0,
+                           "ok":  false,
+                           "latencyMs":  0,
+                           "note":  "ok=35 429=0"
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "logs-query",
+                           "method":  "POST",
+                           "url":  "http://127.0.0.1:8080/api/logs/events/query",
+                           "status":  200,
+                           "ok":  true,
+                           "latencyMs":  548,
+                           "note":  ""
+                       }
+                   ],
+    "environment":  {
+                        "admin":  "http://127.0.0.1:8080",
+                        "netty":  "http://127.0.0.1:20550",
+                        "collector":  "http://127.0.0.1:20650"
+                    },
+    "timestamp":  "2026-06-02T16:32:31.2898676+08:00",
+    "performance":  [
+                        {
+                            "latencyP95":  34,
+                            "latencyP50":  21,
+                            "durationMs":  4459,
+                            "fail":  0,
+                            "latencyMax":  67,
+                            "success":  200,
+                            "name":  "netty-health",
+                            "requests":  200,
+                            "latencyP99":  42,
+                            "qps":  44.85
+                        },
+                        {
+                            "latencyP95":  52,
+                            "latencyP50":  27,
+                            "durationMs":  1576,
+                            "fail":  0,
+                            "latencyMax":  137,
+                            "success":  50,
+                            "name":  "netty-business",
+                            "requests":  50,
+                            "latencyP99":  137,
+                            "qps":  31.73
+                        },
+                        {
+                            "latencyP95":  139,
+                            "latencyP50":  118,
+                            "durationMs":  608,
+                            "fail":  0,
+                            "latencyMax":  139,
+                            "success":  5,
+                            "name":  "admin-login",
+                            "requests":  5,
+                            "latencyP99":  139,
+                            "qps":  8.22
+                        },
+                        {
+                            "latencyP95":  61,
+                            "latencyP50":  31,
+                            "durationMs":  3598,
+                            "fail":  0,
+                            "latencyMax":  75,
+                            "success":  100,
+                            "name":  "admin-dashboard",
+                            "requests":  100,
+                            "latencyP99":  75,
+                            "qps":  27.79
+                        }
+                    ]
+}

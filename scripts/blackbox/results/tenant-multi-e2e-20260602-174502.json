@@ -1,0 +1,25 @@
+﻿{
+    "timestamp":  "2026-06-02T17:45:02.1948022+08:00",
+    "checks":  [
+                   {
+                       "name":  "tenant-mode-multi",
+                       "ok":  true,
+                       "note":  "mode=multi"
+                   },
+                   {
+                       "name":  "tenant1-no-tenant-b-scene",
+                       "ok":  true,
+                       "note":  "tenant1 scenes=38 hasB=False"
+                   },
+                   {
+                       "name":  "switch-tenant-2",
+                       "ok":  true,
+                       "note":  ""
+                   },
+                   {
+                       "name":  "tenant2-has-tenant-b-scene",
+                       "ok":  true,
+                       "note":  "tenant2 scenes=1"
+                   }
+               ]
+}

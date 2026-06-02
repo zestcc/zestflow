@@ -4,13 +4,33 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.zestflow</groupId>
+    <groupId>cn.zestflow.www</groupId>
     <artifactId>zestflow</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>ZestFlow</name>
     <description>轻量级业务流程编排器</description>
+    <url>https://www.zestflow.cn</url>
+
+    <licenses>
+        <license>
+            <name>Apache License 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+        </license>
+    </licenses>
+
+    <scm>
+        <url>https://github.com/zestcc/zestflow</url>
+        <connection>scm:git:https://github.com/zestcc/zestflow.git</connection>
+    </scm>
+
+    <developers>
+        <developer>
+            <name>zest</name>
+            <email>zest@zestflow.cn</email>
+        </developer>
+    </developers>
 
     <modules>
         <module>zestflow-common</module>
@@ -66,43 +86,43 @@
             </dependency>
             <!-- ============ 内部模块（版本各自独立） ============ -->
             <dependency>
-                <groupId>com.zestflow</groupId>
+                <groupId>cn.zestflow.www</groupId>
                 <artifactId>zestflow-common</artifactId>
                 <version>${zestflow-common.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.zestflow</groupId>
+                <groupId>cn.zestflow.www</groupId>
                 <artifactId>zestflow-executor</artifactId>
                 <version>${zestflow-executor.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.zestflow</groupId>
+                <groupId>cn.zestflow.www</groupId>
                 <artifactId>collector-core</artifactId>
                 <version>${collector-core.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.zestflow</groupId>
+                <groupId>cn.zestflow.www</groupId>
                 <artifactId>collector-jdbc</artifactId>
                 <version>${collector-jdbc.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.zestflow</groupId>
+                <groupId>cn.zestflow.www</groupId>
                 <artifactId>collector-kafka</artifactId>
                 <version>${collector-kafka.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.zestflow</groupId>
+                <groupId>cn.zestflow.www</groupId>
                 <artifactId>collector-rabbitmq</artifactId>
                 <version>${collector-rabbitmq.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.zestflow</groupId>
+                <groupId>cn.zestflow.www</groupId>
                 <artifactId>zestflow-starter</artifactId>
                 <version>${zestflow-starter.version}</version>
                 <type>pom</type>
             </dependency>
             <dependency>
-                <groupId>com.zestflow</groupId>
+                <groupId>cn.zestflow.www</groupId>
                 <artifactId>zestflow-admin</artifactId>
                 <version>${zestflow-admin.version}</version>
             </dependency>
@@ -187,4 +207,59 @@
             </plugins>
         </pluginManagement>
     </build>
+
+    <profiles>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>3.3.0</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals><goal>jar-no-fork</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>3.6.3</version>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals><goal>jar</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals><goal>sign</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.plugins</groupId>
+                        <artifactId>nexus-staging-maven-plugin</artifactId>
+                        <version>1.6.13</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <serverId>ossrh</serverId>
+                            <nexusUrl>https://oss.sonatype.org</nexusUrl>
+                            <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

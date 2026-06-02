@@ -1,6 +1,7 @@
 package com.zestflow.admin.config;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -19,7 +20,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final TenantIpFilter tenantIpFilter;
     private final LoginRateLimitFilter loginRateLimitFilter;
+    private final RegistryTokenFilter registryTokenFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -32,17 +35,21 @@ public class SecurityConfig {
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                // 用户认证相关（登录/注册/找回密码等）
                 .requestMatchers("/api/auth/**", "/api/uploads/**").permitAll()
+                // 机器间通信：Executor/Collector 注册注销（后续可改为 Registry Token）
                 .requestMatchers(HttpMethod.POST, "/api/registry/**").permitAll()
                 .requestMatchers(HttpMethod.DELETE, "/api/registry/**").permitAll()
-                .requestMatchers("/api/playground/**").permitAll()
+                // Executor 上报链加载状态（机器回调，非用户接口）
                 .requestMatchers(HttpMethod.POST, "/api/chains/sync").permitAll()
-                // 所有 /api/** 请求必须认证（已在上面放行的除外）
+                // 其余所有 /api/**（含 Playground）须 JWT 认证 + Controller 内应用级 RBAC
                 .requestMatchers("/api/**").authenticated()
                 // 静态资源 + SPA 路由（前端自己控制登录态）
                 .anyRequest().permitAll()
             )
+            .addFilterBefore(registryTokenFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(loginRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(tenantIpFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
@@ -50,5 +57,13 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    /** 仅挂在 Security 链上，避免与 Servlet 容器重复注册 TenantIpFilter */
+    @Bean
+    public FilterRegistrationBean<TenantIpFilter> tenantIpFilterServletRegistration(TenantIpFilter filter) {
+        FilterRegistrationBean<TenantIpFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 }

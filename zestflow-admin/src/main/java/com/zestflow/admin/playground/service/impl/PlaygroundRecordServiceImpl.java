@@ -6,12 +6,21 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zestflow.admin.playground.model.dto.PlaygroundRecordQueryDTO;
 import com.zestflow.admin.playground.model.entity.PlaygroundRecordPO;
 import com.zestflow.admin.playground.model.vo.PlaygroundRecordVO;
+import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.playground.repository.PlaygroundRecordMapper;
 import com.zestflow.admin.playground.service.PlaygroundRecordService;
+import com.zestflow.admin.playground.support.PlaygroundAccessControl;
+import com.zestflow.admin.service.TenantAppContext;
+import com.zestflow.admin.util.SecurityUtils;
+import com.zestflow.common.exception.BizException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+
+import java.util.Set;
 
 /**
  * 演示记录服务实现
@@ -22,6 +31,8 @@ import org.springframework.util.StringUtils;
 public class PlaygroundRecordServiceImpl implements PlaygroundRecordService {
 
     private final PlaygroundRecordMapper recordMapper;
+    private final PlaygroundAccessControl accessControl;
+    private final TenantAppContext tenantAppContext;
 
     @Override
     public IPage<PlaygroundRecordVO> queryPage(PlaygroundRecordQueryDTO dto) {
@@ -40,6 +51,8 @@ public class PlaygroundRecordServiceImpl implements PlaygroundRecordService {
                         "created_at <= {0}", dto.getEndTime())
                 .orderByDesc(PlaygroundRecordPO::getCreatedAt);
 
+        applyRecordScope(wrapper);
+
         Page<PlaygroundRecordPO> poPage = recordMapper.selectPage(
                 new Page<>(dto.getPage(), dto.getSize()), wrapper);
         return poPage.convert(this::toVO);
@@ -48,7 +61,39 @@ public class PlaygroundRecordServiceImpl implements PlaygroundRecordService {
     @Override
     public PlaygroundRecordVO getById(Long id) {
         PlaygroundRecordPO po = recordMapper.selectById(id);
-        return po != null ? toVO(po) : null;
+        if (po == null) {
+            return null;
+        }
+        assertCanAccessRecord(po);
+        return toVO(po);
+    }
+
+    /** 非超管仅能查看本人创建的记录；并限制在已授权 appCode 内 */
+    private void applyRecordScope(LambdaQueryWrapper<PlaygroundRecordPO> wrapper) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean superAdmin = auth != null && auth.isAuthenticated() && SecurityUtils.isSuperAdmin(auth);
+        if (!superAdmin) {
+            wrapper.eq(PlaygroundRecordPO::getCreatedBy, accessControl.currentUsername());
+            Set<String> codes = tenantAppContext.getCurrentUserAppCodes();
+            if (codes == null || codes.isEmpty()) {
+                wrapper.apply("1 = 0");
+            } else {
+                wrapper.in(PlaygroundRecordPO::getAppCode, codes);
+            }
+        }
+    }
+
+    private void assertCanAccessRecord(PlaygroundRecordPO po) {
+        if (accessControl.isSuperAdmin()) {
+            return;
+        }
+        if (!accessControl.currentUsername().equals(po.getCreatedBy())) {
+            throw new BizException(ErrorCode.PERMISSION_DENIED);
+        }
+        Set<String> codes = tenantAppContext.getCurrentUserAppCodes();
+        if (codes != null && !codes.isEmpty() && po.getAppCode() != null && !codes.contains(po.getAppCode())) {
+            throw new BizException(ErrorCode.PERMISSION_DENIED);
+        }
     }
 
     @Override

@@ -1,6 +1,7 @@
 package com.zestflow.admin.playground.controller;
 
 import com.zestflow.admin.client.ExecutorProxyService;
+import com.zestflow.admin.playground.support.PlaygroundAccessControl;
 import com.zestflow.admin.playground.model.dto.PlaygroundSceneCreateDTO;
 import com.zestflow.admin.playground.model.dto.PlaygroundSceneUpdateDTO;
 import com.zestflow.admin.playground.model.vo.PlaygroundSceneVO;
@@ -10,6 +11,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.time.LocalDateTime;
 
@@ -18,15 +21,18 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class PlaygroundSceneControllerTest {
 
     @Mock private PlaygroundSceneService sceneService;
     @Mock private ExecutorProxyService executorProxyService;
+    @Mock private PlaygroundAccessControl accessControl;
     private PlaygroundSceneController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new PlaygroundSceneController(sceneService, executorProxyService);
+        controller = new PlaygroundSceneController(sceneService, executorProxyService, accessControl);
+        when(sceneService.getDefaultAppCode()).thenReturn("playground-app");
     }
 
     // ==================== create ====================
@@ -53,6 +59,7 @@ class PlaygroundSceneControllerTest {
     @Test
     void update_shouldReturnSuccess_whenExists() {
         PlaygroundSceneVO vo = createTestVO();
+        when(sceneService.getById(1L)).thenReturn(vo);
         when(sceneService.update(eq(1L), any())).thenReturn(vo);
 
         var result = controller.update(1L, new PlaygroundSceneUpdateDTO());
@@ -63,7 +70,7 @@ class PlaygroundSceneControllerTest {
 
     @Test
     void update_shouldReturn404_whenNotExists() {
-        when(sceneService.update(eq(999L), any())).thenReturn(null);
+        when(sceneService.getById(999L)).thenReturn(null);
 
         var result = controller.update(999L, new PlaygroundSceneUpdateDTO());
 
@@ -74,6 +81,7 @@ class PlaygroundSceneControllerTest {
 
     @Test
     void delete_shouldReturnSuccess() {
+        when(sceneService.getById(1L)).thenReturn(createTestVO());
         var result = controller.delete(1L);
 
         assertThat(result.getCode()).isEqualTo(200);

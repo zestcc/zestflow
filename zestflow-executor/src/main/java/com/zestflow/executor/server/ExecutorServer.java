@@ -16,6 +16,7 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.timeout.IdleStateHandler;
+import com.zestflow.executor.registry.ExecutorProperties;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.TimeUnit;
@@ -26,6 +27,7 @@ public class ExecutorServer {
     private final int port;
     private final ServerHandler serverHandler;
     private final String accessToken;
+    private final ChainExecuteThreadPool executeThreadPool;
 
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
@@ -34,11 +36,16 @@ public class ExecutorServer {
     public ExecutorServer(int port, ChainExecutionEngine engine,
                           ChainRepository chainRepo, DesignRepository designRepo,
                           ComponentScanner componentScanner, ChainLoader chainLoader,
-                          String accessToken) {
+                          String accessToken, ExecutorProperties properties) {
         this.port = port;
         this.accessToken = accessToken;
+        this.executeThreadPool = new ChainExecuteThreadPool(
+                properties.resolveExecutePoolCoreSize(),
+                properties.resolveExecutePoolMaxSize(),
+                properties.getExecutePoolQueueCapacity());
         this.serverHandler = new ServerHandler(engine, chainRepo, designRepo, componentScanner, chainLoader);
         this.serverHandler.setAccessToken(accessToken);
+        this.serverHandler.setExecuteThreadPool(executeThreadPool);
     }
 
     public void setRequestMappingHandlerMapping(
@@ -50,8 +57,8 @@ public class ExecutorServer {
         this.serverHandler.setScanPackages(scanPackages);
     }
 
-    public void setPlaygroundUrl(String url) {
-        this.serverHandler.setPlaygroundUrl(url);
+    public void setNettyMvcDispatcher(NettyMvcDispatcher dispatcher) {
+        this.serverHandler.setNettyMvcDispatcher(dispatcher);
     }
 
     public void start() throws InterruptedException {
@@ -92,6 +99,9 @@ public class ExecutorServer {
     }
 
     public void stop() {
+        if (executeThreadPool != null) {
+            executeThreadPool.shutdown();
+        }
         if (channel != null) {
             try {
                 channel.close().sync();

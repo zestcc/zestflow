@@ -3,6 +3,7 @@ package com.zestflow.admin.playground.controller;
 import com.zestflow.admin.playground.model.dto.PlaygroundRecordQueryDTO;
 import com.zestflow.admin.playground.model.vo.PlaygroundRecordVO;
 import com.zestflow.admin.playground.service.PlaygroundRecordService;
+import com.zestflow.admin.playground.support.PlaygroundAccessControl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,11 +19,12 @@ import static org.mockito.Mockito.*;
 class PlaygroundRecordControllerTest {
 
     @Mock private PlaygroundRecordService recordService;
+    @Mock private PlaygroundAccessControl accessControl;
     private PlaygroundRecordController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new PlaygroundRecordController(recordService);
+        controller = new PlaygroundRecordController(recordService, accessControl);
     }
 
     @Test

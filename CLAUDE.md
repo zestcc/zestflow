@@ -99,25 +99,25 @@ zestflow-admin                ──▶ zestflow-common
 ```xml
 <!-- 全量引入（推荐） -->
 <dependency>
-    <groupId>com.zestflow</groupId>
+    <groupId>cn.zestflow.www</groupId>
     <artifactId>zestflow-starter</artifactId>
 </dependency>
 
 <!-- 只要执行器 -->
 <dependency>
-    <groupId>com.zestflow</groupId>
+    <groupId>cn.zestflow.www</groupId>
     <artifactId>zestflow-executor</artifactId>
 </dependency>
 
 <!-- 只要采集，自定义实现 -->
 <dependency>
-    <groupId>com.zestflow</groupId>
+    <groupId>cn.zestflow.www</groupId>
     <artifactId>collector-core</artifactId>
 </dependency>
 
 <!-- 使用 JDBC 采集 -->
 <dependency>
-    <groupId>com.zestflow</groupId>
+    <groupId>cn.zestflow.www</groupId>
     <artifactId>collector-jdbc</artifactId>
 </dependency>
 ```
@@ -137,8 +137,8 @@ zestflow-admin                ──▶ zestflow-common
 
 | 项目 | 值 |
 |------|------|
-| groupId | `com.zestflow` |
-| 父 POM | `com.zestflow:zestflow:1.0.0-SNAPSHOT` |
+| groupId | `cn.zestflow.www` |
+| 父 POM | `cn.zestflow.www:zestflow:1.0.0-SNAPSHOT` |
 | 前端项目 | `zestflow-admin-ui` 无 pom.xml，独立 npm 构建 |
 
 ### 模块版本管理
@@ -177,7 +177,7 @@ zestflow-admin                ──▶ zestflow-common
 <dependencyManagement>
     <dependencies>
         <dependency>
-            <groupId>com.zestflow</groupId>
+            <groupId>cn.zestflow.www</groupId>
             <artifactId>zestflow-common</artifactId>
             <version>${zestflow-common.version}</version>
         </dependency>

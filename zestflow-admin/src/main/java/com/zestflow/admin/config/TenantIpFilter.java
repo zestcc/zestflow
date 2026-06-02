@@ -12,7 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -72,11 +72,11 @@ public class TenantIpFilter extends OncePerRequestFilter {
                 mapping.setLastActiveAt(LocalDateTime.now());
                 tenantIpMappingMapper.updateById(mapping);
 
-                AnonymousAuthenticationToken anonymousAuth =
-                        new AnonymousAuthenticationToken("anonymous", "anonymous",
+                UsernamePasswordAuthenticationToken ipAuth =
+                        new UsernamePasswordAuthenticationToken("ip-demo", null,
                                 List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS")));
-                anonymousAuth.setDetails(new SecurityUtils.AuthDetails(null, false, mapping.getTenantId()));
-                SecurityContextHolder.getContext().setAuthentication(anonymousAuth);
+                ipAuth.setDetails(new SecurityUtils.AuthDetails(null, false, mapping.getTenantId()));
+                SecurityContextHolder.getContext().setAuthentication(ipAuth);
 
                 log.debug("IP 租户映射 ip={} tenantId={}", clientIp, mapping.getTenantId());
             }

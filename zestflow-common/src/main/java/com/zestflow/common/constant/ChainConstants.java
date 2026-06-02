@@ -71,4 +71,19 @@ public final class ChainConstants {
     public static final String ERROR_STRATEGY_CONTINUE = "CONTINUE";
     /** 触发 Saga 补偿 */
     public static final String ERROR_STRATEGY_COMPENSATE = "COMPENSATE";
+
+    /** 节点超时：无限制（与 ChainValidator 约定一致） */
+    public static final long NODE_TIMEOUT_UNLIMITED = -1L;
+
+    /** ChainContext 元数据：绝对 deadline 时间戳（毫秒），供子链接管 */
+    public static final String META_DEADLINE_MS = "deadlineMs";
+
+    /** ChainContext 元数据：停止检查（BooleanSupplier），供 NodeRunner/RetryExecutor 感知 stop() */
+    public static final String META_STOP_CHECK = "stopCheck";
+
+    /** CONTINUE 策略：上下文标记部分成功 */
+    public static final String CTX_PARTIAL_FAILURE = "_partialFailure";
+
+    /** CONTINUE 策略：失败节点 ID 列表 */
+    public static final String CTX_FAILED_NODE_IDS = "_failedNodeIds";
 }

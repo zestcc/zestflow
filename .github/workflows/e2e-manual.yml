@@ -1,0 +1,38 @@
+# Layer B/C 黑盒 E2E — 需 MySQL + Admin + Executor 进程，默认不在 GitHub 托管 Runner 上自动跑。
+# 触发：Actions 页手动 Run workflow；或 fork 后配置 self-hosted runner + secrets。
+#
+# 本地等价命令（Windows）：
+#   powershell -File scripts/blackbox/run-enterprise-gate.ps1
+#   powershell -File scripts/blackbox/run-enterprise-gate.ps1 -RequireEnterpriseProfile
+
+name: E2E (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      require_enterprise_profile:
+        description: 'Require multi + ip-demo (Admin must start with profile enterprise-e2e)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+jobs:
+  placeholder:
+    name: E2E not on GitHub-hosted runners
+    runs-on: ubuntu-latest
+    steps:
+      - name: Instructions
+        run: |
+          echo "ZestFlow Layer B/C E2E requires:"
+          echo "  - MySQL 8 with zestflow_admin / business / log schemas"
+          echo "  - Admin :8080, Executor Netty :20550, Collector :20650"
+          echo ""
+          echo "Run locally:"
+          echo "  scripts/blackbox/run-enterprise-gate.ps1"
+          echo "  scripts/blackbox/run-enterprise-gate.ps1 -RequireEnterpriseProfile"
+          echo ""
+          echo "See docs/RELEASE_READINESS.md"
+          exit 1

@@ -36,7 +36,10 @@ public class ChainEvent implements Serializable {
         NODE_FALLBACK_START,
         NODE_FALLBACK_SUCCESS,
         NODE_FALLBACK_FAILED,
-        NODE_TIMEOUT
+        NODE_TIMEOUT,
+        CHAIN_COMPENSATED,
+        NODE_COMPENSATING,
+        NODE_COMPENSATED
     }
 
     /** 事件全局唯一 ID（UUID，避免分布式 ID 中心依赖） */

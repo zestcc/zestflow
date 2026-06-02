@@ -1,7 +1,12 @@
 package com.zestflow.executor.context;
 
+import lombok.extern.slf4j.Slf4j;
+
+import com.zestflow.common.constant.ChainConstants;
+
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BooleanSupplier;
 
 /**
  * 链上下文（DataBus）
@@ -16,6 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>metadata: 元数据（实例 ID、链编码、时间戳等，不序列化到事件）</li>
  * </ul>
  */
+@Slf4j
 public class ChainContext {
 
     /** 执行实例 ID */
@@ -47,6 +53,43 @@ public class ChainContext {
         this.headers = new ConcurrentHashMap<>();
         this.metadata = new ConcurrentHashMap<>();
         this.startTime = System.currentTimeMillis();
+    }
+
+    /** 并行层 fork：共享实例元信息，拷贝 DataBus 快照（避免同层并行写共享 Map） */
+    private ChainContext(ChainContext parent) {
+        this.instanceId = parent.instanceId;
+        this.chainCode = parent.chainCode;
+        this.startTime = parent.startTime;
+        this.data = new ConcurrentHashMap<>(parent.data);
+        this.typedData = new ConcurrentHashMap<>(parent.typedData);
+        this.headers = new ConcurrentHashMap<>(parent.headers);
+        this.metadata = new ConcurrentHashMap<>(parent.metadata);
+    }
+
+    /**
+     * 为同层并行节点创建独立上下文副本。
+     */
+    public ChainContext fork() {
+        return new ChainContext(this);
+    }
+
+    /**
+     * 将 fork 分支上的 DataBus / 类型化数据合并回主上下文（层末归并）。
+     */
+    public void mergeFrom(ChainContext fork) {
+        if (fork == null) {
+            return;
+        }
+        for (Map.Entry<String, Object> entry : fork.data.entrySet()) {
+            String key = entry.getKey();
+            Object newVal = entry.getValue();
+            Object oldVal = data.get(key);
+            if (oldVal != null && newVal != null && !Objects.equals(oldVal, newVal)) {
+                log.debug("并行层 merge 覆盖 key={} old={} new={}", key, oldVal, newVal);
+            }
+            data.put(key, newVal);
+        }
+        fork.typedData.values().forEach(this::register);
     }
 
     // ==================== 类型化数据（供元件参数按类型注入） ====================
@@ -181,6 +224,15 @@ public class ChainContext {
 
     public Object getMetadata(String key) {
         return metadata.get(key);
+    }
+
+    /** 是否已被外部 stop() 终止（引擎在实例创建后注入 META_STOP_CHECK） */
+    public boolean isExecutionStopped() {
+        Object check = metadata.get(ChainConstants.META_STOP_CHECK);
+        if (check instanceof BooleanSupplier supplier) {
+            return supplier.getAsBoolean();
+        }
+        return false;
     }
 
     // ==================== 快照 ====================

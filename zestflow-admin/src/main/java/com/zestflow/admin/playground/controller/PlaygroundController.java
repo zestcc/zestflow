@@ -1,22 +1,18 @@
 package com.zestflow.admin.playground.controller;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zestflow.admin.playground.model.dto.PlaygroundRecordQueryDTO;
-import com.zestflow.admin.playground.model.entity.PlaygroundRecordPO;
 import com.zestflow.admin.playground.model.vo.PlaygroundRecordVO;
 import com.zestflow.admin.playground.model.vo.PlaygroundSceneVO;
-import com.zestflow.admin.playground.repository.PlaygroundRecordMapper;
+import com.zestflow.admin.playground.service.PlaygroundRecordService;
 import com.zestflow.admin.playground.service.PlaygroundService;
 import com.zestflow.admin.playground.service.PlaygroundSceneService;
+import com.zestflow.admin.playground.support.PlaygroundAccessControl;
 import com.zestflow.common.model.Result;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.*;
-
-import org.springframework.util.StringUtils;
 
 import java.util.Map;
 
@@ -34,17 +30,19 @@ public class PlaygroundController {
 
     private final PlaygroundService playgroundService;
     private final PlaygroundSceneService sceneService;
-    private final PlaygroundRecordMapper recordMapper;
+    private final PlaygroundRecordService recordService;
+    private final PlaygroundAccessControl accessControl;
 
     /**
      * 获取场景信息（含默认请求头/请求体模板）
      */
     @GetMapping("/scene/{sceneCode}")
     public Result<PlaygroundSceneVO> getSceneInfo(@PathVariable String sceneCode) {
-        PlaygroundSceneVO vo = playgroundService.getSceneInfo(sceneCode);
+        PlaygroundSceneVO vo = sceneService.getByCode(sceneCode);
         if (vo == null) {
             return Result.fail(404, "场景不存在");
         }
+        accessControl.requireAppPermission(vo.getAppCode(), "APP_VIEWER");
         return Result.success(vo);
     }
 
@@ -56,6 +54,12 @@ public class PlaygroundController {
             @PathVariable String sceneCode,
             @RequestBody(required = false) Map<String, Object> params,
             HttpServletRequest request) {
+
+        PlaygroundSceneVO scene = sceneService.getByCode(sceneCode);
+        if (scene == null) {
+            return Result.fail(404, "场景不存在");
+        }
+        accessControl.requireAppPermission(scene.getAppCode(), "APP_EDITOR");
 
         String ip = resolveClientIp(request);
         Map<String, Object> result = playgroundService.executeScene(sceneCode, params, ip);
@@ -70,15 +74,10 @@ public class PlaygroundController {
      */
     @PostMapping("/history")
     public Result<IPage<PlaygroundRecordVO>> queryHistory(@RequestBody PlaygroundRecordQueryDTO dto) {
-        return Result.success(
-                recordMapper.selectPage(
-                        new Page<>(dto.getPage(), dto.getSize()),
-                        new LambdaQueryWrapper<PlaygroundRecordPO>()
-                                .eq(dto.getSceneId() != null, PlaygroundRecordPO::getSceneId, dto.getSceneId())
-                                .eq(dto.getStatus() != null, PlaygroundRecordPO::getStatus, dto.getStatus())
-                                .eq(StringUtils.hasText(dto.getAppCode()), PlaygroundRecordPO::getAppCode, dto.getAppCode())
-                                .orderByDesc(PlaygroundRecordPO::getCreatedAt))
-                        .convert(this::toVO));
+        if (org.springframework.util.StringUtils.hasText(dto.getAppCode())) {
+            accessControl.requireAppPermission(dto.getAppCode(), "APP_VIEWER");
+        }
+        return Result.success(recordService.queryPage(dto));
     }
 
     /**
@@ -86,38 +85,11 @@ public class PlaygroundController {
      */
     @GetMapping("/history/{id}")
     public Result<PlaygroundRecordVO> getHistoryDetail(@PathVariable Long id) {
-        PlaygroundRecordPO po = recordMapper.selectById(id);
-        if (po == null) {
+        PlaygroundRecordVO vo = recordService.getById(id);
+        if (vo == null) {
             return Result.fail(404, "记录不存在");
         }
-        return Result.success(toVO(po));
-    }
-
-    private PlaygroundRecordVO toVO(PlaygroundRecordPO po) {
-        if (po == null) return null;
-        PlaygroundRecordVO vo = new PlaygroundRecordVO();
-        vo.setId(po.getId());
-        vo.setSceneId(po.getSceneId());
-        vo.setSceneName(po.getSceneName());
-        vo.setSceneCode(po.getSceneCode());
-        vo.setRequestMethod(po.getRequestMethod());
-        vo.setRequestPath(po.getRequestPath());
-        vo.setRequestHeaders(po.getRequestHeaders());
-        vo.setBodyType(po.getBodyType());
-        vo.setRequestBody(po.getRequestBody());
-        vo.setResponseStatus(po.getResponseStatus());
-        vo.setResponseBody(po.getResponseBody());
-        vo.setResponseHeaders(po.getResponseHeaders());
-        vo.setChainCode(po.getChainCode());
-        vo.setInstanceId(po.getInstanceId());
-        vo.setStatus(po.getStatus());
-        vo.setCostMs(po.getCostMs());
-        vo.setErrorMsg(po.getErrorMsg());
-        vo.setCreatedBy(po.getCreatedBy());
-        vo.setUpdatedBy(po.getUpdatedBy());
-        vo.setCreatedAt(po.getCreatedAt());
-        vo.setUpdatedAt(po.getUpdatedAt());
-        return vo;
+        return Result.success(vo);
     }
 
     private String resolveClientIp(HttpServletRequest request) {

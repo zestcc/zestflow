@@ -59,8 +59,11 @@ public class ExecutorProperties implements EnvironmentAware {
     /** Admin 服务地址，多个用逗号分隔，如 http://localhost:8080 */
     private String adminAddresses = "http://localhost:8080";
 
-    /** 认证令牌（与 Admin 端共享） */
+    /** 认证令牌（Netty 端点 X-Access-Token，与 Admin 端共享） */
     private String accessToken;
+
+    /** Admin 机器接口令牌（注册/心跳/链同步，请求头 X-Registry-Token） */
+    private String registryToken;
 
     /** 心跳间隔（秒） */
     private int heartbeatInterval = RegistryConstants.DEFAULT_HEARTBEAT_INTERVAL_SECONDS;
@@ -108,4 +111,23 @@ public class ExecutorProperties implements EnvironmentAware {
 
     /** 节点默认重试间隔（毫秒） */
     private long nodeDefaultRetryIntervalMs = 1000;
+
+    /** 链执行线程池核心线程数（0 表示 CPU 核数） */
+    private int executePoolCoreSize = 0;
+
+    /** 链执行线程池最大线程数（0 表示 CPU 核数 × 2） */
+    private int executePoolMaxSize = 0;
+
+    /** 链执行线程池队列容量 */
+    private int executePoolQueueCapacity = 256;
+
+    public int resolveExecutePoolCoreSize() {
+        int cpus = Runtime.getRuntime().availableProcessors();
+        return executePoolCoreSize > 0 ? executePoolCoreSize : cpus;
+    }
+
+    public int resolveExecutePoolMaxSize() {
+        int cpus = Runtime.getRuntime().availableProcessors();
+        return executePoolMaxSize > 0 ? executePoolMaxSize : cpus * 2;
+    }
 }

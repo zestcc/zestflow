@@ -57,6 +57,9 @@ class DefaultChainExecutionEngineIntegrationTest {
 
     @AfterEach
     void tearDown() {
+        if (engine != null) {
+            engine.destroy();
+        }
     }
 
     @Test

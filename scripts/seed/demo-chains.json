@@ -1,0 +1,531 @@
+{
+  "stressComponents": [
+    "validateUser","checkStock","lockStock","createOrder","createPayment","processPayment","queryPayment",
+    "checkUserTag","calcCashback","issueCoupon","calcDiscount","applyPromotion","seckillValidate",
+    "deductStock","restoreStock","transferStock","inventoryCount","checkWarehouse","stockWarning",
+    "createDelivery","assignCourier","pickupPackage","sortingCenter","transportDispatch","queryLogistics",
+    "submitAudit","autoApprove","manualAudit","queryAuditLog","sendSms","sendEmail","queryMsgStatus",
+    "verifySignature","reconcileAccount","createInvoice","verifyInvoice","generateReport","calcTax",
+    "recordRiskEvent","calcRiskScore","applyAntiFraud","sendNotify","createCampaign","sendPushPromotion",
+    "redeemPoints","groupBuyProcess","closePayment","splitAmount","depositWallet","queryBill",
+    "printWaybill","deliveryConfirm","returnProcess","evaluateDelivery","freezeBalance","unfreezeBalance",
+    "createSettlement","approveSettlement","transferAccount","rejectAudit","recallAudit","assignAuditor",
+    "escalateAudit","batchAudit","auditNotify","sendAppPush","sendWechatMsg","buildMsgTemplate",
+    "subscribeMsg","cancelMsg","batchSendSms","sendDingtalk","withdrawWallet","queryStockDetail",
+    "unlockStock","stockWarning","noopStep","noopStep","noopStep","noopStep","noopStep","noopStep",
+    "noopStep","noopStep","noopStep","noopStep","noopStep","noopStep","noopStep","noopStep"
+  ],
+  "chains": [
+    {
+      "code": "CHN_DEMO_NODE_1",
+      "name": "单节点链路",
+      "desc": "1个业务节点（不含开始/结束）",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "用户校验", "type": "NORMAL", "component": "validateUser"}
+      ],
+      "edges": []
+    },
+    {
+      "code": "CHN_DEMO_NODE_2",
+      "name": "双节点链路",
+      "desc": "2个串行业务节点",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "用户校验", "type": "NORMAL", "component": "validateUser"},
+        {"id": "n2", "label": "发送通知", "type": "NORMAL", "component": "sendNotify"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}]
+    },
+    {
+      "code": "CHN_DEMO_ORDER_CREATE",
+      "name": "订单创建",
+      "desc": "3节点：创建订单→库存检查→锁定库存",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "创建订单", "type": "NORMAL", "component": "createOrder"},
+        {"id": "n2", "label": "库存检查", "type": "NORMAL", "component": "checkStock"},
+        {"id": "n3", "label": "锁定库存", "type": "NORMAL", "component": "lockStock"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_PAYMENT_RISK",
+      "name": "支付风控分支",
+      "desc": "8节点：校验→金额风控(条件分支)→支付→通知",
+      "tier": "5-10",
+      "nodes": [
+        {"id": "n1", "label": "用户校验", "type": "NORMAL", "component": "validateUser"},
+        {"id": "n2", "label": "金额风控", "type": "CONDITION", "component": "riskCheckAmount"},
+        {"id": "n3", "label": "创建支付单", "type": "NORMAL", "component": "createPayment"},
+        {"id": "n4", "label": "冻结用户", "type": "NORMAL", "component": "blockUser"},
+        {"id": "n5", "label": "执行支付", "type": "NORMAL", "component": "processPayment"},
+        {"id": "n6", "label": "查询支付", "type": "NORMAL", "component": "queryPayment"},
+        {"id": "n7", "label": "记录风控", "type": "NORMAL", "component": "recordRiskEvent"},
+        {"id": "n8", "label": "发送通知", "type": "NORMAL", "component": "sendNotify"}
+      ],
+      "edges": [
+        {"source": "n1", "target": "n2"},
+        {"source": "n2", "target": "n3", "label": "通过"},
+        {"source": "n2", "target": "n4", "label": "拦截"},
+        {"source": "n3", "target": "n5"},
+        {"source": "n5", "target": "n6"},
+        {"source": "n6", "target": "n8"},
+        {"source": "n4", "target": "n7"},
+        {"source": "n7", "target": "n8"}
+      ]
+    },
+    {
+      "code": "CHN_DEMO_ORDER_PIPELINE",
+      "name": "订单全链路",
+      "desc": "10节点串行：下单到发货通知",
+      "tier": "5-10",
+      "nodes": [
+        {"id": "n1", "label": "用户校验", "type": "NORMAL", "component": "validateUser"},
+        {"id": "n2", "label": "创建订单", "type": "NORMAL", "component": "createOrder"},
+        {"id": "n3", "label": "库存检查", "type": "NORMAL", "component": "checkStock"},
+        {"id": "n4", "label": "锁定库存", "type": "NORMAL", "component": "lockStock"},
+        {"id": "n5", "label": "创建支付单", "type": "NORMAL", "component": "createPayment"},
+        {"id": "n6", "label": "用户风控", "type": "CONDITION", "component": "riskCheckUser"},
+        {"id": "n7", "label": "执行支付", "type": "NORMAL", "component": "processPayment"},
+        {"id": "n8", "label": "创建发货单", "type": "NORMAL", "component": "createDelivery"},
+        {"id": "n9", "label": "揽件", "type": "NORMAL", "component": "pickupPackage"},
+        {"id": "n10", "label": "发送通知", "type": "NORMAL", "component": "sendNotify"}
+      ],
+      "edges": [
+        {"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}, {"source": "n3", "target": "n4"},
+        {"source": "n4", "target": "n5"}, {"source": "n5", "target": "n6"}, {"source": "n6", "target": "n7", "label": "用户正常"},
+        {"source": "n7", "target": "n8"}, {"source": "n8", "target": "n9"}, {"source": "n9", "target": "n10"}
+      ]
+    },
+    {
+      "code": "CHN_DEMO_MARKETING_BRANCH",
+      "name": "营销多分支",
+      "desc": "7节点：用户→设备风控→选择器发券/返现",
+      "tier": "5-10",
+      "nodes": [
+        {"id": "n1", "label": "用户校验", "type": "NORMAL", "component": "validateUser"},
+        {"id": "n2", "label": "设备风控", "type": "CONDITION", "component": "riskCheckDevice"},
+        {"id": "n3", "label": "促销路由", "type": "CONDITION", "component": "routePromotion"},
+        {"id": "n4", "label": "发放优惠券", "type": "NORMAL", "component": "issueCoupon"},
+        {"id": "n5", "label": "计算返现", "type": "NORMAL", "component": "calcCashback"},
+        {"id": "n6", "label": "推送促销", "type": "NORMAL", "component": "sendPushPromotion"},
+        {"id": "n7", "label": "发送短信", "type": "NORMAL", "component": "sendSms"}
+      ],
+      "edges": [
+        {"source": "n1", "target": "n2"},
+        {"source": "n2", "target": "n3", "label": "设备可信"},
+        {"source": "n3", "target": "n4", "label": "发券"},
+        {"source": "n4", "target": "n6"},
+        {"source": "n6", "target": "n7"},
+        {"source": "n3", "target": "n5", "label": "返现"},
+        {"source": "n5", "target": "n7"}
+      ]
+    },
+    {
+      "code": "CHN_DEMO_SCRIPT_GATE",
+      "name": "脚本节点链路",
+      "desc": "3节点：校验→Groovy脚本→通知（覆盖SCRIPT类型）",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "用户校验", "type": "NORMAL", "component": "validateUser"},
+        {"id": "n2", "label": "脚本门禁", "type": "SCRIPT", "script": "ctx.put('scriptGate', true); return true"},
+        {"id": "n3", "label": "发送通知", "type": "NORMAL", "component": "sendNotify"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_SUB_ORDER",
+      "name": "子链编排",
+      "desc": "3节点：校验→子链(订单创建)→通知（覆盖SUB_CHAIN）",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "用户校验", "type": "NORMAL", "component": "validateUser"},
+        {"id": "n2", "label": "子链下单", "type": "SUB_CHAIN", "subChainCode": "CHN_DEMO_ORDER_CREATE"},
+        {"id": "n3", "label": "发送通知", "type": "NORMAL", "component": "sendNotify"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_ITER_NOTIFY",
+      "name": "迭代批量通知",
+      "desc": "3节点：校验→种子列表→迭代发短信（覆盖ITERATOR）",
+      "tier": "5-10",
+      "nodes": [
+        {"id": "n1", "label": "用户校验", "type": "NORMAL", "component": "validateUser"},
+        {"id": "n2", "label": "种子列表", "type": "NORMAL", "component": "seedNotifyItems"},
+        {
+          "id": "n3", "label": "批量短信", "type": "ITERATOR",
+          "config": {
+            "dataSource": "notifyItems",
+            "itemName": "item",
+            "subNodes": [
+              {"id": "sn1", "label": "发送短信", "type": "NORMAL", "component": "sendSms", "componentName": "发送短信"}
+            ]
+          }
+        }
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_STRESS_75",
+      "name": "75步压力链",
+      "desc": "75个串行业务节点（70-80档，引擎执行75步）",
+      "tier": "70-80",
+      "serialFrom": "stressComponents"
+    },
+    {
+      "code": "CHN_DEMO_ORDER_PAY",
+      "name": "订单支付",
+      "desc": "用户校验→创建支付单→执行支付",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "用户校验", "type": "NORMAL", "component": "validateUser"},
+        {"id": "n2", "label": "创建支付单", "type": "NORMAL", "component": "createPayment"},
+        {"id": "n3", "label": "执行支付", "type": "NORMAL", "component": "processPayment"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_ORDER_REFUND",
+      "name": "订单退款",
+      "desc": "查询支付→发起退款→归还库存",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "查询支付", "type": "NORMAL", "component": "queryPayment"},
+        {"id": "n2", "label": "发起退款", "type": "NORMAL", "component": "refundPayment"},
+        {"id": "n3", "label": "归还库存", "type": "NORMAL", "component": "restoreStock"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_ORDER_CANCEL",
+      "name": "订单取消",
+      "desc": "取消订单→释放库存→发送通知",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "取消订单", "type": "NORMAL", "component": "cancelOrder"},
+        {"id": "n2", "label": "释放库存", "type": "NORMAL", "component": "unlockStock"},
+        {"id": "n3", "label": "发送通知", "type": "NORMAL", "component": "sendNotify"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_ORDER_REVIEW",
+      "name": "订单评价",
+      "desc": "用户校验→提交审核→自动审批",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "用户校验", "type": "NORMAL", "component": "validateUser"},
+        {"id": "n2", "label": "提交审核", "type": "NORMAL", "component": "submitAudit"},
+        {"id": "n3", "label": "自动审批", "type": "NORMAL", "component": "autoApprove"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_STOCK_IN",
+      "name": "商品入库",
+      "desc": "库存检查→归还库存→库存调拨",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "库存检查", "type": "NORMAL", "component": "checkStock"},
+        {"id": "n2", "label": "归还库存", "type": "NORMAL", "component": "restoreStock"},
+        {"id": "n3", "label": "库存调拨", "type": "NORMAL", "component": "transferStock"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_STOCK_OUT",
+      "name": "商品出库",
+      "desc": "锁定库存→扣减库存→创建发货单",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "锁定库存", "type": "NORMAL", "component": "lockStock"},
+        {"id": "n2", "label": "扣减库存", "type": "NORMAL", "component": "deductStock"},
+        {"id": "n3", "label": "创建发货单", "type": "NORMAL", "component": "createDelivery"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_STOCK_CHECK",
+      "name": "库存盘点",
+      "desc": "库存盘点→库存检查→提交审核",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "库存盘点", "type": "NORMAL", "component": "inventoryCount"},
+        {"id": "n2", "label": "库存检查", "type": "NORMAL", "component": "checkStock"},
+        {"id": "n3", "label": "提交审核", "type": "NORMAL", "component": "submitAudit"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_STOCK_TRANSFER",
+      "name": "库存调拨",
+      "desc": "库存检查→库存调拨→释放库存",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "库存检查", "type": "NORMAL", "component": "checkStock"},
+        {"id": "n2", "label": "库存调拨", "type": "NORMAL", "component": "transferStock"},
+        {"id": "n3", "label": "释放库存", "type": "NORMAL", "component": "unlockStock"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_LOGISTICS_SHIP",
+      "name": "物流发货",
+      "desc": "创建发货单→分配快递员→揽件",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "创建发货单", "type": "NORMAL", "component": "createDelivery"},
+        {"id": "n2", "label": "分配快递员", "type": "NORMAL", "component": "assignCourier"},
+        {"id": "n3", "label": "揽件处理", "type": "NORMAL", "component": "pickupPackage"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_MEMBER_REGISTER",
+      "name": "会员注册",
+      "desc": "用户校验→创建订单→发送通知",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "用户校验", "type": "NORMAL", "component": "validateUser"},
+        {"id": "n2", "label": "创建订单", "type": "NORMAL", "component": "createOrder"},
+        {"id": "n3", "label": "发送通知", "type": "NORMAL", "component": "sendNotify"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_MEMBER_UPGRADE",
+      "name": "会员升级",
+      "desc": "用户校验→标签匹配→计算返现",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "用户校验", "type": "NORMAL", "component": "validateUser"},
+        {"id": "n2", "label": "用户标签", "type": "NORMAL", "component": "checkUserTag"},
+        {"id": "n3", "label": "计算返现", "type": "NORMAL", "component": "calcCashback"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_POINTS_EARN",
+      "name": "积分累计",
+      "desc": "用户校验→计算返现→积分入账",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "用户校验", "type": "NORMAL", "component": "validateUser"},
+        {"id": "n2", "label": "计算返现", "type": "NORMAL", "component": "calcCashback"},
+        {"id": "n3", "label": "积分入账", "type": "NORMAL", "component": "redeemPoints"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_POINTS_REDEEM",
+      "name": "积分兑换",
+      "desc": "用户校验→积分兑换→发券",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "用户校验", "type": "NORMAL", "component": "validateUser"},
+        {"id": "n2", "label": "积分兑换", "type": "NORMAL", "component": "redeemPoints"},
+        {"id": "n3", "label": "发放优惠券", "type": "NORMAL", "component": "issueCoupon"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_MEMBER_TOPUP",
+      "name": "会员充值",
+      "desc": "创建支付单→执行支付→查询支付",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "创建支付单", "type": "NORMAL", "component": "createPayment"},
+        {"id": "n2", "label": "执行支付", "type": "NORMAL", "component": "processPayment"},
+        {"id": "n3", "label": "查询支付", "type": "NORMAL", "component": "queryPayment"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_LEVEL_CALC",
+      "name": "等级计算",
+      "desc": "用户校验→标签匹配→计算返现",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "用户校验", "type": "NORMAL", "component": "validateUser"},
+        {"id": "n2", "label": "用户标签", "type": "NORMAL", "component": "checkUserTag"},
+        {"id": "n3", "label": "计算返现", "type": "NORMAL", "component": "calcCashback"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_PAYMENT_CALLBACK",
+      "name": "支付回调",
+      "desc": "验签→查询支付→执行支付",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "验签处理", "type": "NORMAL", "component": "verifySignature"},
+        {"id": "n2", "label": "查询支付", "type": "NORMAL", "component": "queryPayment"},
+        {"id": "n3", "label": "执行支付", "type": "NORMAL", "component": "processPayment"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_BILL_GEN",
+      "name": "账单生成",
+      "desc": "查询支付→开具发票→生成报表",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "查询支付", "type": "NORMAL", "component": "queryPayment"},
+        {"id": "n2", "label": "开具发票", "type": "NORMAL", "component": "createInvoice"},
+        {"id": "n3", "label": "生成报表", "type": "NORMAL", "component": "generateReport"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_RECONCILE",
+      "name": "对账处理",
+      "desc": "账户对账→验签→查询支付",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "账户对账", "type": "NORMAL", "component": "reconcileAccount"},
+        {"id": "n2", "label": "验签处理", "type": "NORMAL", "component": "verifySignature"},
+        {"id": "n3", "label": "查询支付", "type": "NORMAL", "component": "queryPayment"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_INVOICE",
+      "name": "发票开具",
+      "desc": "用户校验→开具发票→发票核验",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "用户校验", "type": "NORMAL", "component": "validateUser"},
+        {"id": "n2", "label": "开具发票", "type": "NORMAL", "component": "createInvoice"},
+        {"id": "n3", "label": "发票核验", "type": "NORMAL", "component": "verifyInvoice"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_COUPON_ISSUE",
+      "name": "优惠券发放",
+      "desc": "用户校验→发券→发短信",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "用户校验", "type": "NORMAL", "component": "validateUser"},
+        {"id": "n2", "label": "发放优惠券", "type": "NORMAL", "component": "issueCoupon"},
+        {"id": "n3", "label": "发送短信", "type": "NORMAL", "component": "sendSms"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_COUPON_USE",
+      "name": "优惠券核销",
+      "desc": "计算折扣→创建订单→执行支付",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "计算折扣", "type": "NORMAL", "component": "calcDiscount"},
+        {"id": "n2", "label": "创建订单", "type": "NORMAL", "component": "createOrder"},
+        {"id": "n3", "label": "执行支付", "type": "NORMAL", "component": "processPayment"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_FLASH_SALE",
+      "name": "秒杀活动",
+      "desc": "秒杀校验→锁定库存→创建订单",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "秒杀校验", "type": "NORMAL", "component": "seckillValidate"},
+        {"id": "n2", "label": "锁定库存", "type": "NORMAL", "component": "lockStock"},
+        {"id": "n3", "label": "创建订单", "type": "NORMAL", "component": "createOrder"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_PROMO_CALC",
+      "name": "满减计算",
+      "desc": "计算折扣→应用促销→计算返现",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "计算折扣", "type": "NORMAL", "component": "calcDiscount"},
+        {"id": "n2", "label": "应用促销", "type": "NORMAL", "component": "applyPromotion"},
+        {"id": "n3", "label": "计算返现", "type": "NORMAL", "component": "calcCashback"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_SMS_SEND",
+      "name": "短信发送",
+      "desc": "用户校验→发送短信→查询状态",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "用户校验", "type": "NORMAL", "component": "validateUser"},
+        {"id": "n2", "label": "发送短信", "type": "NORMAL", "component": "sendSms"},
+        {"id": "n3", "label": "查询消息", "type": "NORMAL", "component": "queryMsgStatus"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_EMAIL_SEND",
+      "name": "邮件通知",
+      "desc": "用户校验→发送邮件→查询状态",
+      "tier": "1-3",
+      "nodes": [
+        {"id": "n1", "label": "用户校验", "type": "NORMAL", "component": "validateUser"},
+        {"id": "n2", "label": "发送邮件", "type": "NORMAL", "component": "sendEmail"},
+        {"id": "n3", "label": "查询消息", "type": "NORMAL", "component": "queryMsgStatus"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    },
+    {
+      "code": "CHN_DEMO_CONTINUE_ON_ERROR",
+      "name": "失败继续演示",
+      "desc": "中段 failStep 失败但链级 CONTINUE 仍成功（一部分绿）",
+      "tier": "1-3",
+      "errorStrategy": "CONTINUE",
+      "nodes": [
+        {"id": "n1", "label": "用户校验", "type": "NORMAL", "component": "validateUser"},
+        {"id": "n2", "label": "演示失败步", "type": "NORMAL", "component": "failStep"},
+        {"id": "n3", "label": "发送通知", "type": "NORMAL", "component": "sendNotify"}
+      ],
+      "edges": [{"source": "n1", "target": "n2"}, {"source": "n2", "target": "n3"}]
+    }
+  ],
+  "scenes": [
+    {"scene": "SCN20260531000001", "name": "单节点", "chain": "CHN_DEMO_NODE_1", "body": "{\"userId\":\"U10086\"}"},
+    {"scene": "SCN20260531000002", "name": "双节点", "chain": "CHN_DEMO_NODE_2", "body": "{\"userId\":\"U10086\"}"},
+    {"scene": "SCN20260531000003", "name": "脚本节点", "chain": "CHN_DEMO_SCRIPT_GATE", "body": "{\"userId\":\"U10086\"}"},
+    {"scene": "SCN20260531000004", "name": "75步压力链", "chain": "CHN_DEMO_STRESS_75", "body": "{\"userId\":\"U10086\"}"},
+    {"scene": "SCN20260531010001", "name": "订单创建", "chain": "CHN_DEMO_ORDER_CREATE", "body": "{\"userId\":\"U10086\",\"sku\":\"SKU9981\",\"quantity\":2}"},
+    {"scene": "SCN20260531010002", "name": "订单支付", "chain": "CHN_DEMO_ORDER_PAY", "body": "{\"orderId\":\"ORD202605310001\",\"userId\":\"U10086\"}"},
+    {"scene": "SCN20260531010003", "name": "订单退款", "chain": "CHN_DEMO_ORDER_REFUND", "body": "{\"orderId\":\"ORD202605310001\",\"userId\":\"U10086\"}"},
+    {"scene": "SCN20260531010004", "name": "订单取消", "chain": "CHN_DEMO_ORDER_CANCEL", "body": "{\"orderId\":\"ORD202605310001\",\"userId\":\"U10086\"}"},
+    {"scene": "SCN20260531010005", "name": "订单评价", "chain": "CHN_DEMO_ORDER_REVIEW", "body": "{\"orderId\":\"ORD202605310001\",\"userId\":\"U10086\",\"rating\":5}"},
+    {"scene": "SCN20260531010006", "name": "售后申请", "chain": "CHN_DEMO_AFTER_SALE", "body": "{\"orderId\":\"ORD202605310001\",\"userId\":\"U10086\",\"type\":\"RETURN\"}"},
+    {"scene": "SCN20260531010007", "name": "支付风控分支", "chain": "CHN_DEMO_PAYMENT_RISK", "body": "{\"userId\":\"U10086\",\"amount\":199}"},
+    {"scene": "SCN20260531010008", "name": "订单全链路", "chain": "CHN_DEMO_ORDER_PIPELINE", "body": "{\"userId\":\"U10086\",\"sku\":\"SKU9981\"}"},
+    {"scene": "SCN20260531010009", "name": "子链下单", "chain": "CHN_DEMO_SUB_ORDER", "body": "{\"userId\":\"U10086\"}"},
+    {"scene": "SCN20260531010010", "name": "迭代通知", "chain": "CHN_DEMO_ITER_NOTIFY", "body": "{\"userId\":\"U10086\"}"},
+    {"scene": "SCN20260531020001", "name": "商品入库", "chain": "CHN_DEMO_STOCK_IN", "body": "{\"sku\":\"SKU9981\",\"quantity\":100}"},
+    {"scene": "SCN20260531020002", "name": "商品出库", "chain": "CHN_DEMO_STOCK_OUT", "body": "{\"orderId\":\"ORD202605310001\",\"sku\":\"SKU9981\"}"},
+    {"scene": "SCN20260531020003", "name": "库存盘点", "chain": "CHN_DEMO_STOCK_CHECK", "body": "{\"warehouseCode\":\"WH001\"}"},
+    {"scene": "SCN20260531020004", "name": "库存调拨", "chain": "CHN_DEMO_STOCK_TRANSFER", "body": "{\"sku\":\"SKU9981\",\"qty\":10}"},
+    {"scene": "SCN20260531020005", "name": "物流发货", "chain": "CHN_DEMO_LOGISTICS_SHIP", "body": "{\"orderId\":\"ORD202605310001\"}"},
+    {"scene": "SCN20260531030001", "name": "会员注册", "chain": "CHN_DEMO_MEMBER_REGISTER", "body": "{\"userId\":\"U10087\"}"},
+    {"scene": "SCN20260531030002", "name": "会员升级", "chain": "CHN_DEMO_MEMBER_UPGRADE", "body": "{\"userId\":\"U10086\"}"},
+    {"scene": "SCN20260531030003", "name": "积分累计", "chain": "CHN_DEMO_POINTS_EARN", "body": "{\"userId\":\"U10086\",\"amount\":179}"},
+    {"scene": "SCN20260531030004", "name": "积分兑换", "chain": "CHN_DEMO_POINTS_REDEEM", "body": "{\"userId\":\"U10086\",\"costPoints\":200}"},
+    {"scene": "SCN20260531030005", "name": "会员充值", "chain": "CHN_DEMO_MEMBER_TOPUP", "body": "{\"userId\":\"U10086\",\"amount\":500}"},
+    {"scene": "SCN20260531030006", "name": "等级计算", "chain": "CHN_DEMO_LEVEL_CALC", "body": "{\"userId\":\"U10086\"}"},
+    {"scene": "SCN20260531040001", "name": "支付回调", "chain": "CHN_DEMO_PAYMENT_CALLBACK", "body": "{\"orderId\":\"ORD202605310001\"}"},
+    {"scene": "SCN20260531040002", "name": "账单生成", "chain": "CHN_DEMO_BILL_GEN", "body": "{\"userId\":\"U10086\"}"},
+    {"scene": "SCN20260531040003", "name": "对账处理", "chain": "CHN_DEMO_RECONCILE", "body": "{\"bizDate\":\"2026-05-31\"}"},
+    {"scene": "SCN20260531040004", "name": "发票开具", "chain": "CHN_DEMO_INVOICE", "body": "{\"orderId\":\"ORD202605310001\",\"userId\":\"U10086\"}"},
+    {"scene": "SCN20260531050001", "name": "优惠券发放", "chain": "CHN_DEMO_COUPON_ISSUE", "body": "{\"userId\":\"U10086\"}"},
+    {"scene": "SCN20260531050002", "name": "优惠券核销", "chain": "CHN_DEMO_COUPON_USE", "body": "{\"userId\":\"U10086\"}"},
+    {"scene": "SCN20260531050003", "name": "秒杀活动", "chain": "CHN_DEMO_FLASH_SALE", "body": "{\"userId\":\"U10086\",\"sku\":\"SKU9981\"}"},
+    {"scene": "SCN20260531050004", "name": "满减计算", "chain": "CHN_DEMO_PROMO_CALC", "body": "{\"userId\":\"U10086\"}"},
+    {"scene": "SCN20260531050005", "name": "营销多分支", "chain": "CHN_DEMO_MARKETING_BRANCH", "body": "{\"userId\":\"U10086\"}"},
+    {"scene": "SCN20260531060001", "name": "短信发送", "chain": "CHN_DEMO_SMS_SEND", "body": "{\"userId\":\"U10086\",\"phone\":\"13800008888\"}"},
+    {"scene": "SCN20260531060002", "name": "邮件通知", "chain": "CHN_DEMO_EMAIL_SEND", "body": "{\"userId\":\"U10086\",\"to\":\"user@example.com\"}"},
+    {"scene": "SCN20260601000229", "name": "售后单处理", "chain": "CHN_DEMO_AFTER_SALE", "path": "/api/orders/handleApplyAfterSale", "body": "{\"applyId\":\"BB-PG-001\"}"},
+    {"scene": "SCN20260602000001", "name": "失败继续", "chain": "CHN_DEMO_CONTINUE_ON_ERROR", "body": "{\"userId\":\"U10086\"}", "e2eExpect": "partialGreen"}
+  ]
+}

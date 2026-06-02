@@ -1,5 +1,7 @@
 server:
   port: 8081
+  # 演示业务 Tomcat 仅本机调试；对外（含 Admin 试验场）必须走 Executor Netty
+  address: 127.0.0.1
 
 spring:
   application:
@@ -14,9 +16,9 @@ zestflow:
   executor:
     port: 20550
     execute-endpoint-enabled: true
+    # 与 Admin zestflow.admin.registry-token 保持一致（本地开发可留空）
+    registry-token:
   playground:
-    # 当前服务的基础 URL（用于 Admin 试验场拼接完整请求路径），按实际部署地址修改
-    url: http://localhost:${server.port}
     scan-packages:
       - com.zestflow.test.controller
   collector:

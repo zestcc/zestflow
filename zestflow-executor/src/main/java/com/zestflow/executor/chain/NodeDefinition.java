@@ -79,6 +79,9 @@ public class NodeDefinition {
     @Builder.Default
     private Set<String> retryFor = new HashSet<>();
 
+    /** 补偿元件 ID（COMPENSATE 策略失败时逆序调用；空则尝试 {component}Compensate） */
+    private String compensateComponent;
+
     /** 降级组件 ID */
     private String fallbackComponent;
 

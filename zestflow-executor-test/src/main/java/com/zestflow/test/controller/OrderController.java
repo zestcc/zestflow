@@ -116,11 +116,11 @@ public class OrderController {
         Map<String, Object> params = buildOrderParams(req);
         // 条件节点 + 分支节点
         var result = orch.loadAndExecute(chainCode, List.of(
-                BizOrchestrationService.normalNode("start", "biz001"),
+                BizOrchestrationService.normalNode("start", "validateUser"),
                 BizOrchestrationService.conditionNode("gate", Map.of("condition", "params.channel == '" + channel + "'")),
-                BizOrchestrationService.normalNode("matched", "biz002"),
-                BizOrchestrationService.normalNode("unmatched", "biz003"),
-                BizOrchestrationService.normalNode("end", "biz004")
+                BizOrchestrationService.normalNode("matched", "processPayment"),
+                BizOrchestrationService.normalNode("unmatched", "deductStock"),
+                BizOrchestrationService.normalNode("end", "sendNotify")
         ), List.of(
                 BizOrchestrationService.edge("start", "gate"),
                 BizOrchestrationService.edge("gate", "matched", "${params.channel} == '" + channel + "'"),
@@ -147,9 +147,8 @@ public class OrderController {
         Map<String, Object> params = buildOrderParams(req);
 
         var result = orch.loadAndExecute(chainCode, List.of(
-                BizOrchestrationService.normalNode("process", "biz001", Map.of(
-                        "preComponents", List.of(Map.of("component", "preprocessor.preProc001"))
-                ))
+                BizOrchestrationService.normalNodeWithLifecycle("process", "createOrder",
+                        List.of("preCheckOrder"), null, null)
         ), List.of(), params);
 
         return Result.success(OrderResponse.builder()
@@ -163,9 +162,8 @@ public class OrderController {
         String chainCode = "order-post-" + UUID.randomUUID().toString().substring(0, 8);
 
         var result = orch.loadAndExecute(chainCode, List.of(
-                BizOrchestrationService.normalNode("process", "biz001", Map.of(
-                        "postComponents", List.of(Map.of("component", "postprocessor.postProc001"))
-                ))
+                BizOrchestrationService.normalNodeWithLifecycle("process", "createOrder",
+                        null, List.of("postOrderAudit"), null)
         ), List.of(), buildOrderParams(req));
 
         return Result.success(OrderResponse.builder()
@@ -179,9 +177,8 @@ public class OrderController {
         String chainCode = "order-validate-" + UUID.randomUUID().toString().substring(0, 8);
 
         var result = orch.loadAndExecute(chainCode, List.of(
-                BizOrchestrationService.normalNode("process", "biz001", Map.of(
-                        "paramValidator", Map.of("component", "paramvalidator.validate001")
-                ))
+                BizOrchestrationService.normalNodeWithLifecycle("process", "createOrder",
+                        null, null, "validateUserParam")
         ), List.of(), buildOrderParams(req));
 
         return Result.success(OrderResponse.builder()
@@ -239,9 +236,9 @@ public class OrderController {
         Map<String, Object> params = buildOrderParams(req);
 
         var result = orch.loadAndExecute(chainCode, List.of(
-                BizOrchestrationService.normalNode("good", "biz001"),
+                BizOrchestrationService.normalNode("good", "validateUser"),
                 BizOrchestrationService.normalNode("bad", "nonexistent_component"),
-                BizOrchestrationService.normalNode("never", "biz003")
+                BizOrchestrationService.normalNode("never", "deductStock")
         ), List.of(
                 BizOrchestrationService.edge("good", "bad"),
                 BizOrchestrationService.edge("bad", "never")

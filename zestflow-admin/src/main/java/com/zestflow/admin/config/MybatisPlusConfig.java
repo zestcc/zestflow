@@ -44,7 +44,7 @@ public class MybatisPlusConfig {
 
                 @Override
                 public boolean ignoreTable(String tableName) {
-                    return EXCLUDED_TABLES.contains(tableName);
+                    return isExcludedFromTenantLine(tableName);
                 }
             });
             interceptor.addInnerInterceptor(tenantInterceptor);
@@ -52,5 +52,18 @@ public class MybatisPlusConfig {
 
         interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
         return interceptor;
+    }
+
+    /** JSQLParser 表名可能带反引号或库前缀，需归一化后再匹配排除列表 */
+    static boolean isExcludedFromTenantLine(String tableName) {
+        if (tableName == null || tableName.isBlank()) {
+            return false;
+        }
+        String bare = tableName.replace("`", "").trim();
+        int dot = bare.lastIndexOf('.');
+        if (dot >= 0) {
+            bare = bare.substring(dot + 1);
+        }
+        return EXCLUDED_TABLES.contains(bare.toLowerCase());
     }
 }

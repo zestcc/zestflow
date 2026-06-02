@@ -2,72 +2,75 @@ package com.zestflow.test.component;
 
 import com.zestflow.executor.annotation.ZestComponent;
 import com.zestflow.executor.annotation.ZestExecute;
-import com.zestflow.executor.context.ChainContext;
+import com.zestflow.executor.annotation.ZestParam;
+import com.zestflow.test.component.model.inventory.InventoryResults;
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.Map;
 
 @Slf4j
 @ZestComponent("inventory")
 public class InventoryHandler {
 
     @ZestExecute(value = "checkStock", name = "库存检查")
-    public Map<String, Object> checkStock(ChainContext ctx) {
-        log.info("库存-检查库存");
-        return Map.of("available", true, "stock", 200);
+    public InventoryResults.CheckStockResult checkStock(
+            @ZestParam(value = "productId", required = false) String productId) {
+        log.info("库存-检查库存 productId={}", productId);
+        return new InventoryResults.CheckStockResult(true, 200);
     }
 
     @ZestExecute(value = "lockStock", name = "锁定库存")
-    public Map<String, Object> lockStock(ChainContext ctx) {
-        log.info("库存-锁定库存");
-        return Map.of("lockId", "LCK" + System.currentTimeMillis(), "quantity", 5);
+    public InventoryResults.LockStockResult lockStock(
+            @ZestParam(value = "quantity", defaultValue = "5") int quantity) {
+        log.info("库存-锁定库存 quantity={}", quantity);
+        return new InventoryResults.LockStockResult("LCK" + System.currentTimeMillis(), quantity);
     }
 
     @ZestExecute(value = "unlockStock", name = "释放库存")
-    public Map<String, Object> unlockStock(ChainContext ctx) {
-        log.info("库存-释放库存");
-        return Map.of("released", true, "quantity", 5);
+    public InventoryResults.UnlockStockResult unlockStock(
+            @ZestParam(value = "quantity", defaultValue = "5") int quantity) {
+        log.info("库存-释放库存 quantity={}", quantity);
+        return new InventoryResults.UnlockStockResult(true, quantity);
     }
 
     @ZestExecute(value = "deductStock", name = "扣减库存")
-    public Map<String, Object> deductStock(ChainContext ctx) {
+    public InventoryResults.DeductStockResult deductStock() {
         log.info("库存-扣减库存");
-        return Map.of("result", "deducted", "remaining", 195);
+        return new InventoryResults.DeductStockResult("deducted", 195);
     }
 
     @ZestExecute(value = "restoreStock", name = "归还库存")
-    public Map<String, Object> restoreStock(ChainContext ctx) {
-        log.info("库存-归还库存");
-        return Map.of("restored", true, "quantity", 3);
+    public InventoryResults.RestoreStockResult restoreStock(
+            @ZestParam(value = "quantity", defaultValue = "3") int quantity) {
+        log.info("库存-归还库存 quantity={}", quantity);
+        return new InventoryResults.RestoreStockResult(true, quantity);
     }
 
     @ZestExecute(value = "queryStockDetail", name = "库存明细查询")
-    public Map<String, Object> queryStockDetail(ChainContext ctx) {
+    public InventoryResults.QueryStockDetailResult queryStockDetail() {
         log.info("库存-明细查询");
-        return Map.of("warehouse", "华东仓", "shelfNo", "A-001", "quantity", 500);
+        return new InventoryResults.QueryStockDetailResult("华东仓", "A-001", 500);
     }
 
     @ZestExecute(value = "transferStock", name = "库存调拨")
-    public Map<String, Object> transferStock(ChainContext ctx) {
+    public InventoryResults.TransferStockResult transferStock() {
         log.info("库存-调拨处理");
-        return Map.of("fromWarehouse", "华东仓", "toWarehouse", "华北仓", "quantity", 100);
+        return new InventoryResults.TransferStockResult("华东仓", "华北仓", 100);
     }
 
     @ZestExecute(value = "checkWarehouse", name = "仓库容量检查")
-    public Map<String, Object> checkWarehouse(ChainContext ctx) {
+    public InventoryResults.CheckWarehouseResult checkWarehouse() {
         log.info("库存-仓库容量检查");
-        return Map.of("usageRate", 0.75, "available", true);
+        return new InventoryResults.CheckWarehouseResult(0.75, true);
     }
 
     @ZestExecute(value = "stockWarning", name = "库存预警")
-    public Map<String, Object> stockWarning(ChainContext ctx) {
+    public InventoryResults.StockWarningResult stockWarning() {
         log.info("库存-预警检查");
-        return Map.of("warning", false, "minStock", 50, "currentStock", 200);
+        return new InventoryResults.StockWarningResult(false, 50, 200);
     }
 
     @ZestExecute(value = "inventoryCount", name = "库存盘点")
-    public Map<String, Object> inventoryCount(ChainContext ctx) {
+    public InventoryResults.InventoryCountResult inventoryCount() {
         log.info("库存-盘点处理");
-        return Map.of("expected", 1000, "actual", 998, "diff", -2);
+        return new InventoryResults.InventoryCountResult(1000, 998, -2);
     }
 }

@@ -11,6 +11,11 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.RequestEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
@@ -42,6 +47,12 @@ public class ExecutorProxyService {
     @Value("${zestflow.admin.protocol:http}")
     private String protocol;
 
+    /**
+     * Admin → Executor Netty 机器鉴权令牌（与 {@code zestflow.executor.access-token} 一致，非用户 JWT）
+     */
+    @Value("${zestflow.admin.executor-access-token:}")
+    private String executorAccessToken;
+
     /** 轮询计数器 */
     private final AtomicInteger roundRobinCounter = new AtomicInteger(0);
 
@@ -60,7 +71,8 @@ public class ExecutorProxyService {
         }
         String url = baseUrl + path + (query != null ? query : "");
         try {
-            String json = restTemplate.getForObject(url, String.class);
+            HttpEntity<Void> entity = new HttpEntity<>(executorHeaders());
+            String json = restTemplate.exchange(url, HttpMethod.GET, entity, String.class).getBody();
             if (json == null) return emptyPage();
             return enrichWithAppCode(json, appCode, baseUrl.replace(protocol + "://", ""));
         } catch (ResourceAccessException e) {
@@ -86,7 +98,8 @@ public class ExecutorProxyService {
             return "[]";
         }
         try {
-            String json = restTemplate.getForObject(url, String.class);
+            HttpEntity<Void> entity = new HttpEntity<>(executorHeaders());
+            String json = restTemplate.exchange(url, HttpMethod.GET, entity, String.class).getBody();
             if (json == null) return "[]";
             // 尝试解析为分页格式，提取 records
             JsonNode root = MAPPER.readTree(json);
@@ -110,8 +123,8 @@ public class ExecutorProxyService {
     public String getDirect(String host, int port, String path, String query) {
         try {
             String url = protocol + "://" + host + ":" + port + path + (query != null ? query : "");
-            String json = restTemplate.getForObject(url, String.class);
-            return json;
+            HttpEntity<Void> entity = new HttpEntity<>(executorHeaders());
+            return restTemplate.exchange(url, HttpMethod.GET, entity, String.class).getBody();
         } catch (ResourceAccessException e) {
             log.warn("Executor 不可达 {}:{}", host, port);
             return emptyPage();
@@ -127,8 +140,8 @@ public class ExecutorProxyService {
     public String getDirectFromUrl(String url, String query) {
         try {
             String fullUrl = url + (query != null ? query : "");
-            String json = restTemplate.getForObject(fullUrl, String.class);
-            return json;
+            HttpEntity<Void> entity = new HttpEntity<>(executorHeaders());
+            return restTemplate.exchange(fullUrl, HttpMethod.GET, entity, String.class).getBody();
         } catch (ResourceAccessException e) {
             log.warn("Executor 不可达 url={}", url);
             return emptyPage();
@@ -149,20 +162,25 @@ public class ExecutorProxyService {
         try {
             String json;
             switch (method.toUpperCase()) {
+                case "GET":
+                    json = restTemplate.exchange(
+                            RequestEntity.get(new java.net.URI(url)).headers(executorHeaders()).build(),
+                            String.class).getBody();
+                    break;
                 case "POST":
-                    json = restTemplate.postForObject(url, body, String.class);
+                    json = restTemplate.postForObject(url, new HttpEntity<>(body, executorHeaders()), String.class);
                     break;
                 case "PUT":
                     json = restTemplate.exchange(
-                            org.springframework.http.RequestEntity
-                                    .put(new java.net.URI(url))
+                            RequestEntity.put(new java.net.URI(url))
+                                    .headers(executorHeaders())
                                     .body(body),
                             String.class).getBody();
                     break;
                 case "DELETE":
                     json = restTemplate.exchange(
-                            org.springframework.http.RequestEntity
-                                    .delete(new java.net.URI(url))
+                            RequestEntity.delete(new java.net.URI(url))
+                                    .headers(executorHeaders())
                                     .build(),
                             String.class).getBody();
                     break;
@@ -279,6 +297,15 @@ public class ExecutorProxyService {
         return "{\"records\":[],\"total\":0,\"current\":1,\"size\":10}";
     }
 
+    private HttpHeaders executorHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        if (executorAccessToken != null && !executorAccessToken.isEmpty()) {
+            headers.set("X-Access-Token", executorAccessToken);
+        }
+        return headers;
+    }
+
     // ==================== 广播机制 ====================
 
     @Data
@@ -349,13 +376,14 @@ public class ExecutorProxyService {
                     switch (method.toUpperCase()) {
                         case "PUT":
                             json = restTemplate.exchange(
-                                    org.springframework.http.RequestEntity
-                                            .put(new java.net.URI(fullUrl))
+                                    RequestEntity.put(new java.net.URI(fullUrl))
+                                            .headers(executorHeaders())
                                             .body(body != null ? body : "{}"),
                                     String.class).getBody();
                             break;
                         case "POST":
-                            json = restTemplate.postForObject(fullUrl, body != null ? body : "{}", String.class);
+                            json = restTemplate.postForObject(fullUrl,
+                                    new HttpEntity<>(body != null ? body : "{}", executorHeaders()), String.class);
                             break;
                         default:
                             return new ExecutorResult(baseUrl, false, "不支持的方法: " + method);

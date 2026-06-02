@@ -1,0 +1,6 @@
+# 企业级 E2E 验收 Profile（需重启 Admin 后执行 run-tenant-multi-e2e / run-ip-demo-e2e）
+# 启动：mvn spring-boot:run -pl zestflow-admin -Dspring-boot.run.profiles=local,enterprise-e2e
+zestflow:
+  tenant:
+    mode: multi
+    ip-demo-mode: enabled

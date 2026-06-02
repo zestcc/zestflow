@@ -11,8 +11,10 @@ zestflow:
     app-name:
     # Admin 服务地址，多个用逗号分隔
     admin-addresses: http://localhost:8080
-    # 认证令牌（与 Admin 端共享）
+    # 认证令牌（Netty 端点 X-Access-Token，与 Admin 端共享）
     access-token:
+    # Admin 机器接口令牌（注册/心跳/链同步，请求头 X-Registry-Token，须与 Admin zestflow.admin.registry-token 一致）
+    registry-token:
     # 心跳间隔（秒）
     heartbeat-interval: 30
     # 执行器暴露的 Host（为空则自动探测本机 IP）
@@ -68,3 +70,11 @@ zestflow:
       node-default-retry-count: 0
       # 节点默认重试间隔（毫秒）
       node-default-retry-interval-ms: 1000
+
+    # ---- Netty /execute 业务线程池（避免阻塞 EventLoop，对标 xxl-job 业务线程池） ----
+    # 核心线程数（0 表示 CPU 核数）
+    execute-pool-core-size: 0
+    # 最大线程数（0 表示 CPU 核数 × 2）
+    execute-pool-max-size: 0
+    # 队列容量
+    execute-pool-queue-capacity: 256

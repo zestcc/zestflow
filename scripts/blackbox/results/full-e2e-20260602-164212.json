@@ -1,0 +1,275 @@
+﻿{
+    "functional":  [
+                       {
+                           "category":  "auth",
+                           "name":  "login",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  306,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "config",
+                           "name":  "system-features",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  26,
+                           "note":  "playground=True"
+                       },
+                       {
+                           "category":  "auth",
+                           "name":  "userinfo",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  12,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "tenant",
+                           "name":  "list-my-tenants",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  12,
+                           "note":  "count=0"
+                       },
+                       {
+                           "category":  "tenant",
+                           "name":  "tenant-crud-list",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  12,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "tenant",
+                           "name":  "switch-tenant-1",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  12,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "dashboard",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  41,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "executors-apps",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  14,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "executors-list",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  15,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "collectors",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  15,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "chains",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  20,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "designs",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  42,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "components",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  19,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "schedules",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  19,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "users",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  16,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "roles",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  13,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "dict-types",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  15,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "logs-events",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  716,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "executor",
+                           "name":  "health",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  17,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "executor",
+                           "name":  "business-api",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  15,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "collector",
+                           "name":  "health",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  12,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "playground",
+                           "name":  "list-all-scenes",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  26,
+                           "note":  "count=32"
+                       },
+                       {
+                           "category":  "playground",
+                           "name":  "all-scenes-batch",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  0,
+                           "note":  "pass=1 fail=0 skipped-heavy=False"
+                       },
+                       {
+                           "category":  "security",
+                           "name":  "no-jwt",
+                           "ok":  true,
+                           "status":  403,
+                           "latencyMs":  25,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "security",
+                           "name":  "registry-no-token",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  14,
+                           "note":  "dev-open if token empty"
+                       },
+                       {
+                           "category":  "security",
+                           "name":  "bad-jwt-protected-api",
+                           "ok":  true,
+                           "status":  403,
+                           "latencyMs":  1,
+                           "note":  "/api/auth/** is permitAll"
+                       }
+                   ],
+    "environment":  {
+                        "admin":  "http://127.0.0.1:8080",
+                        "netty":  "http://127.0.0.1:20550",
+                        "collector":  "http://127.0.0.1:20650"
+                    },
+    "timestamp":  "2026-06-02T16:42:14.3709692+08:00",
+    "configProbe":  [
+                        {
+                            "name":  "runtime",
+                            "key":  "zestflow.playground.enabled",
+                            "value":  true,
+                            "note":  "from /api/system/features (authenticated)"
+                        },
+                        {
+                            "name":  "runtime",
+                            "key":  "zestflow.tenant.mode",
+                            "value":  "single (default in application.yml)",
+                            "note":  "multi: set zestflow.tenant.mode=multi + restart"
+                        },
+                        {
+                            "name":  "runtime",
+                            "key":  "zestflow.tenant.ip-demo-mode",
+                            "value":  "disabled (default)",
+                            "note":  "enabled: set ip-demo-mode=enabled + restart"
+                        },
+                        {
+                            "name":  "runtime",
+                            "key":  "zestflow.admin.registry-token",
+                            "value":  "empty=dev-open",
+                            "note":  "ON: set token + restart, wrong header -\u003e 401"
+                        },
+                        {
+                            "name":  "runtime",
+                            "key":  "zestflow.executor.access-token",
+                            "value":  "empty=dev-open",
+                            "note":  "ON: set token on both sides + restart"
+                        },
+                        {
+                            "name":  "runtime",
+                            "key":  "zestflow.mail.enabled",
+                            "value":  "see application-local.yml",
+                            "note":  "false=NoopMailService, true=SmtpMailService"
+                        },
+                        {
+                            "name":  "runtime",
+                            "key":  "zestflow.admin.cache.type",
+                            "value":  "simple/caffeine/redis",
+                            "note":  "restart to switch"
+                        }
+                    ],
+    "playgroundScenes":  [
+                             {
+                                 "sceneCode":  "SCN20260601000229",
+                                 "name":  "å®ååå¤ç",
+                                 "appCode":  "demo-app",
+                                 "path":  "http://localhost:8081/api/orders/handleApplyAfterSale",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  35,
+                                 "skipped":  false,
+                                 "note":  ""
+                             }
+                         ]
+}

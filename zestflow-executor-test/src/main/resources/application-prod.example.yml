@@ -34,6 +34,10 @@ zestflow:
       driver-class-name: com.mysql.cj.jdbc.Driver
     # Admin 服务地址
     admin-addresses: http://localhost:8080
+    # Netty /execute 业务线程池（避免阻塞 EventLoop）
+    execute-pool-core-size: 8
+    execute-pool-max-size: 16
+    execute-pool-queue-capacity: 256
   playground:
     # 当前服务的基础 URL（用于 Admin 试验场拼接完整请求路径）
     url: http://localhost:${server.port}

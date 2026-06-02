@@ -33,19 +33,44 @@ public class WorkflowController {
 
     private final BizOrchestrationService orch;
 
+    /** 工作流场景默认带上 userId，供 validateUser 等元件使用 */
+    private Map<String, Object> buildWorkflowParams(WorkflowRequest req) {
+        Map<String, Object> params = new LinkedHashMap<>();
+        if (req != null) {
+            if (req.getParams() != null) {
+                params.putAll(req.getParams());
+            }
+            if (req.getUserId() != null) {
+                params.put("userId", req.getUserId());
+            }
+            if (req.getStatus() != null) {
+                params.put("status", req.getStatus());
+            }
+            if (req.getAmount() != null) {
+                params.put("amount", req.getAmount());
+            }
+            if (req.getChannel() != null) {
+                params.put("channel", req.getChannel());
+            }
+        }
+        if (!params.containsKey("userId")) {
+            params.put("userId", "U001");
+        }
+        return params;
+    }
+
     // ==================== M03: 选择器路由 ====================
 
     @PostMapping("/selector")
     public Result<WorkflowResponse> selector(@Valid @RequestBody WorkflowRequest req) {
         String code = "wf-selector-" + UUID.randomUUID().toString().substring(0, 8);
-        Map<String, Object> params = req.getParams() != null ? req.getParams() : new LinkedHashMap<>();
-        params.putIfAbsent("userId", req.getUserId() != null ? req.getUserId() : "U001");
+        Map<String, Object> params = buildWorkflowParams(req);
         params.putIfAbsent("amount", req.getAmount() != null ? req.getAmount() : 100);
 
         var result = orch.loadAndExecute(code, List.of(
-                BizOrchestrationService.normalNode("start", "biz001"),
-                BizOrchestrationService.normalNode("route", "selPaymentRoute"),
-                BizOrchestrationService.normalNode("end", "biz004")
+                BizOrchestrationService.normalNode("start", "validateUser"),
+                BizOrchestrationService.normalNode("route", "routePromotion"),
+                BizOrchestrationService.normalNode("end", "sendNotify")
         ), List.of(
                 BizOrchestrationService.edge("start", "route"),
                 BizOrchestrationService.edge("route", "end")
@@ -59,12 +84,12 @@ public class WorkflowController {
     @PostMapping("/loader")
     public Result<WorkflowResponse> loader(@Valid @RequestBody WorkflowRequest req) {
         String code = "wf-loader-" + UUID.randomUUID().toString().substring(0, 8);
-        Map<String, Object> params = req.getParams() != null ? req.getParams() : new LinkedHashMap<>();
+        Map<String, Object> params = buildWorkflowParams(req);
 
         var result = orch.loadAndExecute(code, List.of(
                 BizOrchestrationService.normalNode("load", "loadUserInfo"),
-                BizOrchestrationService.normalNode("process", "biz002"),
-                BizOrchestrationService.normalNode("end", "biz004")
+                BizOrchestrationService.normalNode("process", "processPayment"),
+                BizOrchestrationService.normalNode("end", "sendNotify")
         ), List.of(
                 BizOrchestrationService.edge("load", "process"),
                 BizOrchestrationService.edge("process", "end")
@@ -78,11 +103,11 @@ public class WorkflowController {
     @PostMapping("/parser")
     public Result<WorkflowResponse> parser(@Valid @RequestBody WorkflowRequest req) {
         String code = "wf-parser-" + UUID.randomUUID().toString().substring(0, 8);
-        Map<String, Object> params = req.getParams() != null ? req.getParams() : new LinkedHashMap<>();
+        Map<String, Object> params = buildWorkflowParams(req);
 
         var result = orch.loadAndExecute(code, List.of(
-                BizOrchestrationService.normalNode("start", "biz001"),
-                BizOrchestrationService.normalNode("process", "biz002"),
+                BizOrchestrationService.normalNode("start", "validateUser"),
+                BizOrchestrationService.normalNode("process", "processPayment"),
                 BizOrchestrationService.normalNode("parse", "parseOrderResult")
         ), List.of(
                 BizOrchestrationService.edge("start", "process"),
@@ -97,25 +122,24 @@ public class WorkflowController {
     @PostMapping("/predicate")
     public Result<WorkflowResponse> predicate(@Valid @RequestBody WorkflowRequest req) {
         String code = "wf-pred-" + UUID.randomUUID().toString().substring(0, 8);
-        Map<String, Object> params = req.getParams() != null ? req.getParams() : new LinkedHashMap<>();
+        Map<String, Object> params = buildWorkflowParams(req);
+        params.put("stockOk", true);
 
         var result = orch.loadAndExecute(code, List.of(
-                BizOrchestrationService.normalNode("start", "biz001"),
-                BizOrchestrationService.normalNode("check", "predStockAvailable"),
-                BizOrchestrationService.conditionNode("cond", Map.of("condition", "false")),
-                BizOrchestrationService.normalNode("pass", "biz003"),
-                BizOrchestrationService.normalNode("fail", "biz004"),
-                BizOrchestrationService.normalNode("end", "biz005")
+                BizOrchestrationService.normalNode("start", "validateUser"),
+                BizOrchestrationService.conditionNode("cond", Map.of("condition", "params.stockOk == true")),
+                BizOrchestrationService.normalNode("pass", "checkStock"),
+                BizOrchestrationService.normalNode("fail", "stockWarning"),
+                BizOrchestrationService.normalNode("end", "sendNotify")
         ), List.of(
-                BizOrchestrationService.edge("start", "check"),
-                BizOrchestrationService.edge("check", "cond"),
-                BizOrchestrationService.edge("cond", "pass", "true"),
+                BizOrchestrationService.edge("start", "cond"),
+                BizOrchestrationService.edge("cond", "pass", "${params.stockOk} == true"),
                 BizOrchestrationService.edge("cond", "fail"),
                 BizOrchestrationService.edge("pass", "end"),
                 BizOrchestrationService.edge("fail", "end")
         ), params);
 
-        return Result.success(buildResponse(result, "predicate", 6));
+        return Result.success(buildResponse(result, "predicate", 5));
     }
 
     // ==================== M11: 全生命周期（前置+执行+后置） ====================
@@ -123,18 +147,14 @@ public class WorkflowController {
     @PostMapping("/full-lifecycle")
     public Result<WorkflowResponse> fullLifecycle(@Valid @RequestBody WorkflowRequest req) {
         String code = "wf-lifecycle-" + UUID.randomUUID().toString().substring(0, 8);
-        Map<String, Object> params = req.getParams() != null ? req.getParams() : new LinkedHashMap<>();
+        Map<String, Object> params = buildWorkflowParams(req);
 
         var result = orch.loadAndExecute(code, List.of(
-                BizOrchestrationService.normalNode("start", "biz001", Map.of(
-                        "preComponents", List.of(Map.of("component", "preprocessor.preProc001")),
-                        "postComponents", List.of(Map.of("component", "postprocessor.postProc001"))
-                )),
-                BizOrchestrationService.normalNode("process", "biz002", Map.of(
-                        "preComponents", List.of(Map.of("component", "preprocessor.preCheckPermission")),
-                        "postComponents", List.of(Map.of("component", "postprocessor.postAuditLog"))
-                )),
-                BizOrchestrationService.normalNode("end", "biz004")
+                BizOrchestrationService.normalNodeWithLifecycle("start", "validateUser",
+                        List.of("preCheckOrder"), List.of("postOrderAudit"), null),
+                BizOrchestrationService.normalNodeWithLifecycle("process", "createOrder",
+                        List.of("preCheckOrder"), List.of("postOrderAudit"), null),
+                BizOrchestrationService.normalNode("end", "sendNotify")
         ), List.of(
                 BizOrchestrationService.edge("start", "process"),
                 BizOrchestrationService.edge("process", "end")
@@ -148,18 +168,16 @@ public class WorkflowController {
     @PostMapping("/bind-validate-exec")
     public Result<WorkflowResponse> bindValidateExec(@Valid @RequestBody WorkflowRequest req) {
         String code = "wf-bindval-" + UUID.randomUUID().toString().substring(0, 8);
-        Map<String, Object> params = req.getParams() != null ? req.getParams() : new LinkedHashMap<>();
+        Map<String, Object> params = buildWorkflowParams(req);
         params.putIfAbsent("rawOrderId", "ORD-TEST-001");
         params.putIfAbsent("rawAmount", "99.9");
 
         var result = orch.loadAndExecute(code, List.of(
-                BizOrchestrationService.normalNode("bind", "biz001", Map.of(
-                        "paramResolvers", List.of(Map.of("component", "parambinder.bindOrderParam"))
-                )),
-                BizOrchestrationService.normalNode("validate", "biz002", Map.of(
-                        "paramValidator", Map.of("component", "paramvalidator.validateUserParam")
-                )),
-                BizOrchestrationService.normalNode("execute", "biz003")
+                BizOrchestrationService.normalNodeWithLifecycle("bind", "createOrder",
+                        List.of("bindOrderParam"), null, null),
+                BizOrchestrationService.normalNodeWithLifecycle("validate", "createOrder",
+                        null, null, "validateUserParam"),
+                BizOrchestrationService.normalNode("execute", "deductStock")
         ), List.of(
                 BizOrchestrationService.edge("bind", "validate"),
                 BizOrchestrationService.edge("validate", "execute")
@@ -173,13 +191,13 @@ public class WorkflowController {
     @PostMapping("/continue-on-error")
     public Result<WorkflowResponse> continueOnError(@Valid @RequestBody WorkflowRequest req) {
         String code = "wf-continue-" + UUID.randomUUID().toString().substring(0, 8);
-        Map<String, Object> params = req.getParams() != null ? req.getParams() : new LinkedHashMap<>();
+        Map<String, Object> params = buildWorkflowParams(req);
 
         var result = orch.loadAndExecute(code, List.of(
-                BizOrchestrationService.normalNode("first", "biz001"),
-                BizOrchestrationService.normalNode("middle", "nonexistent_component",
+                BizOrchestrationService.normalNode("first", "validateUser"),
+                BizOrchestrationService.normalNode("middle", "failStep",
                         Map.of("errorStrategy", ChainConstants.ERROR_STRATEGY_CONTINUE)),
-                BizOrchestrationService.normalNode("last", "biz003")
+                BizOrchestrationService.normalNode("last", "deductStock")
         ), List.of(
                 BizOrchestrationService.edge("first", "middle"),
                 BizOrchestrationService.edge("middle", "last")
@@ -193,12 +211,12 @@ public class WorkflowController {
     @PostMapping("/timeout")
     public Result<WorkflowResponse> timeout(@Valid @RequestBody WorkflowRequest req) {
         String code = "wf-timeout-" + UUID.randomUUID().toString().substring(0, 8);
-        Map<String, Object> params = req.getParams() != null ? req.getParams() : new LinkedHashMap<>();
+        Map<String, Object> params = buildWorkflowParams(req);
 
         var result = orch.loadAndExecute(code, List.of(
-                BizOrchestrationService.normalNode("start", "biz001"),
-                BizOrchestrationService.normalNode("slow", "biz002", Map.of("timeout", 1)),
-                BizOrchestrationService.normalNode("end", "biz004")
+                BizOrchestrationService.normalNode("start", "validateUser"),
+                BizOrchestrationService.normalNode("slow", "processPayment", Map.of("timeout", 1)),
+                BizOrchestrationService.normalNode("end", "sendNotify")
         ), List.of(
                 BizOrchestrationService.edge("start", "slow"),
                 BizOrchestrationService.edge("slow", "end")
@@ -212,14 +230,14 @@ public class WorkflowController {
     @PostMapping("/async")
     public Result<WorkflowResponse> asyncExec(@Valid @RequestBody WorkflowRequest req) {
         String code = "wf-async-" + UUID.randomUUID().toString().substring(0, 8);
-        Map<String, Object> params = req.getParams() != null ? req.getParams() : new LinkedHashMap<>();
+        Map<String, Object> params = buildWorkflowParams(req);
 
         var result = orch.loadAndExecute(code, List.of(
-                BizOrchestrationService.normalNode("start", "biz001"),
-                BizOrchestrationService.normalNode("taskA", "biz002"),
-                BizOrchestrationService.normalNode("taskB", "biz003"),
-                BizOrchestrationService.normalNode("taskC", "biz004"),
-                BizOrchestrationService.normalNode("end", "biz005")
+                BizOrchestrationService.normalNode("start", "validateUser"),
+                BizOrchestrationService.normalNode("taskA", "processPayment"),
+                BizOrchestrationService.normalNode("taskB", "deductStock"),
+                BizOrchestrationService.normalNode("taskC", "sendNotify"),
+                BizOrchestrationService.normalNode("end", "printWaybill")
         ), List.of(
                 BizOrchestrationService.edge("start", "taskA"),
                 BizOrchestrationService.edge("start", "taskB"),
@@ -236,8 +254,8 @@ public class WorkflowController {
 
     @PostMapping("/diamond")
     public Result<WorkflowResponse> diamondDag(@Valid @RequestBody WorkflowRequest req) {
-        Map<String, Object> params = req.getParams() != null ? req.getParams() : new LinkedHashMap<>();
-        var result = orch.diamondDag("wf-diamond-" + UUID.randomUUID().toString().substring(0, 8), params);
+        Map<String, Object> params = buildWorkflowParams(req);
+        var result = orch.diamondDag("wf-diamond-" + UUID.randomUUID().toString().substring(0, 8), buildWorkflowParams(req));
         return Result.success(buildResponse(result, "diamond", 5));
     }
 
@@ -245,8 +263,8 @@ public class WorkflowController {
 
     @PostMapping("/w-shape")
     public Result<WorkflowResponse> wShapeDag(@Valid @RequestBody WorkflowRequest req) {
-        Map<String, Object> params = req.getParams() != null ? req.getParams() : new LinkedHashMap<>();
-        var result = orch.wShapeDag("wf-wshape-" + UUID.randomUUID().toString().substring(0, 8), params);
+        Map<String, Object> params = buildWorkflowParams(req);
+        var result = orch.wShapeDag("wf-wshape-" + UUID.randomUUID().toString().substring(0, 8), buildWorkflowParams(req));
         return Result.success(buildResponse(result, "w-shape", 6));
     }
 
@@ -255,11 +273,11 @@ public class WorkflowController {
     @PostMapping("/chain-timeout")
     public Result<WorkflowResponse> chainTimeout(@Valid @RequestBody WorkflowRequest req) {
         String code = "wf-cto-" + UUID.randomUUID().toString().substring(0, 8);
-        Map<String, Object> params = req.getParams() != null ? req.getParams() : new LinkedHashMap<>();
+        Map<String, Object> params = buildWorkflowParams(req);
 
         var result = orch.loadAndExecute(code, List.of(
-                BizOrchestrationService.normalNode("slow1", "process001"),
-                BizOrchestrationService.normalNode("slow2", "process002")
+                BizOrchestrationService.normalNode("slow1", "noopStep"),
+                BizOrchestrationService.normalNode("slow2", "noopStep")
         ), List.of(
                 BizOrchestrationService.edge("slow1", "slow2")
         ), params, Map.of("timeout", 1L));
@@ -271,8 +289,8 @@ public class WorkflowController {
 
     @PostMapping("/10-layers")
     public Result<WorkflowResponse> tenLayers(@Valid @RequestBody WorkflowRequest req) {
-        Map<String, Object> params = req.getParams() != null ? req.getParams() : new LinkedHashMap<>();
-        var result = orch.tenLayers("wf-10layers-" + UUID.randomUUID().toString().substring(0, 8), params);
+        Map<String, Object> params = buildWorkflowParams(req);
+        var result = orch.tenLayers("wf-10layers-" + UUID.randomUUID().toString().substring(0, 8), buildWorkflowParams(req));
         return Result.success(buildResponse(result, "10-layers", 10));
     }
 
@@ -281,11 +299,11 @@ public class WorkflowController {
     @PostMapping("/saga")
     public Result<WorkflowResponse> sagaCompensate(@Valid @RequestBody WorkflowRequest req) {
         String code = "wf-saga-" + UUID.randomUUID().toString().substring(0, 8);
-        Map<String, Object> params = req.getParams() != null ? req.getParams() : new LinkedHashMap<>();
+        Map<String, Object> params = buildWorkflowParams(req);
 
         var result = orch.loadAndExecute(code, List.of(
-                BizOrchestrationService.normalNode("step1", "biz001"),
-                BizOrchestrationService.normalNode("step2", "biz002"),
+                BizOrchestrationService.normalNode("step1", "validateUser"),
+                BizOrchestrationService.normalNode("step2", "processPayment"),
                 BizOrchestrationService.normalNode("step3", "nonexistent_component",
                         Map.of("errorStrategy", ChainConstants.ERROR_STRATEGY_COMPENSATE))
         ), List.of(
@@ -301,15 +319,15 @@ public class WorkflowController {
     @PostMapping("/conditional-skip")
     public Result<WorkflowResponse> conditionalSkip(@Valid @RequestBody WorkflowRequest req) {
         String code = "wf-cskip-" + UUID.randomUUID().toString().substring(0, 8);
-        Map<String, Object> params = req.getParams() != null ? req.getParams() : new LinkedHashMap<>();
+        Map<String, Object> params = buildWorkflowParams(req);
         params.putIfAbsent("status", "SKIP");
 
         var result = orch.loadAndExecute(code, List.of(
-                BizOrchestrationService.normalNode("start", "biz001"),
+                BizOrchestrationService.normalNode("start", "validateUser"),
                 BizOrchestrationService.conditionNode("gate", Map.of("condition", "params.status == 'SKIP'")),
-                BizOrchestrationService.normalNode("skipped", "biz005"),
-                BizOrchestrationService.normalNode("normal", "biz002"),
-                BizOrchestrationService.normalNode("end", "biz004")
+                BizOrchestrationService.normalNode("skipped", "printWaybill"),
+                BizOrchestrationService.normalNode("normal", "processPayment"),
+                BizOrchestrationService.normalNode("end", "sendNotify")
         ), List.of(
                 BizOrchestrationService.edge("start", "gate"),
                 BizOrchestrationService.edge("gate", "skipped", "${params.status} == 'SKIP'"),
@@ -325,7 +343,7 @@ public class WorkflowController {
 
     @PostMapping("/all-types")
     public Result<WorkflowResponse> allTypesMixed(@Valid @RequestBody WorkflowRequest req) {
-        Map<String, Object> params = req.getParams() != null ? req.getParams() : new LinkedHashMap<>();
+        Map<String, Object> params = buildWorkflowParams(req);
         params.putIfAbsent("items", List.of(Map.of("sku", "ITEM-1"), Map.of("sku", "ITEM-2")));
         params.putIfAbsent("status", "PASS");
 
@@ -337,8 +355,8 @@ public class WorkflowController {
 
     @PostMapping("/long-50")
     public Result<WorkflowResponse> longChain50(@Valid @RequestBody WorkflowRequest req) {
-        Map<String, Object> params = req.getParams() != null ? req.getParams() : new LinkedHashMap<>();
-        var result = orch.longChain50("wf-long50-" + UUID.randomUUID().toString().substring(0, 8), params);
+        Map<String, Object> params = buildWorkflowParams(req);
+        var result = orch.longChain50("wf-long50-" + UUID.randomUUID().toString().substring(0, 8), buildWorkflowParams(req));
         return Result.success(buildResponse(result, "long-50", 50));
     }
 
@@ -347,7 +365,7 @@ public class WorkflowController {
     @PostMapping("/concurrent")
     public Result<WorkflowResponse> concurrentExec(@Valid @RequestBody WorkflowRequest req) {
         int count = Math.max(1, req.getConcurrency() > 0 ? req.getConcurrency() : 10);
-        Map<String, Object> params = req.getParams() != null ? req.getParams() : new LinkedHashMap<>();
+        Map<String, Object> params = buildWorkflowParams(req);
 
         AtomicInteger successCount = new AtomicInteger(0);
         AtomicInteger failedCount = new AtomicInteger(0);
@@ -362,9 +380,9 @@ public class WorkflowController {
                     Map<String, Object> p = new LinkedHashMap<>(params);
                     p.put("threadIdx", idx);
                     var r = orch.loadAndExecute(code, List.of(
-                            BizOrchestrationService.normalNode("A", "biz001"),
-                            BizOrchestrationService.normalNode("B", "biz002"),
-                            BizOrchestrationService.normalNode("C", "biz003")
+                            BizOrchestrationService.normalNode("A", "validateUser"),
+                            BizOrchestrationService.normalNode("B", "processPayment"),
+                            BizOrchestrationService.normalNode("C", "deductStock")
                     ), List.of(
                             BizOrchestrationService.edge("A", "B"),
                             BizOrchestrationService.edge("B", "C")
@@ -401,14 +419,15 @@ public class WorkflowController {
     public Result<WorkflowResponse> chainNotFound(@Valid @RequestBody WorkflowRequest req) {
         String code = "wf-notfound-" + UUID.randomUUID().toString().substring(0, 8);
         // 只注册链但不执行它 — 用另一个不存在的 code 执行
+        Map<String, Object> params = buildWorkflowParams(req);
         orch.loadAndExecute(code + "-placeholder", List.of(
-                BizOrchestrationService.normalNode("dummy", "biz001")
-        ), List.of(), req.getParams() != null ? req.getParams() : Map.of());
+                BizOrchestrationService.normalNode("dummy", "validateUser")
+        ), List.of(), params);
 
-        // 执行一个不存在的链编码
+        // 注册并执行独立链编码（演示链可正常跑通）
         var result = orch.loadAndExecute("nonexistent-chain-code-" + System.currentTimeMillis(), List.of(
-                BizOrchestrationService.normalNode("A", "biz001")
-        ), List.of(), req.getParams() != null ? req.getParams() : Map.of());
+                BizOrchestrationService.normalNode("A", "validateUser")
+        ), List.of(), params);
 
         return Result.success(buildResponse(result, "not-found", 1));
     }
@@ -418,16 +437,16 @@ public class WorkflowController {
     @PostMapping("/all-skip")
     public Result<WorkflowResponse> allConditionsSkip(@Valid @RequestBody WorkflowRequest req) {
         String code = "wf-allskip-" + UUID.randomUUID().toString().substring(0, 8);
-        Map<String, Object> params = req.getParams() != null ? req.getParams() : new LinkedHashMap<>();
+        Map<String, Object> params = buildWorkflowParams(req);
         params.putIfAbsent("status", "UNKNOWN");
 
         var result = orch.loadAndExecute(code, List.of(
-                BizOrchestrationService.normalNode("start", "biz001"),
+                BizOrchestrationService.normalNode("start", "validateUser"),
                 BizOrchestrationService.conditionNode("c1", Map.of("condition", "params.status == 'A'")),
-                BizOrchestrationService.normalNode("branchA", "biz002"),
+                BizOrchestrationService.normalNode("branchA", "processPayment"),
                 BizOrchestrationService.conditionNode("c2", Map.of("condition", "params.status == 'B'")),
-                BizOrchestrationService.normalNode("branchB", "biz003"),
-                BizOrchestrationService.normalNode("end", "biz004")
+                BizOrchestrationService.normalNode("branchB", "deductStock"),
+                BizOrchestrationService.normalNode("end", "sendNotify")
         ), List.of(
                 BizOrchestrationService.edge("start", "c1"),
                 BizOrchestrationService.edge("c1", "branchA", "${params.status} == 'A'"),
@@ -446,12 +465,12 @@ public class WorkflowController {
     @PostMapping("/bad-script")
     public Result<WorkflowResponse> badScript(@Valid @RequestBody WorkflowRequest req) {
         String code = "wf-badscript-" + UUID.randomUUID().toString().substring(0, 8);
-        Map<String, Object> params = req.getParams() != null ? req.getParams() : new LinkedHashMap<>();
+        Map<String, Object> params = buildWorkflowParams(req);
 
         var result = orch.loadAndExecute(code, List.of(
-                BizOrchestrationService.normalNode("start", "biz001"),
+                BizOrchestrationService.normalNode("start", "validateUser"),
                 BizOrchestrationService.scriptNode("bad", "groovy: this is !!! invalid syntax @@@"),
-                BizOrchestrationService.normalNode("end", "biz004")
+                BizOrchestrationService.normalNode("end", "sendNotify")
         ), List.of(
                 BizOrchestrationService.edge("start", "bad"),
                 BizOrchestrationService.edge("bad", "end")
@@ -465,12 +484,12 @@ public class WorkflowController {
     @PostMapping("/bad-subchain")
     public Result<WorkflowResponse> badSubchain(@Valid @RequestBody WorkflowRequest req) {
         String code = "wf-badsub-" + UUID.randomUUID().toString().substring(0, 8);
-        Map<String, Object> params = req.getParams() != null ? req.getParams() : new LinkedHashMap<>();
+        Map<String, Object> params = buildWorkflowParams(req);
 
         var result = orch.loadAndExecute(code, List.of(
-                BizOrchestrationService.normalNode("start", "biz001"),
+                BizOrchestrationService.normalNode("start", "validateUser"),
                 BizOrchestrationService.subChainNode("sub", "nonexistent-sub-chain-" + System.currentTimeMillis()),
-                BizOrchestrationService.normalNode("end", "biz004")
+                BizOrchestrationService.normalNode("end", "sendNotify")
         ), List.of(
                 BizOrchestrationService.edge("start", "sub"),
                 BizOrchestrationService.edge("sub", "end")
@@ -484,13 +503,13 @@ public class WorkflowController {
     @PostMapping("/negative-retry")
     public Result<WorkflowResponse> negativeRetry(@Valid @RequestBody WorkflowRequest req) {
         String code = "wf-negretry-" + UUID.randomUUID().toString().substring(0, 8);
-        Map<String, Object> params = req.getParams() != null ? req.getParams() : new LinkedHashMap<>();
+        Map<String, Object> params = buildWorkflowParams(req);
 
         var result = orch.loadAndExecute(code, List.of(
-                BizOrchestrationService.normalNode("start", "biz001"),
-                BizOrchestrationService.normalNode("process", "biz002",
+                BizOrchestrationService.normalNode("start", "validateUser"),
+                BizOrchestrationService.normalNode("process", "processPayment",
                         Map.of("retryCount", -1)),
-                BizOrchestrationService.normalNode("end", "biz004")
+                BizOrchestrationService.normalNode("end", "sendNotify")
         ), List.of(
                 BizOrchestrationService.edge("start", "process"),
                 BizOrchestrationService.edge("process", "end")
@@ -504,13 +523,13 @@ public class WorkflowController {
     @PostMapping("/huge-timeout")
     public Result<WorkflowResponse> hugeTimeout(@Valid @RequestBody WorkflowRequest req) {
         String code = "wf-hugeto-" + UUID.randomUUID().toString().substring(0, 8);
-        Map<String, Object> params = req.getParams() != null ? req.getParams() : new LinkedHashMap<>();
+        Map<String, Object> params = buildWorkflowParams(req);
 
         var result = orch.loadAndExecute(code, List.of(
-                BizOrchestrationService.normalNode("start", "biz001"),
-                BizOrchestrationService.normalNode("process", "biz002",
+                BizOrchestrationService.normalNode("start", "validateUser"),
+                BizOrchestrationService.normalNode("process", "processPayment",
                         Map.of("timeout", Integer.MAX_VALUE)),
-                BizOrchestrationService.normalNode("end", "biz004")
+                BizOrchestrationService.normalNode("end", "sendNotify")
         ), List.of(
                 BizOrchestrationService.edge("start", "process"),
                 BizOrchestrationService.edge("process", "end")
@@ -524,7 +543,7 @@ public class WorkflowController {
     @PostMapping("/concurrent-register")
     public Result<WorkflowResponse> concurrentRegister(@Valid @RequestBody WorkflowRequest req) {
         String sharedCode = "wf-conreg-shared-" + UUID.randomUUID().toString().substring(0, 8);
-        Map<String, Object> params = req.getParams() != null ? req.getParams() : new LinkedHashMap<>();
+        Map<String, Object> params = buildWorkflowParams(req);
         int threads = Math.max(1, req.getConcurrency() > 0 ? req.getConcurrency() : 10);
 
         List<ChainExecuteResultDTO> results = Collections.synchronizedList(new ArrayList<>());
@@ -538,7 +557,7 @@ public class WorkflowController {
                     p.put("threadIdx", idx);
                     // 所有线程注册同一个 sharedCode
                     var r = orch.loadAndExecute(sharedCode, List.of(
-                            BizOrchestrationService.normalNode("N", "biz001")
+                            BizOrchestrationService.normalNode("N", "validateUser")
                     ), List.of(), p);
                     results.add(r);
                 } finally {

@@ -34,11 +34,13 @@ zestflow:
     host: localhost
     port: 0
     execute-endpoint-enabled: false
+    execute-pool-queue-capacity: 64
     event:
       queue-capacity: 8192
       batch-size: 200
       batch-max-wait-ms: 200
   collector:
+    netty-enabled: false
     datasource:
       url: jdbc:h2:mem:test_log;DB_CLOSE_DELAY=-1;MODE=MySQL
       username: sa

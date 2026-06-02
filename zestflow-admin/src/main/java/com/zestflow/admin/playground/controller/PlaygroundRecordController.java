@@ -4,9 +4,11 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.zestflow.admin.playground.model.dto.PlaygroundRecordQueryDTO;
 import com.zestflow.admin.playground.model.vo.PlaygroundRecordVO;
 import com.zestflow.admin.playground.service.PlaygroundRecordService;
+import com.zestflow.admin.playground.support.PlaygroundAccessControl;
 import com.zestflow.common.model.Result;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -19,9 +21,13 @@ import org.springframework.web.bind.annotation.*;
 public class PlaygroundRecordController {
 
     private final PlaygroundRecordService recordService;
+    private final PlaygroundAccessControl accessControl;
 
     @PostMapping("/page")
     public Result<IPage<PlaygroundRecordVO>> queryPage(@RequestBody PlaygroundRecordQueryDTO dto) {
+        if (StringUtils.hasText(dto.getAppCode())) {
+            accessControl.requireAppPermission(dto.getAppCode(), "APP_VIEWER");
+        }
         return Result.success(recordService.queryPage(dto));
     }
 

@@ -175,6 +175,17 @@ public class ChainDefinitionBuilder {
             builder.fallbackOn(new HashSet<>(parseStringListConfig(fallbackCfg, "on")));
         }
 
+        // 补偿相关
+        Map<String, Object> compensateCfg = parseMapConfig(cfg, "compensate");
+        if (!compensateCfg.isEmpty()) {
+            builder.compensateComponent(parseStringConfig(compensateCfg, "component", ""));
+        } else {
+            String directComp = parseStringConfig(cfg, "compensateComponent", "");
+            if (!directComp.isEmpty()) {
+                builder.compensateComponent(directComp);
+            }
+        }
+
         // 熔断相关
         Map<String, Object> cbCfg = parseMapConfig(cfg, "circuitBreaker");
         if (!cbCfg.isEmpty()) {

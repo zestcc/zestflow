@@ -8,13 +8,19 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.RequestEntity;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.URI;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -91,6 +97,39 @@ class ExecutorProxyServiceTest {
         String url = proxyService.resolveExecutorBaseUrl("  ");
 
         assertThat(url).isNull();
+    }
+
+    @Test
+    void executeOnExecutor_post_shouldAttachAccessTokenHeader() {
+        ReflectionTestUtils.setField(proxyService, "executorAccessToken", "exec-secret");
+        when(executorRegistryMapper.selectList(any())).thenReturn(List.of(executor("host-a", 20550)));
+        when(restTemplate.postForObject(any(String.class), any(HttpEntity.class), eq(String.class)))
+                .thenReturn("{\"code\":200}");
+
+        proxyService.executeOnExecutor("app", "POST", "/api/orders/demo", "{}");
+
+        verify(restTemplate).postForObject(
+                eq("http://host-a:20550/api/orders/demo"),
+                org.mockito.ArgumentMatchers.<HttpEntity<String>>argThat(entity ->
+                        "exec-secret".equals(entity.getHeaders().getFirst("X-Access-Token"))),
+                eq(String.class));
+    }
+
+    @Test
+    void executeOnExecutor_get_shouldAttachAccessTokenHeader() throws Exception {
+        ReflectionTestUtils.setField(proxyService, "executorAccessToken", "exec-secret");
+        when(executorRegistryMapper.selectList(any())).thenReturn(List.of(executor("host-a", 20550)));
+        when(restTemplate.exchange(any(RequestEntity.class), eq(String.class)))
+                .thenReturn(org.springframework.http.ResponseEntity.ok("{}"));
+
+        proxyService.executeOnExecutor("app", "GET", "/api/orders/demo", null);
+
+        verify(restTemplate).exchange(
+                org.mockito.ArgumentMatchers.<RequestEntity<?>>argThat(req ->
+                        req.getMethod() == HttpMethod.GET
+                                && "exec-secret".equals(req.getHeaders().getFirst("X-Access-Token"))
+                                && req.getUrl().equals(URI.create("http://host-a:20550/api/orders/demo"))),
+                eq(String.class));
     }
 
     private static ExecutorRegistryPO executor(String host, int port) {

@@ -17,6 +17,9 @@ public class CollectorRegistryProperties {
     /** Admin 认证令牌 */
     private String accessToken = "";
 
+    /** Admin 机器接口令牌（X-Registry-Token） */
+    private String registryToken = "";
+
     /** 采集器 Host（为空则自动探测） */
     private String host = "";
 

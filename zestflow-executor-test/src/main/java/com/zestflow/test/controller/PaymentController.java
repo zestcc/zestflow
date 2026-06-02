@@ -33,7 +33,7 @@ public class PaymentController {
         Map<String, Object> params = payParams(req);
         var result = orch.loadAndExecute(chainCode, List.of(
                 BizOrchestrationService.normalNode("pay", "processPayment"),
-                BizOrchestrationService.normalNode("done", "biz004")
+                BizOrchestrationService.normalNode("done", "sendNotify")
         ), List.of(
                 BizOrchestrationService.edge("pay", "done")
         ), params);
@@ -52,11 +52,11 @@ public class PaymentController {
 
         boolean isSmall = amount < 5000;
         var result = orch.loadAndExecute(chainCode, List.of(
-                BizOrchestrationService.normalNode("start", "biz001"),
+                BizOrchestrationService.normalNode("start", "validateUser"),
                 BizOrchestrationService.conditionNode("cond", Map.of("condition", "params.amount < 5000")),
-                BizOrchestrationService.normalNode("approved", "biz002"),
-                BizOrchestrationService.normalNode("rejected", "biz003"),
-                BizOrchestrationService.normalNode("end", "biz004")
+                BizOrchestrationService.normalNode("approved", "autoApprove"),
+                BizOrchestrationService.normalNode("rejected", "rejectAudit"),
+                BizOrchestrationService.normalNode("end", "sendNotify")
         ), List.of(
                 BizOrchestrationService.edge("start", "cond"),
                 BizOrchestrationService.edge("cond", "approved", "${params.amount} < 5000"),
@@ -80,7 +80,7 @@ public class PaymentController {
         params.put("simulateFailCount", req.getSimulateFailCount() > 0 ? req.getSimulateFailCount() : 1);
 
         var result = orch.loadAndExecute(chainCode, List.of(
-                BizOrchestrationService.normalNode("start", "biz001"),
+                BizOrchestrationService.normalNode("start", "validateUser"),
                 BizOrchestrationService.normalNode("pay", "processPayment", Map.of("retryCount", 3, "retryInterval", 10))
         ), List.of(
                 BizOrchestrationService.edge("start", "pay")
@@ -97,7 +97,7 @@ public class PaymentController {
         String chainCode = "pay-fallback-" + UUID.randomUUID().toString().substring(0, 8);
         Map<String, Object> params = payParams(req);
 
-        var result = orch.retryWithFallback(chainCode, params, 2, "fallback001");
+        var result = orch.retryWithFallback(chainCode, params, 2, "payFallback");
 
         PaymentResponse resp = baseResponse(result, req);
         resp.setFallbackUsed(result.getNodeResults().stream()
@@ -113,7 +113,7 @@ public class PaymentController {
         Map<String, Object> params = payParams(req);
 
         var result = orch.loadAndExecute(chainCode, List.of(
-                BizOrchestrationService.normalNode("start", "biz001"),
+                BizOrchestrationService.normalNode("start", "validateUser"),
                 BizOrchestrationService.normalNode("risky", "nonexistent_component", Map.of(
                         "retryCount", 0,
                         "circuitBreaker", Map.of("enabled", true, "failureThreshold", 1, "recoveryMs", 50000)
@@ -147,9 +147,9 @@ public class PaymentController {
 
         // 第二次：应该恢复（半开 → 成功走生意元件）
         var result2 = orch.loadAndExecute(chainCode + "-v2", List.of(
-                BizOrchestrationService.normalNode("start", "biz001"),
-                BizOrchestrationService.normalNode("good", "biz002"),
-                BizOrchestrationService.normalNode("done", "biz003")
+                BizOrchestrationService.normalNode("start", "validateUser"),
+                BizOrchestrationService.normalNode("good", "processPayment"),
+                BizOrchestrationService.normalNode("done", "sendNotify")
         ), List.of(
                 BizOrchestrationService.edge("start", "good"),
                 BizOrchestrationService.edge("good", "done")
@@ -169,9 +169,8 @@ public class PaymentController {
         Map<String, Object> params = payParams(req);
 
         var result = orch.loadAndExecute(chainCode, List.of(
-                BizOrchestrationService.normalNode("process", "processPayment", Map.of(
-                        "paramResolvers", List.of(Map.of("component", "parambinder.bindParam001"))
-                ))
+                BizOrchestrationService.normalNodeWithLifecycle("process", "processPayment",
+                        List.of("bindPayParam"), null, null)
         ), List.of(), params);
 
         return Result.success(baseResponse(result, req));

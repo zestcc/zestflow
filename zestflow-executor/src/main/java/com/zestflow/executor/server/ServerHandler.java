@@ -61,9 +61,11 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
 
     private RequestMappingHandlerMapping requestMappingHandlerMapping;
     private java.util.List<String> scanPackages = java.util.Collections.emptyList();
-    private String playgroundUrl;
+    private NettyMvcDispatcher nettyMvcDispatcher;
     /** 可选 accessToken，非空时校验请求头 X-Access-Token */
     private String accessToken;
+    /** 链执行业务线程池（/execute 专用，避免阻塞 Netty EventLoop） */
+    private ChainExecuteThreadPool executeThreadPool;
 
     public ServerHandler(ChainExecutionEngine chainExecutionEngine, ChainRepository chainRepo, DesignRepository designRepo) {
         this(chainExecutionEngine, chainRepo, designRepo, null, null);
@@ -172,7 +174,33 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
             return true;
         }
 
+        // 业务演示 API（/api/orders 等）：进程内转发 Spring MVC，不经 Tomcat
+        if (NettyMvcDispatcher.isDispatchableBusinessPath(uri)) {
+            return handleBusinessApi(ctx, method, uri, body);
+        }
+
         return false;
+    }
+
+    private boolean handleBusinessApi(ChannelHandlerContext ctx, HttpMethod method, String uri, String body)
+            throws Exception {
+        if (nettyMvcDispatcher == null) {
+            writeResponse(ctx, HttpResponseStatus.NOT_FOUND,
+                    "{\"code\":404,\"message\":\"业务 API 转发未启用（需 Spring MVC）\"}");
+            return true;
+        }
+        NettyMvcDispatcher.DispatchResult result =
+                nettyMvcDispatcher.dispatch(method.name(), uri, body);
+        if (!result.handled()) {
+            return false;
+        }
+        HttpResponseStatus status = toHttpStatus(result.httpStatus());
+        String respBody = result.body();
+        if (respBody == null || respBody.isEmpty()) {
+            respBody = "{\"code\":" + result.httpStatus() + "}";
+        }
+        writeResponse(ctx, status, respBody);
+        return true;
     }
 
     // ==================== 链路由 ====================
@@ -865,10 +893,17 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
     // ==================== 执行链 ====================
 
     private void handleExecute(ChannelHandlerContext ctx, String body) {
+        if (executeThreadPool != null) {
+            executeThreadPool.execute(() -> doHandleExecute(ctx, body));
+            return;
+        }
+        doHandleExecute(ctx, body);
+    }
+
+    private void doHandleExecute(ChannelHandlerContext ctx, String body) {
         try {
             log.info("收到执行请求 body={}", body);
             ChainExecuteRequestDTO request = MAPPER.readValue(body, ChainExecuteRequestDTO.class);
-            // 引擎内部负责发布 CHAIN_STARTED / COMPLETED / FAILED 等事件
             ChainExecuteResultDTO result = chainExecutionEngine.execute(
                     request.getChainCode(), request.getParams());
             String json = MAPPER.writeValueAsString(result);
@@ -913,12 +948,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
                 path = info.getPatternsCondition().getPatterns().stream().findFirst().orElse("");
             }
 
-            // 拼接完整 URL（如果配置了 playgroundUrl）
-            if (playgroundUrl != null && !playgroundUrl.isEmpty()) {
-                String base = playgroundUrl.endsWith("/") ? playgroundUrl.substring(0, playgroundUrl.length() - 1) : playgroundUrl;
-                String fullPath = path.startsWith("/") ? path : "/" + path;
-                path = base + fullPath;
-            }
+            // 端点列表仅返回相对路径，执行统一经 Executor Netty 端口
 
             // 提取请求方法
             Set<RequestMethod> httpMethods = info.getMethodsCondition() != null
@@ -1037,6 +1067,20 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
                 .set(HttpHeaderNames.CONTENT_TYPE, "application/json; charset=UTF-8")
                 .set(HttpHeaderNames.CONTENT_LENGTH, buf.readableBytes());
         ctx.writeAndFlush(response);
+    }
+
+    private static HttpResponseStatus toHttpStatus(int code) {
+        try {
+            return HttpResponseStatus.valueOf(code);
+        } catch (IllegalArgumentException e) {
+            if (code >= 500) {
+                return HttpResponseStatus.INTERNAL_SERVER_ERROR;
+            }
+            if (code >= 400) {
+                return HttpResponseStatus.BAD_REQUEST;
+            }
+            return HttpResponseStatus.OK;
+        }
     }
 
     /** 从路径段中去掉 query string（? 及之后部分） */

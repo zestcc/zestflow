@@ -27,6 +27,7 @@ import javax.script.Bindings;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
+import com.zestflow.executor.context.ExecuteResultPublisher;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -119,6 +120,10 @@ public class NodeRunner {
      * 串行执行单个节点
      */
     public NodeResultDTO execute(NodeDefinition nodeDef, ChainContext context) {
+        if (context.isExecutionStopped()) {
+            return stoppedResult(nodeDef.getId());
+        }
+
         NodeStateMachine stateMachine = new NodeStateMachine();
         long startTime = System.nanoTime();
         String nodeId = nodeDef.getId();
@@ -204,9 +209,67 @@ public class NodeRunner {
         }
     }
 
+    /**
+     * 补偿已成功的节点（COMPENSATE 策略，逆序调用）。
+     */
+    public NodeResultDTO compensate(NodeDefinition nodeDef, ChainContext context) {
+        String nodeId = nodeDef.getId();
+        long startTime = System.nanoTime();
+        String compensateId = LifecycleExecutor.resolveCompensateComponentId(nodeDef);
+
+        if (compensateId == null || compensateId.isEmpty()
+                || componentScanner.getComponent(compensateId) == null) {
+            log.debug("节点无可用补偿元件，跳过 nodeId={}", nodeId);
+            return NodeResultDTO.builder()
+                    .nodeId(nodeId)
+                    .status(ChainConstants.NODE_COMPENSATED)
+                    .costMs(0L)
+                    .build();
+        }
+
+        if (context.isExecutionStopped()) {
+            return stoppedResult(nodeId);
+        }
+
+        try {
+            publishNodeEvent(ChainEvent.EventType.NODE_COMPENSATING, nodeDef, context,
+                    null, null, null, null, null);
+            Object result = lifecycleExecutor.executeCompensate(nodeDef, context);
+            long costMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
+            publishNodeEvent(ChainEvent.EventType.NODE_COMPENSATED, nodeDef, context, costMs, 1,
+                    null, null, toJsonString(result));
+            log.debug("节点补偿完成 nodeId={} cost={}ms", nodeId, costMs);
+            return NodeResultDTO.builder()
+                    .nodeId(nodeId)
+                    .status(ChainConstants.NODE_COMPENSATED)
+                    .costMs(costMs)
+                    .build();
+        } catch (Exception e) {
+            long costMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
+            log.error("节点补偿失败 nodeId={} error={}", nodeId, e.getMessage());
+            publishNodeEvent(ChainEvent.EventType.NODE_FAILED, nodeDef, context, costMs, 0,
+                    e.getMessage(), null, null);
+            return NodeResultDTO.builder()
+                    .nodeId(nodeId)
+                    .status(ChainConstants.NODE_FAILED)
+                    .costMs(costMs)
+                    .errorMessage("补偿失败: " + e.getMessage())
+                    .build();
+        }
+    }
+
+    private static NodeResultDTO stoppedResult(String nodeId) {
+        return NodeResultDTO.builder()
+                .nodeId(nodeId)
+                .status(ChainConstants.NODE_FAILED)
+                .errorMessage("链执行已终止")
+                .build();
+    }
+
     private Object executeNormal(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
         executePreProcessors(nodeDef, context);
         Object result = lifecycleExecutor.execute(nodeDef, context);
+        ExecuteResultPublisher.publish(context, result);
         executePostProcessors(nodeDef, context);
         return result;
     }
@@ -246,6 +309,7 @@ public class NodeRunner {
 
         executePreProcessors(nodeDef, context);
         Object result = lifecycleExecutor.execute(nodeDef, context);
+        ExecuteResultPublisher.publish(context, result);
         executePostProcessors(nodeDef, context);
 
         // 将路由决策写入上下文，供引擎选择匹配的出边
@@ -326,10 +390,27 @@ public class NodeRunner {
             throw new IllegalStateException("子链执行引擎未注入 nodeId=" + nodeDef.getId());
         }
 
-        log.debug("子链执行开始 nodeId={} subChainCode={}", nodeDef.getId(), subChainCode);
-        ChainExecuteResultDTO result = chainExecutionEngine.execute(subChainCode, context.snapshot());
+        log.debug("子链执行开始 nodeId={} subChainCode={} parentDeadlineMs={}",
+                nodeDef.getId(), subChainCode, readDeadlineMs(context));
+        long parentDeadline = readDeadlineMs(context);
+        ChainExecuteResultDTO result = chainExecutionEngine.executeWithDeadline(
+                subChainCode, context.snapshot(), parentDeadline);
+        if (result.getStatus() == null || result.getStatus() != ChainConstants.CHAIN_SUCCESS) {
+            String msg = result.getErrorMessage() != null
+                    ? result.getErrorMessage()
+                    : "子链执行失败 status=" + result.getStatus();
+            throw new RuntimeException(msg);
+        }
         log.debug("子链执行完成 nodeId={} subChainCode={}", nodeDef.getId(), subChainCode);
         return result.getResultData();
+    }
+
+    private static long readDeadlineMs(ChainContext context) {
+        Object val = context.getMetadata(ChainConstants.META_DEADLINE_MS);
+        if (val instanceof Number number) {
+            return number.longValue();
+        }
+        return ChainInstance.NO_PARENT_DEADLINE;
     }
 
     @SuppressWarnings("unchecked")

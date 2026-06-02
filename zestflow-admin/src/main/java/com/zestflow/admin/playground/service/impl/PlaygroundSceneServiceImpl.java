@@ -9,9 +9,16 @@ import com.zestflow.admin.playground.model.entity.PlaygroundScenePO;
 import com.zestflow.admin.playground.model.vo.PlaygroundSceneVO;
 import com.zestflow.admin.playground.repository.PlaygroundSceneMapper;
 import com.zestflow.admin.playground.service.PlaygroundSceneService;
+import com.zestflow.admin.playground.support.PlaygroundAccessControl;
+import com.zestflow.admin.playground.support.PlaygroundAccessControl;
+import com.zestflow.admin.playground.support.PlaygroundRequestPathValidator;
 import com.zestflow.admin.service.TenantAppContext;
+import com.zestflow.admin.util.SecurityUtils;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import com.zestflow.common.util.CodeGenerator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -29,6 +36,16 @@ public class PlaygroundSceneServiceImpl implements PlaygroundSceneService {
 
     private final PlaygroundSceneMapper sceneMapper;
     private final TenantAppContext tenantAppContext;
+    private final PlaygroundAccessControl accessControl;
+
+    /** 默认应用编码，从配置 zestflow.playground.app-code 注入 */
+    @Value("${zestflow.playground.app-code:playground-app}")
+    private String defaultAppCode;
+
+    @Override
+    public String getDefaultAppCode() {
+        return defaultAppCode;
+    }
 
     @Override
     public IPage<PlaygroundSceneVO> queryPage(String keyword, String appCode, int page, int size) {
@@ -40,16 +57,19 @@ public class PlaygroundSceneServiceImpl implements PlaygroundSceneService {
                         .or().like(PlaygroundScenePO::getDescription, keyword))
                 .orderByDesc(PlaygroundScenePO::getCreatedAt);
 
+        applyAccessibleAppFilter(wrapper);
+
         Page<PlaygroundScenePO> poPage = sceneMapper.selectPage(new Page<>(page, size), wrapper);
         return poPage.convert(this::toVO);
     }
 
     @Override
     public List<PlaygroundSceneVO> listAll(String appCode) {
-        return sceneMapper.selectList(
-                new LambdaQueryWrapper<PlaygroundScenePO>()
-                        .eq(StringUtils.hasText(appCode), PlaygroundScenePO::getAppCode, appCode)
-                        .orderByDesc(PlaygroundScenePO::getCreatedAt))
+        LambdaQueryWrapper<PlaygroundScenePO> wrapper = new LambdaQueryWrapper<PlaygroundScenePO>()
+                .eq(StringUtils.hasText(appCode), PlaygroundScenePO::getAppCode, appCode)
+                .orderByDesc(PlaygroundScenePO::getCreatedAt);
+        applyAccessibleAppFilter(wrapper);
+        return sceneMapper.selectList(wrapper)
                 .stream()
                 .map(this::toVO)
                 .collect(Collectors.toList());
@@ -71,6 +91,9 @@ public class PlaygroundSceneServiceImpl implements PlaygroundSceneService {
 
     @Override
     public PlaygroundSceneVO create(PlaygroundSceneCreateDTO dto) {
+        if (org.springframework.util.StringUtils.hasText(dto.getRequestPath())) {
+            PlaygroundRequestPathValidator.validate(dto.getRequestPath());
+        }
         PlaygroundScenePO po = new PlaygroundScenePO();
         po.setSceneCode(CodeGenerator.generate("SCN"));
         po.setName(dto.getName());
@@ -84,7 +107,7 @@ public class PlaygroundSceneServiceImpl implements PlaygroundSceneService {
         po.setChainCode(dto.getChainCode());
         po.setRateLimit(dto.getRateLimit() != null ? dto.getRateLimit() : 30);
         po.setTenantId(tenantAppContext.getCurrentTenantId());
-        po.setAppCode(StringUtils.hasText(dto.getAppCode()) ? dto.getAppCode() : null);
+        po.setAppCode(StringUtils.hasText(dto.getAppCode()) ? dto.getAppCode() : defaultAppCode);
         sceneMapper.insert(po);
         return toVO(po);
     }
@@ -96,7 +119,10 @@ public class PlaygroundSceneServiceImpl implements PlaygroundSceneService {
 
         if (dto.getName() != null) po.setName(dto.getName());
         if (dto.getDescription() != null) po.setDescription(dto.getDescription());
-        if (dto.getRequestPath() != null) po.setRequestPath(dto.getRequestPath());
+        if (dto.getRequestPath() != null) {
+            PlaygroundRequestPathValidator.validate(dto.getRequestPath());
+            po.setRequestPath(dto.getRequestPath());
+        }
         if (dto.getRequestMethod() != null) po.setRequestMethod(dto.getRequestMethod().toUpperCase());
         if (dto.getRequestHeaders() != null) po.setRequestHeaders(dto.getRequestHeaders());
         if (dto.getBodyType() != null) po.setBodyType(dto.getBodyType());
@@ -111,6 +137,23 @@ public class PlaygroundSceneServiceImpl implements PlaygroundSceneService {
     @Override
     public void delete(Long id) {
         sceneMapper.deleteById(id);
+    }
+
+    /** 非超管仅能看到已授权 appCode 下的场景；无应用权限则不可见任何场景 */
+    private void applyAccessibleAppFilter(LambdaQueryWrapper<PlaygroundScenePO> wrapper) {
+        if (accessControl.isIpDemoTenantSession()) {
+            return;
+        }
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && SecurityUtils.isSuperAdmin(auth)) {
+            return;
+        }
+        java.util.Set<String> codes = tenantAppContext.getCurrentUserAppCodes();
+        if (codes == null || codes.isEmpty()) {
+            wrapper.apply("1 = 0");
+            return;
+        }
+        wrapper.in(PlaygroundScenePO::getAppCode, codes);
     }
 
     private PlaygroundSceneVO toVO(PlaygroundScenePO po) {

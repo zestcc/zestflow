@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: 8088
 
 spring:
   application:
@@ -41,6 +41,10 @@ zestflow:
     # Collector HTTP API 地址（可选兜底），采集器注册后自动发现，无需配置
     api-url: http://localhost:20650
   admin:
+    # 机器接口令牌（Executor/Collector 注册、链同步），生产必须配置；为空则仅开发环境放行
+    registry-token:
+    # Admin → Executor Netty 鉴权（与 zestflow.executor.access-token 一致，非用户 JWT）
+    executor-access-token:
     # 内部服务间通信协议（http/https）
     protocol: http
     tenant-id: 1
@@ -66,7 +70,7 @@ zestflow:
     # IP 租户非活跃超时（分钟）
     ip-tenant-timeout-minutes: 60
   playground:
-    # 开关：true 启用系统演示功能（含演示场景、演示记录、试验场），false 关闭（默认关闭）
+    # 开关：true 启用系统演示功能（含演示场景、演示记录、试验场）
     enabled: true
     # 演示场景链执行超时（毫秒），默认 30000（30 秒）
     execute-timeout-ms: 30000

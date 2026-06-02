@@ -16,6 +16,9 @@ public class PlaygroundProperties {
     /** 控制器扫描包范围（空则不限制），如 ["com.zestflow.test.controller"] */
     private List<String> scanPackages = Collections.emptyList();
 
-    /** 演示场应用的基础 URL（如 http://localhost:8081），导入端点时拼接完整路径 */
+    /**
+     * 已废弃：端点导入列表仅返回相对路径（如 /api/orders/...），执行统一经 Executor Netty 端口。
+     */
+    @Deprecated
     private String url;
 }

@@ -7,6 +7,7 @@ import com.zestflow.admin.playground.model.dto.PlaygroundSceneUpdateDTO;
 import com.zestflow.admin.playground.model.entity.PlaygroundScenePO;
 import com.zestflow.admin.playground.model.vo.PlaygroundSceneVO;
 import com.zestflow.admin.playground.repository.PlaygroundSceneMapper;
+import com.zestflow.admin.playground.support.PlaygroundAccessControl;
 import com.zestflow.admin.service.TenantAppContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,16 +26,17 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class PlaygroundSceneServiceImplTest {
-
     @Mock private PlaygroundSceneMapper sceneMapper;
     @Mock private TenantAppContext tenantAppContext;
+    @Mock private PlaygroundAccessControl accessControl;
     @Captor private ArgumentCaptor<PlaygroundScenePO> poCaptor;
 
     private PlaygroundSceneServiceImpl sceneService;
 
     @BeforeEach
     void setUp() {
-        sceneService = new PlaygroundSceneServiceImpl(sceneMapper, tenantAppContext);
+        sceneService = new PlaygroundSceneServiceImpl(sceneMapper, tenantAppContext, accessControl);
+        lenient().when(accessControl.isIpDemoTenantSession()).thenReturn(false);
         org.springframework.test.util.ReflectionTestUtils.setField(sceneService, "defaultAppCode", "playground-app");
     }
 
@@ -78,7 +80,7 @@ class PlaygroundSceneServiceImplTest {
 
         PlaygroundSceneCreateDTO dto = new PlaygroundSceneCreateDTO();
         dto.setName("默认限流");
-        dto.setRequestPath("/test");
+        dto.setRequestPath("/api/orders/test");
         dto.setChainCode("CHN_TEST");
 
         PlaygroundSceneVO vo = sceneService.create(dto);

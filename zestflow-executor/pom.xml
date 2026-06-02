@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.zestflow</groupId>
+        <groupId>cn.zestflow.www</groupId>
         <artifactId>zestflow</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
@@ -19,7 +19,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.zestflow</groupId>
+            <groupId>cn.zestflow.www</groupId>
             <artifactId>zestflow-common</artifactId>
         </dependency>
 
@@ -79,6 +79,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-jdbc</artifactId>
+        </dependency>
+
+        <!-- MockHttpServletRequest：Netty 进程内转发 MVC，仅 compile 引入 mock 包 -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-test</artifactId>
         </dependency>
 
         <dependency>

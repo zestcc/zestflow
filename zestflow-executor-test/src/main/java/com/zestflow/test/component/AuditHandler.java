@@ -2,72 +2,72 @@ package com.zestflow.test.component;
 
 import com.zestflow.executor.annotation.ZestComponent;
 import com.zestflow.executor.annotation.ZestExecute;
-import com.zestflow.executor.context.ChainContext;
+import com.zestflow.executor.annotation.ZestParam;
+import com.zestflow.test.component.model.audit.AuditResults;
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.Map;
 
 @Slf4j
 @ZestComponent("audit")
 public class AuditHandler {
 
     @ZestExecute(value = "submitAudit", name = "提交审核")
-    public Map<String, Object> submitAudit(ChainContext ctx) {
+    public AuditResults.SubmitAuditResult submitAudit() {
         log.info("审核-提交审核");
-        return Map.of("auditNo", "AUD" + System.currentTimeMillis(), "status", "PENDING");
+        return new AuditResults.SubmitAuditResult("AUD" + System.currentTimeMillis(), "PENDING");
     }
 
     @ZestExecute(value = "autoApprove", name = "自动审批")
-    public Map<String, Object> autoApprove(ChainContext ctx) {
+    public AuditResults.AutoApproveResult autoApprove() {
         log.info("审核-自动审批");
-        return Map.of("approved", true, "rule", "AMOUNT_LT_1000");
+        return new AuditResults.AutoApproveResult(true, "AMOUNT_LT_1000");
     }
 
     @ZestExecute(value = "manualAudit", name = "人工审核")
-    public Map<String, Object> manualAudit(ChainContext ctx) {
+    public AuditResults.ManualAuditResult manualAudit() {
         log.info("审核-人工审核");
-        return Map.of("auditor", "管理员", "opinion", "通过", "level", "L2");
+        return new AuditResults.ManualAuditResult("管理员", "通过", "L2");
     }
 
     @ZestExecute(value = "rejectAudit", name = "驳回审核")
-    public Map<String, Object> rejectAudit(ChainContext ctx) {
+    public AuditResults.RejectAuditResult rejectAudit() {
         log.info("审核-驳回");
-        return Map.of("result", "rejected", "reason", "资料不完整");
+        return new AuditResults.RejectAuditResult("rejected", "资料不完整");
     }
 
     @ZestExecute(value = "recallAudit", name = "撤回审核")
-    public Map<String, Object> recallAudit(ChainContext ctx) {
-        log.info("审核-撤回");
-        return Map.of("result", "recalled", "auditNo", ctx.get("auditNo"));
+    public AuditResults.RecallAuditResult recallAudit(@ZestParam(value = "auditNo", required = false) String auditNo) {
+        log.info("审核-撤回 auditNo={}", auditNo);
+        return new AuditResults.RecallAuditResult("recalled", auditNo);
     }
 
     @ZestExecute(value = "assignAuditor", name = "分配审核人")
-    public Map<String, Object> assignAuditor(ChainContext ctx) {
+    public AuditResults.AssignAuditorResult assignAuditor() {
         log.info("审核-分配审核人");
-        return Map.of("auditorId", 2001, "auditorName", "钱七");
+        return new AuditResults.AssignAuditorResult(2001, "钱七");
     }
 
     @ZestExecute(value = "queryAuditLog", name = "查询审核日志")
-    public Map<String, Object> queryAuditLog(ChainContext ctx) {
+    public AuditResults.QueryAuditLogResult queryAuditLog() {
         log.info("审核-查询日志");
-        return Map.of("logs", new String[]{"提交审核 2026-05-30 10:00", "审批通过 2026-05-30 11:00"});
+        return new AuditResults.QueryAuditLogResult(
+                new String[]{"提交审核 2026-05-30 10:00", "审批通过 2026-05-30 11:00"});
     }
 
     @ZestExecute(value = "escalateAudit", name = "升级审核")
-    public Map<String, Object> escalateAudit(ChainContext ctx) {
+    public AuditResults.EscalateAuditResult escalateAudit() {
         log.info("审核-升级处理");
-        return Map.of("fromLevel", "L1", "toLevel", "L3", "reason", "金额超限");
+        return new AuditResults.EscalateAuditResult("L1", "L3", "金额超限");
     }
 
     @ZestExecute(value = "batchAudit", name = "批量审核")
-    public Map<String, Object> batchAudit(ChainContext ctx) {
+    public AuditResults.BatchAuditResult batchAudit() {
         log.info("审核-批量审核");
-        return Map.of("total", 20, "approved", 18, "rejected", 2);
+        return new AuditResults.BatchAuditResult(20, 18, 2);
     }
 
     @ZestExecute(value = "auditNotify", name = "审核结果通知")
-    public Map<String, Object> auditNotify(ChainContext ctx) {
+    public AuditResults.AuditNotifyResult auditNotify() {
         log.info("审核-结果通知");
-        return Map.of("notified", true, "channel", "EMAIL");
+        return new AuditResults.AuditNotifyResult(true, "EMAIL");
     }
 }

@@ -1,5 +1,6 @@
 package com.zestflow.executor.registry;
 
+import com.zestflow.common.constant.RegistryAuthConstants;
 import com.zestflow.common.constant.RegistryConstants;
 import com.zestflow.common.model.Result;
 import com.zestflow.common.model.dto.ChainDefinitionDTO;
@@ -164,6 +165,9 @@ public class AdminClient {
         headers.set("X-Tenant-Id", String.valueOf(properties.getTenantId()));
         if (properties.getAccessToken() != null && !properties.getAccessToken().isEmpty()) {
             headers.set("Authorization", "Bearer " + properties.getAccessToken());
+        }
+        if (properties.getRegistryToken() != null && !properties.getRegistryToken().isEmpty()) {
+            headers.set(RegistryAuthConstants.REGISTRY_TOKEN_HEADER, properties.getRegistryToken());
         }
         return headers;
     }

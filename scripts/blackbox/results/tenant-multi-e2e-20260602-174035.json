@@ -1,0 +1,10 @@
+﻿{
+    "timestamp":  "2026-06-02T17:40:35.9946936+08:00",
+    "checks":  [
+                   {
+                       "name":  "login",
+                       "ok":  false,
+                       "note":  "cannot login"
+                   }
+               ]
+}

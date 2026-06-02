@@ -20,6 +20,7 @@ import com.zestflow.executor.registry.ExecutorProperties;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.*;
+import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
 
 /**
@@ -70,6 +72,9 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
     private final ForkJoinPool forkJoinPool = new ForkJoinPool(
             Math.min(Runtime.getRuntime().availableProcessors() * 2, 16));
 
+    /** Future.get 安全上限，避免 Long.MAX_VALUE 转 nanos 溢出 */
+    private static final long MAX_FUTURE_WAIT_MS = Integer.MAX_VALUE - 1L;
+
     public DefaultChainExecutionEngine(ChainManager chainManager,
                                        DagSorter dagSorter, NodeRunner nodeRunner,
                                        ChainInstanceManager instanceManager,
@@ -101,15 +106,22 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
 
     @Override
     public ChainExecuteResultDTO execute(String chainCode, Object... args) {
-        return doExecute(chainCode, null, args);
+        return doExecute(chainCode, null, ChainInstance.NO_PARENT_DEADLINE, args);
     }
 
     @Override
     public ChainExecuteResultDTO execute(String chainCode, Map<String, Object> params, Object... args) {
-        return doExecute(chainCode, params, args);
+        return doExecute(chainCode, params, ChainInstance.NO_PARENT_DEADLINE, args);
     }
 
-    private ChainExecuteResultDTO doExecute(String chainCode, Map<String, Object> params, Object... typedArgs) {
+    @Override
+    public ChainExecuteResultDTO executeWithDeadline(String chainCode, Map<String, Object> params,
+                                                      long parentDeadlineMs) {
+        return doExecute(chainCode, params, parentDeadlineMs);
+    }
+
+    private ChainExecuteResultDTO doExecute(String chainCode, Map<String, Object> params,
+                                               long parentDeadlineMs, Object... typedArgs) {
         long startTime = System.currentTimeMillis();
         log.info("链执行开始 chainCode={}", chainCode);
 
@@ -130,8 +142,8 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
                     .build();
         }
 
-        // 2. 创建实例
-        ChainInstance instance = new ChainInstance(definition, params);
+        // 2. 创建实例（子链继承父链 deadline）
+        ChainInstance instance = new ChainInstance(definition, params, parentDeadlineMs);
         instanceManager.register(instance);
 
         // 3. 注册类型化参数到上下文
@@ -146,8 +158,10 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
 
         try {
             ChainContext context = instance.getContext();
+            context.setMetadata(ChainConstants.META_STOP_CHECK, (BooleanSupplier) instance::isStopped);
             ChainStateMachine stateMachine = instance.getStateMachine();
             List<NodeResultDTO> allNodeResults = new ArrayList<>();
+            List<String> succeededNodeIds = new ArrayList<>();
 
             stateMachine.transit(ChainConstants.CHAIN_LOADING);
             stateMachine.transit(ChainConstants.CHAIN_READY);
@@ -188,8 +202,9 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
                     break;
                 }
 
-                if (instance.elapsed() > definition.getTimeout()) {
-                    log.warn("链执行超时 chainCode={} timeout={}ms", chainCode, definition.getTimeout());
+                if (instance.isTimedOut()) {
+                    instance.markStopped();
+                    log.warn("链执行超时 chainCode={} deadlineMs={}", chainCode, instance.getDeadlineMs());
                     stateMachine.transit(ChainConstants.CHAIN_TIMEOUT);
                     publishChainEvent(ChainEvent.EventType.CHAIN_TIMEOUT, chainCode, instance);
                     break;
@@ -197,6 +212,11 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
 
                 List<NodeResultDTO> layerResults = executeLayer(executableNodeIds, definition, context, instance);
                 allNodeResults.addAll(layerResults);
+                layerResults.stream()
+                        .filter(r -> !isNodeFailure(r))
+                        .map(NodeResultDTO::getNodeId)
+                        .filter(Objects::nonNull)
+                        .forEach(succeededNodeIds::add);
 
                 // 计算当前层可达的下一层节点（按条件边动态路由）
                 reachableNodes.clear();
@@ -205,34 +225,49 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
                     reachableNodes.addAll(successors);
                 }
 
-                boolean hasFailed = layerResults.stream()
-                        .anyMatch(r -> r.getStatus() == ChainConstants.NODE_FAILED);
-                if (hasFailed && ChainConstants.ERROR_STRATEGY_STOP.equals(definition.getErrorStrategy())) {
-                    log.warn("节点执行失败，终止链执行 chainCode={}", chainCode);
-                    // 从失败节点提取错误信息
+                if (instance.isStopped()) {
+                    log.warn("链执行被终止 chainCode={} instanceId={}", chainCode, instance.getInstanceId());
+                    stateMachine.transit(ChainConstants.CHAIN_STOPPED);
+                    break;
+                }
+
+                boolean hasFailed = layerResults.stream().anyMatch(this::isNodeFailure);
+                if (hasFailed) {
+                    String errorStrategy = definition.getErrorStrategy();
                     String nodeError = layerResults.stream()
-                            .filter(r -> r.getStatus() == ChainConstants.NODE_FAILED)
+                            .filter(this::isNodeFailure)
                             .map(NodeResultDTO::getErrorMessage)
                             .filter(Objects::nonNull)
                             .findFirst().orElse(null);
                     if (nodeError != null) {
                         instance.getContext().put("_errorMessage", nodeError);
                     }
-                    stateMachine.transit(ChainConstants.CHAIN_FAILED);
-                    break;
+
+                    if (ChainConstants.ERROR_STRATEGY_STOP.equals(errorStrategy)) {
+                        log.warn("节点执行失败，终止链执行 chainCode={}", chainCode);
+                        stateMachine.transit(ChainConstants.CHAIN_FAILED);
+                        break;
+                    }
+                    if (ChainConstants.ERROR_STRATEGY_COMPENSATE.equals(errorStrategy)) {
+                        log.warn("节点执行失败，触发补偿 chainCode={} succeeded={}", chainCode, succeededNodeIds.size());
+                        List<NodeResultDTO> compResults = runCompensation(
+                                definition, context, succeededNodeIds, instance);
+                        allNodeResults.addAll(compResults);
+                        boolean compFailed = compResults.stream().anyMatch(this::isNodeFailure);
+                        stateMachine.transit(compFailed ? ChainConstants.CHAIN_FAILED : ChainConstants.CHAIN_COMPENSATED);
+                        break;
+                    }
+                    // CONTINUE：记录失败但继续后续层
                 }
             }
+
+            applyContinuePartialSuccess(definition, context, allNodeResults, stateMachine);
 
             // 6. 拦截器后置
             interceptorChain.afterChain(chainCode, context, allNodeResults);
 
-            // 7. 发布完成事件
-            if (!stateMachine.isTerminated()) {
-                stateMachine.transit(ChainConstants.CHAIN_SUCCESS);
-            }
-            ChainEvent.EventType finalType = stateMachine.current() == ChainConstants.CHAIN_SUCCESS
-                    ? ChainEvent.EventType.CHAIN_COMPLETED : ChainEvent.EventType.CHAIN_FAILED;
-            publishChainEvent(finalType, chainCode, instance);
+            // 7. 发布终态事件（超时已在层间发布，避免重复发 FAILED）
+            publishFinalChainEvent(chainCode, instance, stateMachine);
 
             long costMs = System.currentTimeMillis() - startTime;
             log.info("链执行完成 chainCode={} status={} cost={}ms nodes={}",
@@ -289,6 +324,171 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
         return instanceManager.listByChainCode(chainCode);
     }
 
+    private void publishFinalChainEvent(String chainCode, ChainInstance instance, ChainStateMachine stateMachine) {
+        if (eventCollector == null) {
+            return;
+        }
+        if (!stateMachine.isTerminated()) {
+            stateMachine.transit(ChainConstants.CHAIN_SUCCESS);
+        }
+        int status = stateMachine.current();
+        ChainEvent.EventType eventType = switch (status) {
+            case ChainConstants.CHAIN_SUCCESS -> ChainEvent.EventType.CHAIN_COMPLETED;
+            case ChainConstants.CHAIN_COMPENSATED -> ChainEvent.EventType.CHAIN_COMPENSATED;
+            case ChainConstants.CHAIN_TIMEOUT -> null;
+            case ChainConstants.CHAIN_STOPPED, ChainConstants.CHAIN_FAILED -> ChainEvent.EventType.CHAIN_FAILED;
+            default -> ChainEvent.EventType.CHAIN_FAILED;
+        };
+        if (eventType != null) {
+            publishChainEvent(eventType, chainCode, instance);
+        }
+    }
+
+    private boolean isNodeFailure(NodeResultDTO result) {
+        if (result == null) {
+            return true;
+        }
+        int status = result.getStatus();
+        return status == ChainConstants.NODE_FAILED || status == ChainConstants.NODE_TIMEOUT;
+    }
+
+    /**
+     * 节点级超时执行（对标 xxl-job 任务超时 + LiteFlow 组件 timeout）。
+     * effectiveTimeout = min(链剩余预算, nodeDef.timeout)。
+     */
+    private NodeResultDTO invokeNodeWithTimeout(NodeDefinition nodeDef, ChainContext context,
+                                                 ChainInstance instance) {
+        if (instance.isStopped()) {
+            return nodeFailure(nodeDef.getId(), ChainConstants.NODE_FAILED, "链执行已终止");
+        }
+        if (instance.isTimedOut()) {
+            return nodeFailure(nodeDef.getId(), ChainConstants.NODE_TIMEOUT, "链执行超时");
+        }
+
+        long timeoutMs = resolveNodeTimeoutMs(nodeDef, instance);
+        if (timeoutMs == 0) {
+            return nodeFailure(nodeDef.getId(), ChainConstants.NODE_TIMEOUT, "链执行超时");
+        }
+        if (timeoutMs >= ChainInstance.NO_PARENT_DEADLINE) {
+            return nodeRunner.execute(nodeDef, context);
+        }
+
+        CompletableFuture<NodeResultDTO> future = CompletableFuture.supplyAsync(
+                () -> nodeRunner.execute(nodeDef, context), forkJoinPool);
+        try {
+            return future.get(safeWaitMs(timeoutMs), TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            log.warn("节点执行超时 nodeId={} timeout={}ms chainCode={}",
+                    nodeDef.getId(), timeoutMs, instance.getChainCode());
+            return nodeFailure(nodeDef.getId(), ChainConstants.NODE_TIMEOUT, "节点执行超时");
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            log.error("节点执行异常 nodeId={}", nodeDef.getId(), cause);
+            return nodeFailure(nodeDef.getId(), ChainConstants.NODE_FAILED, cause.getMessage());
+        } catch (InterruptedException e) {
+            future.cancel(true);
+            Thread.currentThread().interrupt();
+            return nodeFailure(nodeDef.getId(), ChainConstants.NODE_FAILED, "节点执行被中断");
+        }
+    }
+
+    private static long resolveNodeTimeoutMs(NodeDefinition nodeDef, ChainInstance instance) {
+        long remaining = instance.getRemainingMs();
+        long nodeTimeout = nodeDef.getTimeout();
+        boolean nodeUnlimited = nodeTimeout <= 0 || nodeTimeout == ChainConstants.NODE_TIMEOUT_UNLIMITED;
+        if (nodeUnlimited && remaining >= ChainInstance.NO_PARENT_DEADLINE) {
+            return ChainInstance.NO_PARENT_DEADLINE;
+        }
+        if (nodeUnlimited) {
+            return remaining;
+        }
+        if (remaining >= ChainInstance.NO_PARENT_DEADLINE) {
+            return nodeTimeout;
+        }
+        return Math.min(remaining, nodeTimeout);
+    }
+
+    private static long safeWaitMs(long timeoutMs) {
+        if (timeoutMs <= 0) {
+            return 0;
+        }
+        if (timeoutMs >= ChainInstance.NO_PARENT_DEADLINE) {
+            return MAX_FUTURE_WAIT_MS;
+        }
+        return Math.min(timeoutMs, MAX_FUTURE_WAIT_MS);
+    }
+
+    private static NodeResultDTO nodeFailure(String nodeId, int status, String message) {
+        return NodeResultDTO.builder()
+                .nodeId(nodeId)
+                .status(status)
+                .errorMessage(message)
+                .build();
+    }
+
+    private static void cancelPendingFutures(Iterable<? extends CompletableFuture<?>> futures) {
+        for (CompletableFuture<?> future : futures) {
+            if (future != null && !future.isDone()) {
+                future.cancel(true);
+            }
+        }
+    }
+
+    /** CONTINUE 策略：部分节点失败时标记上下文，终态仍为 CHAIN_SUCCESS */
+    private void applyContinuePartialSuccess(ChainDefinition definition, ChainContext context,
+                                                List<NodeResultDTO> allNodeResults,
+                                                ChainStateMachine stateMachine) {
+        if (stateMachine.isTerminated()) {
+            return;
+        }
+        if (!ChainConstants.ERROR_STRATEGY_CONTINUE.equals(definition.getErrorStrategy())) {
+            return;
+        }
+        List<String> failedIds = allNodeResults.stream()
+                .filter(this::isNodeFailure)
+                .map(NodeResultDTO::getNodeId)
+                .filter(Objects::nonNull)
+                .toList();
+        if (failedIds.isEmpty()) {
+            return;
+        }
+        context.put(ChainConstants.CTX_PARTIAL_FAILURE, true);
+        context.put(ChainConstants.CTX_FAILED_NODE_IDS, failedIds);
+        log.warn("链部分成功 chainCode={} failedNodes={}", definition.getCode(), failedIds);
+    }
+
+    /**
+     * COMPENSATE 策略：按成功节点的逆序执行补偿（对标 LiteFlow rollback 链）。
+     */
+    private List<NodeResultDTO> runCompensation(ChainDefinition definition, ChainContext context,
+                                                 List<String> succeededNodeIds, ChainInstance instance) {
+        if (succeededNodeIds.isEmpty()) {
+            return List.of();
+        }
+        List<String> reverseOrder = new ArrayList<>(succeededNodeIds);
+        Collections.reverse(reverseOrder);
+
+        List<NodeResultDTO> results = new ArrayList<>();
+        for (String nodeId : reverseOrder) {
+            if (instance.isStopped() || instance.isTimedOut()) {
+                results.add(nodeFailure(nodeId, ChainConstants.NODE_FAILED, "链执行已终止"));
+                break;
+            }
+            NodeDefinition nodeDef = definition.getNode(nodeId);
+            if (nodeDef == null) {
+                continue;
+            }
+            results.add(nodeRunner.compensate(nodeDef, context));
+            NodeResultDTO last = results.get(results.size() - 1);
+            if (isNodeFailure(last)) {
+                log.warn("补偿失败，中止后续补偿 nodeId={}", nodeId);
+                break;
+            }
+        }
+        return results;
+    }
+
     /**
      * 发布链级事件
      */
@@ -316,7 +516,9 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
     }
 
     private static String toJsonString(Object obj) {
-        if (obj == null) return null;
+        if (obj == null) {
+            return null;
+        }
         try {
             return JSON_MAPPER.writeValueAsString(obj);
         } catch (JsonProcessingException e) {
@@ -329,50 +531,99 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
                                               ChainDefinition definition,
                                               ChainContext context,
                                               ChainInstance instance) {
+        if (nodeIds.isEmpty()) {
+            return List.of();
+        }
         if (nodeIds.size() == 1) {
             NodeDefinition nodeDef = definition.getNode(nodeIds.get(0));
-            if (nodeDef == null) return List.of();
-            return List.of(nodeRunner.execute(nodeDef, context));
+            if (nodeDef == null) {
+                return List.of();
+            }
+            return List.of(invokeNodeWithTimeout(nodeDef, context, instance));
         }
 
-        List<CompletableFuture<NodeResultDTO>> futures = new ArrayList<>();
+        int parallelThreshold = definition.getParallelThreshold();
+        boolean anyAsync = nodeIds.stream()
+                .map(definition::getNode)
+                .filter(Objects::nonNull)
+                .anyMatch(NodeDefinition::isAsync);
+        boolean useParallelFork = nodeIds.size() >= parallelThreshold || anyAsync;
+
+        if (!useParallelFork) {
+            return executeLayerSequential(nodeIds, definition, context, instance);
+        }
+
+        return executeLayerParallel(nodeIds, definition, context, instance);
+    }
+
+    private List<NodeResultDTO> executeLayerSequential(List<String> nodeIds,
+                                                        ChainDefinition definition,
+                                                        ChainContext context,
+                                                        ChainInstance instance) {
+        List<NodeResultDTO> results = new ArrayList<>();
+        for (String nodeId : nodeIds) {
+            if (instance.isStopped() || instance.isTimedOut()) {
+                break;
+            }
+            NodeDefinition nodeDef = definition.getNode(nodeId);
+            if (nodeDef == null) {
+                continue;
+            }
+            results.add(invokeNodeWithTimeout(nodeDef, context, instance));
+        }
+        return results;
+    }
+
+    private List<NodeResultDTO> executeLayerParallel(List<String> nodeIds,
+                                                      ChainDefinition definition,
+                                                      ChainContext context,
+                                                      ChainInstance instance) {
+        List<CompletableFuture<ParallelNodeOutcome>> futures = new ArrayList<>();
 
         for (String nodeId : nodeIds) {
             NodeDefinition nodeDef = definition.getNode(nodeId);
-            if (nodeDef == null) continue;
-
-            if (nodeDef.isAsync() || nodeIds.size() > 1) {
-                futures.add(CompletableFuture.supplyAsync(
-                        () -> nodeRunner.execute(nodeDef, context), forkJoinPool));
-            } else {
-                futures.add(CompletableFuture.completedFuture(
-                        nodeRunner.execute(nodeDef, context)));
+            if (nodeDef == null) {
+                continue;
             }
+            ChainContext forkedContext = context.fork();
+            futures.add(CompletableFuture.supplyAsync(
+                    () -> new ParallelNodeOutcome(
+                            invokeNodeWithTimeout(nodeDef, forkedContext, instance), forkedContext),
+                    forkJoinPool));
         }
 
-        long chainTimeout = definition.getTimeout();
-        return futures.stream()
-                .map(f -> {
-                    try {
-                        long remainingTime = chainTimeout - instance.elapsed();
-                        long timeout = Math.min(
-                                nodeDefTimeout(chainTimeout, remainingTime),
-                                Math.max(remainingTime, 1000));
-                        return f.get(timeout, TimeUnit.MILLISECONDS);
-                    } catch (Exception e) {
-                        log.error("并行节点执行异常", e);
-                        return NodeResultDTO.builder()
-                                .status(ChainConstants.NODE_FAILED)
-                                .errorMessage(e.getMessage())
-                                .build();
-                    }
-                })
-                .collect(Collectors.toList());
+        List<NodeResultDTO> results = new ArrayList<>();
+        for (CompletableFuture<ParallelNodeOutcome> future : futures) {
+            if (instance.isStopped() || instance.isTimedOut()) {
+                cancelPendingFutures(futures);
+                break;
+            }
+            try {
+                long waitMs = safeWaitMs(instance.getRemainingMs());
+                if (waitMs == 0 && instance.hasDeadline()) {
+                    cancelPendingFutures(futures);
+                    break;
+                }
+                ParallelNodeOutcome outcome = future.get(waitMs, TimeUnit.MILLISECONDS);
+                context.mergeFrom(outcome.forkedContext());
+                results.add(outcome.result());
+            } catch (TimeoutException e) {
+                log.warn("并行节点等待超时 chainCode={} instanceId={}",
+                        definition.getCode(), instance.getInstanceId());
+                cancelPendingFutures(futures);
+                results.add(nodeFailure(null, ChainConstants.NODE_TIMEOUT, "并行节点执行超时"));
+                break;
+            } catch (Exception e) {
+                log.error("并行节点执行异常", e);
+                cancelPendingFutures(futures);
+                results.add(nodeFailure(null, ChainConstants.NODE_FAILED, e.getMessage()));
+                break;
+            }
+        }
+        return results;
     }
 
-    /** 取节点超时与剩余时间的最小值 */
-    private static long nodeDefTimeout(long chainTimeout, long remainingTime) {
-        return Math.min(chainTimeout, Math.max(remainingTime, 0));
+    private record ParallelNodeOutcome(NodeResultDTO result, ChainContext forkedContext) {
     }
 
     /**

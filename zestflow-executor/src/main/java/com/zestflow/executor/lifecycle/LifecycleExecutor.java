@@ -66,6 +66,38 @@ public class LifecycleExecutor {
                 getResolverRefs(nodeDef), resolveValidatorRef(nodeDef));
     }
 
+    /**
+     * 执行节点补偿逻辑（COMPENSATE 策略逆序调用）。
+     *
+     * @return 补偿结果；无补偿元件时返回 null（视为跳过）
+     */
+    public Object executeCompensate(NodeDefinition nodeDef, ChainContext context) {
+        String compensateId = resolveCompensateComponentId(nodeDef);
+        if (compensateId == null || compensateId.isEmpty()) {
+            return null;
+        }
+        ComponentMeta meta = componentScanner.getComponent(compensateId);
+        if (meta == null) {
+            log.warn("补偿元件未找到，跳过 nodeId={} component={}", nodeDef.getId(), compensateId);
+            return null;
+        }
+        log.debug("执行补偿 nodeId={} component={}", nodeDef.getId(), compensateId);
+        return invokeMethod(meta.getExecuteMethod(), meta.getTargetBean(), context, null,
+                getResolverRefs(nodeDef), resolveValidatorRef(nodeDef));
+    }
+
+    /** 解析补偿元件：显式配置优先，否则约定 {executeComponent}Compensate */
+    public static String resolveCompensateComponentId(NodeDefinition nodeDef) {
+        if (nodeDef.getCompensateComponent() != null && !nodeDef.getCompensateComponent().isEmpty()) {
+            return nodeDef.getCompensateComponent();
+        }
+        String component = nodeDef.getComponent();
+        if (component != null && !component.isEmpty()) {
+            return component + "Compensate";
+        }
+        return null;
+    }
+
     public void executePreProcessors(List<ComponentRef> preComponents, ChainContext context) {
         if (preComponents == null || preComponents.isEmpty()) return;
         for (ComponentRef ref : preComponents) {

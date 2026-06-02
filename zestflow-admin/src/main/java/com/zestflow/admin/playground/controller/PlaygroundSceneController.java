@@ -9,6 +9,7 @@ import com.zestflow.admin.playground.model.dto.PlaygroundSceneUpdateDTO;
 import com.zestflow.admin.playground.model.vo.PlaygroundSceneVO;
 import com.zestflow.admin.playground.service.PlaygroundSceneService;
 import com.zestflow.admin.playground.model.vo.AvailableEndpointVO;
+import com.zestflow.admin.playground.support.PlaygroundAccessControl;
 import com.zestflow.common.model.Result;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,7 @@ public class PlaygroundSceneController {
 
     private final PlaygroundSceneService sceneService;
     private final ExecutorProxyService executorProxyService;
+    private final PlaygroundAccessControl accessControl;
 
     @GetMapping("/page")
     public Result<IPage<PlaygroundSceneVO>> queryPage(
@@ -40,11 +42,17 @@ public class PlaygroundSceneController {
             @RequestParam(required = false) String appCode,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
+        if (org.springframework.util.StringUtils.hasText(appCode)) {
+            accessControl.requireAppPermission(appCode, "APP_VIEWER");
+        }
         return Result.success(sceneService.queryPage(keyword, appCode, page, size));
     }
 
     @GetMapping("/list-all")
     public Result<List<PlaygroundSceneVO>> listAll(@RequestParam(required = false) String appCode) {
+        if (org.springframework.util.StringUtils.hasText(appCode)) {
+            accessControl.requireAppPermission(appCode, "APP_VIEWER");
+        }
         return Result.success(sceneService.listAll(appCode));
     }
 
@@ -54,6 +62,7 @@ public class PlaygroundSceneController {
         if (vo == null) {
             return Result.fail(404, "场景不存在");
         }
+        accessControl.requireAppPermission(vo.getAppCode(), "APP_VIEWER");
         return Result.success(vo);
     }
 
@@ -63,26 +72,39 @@ public class PlaygroundSceneController {
         if (vo == null) {
             return Result.fail(404, "场景不存在");
         }
+        accessControl.requireAppPermission(vo.getAppCode(), "APP_VIEWER");
         return Result.success(vo);
     }
 
     @PostMapping
     public Result<PlaygroundSceneVO> create(@RequestBody PlaygroundSceneCreateDTO dto) {
+        String appCode = org.springframework.util.StringUtils.hasText(dto.getAppCode())
+                ? dto.getAppCode() : null;
+        accessControl.requireAppPermission(
+                org.springframework.util.StringUtils.hasText(appCode) ? appCode : sceneService.getDefaultAppCode(),
+                "APP_EDITOR");
         PlaygroundSceneVO vo = sceneService.create(dto);
         return Result.success(vo);
     }
 
     @PutMapping("/{id}")
     public Result<PlaygroundSceneVO> update(@PathVariable Long id, @RequestBody PlaygroundSceneUpdateDTO dto) {
-        PlaygroundSceneVO vo = sceneService.update(id, dto);
-        if (vo == null) {
+        PlaygroundSceneVO existing = sceneService.getById(id);
+        if (existing == null) {
             return Result.fail(404, "场景不存在");
         }
+        accessControl.requireAppPermission(existing.getAppCode(), "APP_EDITOR");
+        PlaygroundSceneVO vo = sceneService.update(id, dto);
         return Result.success(vo);
     }
 
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
+        PlaygroundSceneVO existing = sceneService.getById(id);
+        if (existing == null) {
+            return Result.fail(404, "场景不存在");
+        }
+        accessControl.requireAppPermission(existing.getAppCode(), "APP_ADMIN");
         sceneService.delete(id);
         return Result.success();
     }
@@ -105,6 +127,7 @@ public class PlaygroundSceneController {
             empty.put("size", size);
             return Result.success(empty);
         }
+        accessControl.requireAppPermission(appCode, "APP_VIEWER");
         StringBuilder sb = new StringBuilder("?");
         boolean hasParam = false;
         if (keyword != null && !keyword.isEmpty()) {
@@ -151,6 +174,7 @@ public class PlaygroundSceneController {
         if (appCode == null || appCode.isBlank()) {
             return Result.success(Collections.emptyList());
         }
+        accessControl.requireAppPermission(appCode, "APP_VIEWER");
         String json = executorProxyService.getArrayFromExecutor(appCode, "/api/endpoints/classes", null);
         try {
             List<String> list = MAPPER.readValue(json, new TypeReference<List<String>>() {});

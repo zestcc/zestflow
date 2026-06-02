@@ -61,12 +61,12 @@ class ZestFlowE2ETest {
     @Test
     void simpleLinearChain() {
         com.zestflow.common.model.dto.ChainExecuteResultDTO result = execute("linear-test", List.of(
-                node("A", "NORMAL", "biz001"),
-                node("B", "NORMAL", "biz002"),
-                node("C", "NORMAL", "biz003")
+                node("A", "NORMAL", "validateUser"),
+                node("B", "NORMAL", "processPayment"),
+                node("C", "NORMAL", "deductStock")
         ), List.of(
                 edge("A", "B"), edge("B", "C")
-        ), Map.of());
+        ), Map.of("userId", "U001"));
 
         assertThat(result.getStatus()).isEqualTo(ChainConstants.CHAIN_SUCCESS);
         assertThat(result.getNodeResults()).hasSize(3);
@@ -87,14 +87,14 @@ class ZestFlowE2ETest {
     @Test
     void parallelDagChain() {
         com.zestflow.common.model.dto.ChainExecuteResultDTO result = execute("parallel-test", List.of(
-                node("A", "NORMAL", "biz001"),
-                node("B", "NORMAL", "biz002"),
-                node("C", "NORMAL", "biz003"),
-                node("D", "NORMAL", "biz004")
+                node("A", "NORMAL", "validateUser"),
+                node("B", "NORMAL", "processPayment"),
+                node("C", "NORMAL", "deductStock"),
+                node("D", "NORMAL", "sendNotify")
         ), List.of(
                 edge("A", "B"), edge("A", "C"),
                 edge("B", "D"), edge("C", "D")
-        ), Map.of());
+        ), Map.of("userId", "U001"));
 
         assertThat(result.getStatus()).isEqualTo(ChainConstants.CHAIN_SUCCESS);
         assertThat(result.getNodeResults()).hasSize(4);
@@ -108,7 +108,7 @@ class ZestFlowE2ETest {
                 node("create", "NORMAL", "createOrder"),
                 node("pay", "NORMAL", "processPayment"),
                 node("stock", "NORMAL", "deductStock"),
-                node("done", "NORMAL", "biz004")
+                node("done", "NORMAL", "sendNotify")
         ), List.of(
                 edge("create", "pay"), edge("pay", "stock"), edge("stock", "done")
         ), Map.of("userId", "U1001", "productId", "SKU-001"));
@@ -123,15 +123,15 @@ class ZestFlowE2ETest {
     @Test
     void scriptNodeExecution() {
         com.zestflow.common.model.dto.ChainExecuteResultDTO result = execute("script-test", List.of(
-                node("start", "NORMAL", "biz001"),
+                node("start", "NORMAL", "validateUser"),
                 ChainNodeDTO.builder().id("script1").label("script1")
                         .type("SCRIPT")
                         .script("groovy: ctx.put('msg', 'hello'); return [greeting: 'hello']")
                         .build(),
-                node("end", "NORMAL", "biz002")
+                node("end", "NORMAL", "processPayment")
         ), List.of(
                 edge("start", "script1"), edge("script1", "end")
-        ), Map.of());
+        ), Map.of("userId", "U001"));
 
         assertThat(result.getStatus()).isEqualTo(ChainConstants.CHAIN_SUCCESS);
         assertThat(result.getNodeResults()).hasSize(3);
@@ -144,21 +144,21 @@ class ZestFlowE2ETest {
         ChainDefinitionDTO subDTO = ChainDefinitionDTO.builder()
                 .code("sub-chain-001")
                 .nodes(List.of(
-                        node("subA", "NORMAL", "biz005"),
-                        node("subB", "NORMAL", "biz006")
+                        node("subA", "NORMAL", "printWaybill"),
+                        node("subB", "NORMAL", "deliveryConfirm")
                 ))
                 .edges(List.of(edge("subA", "subB")))
                 .build();
         chainManager.load(chainDefinitionBuilder.build(subDTO));
 
         com.zestflow.common.model.dto.ChainExecuteResultDTO result = execute("main-chain", List.of(
-                node("start", "NORMAL", "biz001"),
+                node("start", "NORMAL", "validateUser"),
                 ChainNodeDTO.builder().id("sub1").label("sub1")
                         .type("SUB_CHAIN").subChainCode("sub-chain-001").build(),
-                node("end", "NORMAL", "biz002")
+                node("end", "NORMAL", "processPayment")
         ), List.of(
                 edge("start", "sub1"), edge("sub1", "end")
-        ), Map.of());
+        ), Map.of("userId", "U001"));
 
         assertThat(result.getStatus()).isEqualTo(ChainConstants.CHAIN_SUCCESS);
         assertThat(result.getNodeResults()).hasSize(3);
@@ -174,7 +174,7 @@ class ZestFlowE2ETest {
                 Map.of("id", 3, "name", "c")
         );
         com.zestflow.common.model.dto.ChainExecuteResultDTO result = execute("iterator-test", List.of(
-                node("start", "NORMAL", "biz001"),
+                node("start", "NORMAL", "validateUser"),
                 ChainNodeDTO.builder().id("iter1").label("iter1")
                         .type("ITERATOR")
                         .config(Map.of(
@@ -182,13 +182,13 @@ class ZestFlowE2ETest {
                                 "itemName", "currentItem",
                                 "subNodes", List.of(
                                         Map.of("id", "subA", "label", "subA", "type", "NORMAL",
-                                                "component", "biz003")
+                                                "component", "noopStep")
                                 )
                         )).build(),
-                node("end", "NORMAL", "biz002")
+                node("end", "NORMAL", "processPayment")
         ), List.of(
                 edge("start", "iter1"), edge("iter1", "end")
-        ), Map.of("items", items));
+        ), Map.of("items", items, "userId", "U001"));
 
         assertThat(result.getStatus()).isEqualTo(ChainConstants.CHAIN_SUCCESS);
         assertThat(result.getNodeResults()).hasSize(3);
@@ -199,15 +199,15 @@ class ZestFlowE2ETest {
     @Test
     void conditionBranchTrue() {
         com.zestflow.common.model.dto.ChainExecuteResultDTO result = execute("condition-true", List.of(
-                node("start", "NORMAL", "biz001"),
+                node("start", "NORMAL", "validateUser"),
                 ChainNodeDTO.builder().id("cond1").label("cond1")
                         .type("CONDITION")
                         .config(Map.of("condition", "params.status == 'PASS'")).build(),
-                node("pass", "NORMAL", "biz002"),
-                node("end", "NORMAL", "biz003")
+                node("pass", "NORMAL", "processPayment"),
+                node("end", "NORMAL", "deductStock")
         ), List.of(
                 edge("start", "cond1"), edge("cond1", "pass"), edge("pass", "end")
-        ), Map.of("status", "PASS"));
+        ), Map.of("status", "PASS", "userId", "U001"));
 
         assertThat(result.getStatus()).isEqualTo(ChainConstants.CHAIN_SUCCESS);
         assertThat(result.getNodeResults()).extracting(nr -> nr.getNodeId())
@@ -219,15 +219,15 @@ class ZestFlowE2ETest {
     @Test
     void retryAndFallback() {
         com.zestflow.common.model.dto.ChainExecuteResultDTO result = execute("retry-test", List.of(
-                node("start", "NORMAL", "biz001"),
+                node("start", "NORMAL", "validateUser"),
                 ChainNodeDTO.builder().id("failing").label("failing")
                         .type("NORMAL").component("nonexistent_component")
                         .config(Map.of(
                                 "retryCount", 2,
-                                "fallback", Map.of("component", "fallback001"),
+                                "fallback", Map.of("component", "payFallback"),
                                 "circuitBreaker", Map.of("enabled", true, "failureThreshold", 5)
                         )).build()
-        ), List.of(edge("start", "failing")), Map.of());
+        ), List.of(edge("start", "failing")), Map.of("userId", "U001"));
 
         // 重试耗尽后触发降级，降级成功则整个链成功
         assertThat(result.getStatus()).isEqualTo(ChainConstants.CHAIN_SUCCESS);
@@ -244,7 +244,7 @@ class ZestFlowE2ETest {
                 node("verify", "NORMAL", "verifySignature"),
                 node("stock", "NORMAL", "checkStock"),
                 node("deduct", "NORMAL", "deductStock"),
-                node("notify", "NORMAL", "biz004"),
+                node("notify", "NORMAL", "sendNotify"),
                 node("split", "NORMAL", "splitAmount")
         ), List.of(
                 edge("create", "pay"), edge("create", "verify"),
@@ -264,12 +264,12 @@ class ZestFlowE2ETest {
     @Test
     void errorChainTermination() {
         com.zestflow.common.model.dto.ChainExecuteResultDTO result = execute("error-chain", List.of(
-                node("A", "NORMAL", "biz001"),
+                node("A", "NORMAL", "validateUser"),
                 node("B", "NORMAL", "nonexistent_component"),
-                node("C", "NORMAL", "biz003")
+                node("C", "NORMAL", "deductStock")
         ), List.of(
                 edge("A", "B"), edge("B", "C")
-        ), Map.of());
+        ), Map.of("userId", "U001"));
 
         assertThat(result.getStatus()).isEqualTo(ChainConstants.CHAIN_FAILED);
         assertThat(result.getNodeResults()).hasSize(2);

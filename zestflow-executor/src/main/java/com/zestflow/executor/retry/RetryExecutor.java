@@ -4,6 +4,8 @@ import com.zestflow.executor.chain.NodeDefinition;
 import com.zestflow.executor.context.ChainContext;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 import java.util.function.Function;
 
 /**
@@ -43,7 +45,11 @@ public class RetryExecutor {
                     long delayMs = retryPolicy.nextDelayMs(nodeDef, attempt - 1);
                     log.debug("节点重试等待 nodeId={} attempt={}/{} delay={}ms",
                             nodeDef.getId(), attempt, nodeDef.getRetryCount(), delayMs);
-                    Thread.sleep(delayMs);
+                    awaitDelay(delayMs, context);
+                }
+
+                if (context.isExecutionStopped()) {
+                    throw new InterruptedException("链执行已终止");
                 }
 
                 action.apply(context);
@@ -61,5 +67,26 @@ public class RetryExecutor {
                 }
             }
         } while (true);
+    }
+
+    /** 可中断的退避等待（替代 Thread.sleep，便于链取消/线程中断传播） */
+    private static void awaitDelay(long delayMs, ChainContext context) throws InterruptedException {
+        if (delayMs <= 0) {
+            return;
+        }
+        long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(delayMs);
+        while (true) {
+            if (context != null && context.isExecutionStopped()) {
+                throw new InterruptedException("链执行已终止");
+            }
+            long remaining = deadline - System.nanoTime();
+            if (remaining <= 0) {
+                return;
+            }
+            LockSupport.parkNanos(remaining);
+            if (Thread.interrupted()) {
+                throw new InterruptedException("重试等待被中断");
+            }
+        }
     }
 }

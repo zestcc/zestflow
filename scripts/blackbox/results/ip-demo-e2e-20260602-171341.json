@@ -1,0 +1,10 @@
+﻿{
+    "timestamp":  "2026-06-02T17:13:41.7743472+08:00",
+    "checks":  [
+                   {
+                       "name":  "enterprise-profile",
+                       "ok":  false,
+                       "note":  "mode=unknown ipDemo=unknown; need profile enterprise-e2e + restart"
+                   }
+               ]
+}

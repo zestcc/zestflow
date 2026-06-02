@@ -1,0 +1,50 @@
+﻿{
+    "hint":  {
+                 "enterprise":  "Admin: -Dspring-boot.run.profiles=local,enterprise-e2e then gate with -RequireEnterpriseProfile",
+                 "fullGreen":  ".\\scripts\\blackbox\\run-full-e2e.ps1 -E2eProfile fullGreen"
+             },
+    "exitCode":  0,
+    "timestamp":  "2026-06-02T19:04:46.6633120+08:00",
+    "phases":  [
+                   {
+                       "phase":  "mvn-test-zestflow-common",
+                       "ok":  true,
+                       "note":  "ok"
+                   },
+                   {
+                       "phase":  "mvn-test-zestflow-executor",
+                       "ok":  true,
+                       "note":  "ok"
+                   },
+                   {
+                       "phase":  "mvn-test-zestflow-executor-test",
+                       "ok":  true,
+                       "note":  "ok"
+                   },
+                   {
+                       "phase":  "mvn-test-zestflow-collector-collector-jdbc",
+                       "ok":  true,
+                       "note":  "ok"
+                   },
+                   {
+                       "phase":  "mvn-test-zestflow-admin",
+                       "ok":  true,
+                       "note":  "ok"
+                   },
+                   {
+                       "phase":  "runtime-e2e",
+                       "ok":  true,
+                       "note":  "skipped"
+                   },
+                   {
+                       "phase":  "tenant-multi-e2e",
+                       "ok":  true,
+                       "note":  "skipped"
+                   },
+                   {
+                       "phase":  "ip-demo-e2e",
+                       "ok":  true,
+                       "note":  "skipped"
+                   }
+               ]
+}

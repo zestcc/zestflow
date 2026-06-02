@@ -2,6 +2,7 @@ package com.zestflow.executor.engine;
 
 import com.zestflow.common.constant.ChainConstants;
 import com.zestflow.common.model.dto.ChainEvent;
+import com.zestflow.common.model.dto.ChainExecuteResultDTO;
 import com.zestflow.common.model.dto.ComponentRef;
 import com.zestflow.common.model.dto.NodeResultDTO;
 import com.zestflow.common.spi.EventCollector;
@@ -27,6 +28,7 @@ import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -39,6 +41,7 @@ class NodeRunnerTest {
     @Mock LifecycleExecutor lifecycleExecutor;
     @Mock RetryExecutor retryExecutor;
     @Mock ChainManager chainManager;
+    @Mock ChainExecutionEngine chainExecutionEngine;
     @Mock com.zestflow.executor.registry.ExecutorProperties executorProperties;
 
     @Captor ArgumentCaptor<ChainEvent> eventCaptor;
@@ -56,9 +59,23 @@ class NodeRunnerTest {
         executorId = "test-app@127.0.0.1:9999";
         nodeRunner = new NodeRunner(componentScanner, eventCollector,
                 interceptorChain, lifecycleExecutor, retryExecutor, chainManager, executorProperties);
+        nodeRunner.setChainExecutionEngine(chainExecutionEngine);
     }
 
     // ==================== NodeStateMachine 单元测试 ====================
+
+    @Test
+    void mapResultMergedIntoContext() {
+        NodeDefinition nodeDef = nodeDef("n1", ChainConstants.NODE_TYPE_NORMAL);
+        ChainContext ctx = new ChainContext("test-instance", "test-chain", Map.of("userId", "U001"));
+        when(lifecycleExecutor.execute(nodeDef, ctx))
+                .thenReturn(Map.of("valid", true, "echoUserId", "U001"));
+
+        nodeRunner.execute(nodeDef, ctx);
+
+        assertThat(ctx.get("valid")).isEqualTo(true);
+        assertThat(ctx.get("echoUserId")).isEqualTo("U001");
+    }
 
     @Test
     void normalExecutionSucceeds() {
@@ -473,6 +490,71 @@ class NodeRunnerTest {
 
         assertThat(result.getStatus()).isEqualTo(ChainConstants.NODE_FAILED);
         assertThat(result.getErrorMessage()).contains("子链不存在");
+    }
+
+    @Test
+    void subChainNodePassesParentDeadlineToEngine() {
+        NodeDefinition nodeDef = NodeDefinition.builder()
+                .id("n1").type(ChainConstants.NODE_TYPE_SUB_CHAIN)
+                .subChainCode("child-chain")
+                .build();
+        long parentDeadline = System.currentTimeMillis() + 5_000L;
+        ChainContext ctx = new ChainContext("inst-1", "parent-chain", Map.of("k", "v"));
+        ctx.setMetadata(ChainConstants.META_DEADLINE_MS, parentDeadline);
+
+        when(chainManager.get("child-chain")).thenReturn(
+                com.zestflow.executor.chain.ChainDefinition.builder()
+                        .code("child-chain")
+                        .nodes(Map.of())
+                        .build());
+        when(chainExecutionEngine.executeWithDeadline(eq("child-chain"), any(), eq(parentDeadline)))
+                .thenReturn(ChainExecuteResultDTO.builder()
+                        .status(ChainConstants.CHAIN_SUCCESS)
+                        .resultData(Map.of("ok", true))
+                        .build());
+
+        NodeResultDTO result = nodeRunner.execute(nodeDef, ctx);
+
+        assertThat(result.getStatus()).isEqualTo(ChainConstants.NODE_SUCCESS);
+        verify(chainExecutionEngine).executeWithDeadline(eq("child-chain"), any(), eq(parentDeadline));
+    }
+
+    @Test
+    void subChainNodeFailureBubblesUpAsNodeFailed() {
+        NodeDefinition nodeDef = NodeDefinition.builder()
+                .id("n1").type(ChainConstants.NODE_TYPE_SUB_CHAIN)
+                .subChainCode("child-chain")
+                .build();
+        ChainContext ctx = context();
+
+        when(chainManager.get("child-chain")).thenReturn(
+                com.zestflow.executor.chain.ChainDefinition.builder()
+                        .code("child-chain")
+                        .nodes(Map.of())
+                        .build());
+        when(chainExecutionEngine.executeWithDeadline(eq("child-chain"), any(), anyLong()))
+                .thenReturn(ChainExecuteResultDTO.builder()
+                        .status(ChainConstants.CHAIN_FAILED)
+                        .errorMessage("子链内部失败")
+                        .build());
+
+        NodeResultDTO result = nodeRunner.execute(nodeDef, ctx);
+
+        assertThat(result.getStatus()).isEqualTo(ChainConstants.NODE_FAILED);
+        assertThat(result.getErrorMessage()).contains("子链内部失败");
+    }
+
+    @Test
+    void executeReturnsStoppedWhenContextStopCheckSet() {
+        NodeDefinition nodeDef = nodeDef("n1", ChainConstants.NODE_TYPE_NORMAL);
+        ChainContext ctx = context();
+        ctx.setMetadata(ChainConstants.META_STOP_CHECK, (java.util.function.BooleanSupplier) () -> true);
+
+        NodeResultDTO result = nodeRunner.execute(nodeDef, ctx);
+
+        assertThat(result.getStatus()).isEqualTo(ChainConstants.NODE_FAILED);
+        assertThat(result.getErrorMessage()).contains("终止");
+        verify(lifecycleExecutor, never()).execute(any(), any());
     }
 
     // ==================== 迭代器节点 ====================

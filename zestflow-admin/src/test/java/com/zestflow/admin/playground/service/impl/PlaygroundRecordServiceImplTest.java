@@ -6,11 +6,20 @@ import com.zestflow.admin.playground.model.dto.PlaygroundRecordQueryDTO;
 import com.zestflow.admin.playground.model.entity.PlaygroundRecordPO;
 import com.zestflow.admin.playground.model.vo.PlaygroundRecordVO;
 import com.zestflow.admin.playground.repository.PlaygroundRecordMapper;
+import com.zestflow.admin.playground.support.PlaygroundAccessControl;
+import com.zestflow.admin.service.TenantAppContext;
+import com.zestflow.admin.util.SecurityUtils;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,14 +29,29 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class PlaygroundRecordServiceImplTest {
 
     @Mock private PlaygroundRecordMapper recordMapper;
+    @Mock private PlaygroundAccessControl accessControl;
+    @Mock private TenantAppContext tenantAppContext;
     private PlaygroundRecordServiceImpl recordService;
 
     @BeforeEach
     void setUp() {
-        recordService = new PlaygroundRecordServiceImpl(recordMapper);
+        recordService = new PlaygroundRecordServiceImpl(recordMapper, accessControl, tenantAppContext);
+        when(accessControl.isSuperAdmin()).thenReturn(true);
+        Authentication auth = mock(Authentication.class);
+        when(auth.isAuthenticated()).thenReturn(true);
+        when(auth.getDetails()).thenReturn(new SecurityUtils.AuthDetails(1L, true, 1L));
+        SecurityContext context = mock(SecurityContext.class);
+        when(context.getAuthentication()).thenReturn(auth);
+        SecurityContextHolder.setContext(context);
+    }
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
     }
 
     // ==================== queryPage ====================

@@ -1,0 +1,25 @@
+﻿{
+    "timestamp":  "2026-06-02T17:44:54.0559936+08:00",
+    "checks":  [
+                   {
+                       "name":  "enterprise-profile",
+                       "ok":  true,
+                       "note":  "multi+ip-demo"
+                   },
+                   {
+                       "name":  "ip-101-sees-tenant-b-scene",
+                       "ok":  true,
+                       "note":  "count=1"
+                   },
+                   {
+                       "name":  "ip-101-no-tenant1-only-bulk",
+                       "ok":  true,
+                       "note":  "count=1"
+                   },
+                   {
+                       "name":  "ip-102-no-tenant-b-scene",
+                       "ok":  true,
+                       "note":  "count=38"
+                   }
+               ]
+}

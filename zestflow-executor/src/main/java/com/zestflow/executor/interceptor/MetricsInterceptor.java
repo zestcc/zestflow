@@ -16,6 +16,9 @@ import java.util.concurrent.atomic.LongAdder;
 @Slf4j
 public class MetricsInterceptor implements ChainInterceptor, NodeInterceptor {
 
+    private static final int MAX_CHAIN_METRICS = 512;
+    private static final int MAX_NODE_METRICS = 2048;
+
     /** 链级指标 */
     private final Map<String, ChainMetrics> chainMetrics = new ConcurrentHashMap<>();
 
@@ -42,7 +45,7 @@ public class MetricsInterceptor implements ChainInterceptor, NodeInterceptor {
 
     @Override
     public void beforeChain(String chainCode, ChainContext ctx) {
-        chainMetrics.computeIfAbsent(chainCode, k -> new ChainMetrics()).invokeCount.increment();
+        ensureChainMetric(chainCode).invokeCount.increment();
     }
 
     @Override
@@ -66,7 +69,7 @@ public class MetricsInterceptor implements ChainInterceptor, NodeInterceptor {
 
     @Override
     public void beforeNode(NodeDefinition node, ChainContext ctx) {
-        nodeMetrics.computeIfAbsent(node.getId(), k -> new NodeMetrics()).invokeCount.increment();
+        ensureNodeMetric(node.getId()).invokeCount.increment();
     }
 
     @Override
@@ -91,6 +94,27 @@ public class MetricsInterceptor implements ChainInterceptor, NodeInterceptor {
     }
 
     // ==================== 指标查询 ====================
+
+    private ChainMetrics ensureChainMetric(String chainCode) {
+        evictIfNeeded(chainMetrics, MAX_CHAIN_METRICS, chainCode);
+        return chainMetrics.computeIfAbsent(chainCode, k -> new ChainMetrics());
+    }
+
+    private NodeMetrics ensureNodeMetric(String nodeId) {
+        evictIfNeeded(nodeMetrics, MAX_NODE_METRICS, nodeId);
+        return nodeMetrics.computeIfAbsent(nodeId, k -> new NodeMetrics());
+    }
+
+    private static <K> void evictIfNeeded(Map<K, ?> map, int maxSize, K key) {
+        if (map.size() < maxSize || map.containsKey(key)) {
+            return;
+        }
+        var iterator = map.keySet().iterator();
+        if (iterator.hasNext()) {
+            iterator.next();
+            iterator.remove();
+        }
+    }
 
     /**
      * 打印链指标

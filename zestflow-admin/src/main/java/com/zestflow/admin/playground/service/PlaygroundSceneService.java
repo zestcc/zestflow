@@ -46,4 +46,7 @@ public interface PlaygroundSceneService {
      * 删除场景
      */
     void delete(Long id);
+
+    /** 配置中的默认应用编码（创建场景未指定 appCode 时使用） */
+    String getDefaultAppCode();
 }

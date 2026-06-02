@@ -5,6 +5,8 @@ import jakarta.annotation.PostConstruct;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
+import com.zestflow.executor.server.NettyMvcDispatcher;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 /**
@@ -20,13 +22,16 @@ public class ExecutorEndpointConfig {
 
     private final ExecutorServer executorServer;
     private final RequestMappingHandlerMapping requestMappingHandlerMapping;
+    private final RequestMappingHandlerAdapter requestMappingHandlerAdapter;
     private final PlaygroundProperties playgroundProperties;
 
     public ExecutorEndpointConfig(ExecutorServer executorServer,
                                    RequestMappingHandlerMapping requestMappingHandlerMapping,
+                                   RequestMappingHandlerAdapter requestMappingHandlerAdapter,
                                    PlaygroundProperties playgroundProperties) {
         this.executorServer = executorServer;
         this.requestMappingHandlerMapping = requestMappingHandlerMapping;
+        this.requestMappingHandlerAdapter = requestMappingHandlerAdapter;
         this.playgroundProperties = playgroundProperties;
     }
 
@@ -34,6 +39,10 @@ public class ExecutorEndpointConfig {
     public void wireEndpoints() {
         executorServer.setRequestMappingHandlerMapping(requestMappingHandlerMapping);
         executorServer.setScanPackages(playgroundProperties.getScanPackages());
-        executorServer.setPlaygroundUrl(playgroundProperties.getUrl());
+        NettyMvcDispatcher dispatcher = new NettyMvcDispatcher(
+                requestMappingHandlerMapping,
+                requestMappingHandlerAdapter,
+                playgroundProperties.getScanPackages());
+        executorServer.setNettyMvcDispatcher(dispatcher);
     }
 }

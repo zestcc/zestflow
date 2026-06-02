@@ -1,0 +1,10 @@
+﻿{
+    "timestamp":  "2026-06-02T17:13:41.6793369+08:00",
+    "checks":  [
+                   {
+                       "name":  "tenant-mode-multi",
+                       "ok":  false,
+                       "note":  "runtime mode=unknown; restart Admin with profile enterprise-e2e"
+                   }
+               ]
+}

@@ -47,6 +47,40 @@ public class BizOrchestrationService {
         return ChainNodeDTO.builder().id(id).label(id).type(ChainConstants.NODE_TYPE_NORMAL).component(component).config(config).build();
     }
 
+    /** 带前置/后置/参数校验器的 NORMAL 节点（生命周期配置写在 DTO 字段，非 config 内嵌） */
+    public static ChainNodeDTO normalNodeWithLifecycle(String id, String component,
+                                                       List<String> preProcessorIds,
+                                                       List<String> postProcessorIds,
+                                                       String paramValidatorId) {
+        ChainNodeDTO.ChainNodeDTOBuilder builder = ChainNodeDTO.builder()
+                .id(id).label(id).type(ChainConstants.NODE_TYPE_NORMAL).component(component);
+        if (preProcessorIds != null && !preProcessorIds.isEmpty()) {
+            builder.preComponents(preProcessorIds.stream()
+                    .map(pid -> ComponentRef.builder().componentId(pid).build())
+                    .toList());
+        }
+        if (postProcessorIds != null && !postProcessorIds.isEmpty()) {
+            builder.postComponents(postProcessorIds.stream()
+                    .map(pid -> ComponentRef.builder().componentId(pid).build())
+                    .toList());
+        }
+        if (paramValidatorId != null && !paramValidatorId.isBlank()) {
+            builder.paramValidator(ComponentRef.builder().componentId(paramValidatorId).build());
+        }
+        return builder.build();
+    }
+
+    public static ChainNodeDTO normalNodeWithResolvers(String id, String component, List<String> resolverIds) {
+        ChainNodeDTO.ChainNodeDTOBuilder builder = ChainNodeDTO.builder()
+                .id(id).label(id).type(ChainConstants.NODE_TYPE_NORMAL).component(component);
+        if (resolverIds != null && !resolverIds.isEmpty()) {
+            builder.paramResolvers(resolverIds.stream()
+                    .map(rid -> ComponentRef.builder().componentId(rid).build())
+                    .toList());
+        }
+        return builder.build();
+    }
+
     /**
      * 构建 CONDITION 节点
      */
@@ -124,7 +158,7 @@ public class BizOrchestrationService {
         return loadAndExecute(code, List.of(
                 normalNode("create", "createOrder"),
                 normalNode("pay", "processPayment"),
-                normalNode("done", "biz004")
+                normalNode("done", "sendNotify")
         ), List.of(edge("create", "pay"), edge("pay", "done")), params);
     }
 
@@ -133,9 +167,9 @@ public class BizOrchestrationService {
      */
     public ChainExecuteResultDTO scriptDiscount(String code, Map<String, Object> params) {
         return loadAndExecute(code, List.of(
-                normalNode("getPrice", "biz001"),
+                normalNode("getPrice", "calcDiscount"),
                 scriptNode("calc", "groovy: def base = (int)ctx.get('price'); ctx.put('discount', base * 0.8); return [discounted: base * 0.8]"),
-                normalNode("result", "biz004")
+                normalNode("result", "sendNotify")
         ), List.of(edge("getPrice", "calc"), edge("calc", "result")), params);
     }
 
@@ -146,14 +180,14 @@ public class BizOrchestrationService {
                                                Map<String, Object> params) {
         // 先注册子链
         loadAndExecute(subChainCode, List.of(
-                normalNode("pack", "biz005"),
-                normalNode("deliver", "biz006")
+                normalNode("pack", "printWaybill"),
+                normalNode("deliver", "deliveryConfirm")
         ), List.of(edge("pack", "deliver")), subChainParams);
         // 主链
         return loadAndExecute(code, List.of(
-                normalNode("prepare", "biz001"),
+                normalNode("prepare", "createOrder"),
                 subChainNode("ship", subChainCode),
-                normalNode("done", "biz002")
+                normalNode("done", "sendNotify")
         ), List.of(edge("prepare", "ship"), edge("ship", "done")), params);
     }
 
@@ -162,10 +196,10 @@ public class BizOrchestrationService {
      */
     public ChainExecuteResultDTO parallelVerify(String code, Map<String, Object> params) {
         return loadAndExecute(code, List.of(
-                normalNode("start", "biz001"),
+                normalNode("start", "validateUser"),
                 normalNode("payCheck", "verifySignature"),
                 normalNode("stockCheck", "checkStock"),
-                normalNode("done", "biz004")
+                normalNode("done", "sendNotify")
         ), List.of(
                 edge("start", "payCheck"), edge("start", "stockCheck"),
                 edge("payCheck", "done"), edge("stockCheck", "done")
@@ -182,7 +216,7 @@ public class BizOrchestrationService {
                 normalNode("verify", "verifySignature"),
                 normalNode("stock", "checkStock"),
                 normalNode("deduct", "deductStock"),
-                normalNode("notify", "biz004"),
+                normalNode("notify", "sendNotify"),
                 normalNode("split", "splitAmount")
         ), List.of(
                 edge("create", "pay"), edge("create", "verify"),
@@ -201,7 +235,7 @@ public class BizOrchestrationService {
         config.put("retryCount", retryCount);
         config.put("fallback", Map.of("component", fallbackComponent));
         return loadAndExecute(code, List.of(
-                normalNode("start", "biz001"),
+                normalNode("start", "validateUser"),
                 normalNode("process", "nonexistent_component", config)
         ), List.of(edge("start", "process")), params);
     }
@@ -213,11 +247,11 @@ public class BizOrchestrationService {
      */
     public ChainExecuteResultDTO diamondDag(String code, Map<String, Object> params) {
         return loadAndExecute(code, List.of(
-                normalNode("A", "biz001"),
-                normalNode("B", "biz002"),
-                normalNode("C", "biz003"),
-                normalNode("D", "biz004"),
-                normalNode("E", "biz005")
+                normalNode("A", "validateUser"),
+                normalNode("B", "processPayment"),
+                normalNode("C", "deductStock"),
+                normalNode("D", "sendNotify"),
+                normalNode("E", "printWaybill")
         ), List.of(
                 edge("A", "B"), edge("A", "C"),
                 edge("B", "D"), edge("C", "D"),
@@ -230,12 +264,12 @@ public class BizOrchestrationService {
      */
     public ChainExecuteResultDTO wShapeDag(String code, Map<String, Object> params) {
         return loadAndExecute(code, List.of(
-                normalNode("A", "biz001"),
-                normalNode("B", "biz002"),
-                normalNode("C", "biz003"),
-                normalNode("D", "biz004"),
-                normalNode("E", "biz005"),
-                normalNode("F", "biz006")
+                normalNode("A", "validateUser"),
+                normalNode("B", "processPayment"),
+                normalNode("C", "deductStock"),
+                normalNode("D", "sendNotify"),
+                normalNode("E", "printWaybill"),
+                normalNode("F", "deliveryConfirm")
         ), List.of(
                 edge("A", "B"), edge("A", "C"),
                 edge("B", "D"), edge("C", "D"),
@@ -252,8 +286,7 @@ public class BizOrchestrationService {
         List<ChainEdgeDTO> edges = new ArrayList<>();
         for (int i = 1; i <= 10; i++) {
             String id = "N" + i;
-            String comp = String.format("biz%03d", i);
-            nodes.add(normalNode(id, comp));
+            nodes.add(normalNode(id, "noopStep"));
             if (i > 1) {
                 edges.add(edge("N" + (i - 1), id));
             }
@@ -269,8 +302,7 @@ public class BizOrchestrationService {
         List<ChainEdgeDTO> edges = new ArrayList<>();
         for (int i = 1; i <= 50; i++) {
             String id = "N" + i;
-            int idx = Math.min(i, 500);
-            nodes.add(normalNode(id, String.format("biz%03d", idx)));
+            nodes.add(normalNode(id, "noopStep"));
             if (i > 1) {
                 edges.add(edge("N" + (i - 1), id));
             }
@@ -285,19 +317,19 @@ public class BizOrchestrationService {
         String sub1 = code + "-sub1";
         String sub2 = code + "-sub2";
         loadAndExecute(sub1, List.of(
-                normalNode("sa", "biz005"),
-                normalNode("sb", "biz006")
+                normalNode("sa", "printWaybill"),
+                normalNode("sb", "deliveryConfirm")
         ), List.of(edge("sa", "sb")), params);
         loadAndExecute(sub2, List.of(
-                normalNode("sc", "biz007"),
-                normalNode("sd", "biz008")
+                normalNode("sc", "assignCourier"),
+                normalNode("sd", "createDelivery")
         ), List.of(edge("sc", "sd")), params);
         return loadAndExecute(code, List.of(
-                normalNode("start", "biz001"),
+                normalNode("start", "validateUser"),
                 subChainNode("sub1", sub1),
-                normalNode("mid", "biz002"),
+                normalNode("mid", "processPayment"),
                 subChainNode("sub2", sub2),
-                normalNode("end", "biz003")
+                normalNode("end", "deductStock")
         ), List.of(
                 edge("start", "sub1"), edge("sub1", "mid"),
                 edge("mid", "sub2"), edge("sub2", "end")
@@ -311,21 +343,21 @@ public class BizOrchestrationService {
         // 先注册子链
         String subCode = code + "-sub";
         loadAndExecute(subCode, List.of(
-                normalNode("sub-start", "biz005"),
-                normalNode("sub-end", "biz006")
+                normalNode("sub-start", "printWaybill"),
+                normalNode("sub-end", "deliveryConfirm")
         ), List.of(edge("sub-start", "sub-end")), params);
         return loadAndExecute(code, List.of(
-                normalNode("start", "biz001"),
+                normalNode("start", "validateUser"),
                 scriptNode("script", "groovy: ctx.put('msg', 'hello'); return [ok: true]"),
                 conditionNode("cond", Map.of("condition", "params.status == 'PASS'")),
-                normalNode("pass", "biz002"),
+                normalNode("pass", "processPayment"),
                 subChainNode("sub", subCode),
                 iteratorNode("iter", Map.of(
                         "dataSource", "items", "itemName", "item",
                         "subNodes", List.of(Map.of("id", "subA", "label", "subA",
-                                "type", "NORMAL", "component", "biz003"))
+                                "type", "NORMAL", "component", "noopStep"))
                 )),
-                normalNode("end", "biz004")
+                normalNode("end", "sendNotify")
         ), List.of(
                 edge("start", "script"),
                 edge("script", "cond"),

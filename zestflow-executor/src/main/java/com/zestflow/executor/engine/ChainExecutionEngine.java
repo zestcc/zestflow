@@ -51,6 +51,13 @@ public interface ChainExecutionEngine {
     ChainExecuteResultDTO execute(String chainCode, Map<String, Object> params, Object... args);
 
     /**
+     * 执行链（继承父链绝对 deadline，用于子链节点）
+     *
+     * @param parentDeadlineMs 父链绝对 deadline 时间戳（毫秒）；{@link Long#MAX_VALUE} 表示无父约束
+     */
+    ChainExecuteResultDTO executeWithDeadline(String chainCode, Map<String, Object> params, long parentDeadlineMs);
+
+    /**
      * 异步执行链（用于长耗时链）
      */
     CompletableFuture<ChainExecuteResultDTO> executeAsync(String chainCode, Object... args);

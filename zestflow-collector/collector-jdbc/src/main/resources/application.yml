@@ -33,6 +33,8 @@ zestflow:
       admin-addresses: http://localhost:8080
       # Admin 认证令牌
       access-token:
+      # Admin 机器接口令牌（X-Registry-Token，须与 Admin zestflow.admin.registry-token 一致）
+      registry-token:
       # 采集器 Host（为空则自动探测本机 IP）
       host:
       # 采集器 Port（默认 9998）

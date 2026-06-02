@@ -54,16 +54,16 @@ public class InventoryController {
         for (int i = 0; i < 3; i++) {
             items.add(Map.of("sku", req.getSku() + "-" + i, "qty", 10));
         }
-        Map<String, Object> params = Map.of("items", items, "sku", req.getSku());
+        Map<String, Object> params = new LinkedHashMap<>(Map.of("items", items, "sku", req.getSku(), "userId", "U001"));
 
         var result = orch.loadAndExecute(chainCode, List.of(
-                BizOrchestrationService.normalNode("start", "biz001"),
+                BizOrchestrationService.normalNode("start", "validateUser"),
                 BizOrchestrationService.iteratorNode("iter", Map.of(
                         "dataSource", "items", "itemName", "item",
                         "subNodes", List.of(Map.of("id", "subItem", "label", "处理商品",
-                                "type", "NORMAL", "component", "biz003"))
+                                "type", "NORMAL", "component", "noopStep"))
                 )),
-                BizOrchestrationService.normalNode("end", "biz004")
+                BizOrchestrationService.normalNode("end", "sendNotify")
         ), List.of(
                 BizOrchestrationService.edge("start", "iter"),
                 BizOrchestrationService.edge("iter", "end")
@@ -85,16 +85,16 @@ public class InventoryController {
         List<Map<String, Object>> items = IntStream.range(0, count)
                 .mapToObj(i -> Map.<String, Object>of("sku", req.getSku() + "-" + i, "qty", 1))
                 .collect(Collectors.toList());
-        Map<String, Object> params = Map.of("items", items, "sku", req.getSku());
+        Map<String, Object> params = new LinkedHashMap<>(Map.of("items", items, "sku", req.getSku(), "userId", "U001"));
 
         var result = orch.loadAndExecute(chainCode, List.of(
-                BizOrchestrationService.normalNode("start", "biz001"),
+                BizOrchestrationService.normalNode("start", "validateUser"),
                 BizOrchestrationService.iteratorNode("iter", Map.of(
                         "dataSource", "items", "itemName", "item",
                         "subNodes", List.of(Map.of("id", "subItem", "label", "处理商品",
-                                "type", "NORMAL", "component", "biz003"))
+                                "type", "NORMAL", "component", "noopStep"))
                 )),
-                BizOrchestrationService.normalNode("end", "biz004")
+                BizOrchestrationService.normalNode("end", "sendNotify")
         ), List.of(
                 BizOrchestrationService.edge("start", "iter"),
                 BizOrchestrationService.edge("iter", "end")
@@ -112,16 +112,17 @@ public class InventoryController {
     @PostMapping("/batch-empty")
     public Result<InventoryResponse> batchEmpty(@RequestBody InventoryRequest req) {
         String chainCode = "inv-empty-" + UUID.randomUUID().toString().substring(0, 8);
-        Map<String, Object> params = Map.of("items", List.of(), "sku", req.getSku() != null ? req.getSku() : "EMPTY");
+        Map<String, Object> params = new LinkedHashMap<>(Map.of(
+                "items", List.of(), "sku", req.getSku() != null ? req.getSku() : "EMPTY", "userId", "U001"));
 
         var result = orch.loadAndExecute(chainCode, List.of(
-                BizOrchestrationService.normalNode("start", "biz001"),
+                BizOrchestrationService.normalNode("start", "validateUser"),
                 BizOrchestrationService.iteratorNode("iter", Map.of(
                         "dataSource", "items", "itemName", "item",
                         "subNodes", List.of(Map.of("id", "subItem", "label", "子项",
-                                "type", "NORMAL", "component", "biz003"))
+                                "type", "NORMAL", "component", "noopStep"))
                 )),
-                BizOrchestrationService.normalNode("end", "biz004")
+                BizOrchestrationService.normalNode("end", "sendNotify")
         ), List.of(
                 BizOrchestrationService.edge("start", "iter"),
                 BizOrchestrationService.edge("iter", "end")

@@ -1,0 +1,612 @@
+﻿{
+    "functional":  [
+                       {
+                           "category":  "auth",
+                           "name":  "login",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  193,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "config",
+                           "name":  "system-features",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  23,
+                           "note":  "playground=True"
+                       },
+                       {
+                           "category":  "auth",
+                           "name":  "userinfo",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  13,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "tenant",
+                           "name":  "list-my-tenants",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  12,
+                           "note":  "count=0"
+                       },
+                       {
+                           "category":  "tenant",
+                           "name":  "tenant-crud-list",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  13,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "tenant",
+                           "name":  "switch-tenant-1",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  13,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "dashboard",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  34,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "executors-apps",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  12,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "executors-list",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  12,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "collectors",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  12,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "chains",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  15,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "designs",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  34,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "components",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  14,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "schedules",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  14,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "users",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  15,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "roles",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  11,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "dict-types",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  14,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "admin",
+                           "name":  "logs-events",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  302,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "executor",
+                           "name":  "health",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  16,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "executor",
+                           "name":  "business-api",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  10,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "collector",
+                           "name":  "health",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  11,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "playground",
+                           "name":  "list-all-scenes",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  22,
+                           "note":  "count=32"
+                       },
+                       {
+                           "category":  "playground",
+                           "name":  "all-scenes-batch",
+                           "ok":  false,
+                           "status":  200,
+                           "latencyMs":  0,
+                           "note":  "pass=25 fail=5 skipped-heavy=True"
+                       },
+                       {
+                           "category":  "security",
+                           "name":  "no-jwt",
+                           "ok":  true,
+                           "status":  403,
+                           "latencyMs":  1,
+                           "note":  ""
+                       },
+                       {
+                           "category":  "security",
+                           "name":  "registry-no-token",
+                           "ok":  true,
+                           "status":  200,
+                           "latencyMs":  15,
+                           "note":  "dev-open if token empty"
+                       },
+                       {
+                           "category":  "security",
+                           "name":  "bad-jwt-protected-api",
+                           "ok":  true,
+                           "status":  403,
+                           "latencyMs":  1,
+                           "note":  "/api/auth/** is permitAll"
+                       }
+                   ],
+    "environment":  {
+                        "admin":  "http://127.0.0.1:8080",
+                        "netty":  "http://127.0.0.1:20550",
+                        "collector":  "http://127.0.0.1:20650"
+                    },
+    "timestamp":  "2026-06-02T16:20:04.1506985+08:00",
+    "configProbe":  [
+                        {
+                            "name":  "runtime",
+                            "key":  "zestflow.playground.enabled",
+                            "value":  true,
+                            "note":  "from /api/system/features (authenticated)"
+                        },
+                        {
+                            "name":  "runtime",
+                            "key":  "zestflow.tenant.mode",
+                            "value":  "single (default in application.yml)",
+                            "note":  "multi: set zestflow.tenant.mode=multi + restart"
+                        },
+                        {
+                            "name":  "runtime",
+                            "key":  "zestflow.tenant.ip-demo-mode",
+                            "value":  "disabled (default)",
+                            "note":  "enabled: set ip-demo-mode=enabled + restart"
+                        },
+                        {
+                            "name":  "runtime",
+                            "key":  "zestflow.admin.registry-token",
+                            "value":  "empty=dev-open",
+                            "note":  "ON: set token + restart, wrong header -\u003e 401"
+                        },
+                        {
+                            "name":  "runtime",
+                            "key":  "zestflow.executor.access-token",
+                            "value":  "empty=dev-open",
+                            "note":  "ON: set token on both sides + restart"
+                        },
+                        {
+                            "name":  "runtime",
+                            "key":  "zestflow.mail.enabled",
+                            "value":  "see application-local.yml",
+                            "note":  "false=NoopMailService, true=SmtpMailService"
+                        },
+                        {
+                            "name":  "runtime",
+                            "key":  "zestflow.admin.cache.type",
+                            "value":  "simple/caffeine/redis",
+                            "note":  "restart to switch"
+                        }
+                    ],
+    "playgroundScenes":  [
+                             {
+                                 "sceneCode":  "SCN20260531000001",
+                                 "name":  "Hello World",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  16,
+                                 "skipped":  false,
+                                 "note":  ""
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531000002",
+                                 "name":  "è®¢åå¤ç",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  14,
+                                 "skipped":  false,
+                                 "note":  ""
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531000003",
+                                 "name":  "æ¯ä»å\u0085¨æµç¨",
+                                 "skipped":  true,
+                                 "ok":  null,
+                                 "status":  0,
+                                 "ms":  0,
+                                 "note":  "heavy-skipped"
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531000004",
+                                 "name":  "50 æ­¥ååé¾",
+                                 "skipped":  true,
+                                 "ok":  null,
+                                 "status":  0,
+                                 "ms":  0,
+                                 "note":  "heavy-skipped"
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531010001",
+                                 "name":  "è®¢ååå»º",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  15,
+                                 "skipped":  false,
+                                 "note":  ""
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531010002",
+                                 "name":  "è®¢åæ¯ä»",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  14,
+                                 "skipped":  false,
+                                 "note":  ""
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531010003",
+                                 "name":  "è®¢åéæ¬¾",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  14,
+                                 "skipped":  false,
+                                 "note":  ""
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531010004",
+                                 "name":  "è®¢ååæ¶",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  15,
+                                 "skipped":  false,
+                                 "note":  ""
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531010005",
+                                 "name":  "è®¢åè¯ä»·",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  15,
+                                 "skipped":  false,
+                                 "note":  ""
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531010006",
+                                 "name":  "å®åç³è¯·",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  false,
+                                 "status":  500,
+                                 "ms":  16,
+                                 "skipped":  false,
+                                 "note":  "api-code-500"
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531020001",
+                                 "name":  "ååå\u0085¥åº",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  16,
+                                 "skipped":  false,
+                                 "note":  ""
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531020002",
+                                 "name":  "åååºåº",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  14,
+                                 "skipped":  false,
+                                 "note":  ""
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531020003",
+                                 "name":  "åºå­çç¹",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  15,
+                                 "skipped":  false,
+                                 "note":  ""
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531020004",
+                                 "name":  "åºå­è°æ¨",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  15,
+                                 "skipped":  false,
+                                 "note":  ""
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531020005",
+                                 "name":  "ç©æµåè´§",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  15,
+                                 "skipped":  false,
+                                 "note":  ""
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531030001",
+                                 "name":  "ä¼åæ³¨å",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  14,
+                                 "skipped":  false,
+                                 "note":  ""
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531030002",
+                                 "name":  "ä¼ååçº§",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  14,
+                                 "skipped":  false,
+                                 "note":  ""
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531030003",
+                                 "name":  "ç§¯åç´¯è®¡",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  15,
+                                 "skipped":  false,
+                                 "note":  ""
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531030004",
+                                 "name":  "ç§¯åå\u0085æ¢",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  false,
+                                 "status":  500,
+                                 "ms":  2,
+                                 "skipped":  false,
+                                 "note":  "api-code-500"
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531030005",
+                                 "name":  "ä¼åå\u0085\u0085å¼",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  14,
+                                 "skipped":  false,
+                                 "note":  ""
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531030006",
+                                 "name":  "ç­çº§è®¡ç®",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  15,
+                                 "skipped":  false,
+                                 "note":  ""
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531040001",
+                                 "name":  "æ¯ä»åè°",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  14,
+                                 "skipped":  false,
+                                 "note":  ""
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531040002",
+                                 "name":  "è´¦åçæ",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  15,
+                                 "skipped":  false,
+                                 "note":  ""
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531040003",
+                                 "name":  "å¯¹è´¦å¤ç",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  15,
+                                 "skipped":  false,
+                                 "note":  ""
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531040004",
+                                 "name":  "åç¥¨å¼å\u0085·",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  false,
+                                 "status":  500,
+                                 "ms":  2,
+                                 "skipped":  false,
+                                 "note":  "api-code-500"
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531050001",
+                                 "name":  "ä¼æ å¸åæ¾",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  15,
+                                 "skipped":  false,
+                                 "note":  ""
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531050002",
+                                 "name":  "ä¼æ å¸æ ¸é",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  16,
+                                 "skipped":  false,
+                                 "note":  ""
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531050003",
+                                 "name":  "ç§ææ´»å¨",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  15,
+                                 "skipped":  false,
+                                 "note":  ""
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531050004",
+                                 "name":  "æ»¡åè®¡ç®",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  15,
+                                 "skipped":  false,
+                                 "note":  ""
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531060001",
+                                 "name":  "ç­ä¿¡åé",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  true,
+                                 "status":  200,
+                                 "ms":  15,
+                                 "skipped":  false,
+                                 "note":  ""
+                             },
+                             {
+                                 "sceneCode":  "SCN20260531060002",
+                                 "name":  "é®ä»¶éç¥",
+                                 "appCode":  "playground-app",
+                                 "path":  "/execute",
+                                 "ok":  false,
+                                 "status":  500,
+                                 "ms":  2,
+                                 "skipped":  false,
+                                 "note":  "api-code-500"
+                             },
+                             {
+                                 "sceneCode":  "SCN20260601000229",
+                                 "name":  "å®ååå¤ç",
+                                 "appCode":  "demo-app",
+                                 "path":  "http://localhost:8081/api/orders/handleApplyAfterSale",
+                                 "ok":  false,
+                                 "status":  200,
+                                 "ms":  13,
+                                 "skipped":  false,
+                                 "note":  "api-code-400"
+                             }
+                         ]
+}

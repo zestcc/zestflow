@@ -5,9 +5,9 @@ import com.zestflow.admin.playground.model.entity.PlaygroundScenePO;
 import com.zestflow.admin.playground.repository.PlaygroundRecordMapper;
 import com.zestflow.admin.playground.repository.PlaygroundSceneMapper;
 import com.zestflow.admin.client.ExecutorProxyService;
+import com.zestflow.admin.playground.support.PlaygroundAccessControl;
 import com.zestflow.admin.service.TenantAppContext;
 import org.junit.jupiter.api.BeforeEach;
-import org.springframework.web.client.RestTemplate;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -29,18 +29,16 @@ class PlaygroundServiceImplTest {
     @Mock private ExecutorProxyService proxyService;
     @Mock private PlaygroundRateLimiter rateLimiter;
     @Mock private TenantAppContext tenantAppContext;
-    @Mock private RestTemplate restTemplate;
+    @Mock private PlaygroundAccessControl accessControl;
 
     private PlaygroundServiceImpl playgroundService;
 
     @BeforeEach
     void setUp() {
         playgroundService = new PlaygroundServiceImpl(
-                sceneMapper, recordMapper, proxyService, rateLimiter, tenantAppContext, restTemplate);
-        org.springframework.test.util.ReflectionTestUtils.setField(playgroundService, "defaultAppCode", "playground-app");
+                sceneMapper, recordMapper, proxyService, rateLimiter,
+                tenantAppContext, accessControl);
     }
-
-    // ==================== executeScene ====================
 
     @Test
     void executeScene_shouldReturn404_whenSceneNotFound() {
@@ -78,8 +76,29 @@ class PlaygroundServiceImplTest {
 
         assertThat(result.get("code")).isEqualTo(200);
         assertThat(result.get("status")).isEqualTo(1);
-        assertThat(result.get("logId")).isNotNull();
         assertThat(result.get("instanceId")).isEqualTo("inst-001");
+    }
+
+    @Test
+    void executeScene_shouldProxyBusinessApiViaNetty() {
+        PlaygroundScenePO scene = createTestScene("SCN002");
+        scene.setRequestPath("/api/orders/handleApplyAfterSale");
+        scene.setRequestMethod("POST");
+        when(sceneMapper.selectOne(any())).thenReturn(scene);
+        when(rateLimiter.tryAcquire("SCN002", 30)).thenReturn(true);
+        when(tenantAppContext.getCurrentTenantId()).thenReturn(1L);
+        when(proxyService.executeOnExecutor(eq("playground-app"), eq("POST"),
+                eq("/api/orders/handleApplyAfterSale"), anyString()))
+                .thenReturn("{\"code\":200,\"data\":\"ok\"}");
+        doAnswer(invocation -> { ((PlaygroundRecordPO) invocation.getArgument(0)).setId(1L); return 1; })
+                .when(recordMapper).insert(any(PlaygroundRecordPO.class));
+
+        Map<String, Object> result = playgroundService.executeScene("SCN002", Map.of("orderId", "1"), "10.0.0.1");
+
+        assertThat(result.get("code")).isEqualTo(200);
+        assertThat(result.get("status")).isEqualTo(1);
+        verify(proxyService).executeOnExecutor(eq("playground-app"), eq("POST"),
+                eq("/api/orders/handleApplyAfterSale"), anyString());
     }
 
     @Test
@@ -95,12 +114,10 @@ class PlaygroundServiceImplTest {
 
         Map<String, Object> result = playgroundService.executeScene("SCN001", Map.of(), "10.0.0.1");
 
-        assertThat(result.get("code")).isEqualTo(200); // still 200 — we return partial success
-        assertThat(result.get("status")).isEqualTo(0); // failed
+        assertThat(result.get("code")).isEqualTo(200);
+        assertThat(result.get("status")).isEqualTo(0);
         assertThat(result.get("errorMsg")).toString().contains("连接超时");
     }
-
-    // ==================== getSceneInfo ====================
 
     @Test
     void getSceneInfo_shouldReturnVO_whenFound() {

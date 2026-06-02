@@ -2,72 +2,73 @@ package com.zestflow.test.component;
 
 import com.zestflow.executor.annotation.ZestComponent;
 import com.zestflow.executor.annotation.ZestExecute;
-import com.zestflow.executor.context.ChainContext;
+import com.zestflow.executor.annotation.ZestParam;
+import com.zestflow.test.component.model.logistics.LogisticsResults;
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.Map;
 
 @Slf4j
 @ZestComponent("logistics")
 public class LogisticsHandler {
 
-    @ZestExecute(value = "createDelivery", name = "创建发货单")
-    public Map<String, Object> createDelivery(ChainContext ctx) {
-        log.info("物流-创建发货单");
-        return Map.of("deliveryNo", "DEL" + System.currentTimeMillis(), "status", "PENDING");
+    @ZestExecute(value = "createDelivery", name = "创建配送单")
+    public LogisticsResults.CreateDeliveryResult createDelivery(
+            @ZestParam(value = "orderId", required = false) String orderId) {
+        log.info("物流-创建配送单 orderId={}", orderId);
+        return new LogisticsResults.CreateDeliveryResult("DLV" + System.currentTimeMillis(), "CREATED");
     }
 
     @ZestExecute(value = "assignCourier", name = "分配快递员")
-    public Map<String, Object> assignCourier(ChainContext ctx) {
+    public LogisticsResults.AssignCourierResult assignCourier() {
         log.info("物流-分配快递员");
-        return Map.of("courierId", 1001, "courierName", "李四");
+        return new LogisticsResults.AssignCourierResult("C001", "张三");
     }
 
     @ZestExecute(value = "printWaybill", name = "打印运单")
-    public Map<String, Object> printWaybill(ChainContext ctx) {
+    public LogisticsResults.PrintWaybillResult printWaybill() {
         log.info("物流-打印运单");
-        return Map.of("waybillNo", "SF" + System.currentTimeMillis(), "printed", true);
+        return new LogisticsResults.PrintWaybillResult("WB" + System.currentTimeMillis(), true);
     }
 
-    @ZestExecute(value = "pickupPackage", name = "揽件处理")
-    public Map<String, Object> pickupPackage(ChainContext ctx) {
-        log.info("物流-揽件");
-        return Map.of("result", "picked_up", "pickupTime", "2026-05-30 14:00:00");
+    @ZestExecute(value = "pickupPackage", name = "揽收包裹")
+    public LogisticsResults.PickupPackageResult pickupPackage() {
+        log.info("物流-揽收包裹");
+        return new LogisticsResults.PickupPackageResult("picked", "2026-05-30 14:00");
     }
 
-    @ZestExecute(value = "sortingCenter", name = "分拣中心处理")
-    public Map<String, Object> sortingCenter(ChainContext ctx) {
-        log.info("物流-分拣");
-        return Map.of("sortingNode", "华东分拣中心", "nextStop", "杭州中转站");
+    @ZestExecute(value = "sortingCenter", name = "分拣中心")
+    public LogisticsResults.SortingCenterResult sortingCenter() {
+        log.info("物流-分拣中心");
+        return new LogisticsResults.SortingCenterResult("上海分拣中心", "杭州转运");
     }
 
     @ZestExecute(value = "transportDispatch", name = "运输调度")
-    public Map<String, Object> transportDispatch(ChainContext ctx) {
+    public LogisticsResults.TransportDispatchResult transportDispatch() {
         log.info("物流-运输调度");
-        return Map.of("vehicleNo", "浙A-88888", "driver", "王五");
+        return new LogisticsResults.TransportDispatchResult("沪A12345", "李四");
     }
 
     @ZestExecute(value = "deliveryConfirm", name = "签收确认")
-    public Map<String, Object> deliveryConfirm(ChainContext ctx) {
+    public LogisticsResults.DeliveryConfirmResult deliveryConfirm() {
         log.info("物流-签收确认");
-        return Map.of("result", "delivered", "signer", "赵六");
+        return new LogisticsResults.DeliveryConfirmResult("signed", "王五");
     }
 
-    @ZestExecute(value = "returnProcess", name = "退货处理")
-    public Map<String, Object> returnProcess(ChainContext ctx) {
+    @ZestExecute(value = "returnProcess", name = "退货物流")
+    public LogisticsResults.ReturnProcessResult returnProcess() {
         log.info("物流-退货处理");
-        return Map.of("returnNo", "RET" + System.currentTimeMillis(), "status", "IN_TRANSIT");
+        return new LogisticsResults.ReturnProcessResult("RET" + System.currentTimeMillis(), "IN_TRANSIT");
     }
 
-    @ZestExecute(value = "queryLogistics", name = "物流轨迹查询")
-    public Map<String, Object> queryLogistics(ChainContext ctx) {
-        log.info("物流-轨迹查询");
-        return Map.of("currentNode", "杭州中转站", "nextNode", "派送中");
+    @ZestExecute(value = "queryLogistics", name = "物流查询")
+    public LogisticsResults.QueryLogisticsResult queryLogistics(
+            @ZestParam(value = "orderId", required = false) String orderId) {
+        log.info("物流-轨迹查询 orderId={}", orderId);
+        return new LogisticsResults.QueryLogisticsResult("上海转运中心", "杭州配送站");
     }
 
     @ZestExecute(value = "evaluateDelivery", name = "配送评价")
-    public Map<String, Object> evaluateDelivery(ChainContext ctx) {
+    public LogisticsResults.EvaluateDeliveryResult evaluateDelivery() {
         log.info("物流-配送评价");
-        return Map.of("rating", 5, "feedback", "服务很好");
+        return new LogisticsResults.EvaluateDeliveryResult(5, "配送及时");
     }
 }
