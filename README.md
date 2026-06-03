@@ -18,6 +18,8 @@
 
 Maven Central：[cn.zestflow.www](https://central.sonatype.com/namespace/cn.zestflow.www)
 
+变更记录：[CHANGELOG.md](CHANGELOG.md)
+
 发布验证：`powershell -File scripts/maven/verify-release.ps1`（需 JDK 17）  
 正式发布：`powershell -File scripts/maven/publish-central.ps1`（需 GPG 私钥 + Sonatype Token，见 [docs/RELEASE_READINESS.md](docs/RELEASE_READINESS.md) §8）
 

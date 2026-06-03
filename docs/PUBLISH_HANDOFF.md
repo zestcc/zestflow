@@ -160,4 +160,4 @@ mvn clean deploy -Prelease -DskipTests
 
 ## 六、发版后开发版本建议
 
-首发成功后下一开发迭代可改为 `1.0.1-SNAPSHOT`（另开 commit，非本次必须）。
+首发成功后下一开发迭代可改为 `0.1.1-SNAPSHOT`（另开 commit，非本次必须）。

@@ -2,12 +2,12 @@
 
 | 项目 | 内容 |
 |------|------|
-| 版本 | V1.0-SNAPSHOT |
+| 版本 | 0.1.0 |
 | 测试日期 | 2026-06-02 |
 | 类型 | 黑盒全流程 + 配置矩阵说明 + 多租户探测 |
 | 自动化脚本 | `scripts/blackbox/run-full-e2e.ps1`（全量试验场）、`scripts/blackbox/run-blackbox.ps1`（快速冒烟） |
 | 详细黑盒报告 | [BLACKBOX_TEST_REPORT.md](./BLACKBOX_TEST_REPORT.md) |
-| 最新结果样例 | `scripts/blackbox/results/full-e2e-20260602-162151.json`、`blackbox-20260602-162214.json` |
+| 最新结果样例 | 本地运行后生成于 `scripts/blackbox/results/`（不入库） |
 
 ---
 
@@ -16,7 +16,7 @@
 在**真实运行进程**（Admin + executor-test + Collector）上验证：
 
 1. **主链路**：登录 → 各管理模块 API → Executor Netty 健康/业务 API → Collector 健康 → 日志查询  
-2. **试验场**：33 个场景批量 `execute`（Admin → Executor Netty → 链或 MVC 转发，**禁止直连 Tomcat 8081**）  
+2. **试验场**：38 个场景批量 `execute`（Admin → Executor Netty → 链或 MVC 转发，**禁止直连 Tomcat 8081**）  
 3. **多租户**：租户列表、切换租户、租户 CRUD 列表（单租户模式下 API 仍应可用）  
 4. **安全配置矩阵**：JWT 缺失/伪造、Registry Token 开发放行等（**需重启**的开关见第 4 节）  
 5. **配置开/关**：运行时探测 + 文档化重启验证步骤  
@@ -81,7 +81,7 @@ powershell -File .\scripts\blackbox\run-full-e2e.ps1 -E2eProfile fullGreen -Scen
 - 路径规范：仅 `/execute` 或 `/api/**`；历史库若存 `http://localhost:8081/api/...`，`PlaygroundServiceImpl.normalizeRequestPath` 会自动截取为相对路径  
 - 成功判定：HTTP 200 且 `Result.data.status == 1`（业务执行成功）  
 
-完整 33 场景分类见 [BLACKBOX_TEST_REPORT.md §5](./BLACKBOX_TEST_REPORT.md)。
+完整 38 场景分类见 [BLACKBOX_TEST_REPORT.md §5](./BLACKBOX_TEST_REPORT.md)。
 
 ### 3.3 单元测试（编译期）
 
@@ -221,7 +221,7 @@ zestflow:
 
 - [ ] Admin :8080、Netty :20550、Collector :20650 进程存活  
 - [ ] `mvn test -pl zestflow-admin,zestflow-executor -am` 通过  
-- [ ] `run-full-e2e.ps1` Functional 全绿、试验场 32/32（或 33 含 heavy）  
+- [ ] `run-full-e2e.ps1` Functional 32/32 全绿、试验场 38/38（fullGreen）  
 - [ ] `run-blackbox.ps1` 冒烟 + 可选 QPS  
 - [ ] （可选）playground.enabled=false 重启验证 404  
 - [ ] （可选）registry-token + executor access-token 成对验证 401  

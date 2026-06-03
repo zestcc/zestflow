@@ -90,3 +90,7 @@ uploads/
 *.tmp
 *.bak
 *.orig
+
+# ====== 本地测试产物 / 截图 ======
+/Snipaste_*.png
+scripts/blackbox/results/*.json

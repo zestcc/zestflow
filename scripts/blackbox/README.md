@@ -20,7 +20,7 @@
 | `run-tenant-multi-e2e.ps1` | 多租户 JWT 隔离（需 `enterprise-e2e` profile） |
 | `run-ip-demo-e2e.ps1` | IP → 租户隔离（需 `multi` + `ip-demo-mode=enabled`） |
 
-结果 JSON：`results/blackbox-*.json`、`results/full-e2e-*.json`。
+结果 JSON：本地写入 `results/`（`*.json` 已 gitignore，不入库）。
 
 ## 运行前提
 
