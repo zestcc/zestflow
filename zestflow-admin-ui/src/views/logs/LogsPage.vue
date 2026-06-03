@@ -41,7 +41,7 @@
         <template #default="{ row }">
           <span
             v-if="resolveChainCode(row)"
-            class="chain-code-link"
+            class="code-link"
             @click.stop="openChainDetail(resolveChainCode(row)!, row.appCode)"
           >{{ resolveChainCode(row) }}</span>
           <span v-else>-</span>
@@ -122,7 +122,7 @@
           <el-descriptions-item :label="$t('logs.chainCode')">
             <span
               v-if="resolveChainCode(traceDetail)"
-              class="chain-code-link"
+              class="code-link"
               @click="openChainDetail(resolveChainCode(traceDetail)!, traceDetail.appCode)"
             >{{ resolveChainCode(traceDetail) }}</span>
             <span v-else>-</span>
@@ -195,36 +195,7 @@
       <div ref="fullscreenContainer" style="width:100%;height:calc(100vh - 160px);border-radius:6px;background:#fafafa" />
     </el-dialog>
 
-    <!-- 链详情抽屉 -->
-    <el-drawer v-model="chainDrawerVisible" :title="$t('chains.chainDetails')" :size="480" destroy-on-close>
-      <div v-if="chainDetailLoading" style="text-align:center;padding:40px">
-        <el-icon class="is-loading" :size="24"><Loading /></el-icon>
-      </div>
-      <template v-else-if="currentChainDetail">
-        <div style="padding:0 8px">
-          <div style="font-size:20px;font-weight:600;color:#303133;margin-bottom:12px">{{ currentChainDetail.name }}</div>
-          <el-descriptions :column="1" border size="small">
-            <el-descriptions-item :label="$t('logs.chainCode')">
-              <el-tag size="small" style="font-family:monospace">{{ currentChainDetail.code }}</el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item :label="$t('common.status')">
-              <el-tag :type="currentChainDetail.status === 1 ? 'success' : 'danger'" size="small">
-                {{ currentChainDetail.status === 1 ? $t('chains.enabled') : $t('chains.disabled') }}
-              </el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item :label="$t('chains.app')">
-              {{ currentChainDetail.appCode || '-' }}
-            </el-descriptions-item>
-            <el-descriptions-item :label="$t('chains.description')">
-              {{ currentChainDetail.description || '-' }}
-            </el-descriptions-item>
-            <el-descriptions-item :label="$t('common.createdBy')">{{ currentChainDetail.createdBy || '-' }}</el-descriptions-item>
-            <el-descriptions-item :label="$t('chains.createdAt')">{{ currentChainDetail.createdAt?.replace('T', ' ') }}</el-descriptions-item>
-          </el-descriptions>
-        </div>
-      </template>
-      <el-empty v-else :description="$t('common.requestFailed')" />
-    </el-drawer>
+    <ChainDetailDrawer ref="chainDetailDrawerRef" />
   </div>
 </template>
 
@@ -239,6 +210,7 @@ import type { EventQueryParams, ExecutionTrace } from '@/api/logs'
 import { queryExecutionTraces, getExecutionTrace, getSnapshot } from '@/api/logs'
 import { executorApi, type AppOption } from '@/api/executor'
 import { chainApi, type ChainVO } from '@/api/chain'
+import ChainDetailDrawer from '@/components/ChainDetailDrawer.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -290,9 +262,7 @@ const fullscreenContainer = ref<HTMLElement | null>(null)
 const fullscreenGraph = ref<Graph | null>(null)
 
 // 链详情抽屉
-const chainDrawerVisible = ref(false)
-const chainDetailLoading = ref(false)
-const currentChainDetail = ref<ChainVO | null>(null)
+const chainDetailDrawerRef = ref<InstanceType<typeof ChainDetailDrawer> | null>(null)
 const chainNameCache = ref<Record<string, string>>({})
 
 function resolveChainCode(row: ExecutionTrace | null | undefined): string | undefined {
@@ -334,18 +304,12 @@ async function enrichChainNames(rows: ExecutionTrace[]) {
 async function openChainDetail(chainCode: string, appCode?: string) {
   const resolvedAppCode = appCode || currentAppCode.value
   if (!resolvedAppCode) return
-  chainDrawerVisible.value = true
-  chainDetailLoading.value = true
-  currentChainDetail.value = null
-  try {
-    currentChainDetail.value = await chainApi.getByCode(chainCode, resolvedAppCode)
-    if (currentChainDetail.value?.name) {
-      chainNameCache.value[chainCode] = currentChainDetail.value.name
-    }
-  } catch {
-    currentChainDetail.value = null
-  } finally {
-    chainDetailLoading.value = false
+  chainDetailDrawerRef.value?.open(chainCode, resolvedAppCode)
+  if (!chainNameCache.value[chainCode]) {
+    try {
+      const chain = await chainApi.getByCode(chainCode, resolvedAppCode)
+      if (chain?.name) chainNameCache.value[chainCode] = chain.name
+    } catch { /* ignore */ }
   }
 }
 
@@ -787,17 +751,6 @@ function destroyFullscreenGraph() {
   display: flex; align-items: center; font-size: 14px;
 }
 .action-btn.action-btn { padding: 2px 4px; margin-left: 0; }
-.chain-code-link {
-  color: #409eff;
-  cursor: pointer;
-  font-family: monospace;
-  font-weight: 600;
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.chain-code-link:hover { text-decoration: underline; }
 
 /* X6 执行状态图 */
 .execution-graph {

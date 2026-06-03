@@ -28,9 +28,12 @@
       >
         <el-table-column prop="sceneCode" :label="$t('playground.scenes.sceneCode')" width="180" show-overflow-tooltip>
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="openDetailDrawer(row)">
-              {{ row.sceneCode }}
-            </el-button>
+            <span
+              v-if="row.sceneCode"
+              class="code-link"
+              @click.stop="openDetailDrawer(row)"
+            >{{ row.sceneCode }}</span>
+            <span v-else>-</span>
           </template>
         </el-table-column>
         <el-table-column prop="name" :label="$t('playground.scenes.name')" min-width="140" show-overflow-tooltip />

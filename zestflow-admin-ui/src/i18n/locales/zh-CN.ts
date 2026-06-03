@@ -487,6 +487,7 @@ export default {
     saveGraph: '保存',
     saveGraphSuccess: '流程图保存成功',
     designEditor: '设计编辑器',
+    detail: '设计详情',
     back: '返回列表',
     paramResolver: '参数解析器',
     startNode: '开始',

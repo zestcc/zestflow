@@ -486,6 +486,7 @@ export default {
     saveGraph: 'Save',
     saveGraphSuccess: 'Graph saved successfully',
     designEditor: 'Design Editor',
+    detail: 'Design Detail',
     back: 'Back to List',
     paramResolver: 'Parameter Resolver',
     startNode: 'Start',

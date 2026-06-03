@@ -1,1 +1,0 @@
-import{aa as e}from"./index-DxdFjD5K.js";function o(t){return e.post("/logs/executions",t)}function a(t){return e.get(`/logs/executions/${t}`)}function r(t,n){return e.get("/logs/snapshots",{params:{chainCode:t,timestamp:n}})}export{r as a,a as g,o as q};
