@@ -38,9 +38,37 @@
         :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"
         @row-click="openDetailDrawer"
       >
-        <el-table-column prop="sceneCode" :label="$t('playground.records.sceneCode')" width="180" show-overflow-tooltip />
+        <el-table-column :label="$t('playground.records.sceneCode')" width="180" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span
+              v-if="row.sceneCode"
+              class="code-link"
+              @click.stop="goToSceneDetail(row.sceneCode)"
+            >{{ row.sceneCode }}</span>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="sceneName" :label="$t('playground.records.sceneName')" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="chainCode" :label="$t('playground.records.chainCode')" width="180" show-overflow-tooltip />
+        <el-table-column :label="$t('playground.records.executionChainCode')" width="180" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span
+              v-if="row.chainCode"
+              class="code-link"
+              @click.stop="openChainDetail(row.chainCode)"
+            >{{ row.chainCode }}</span>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+        <el-table-column :label="$t('playground.records.logCode')" width="200" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span
+              v-if="row.instanceId"
+              class="code-link"
+              @click.stop="goToLogDetail(row.instanceId)"
+            >{{ row.instanceId }}</span>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
         <el-table-column :label="$t('playground.records.status')" width="100">
           <template #default="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
@@ -82,16 +110,31 @@
       <template v-if="detailData">
         <el-descriptions :column="1" border size="small">
           <el-descriptions-item :label="$t('playground.records.sceneCode')">
-            {{ detailData.sceneCode || '-' }}
+            <span
+              v-if="detailData.sceneCode"
+              class="code-link"
+              @click="goToSceneDetail(detailData.sceneCode)"
+            >{{ detailData.sceneCode }}</span>
+            <span v-else>-</span>
           </el-descriptions-item>
           <el-descriptions-item :label="$t('playground.records.sceneName')">
             {{ detailData.sceneName || '-' }}
           </el-descriptions-item>
-          <el-descriptions-item :label="$t('playground.records.chainCode')">
-            {{ detailData.chainCode || '-' }}
+          <el-descriptions-item :label="$t('playground.records.executionChainCode')">
+            <span
+              v-if="detailData.chainCode"
+              class="code-link"
+              @click="openChainDetail(detailData.chainCode)"
+            >{{ detailData.chainCode }}</span>
+            <span v-else>-</span>
           </el-descriptions-item>
-          <el-descriptions-item :label="$t('playground.records.instanceId')">
-            {{ detailData.instanceId || '-' }}
+          <el-descriptions-item :label="$t('playground.records.logCode')">
+            <span
+              v-if="detailData.instanceId"
+              class="code-link"
+              @click="goToLogDetail(detailData.instanceId)"
+            >{{ detailData.instanceId }}</span>
+            <span v-else>-</span>
           </el-descriptions-item>
           <el-descriptions-item :label="$t('playground.records.requestMethod')">
             {{ detailData.requestMethod || '-' }}
@@ -134,16 +177,23 @@
         </el-descriptions>
       </template>
     </el-drawer>
+
+    <ChainDetailDrawer ref="chainDetailDrawerRef" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import ChainDetailDrawer from '@/components/ChainDetailDrawer.vue'
 import { executorApi, type AppOption } from '@/api/executor'
 import { queryRecordPage, getRecordById, type PlaygroundRecordVO, type PlaygroundRecordQueryDTO } from '@/api/playground-record'
 
 const { t } = useI18n()
+const router = useRouter()
+
+const chainDetailDrawerRef = ref<InstanceType<typeof ChainDetailDrawer> | null>(null)
 
 const loading = ref(false)
 const recordList = ref<PlaygroundRecordVO[]>([])
@@ -168,6 +218,27 @@ const timeShortcuts = [
 // Detail drawer
 const detailVisible = ref(false)
 const detailData = ref<PlaygroundRecordVO | null>(null)
+
+function goToSceneDetail(sceneCode: string) {
+  if (!sceneCode) return
+  router.push({
+    name: 'PlaygroundScenes',
+    query: {
+      sceneCode,
+      ...(currentAppCode.value ? { appCode: currentAppCode.value } : {}),
+    },
+  })
+}
+
+function goToLogDetail(executionId: string) {
+  if (!executionId) return
+  router.push({ name: 'Logs', query: { executionId } })
+}
+
+function openChainDetail(chainCode: string) {
+  if (!chainCode || !currentAppCode.value) return
+  chainDetailDrawerRef.value?.open(chainCode, currentAppCode.value)
+}
 
 async function loadApps() {
   try {
