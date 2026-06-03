@@ -170,7 +170,7 @@ public class PlaygroundServiceImpl implements PlaygroundService {
 
                 resultJson = MAPPER.writeValueAsString(resultNode);
 
-                instanceId = resultNode.has("instanceId") ? resultNode.get("instanceId").asText() : "";
+                instanceId = extractExecutionId(resultJson);
 
                 status = resultNode.has("status") && resultNode.get("status").asInt() >= 4 ? 1 : 0;
 
@@ -218,6 +218,10 @@ public class PlaygroundServiceImpl implements PlaygroundService {
 
         long costMs = System.currentTimeMillis() - startTime;
 
+        if (instanceId == null || instanceId.isBlank()) {
+            instanceId = extractExecutionId(resultJson);
+        }
+
         saveRecord(scene, params, requestIp, resultJson, instanceId, status, costMs, errorMsg);
 
 
@@ -236,7 +240,11 @@ public class PlaygroundServiceImpl implements PlaygroundService {
 
         result.put("sceneName", scene.getName());
 
-        result.put("tip", "执行完成，请前往 Admin 日志页查看完整链路");
+        if (instanceId != null && !instanceId.isEmpty()) {
+            result.put("tip", "执行完成，可点击「查看日志」查看完整链路");
+        } else {
+            result.put("tip", status == 1 ? "执行成功" : "执行失败");
+        }
 
         if (instanceId != null && !instanceId.isEmpty()) {
 
@@ -329,6 +337,44 @@ public class PlaygroundServiceImpl implements PlaygroundService {
     }
 
 
+
+    /** 从 Executor 响应中提取链实例 ID（兼容 instanceId / executionId / orderId） */
+    private static String extractExecutionId(String resultJson) {
+        if (resultJson == null || resultJson.isBlank()) {
+            return null;
+        }
+        try {
+            return extractExecutionId(MAPPER.readTree(resultJson));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static String extractExecutionId(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        String id = firstNonBlankText(node, "instanceId", "executionId", "orderId");
+        if (id != null) {
+            return id;
+        }
+        if (node.has("data") && node.get("data").isObject()) {
+            return firstNonBlankText(node.get("data"), "instanceId", "executionId", "orderId");
+        }
+        return null;
+    }
+
+    private static String firstNonBlankText(JsonNode node, String... fields) {
+        for (String field : fields) {
+            if (node.has(field) && node.get(field).isValueNode()) {
+                String text = node.get(field).asText("");
+                if (!text.isBlank()) {
+                    return text;
+                }
+            }
+        }
+        return null;
+    }
 
     private static int parseBusinessStatus(String resultJson) {
 

@@ -230,6 +230,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, nextTick, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Loading, FullScreen, Download } from '@element-plus/icons-vue'
 import { Graph } from '@antv/x6'
@@ -240,6 +241,7 @@ import { executorApi, type AppOption } from '@/api/executor'
 import { chainApi, type ChainVO } from '@/api/chain'
 
 const { t } = useI18n()
+const route = useRoute()
 
 const query = reactive<EventQueryParams>({
   executionId: undefined,
@@ -449,7 +451,20 @@ async function showDetail(row: ExecutionTrace) {
 
 onMounted(async () => {
   await fetchApps()
+  const executionId = typeof route.query.executionId === 'string' ? route.query.executionId.trim() : ''
+  const appCode = typeof route.query.appCode === 'string' ? route.query.appCode.trim() : ''
+  if (appCode) {
+    currentAppCode.value = appCode
+    query.appCode = appCode
+  }
+  if (executionId) {
+    query.executionId = executionId
+  }
   await fetchList()
+  if (executionId) {
+    const row = list.value.find(r => r.executionId === executionId)
+    await showDetail(row ?? { executionId, appCode: currentAppCode.value || appCode } as ExecutionTrace)
+  }
 })
 
 onUnmounted(() => {

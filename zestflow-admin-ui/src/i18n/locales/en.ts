@@ -781,6 +781,13 @@ export default {
       loadedToForm: 'Loaded to request panel',
       invalidJson: 'Invalid JSON',
       copied: 'Copied',
+      executeSuccessTitle: 'Execution Succeeded',
+      executeSuccessTip: 'Cost {costMs}ms',
+      executeSuccessWithLog: 'Cost {costMs}ms, execution ID {executionId}. Click "View Logs" for trace details.',
+      executeFailTitle: 'Execution Failed',
+      executeFailTip: '{errorMsg}',
+      executeFailGeneric: 'Please check request params or scene configuration',
+      noExecutionId: 'No trace log available. Ensure the scene triggers chain execution.',
     },
   },
   collectors: {

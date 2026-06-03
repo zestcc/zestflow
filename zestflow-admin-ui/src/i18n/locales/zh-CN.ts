@@ -782,6 +782,13 @@ export default {
       loadedToForm: '已填入请求面板',
       invalidJson: 'JSON 格式不正确',
       copied: '已复制',
+      executeSuccessTitle: '执行成功',
+      executeSuccessTip: '耗时 {costMs}ms',
+      executeSuccessWithLog: '耗时 {costMs}ms，执行链编码 {executionId}，可点击「查看日志」查看链路详情',
+      executeFailTitle: '执行失败',
+      executeFailTip: '{errorMsg}',
+      executeFailGeneric: '请检查请求参数或场景配置',
+      noExecutionId: '暂无链路日志，请确认场景已触发链执行',
     },
   },
   collectors: {

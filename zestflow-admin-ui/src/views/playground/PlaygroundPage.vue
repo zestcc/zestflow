@@ -221,7 +221,7 @@
           <div class="pg-block-body" v-if="lastResult">
             <pre class="pg-response-body"><code>{{ formatResponseBody }}</code></pre>
             <div class="pg-response-actions">
-              <el-button size="small" :icon="Link" @click="goToLogs(lastResult.instanceId)" :disabled="!lastResult.instanceId">
+              <el-button size="small" :icon="Link" @click="goToLogs()" :disabled="!currentExecutionId">
                 {{ $t('playground.playground.viewLogs') }}
               </el-button>
               <el-button size="small" :icon="CopyDocument" @click="copyResponse">
@@ -245,7 +245,7 @@
               </div>
               <div class="pg-detail-item">
                 <label>{{ $t('playground.playground.instanceId') }}:</label>
-                <el-button size="small" link @click="goToLogs(historyDetail.instanceId)">
+                <el-button size="small" link :disabled="!historyDetail.instanceId" @click="goToLogs(historyDetail.instanceId)">
                   {{ historyDetail.instanceId || '-' }}
                 </el-button>
               </div>
@@ -275,7 +275,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElNotification } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import {
   Connection, VideoPlay, Plus, Delete, ArrowRight, InfoFilled,
@@ -287,6 +287,7 @@ import {
   type PlaygroundExecuteResult, type PlaygroundRecordVO,
 } from '@/api/playground'
 import { executorApi, type AppOption } from '@/api/executor'
+import { goToLogDetail } from '@/utils/zestflow-nav'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -353,6 +354,51 @@ const executing = ref(false)
 const lastResult = ref<PlaygroundExecuteResult | null>(null)
 const executeError = ref('')
 
+function resolveExecutionId(result: PlaygroundExecuteResult | null | undefined): string {
+  if (!result) return ''
+  if (result.instanceId?.trim()) return result.instanceId.trim()
+  const nested = result.result
+  if (!nested || typeof nested !== 'object') return ''
+  const root = nested as Record<string, unknown>
+  for (const key of ['instanceId', 'executionId', 'orderId']) {
+    const val = root[key]
+    if (typeof val === 'string' && val.trim()) return val.trim()
+  }
+  const data = root.data
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    const dataObj = data as Record<string, unknown>
+    for (const key of ['instanceId', 'executionId', 'orderId']) {
+      const val = dataObj[key]
+      if (typeof val === 'string' && val.trim()) return val.trim()
+    }
+  }
+  return ''
+}
+
+const currentExecutionId = computed(() => resolveExecutionId(lastResult.value))
+
+function notifyExecuteResult(result: PlaygroundExecuteResult) {
+  const executionId = resolveExecutionId(result)
+  const costMs = result.costMs ?? 0
+  if (result.status === 1) {
+    ElNotification.success({
+      title: t('playground.playground.executeSuccessTitle'),
+      message: executionId
+        ? t('playground.playground.executeSuccessWithLog', { costMs, executionId })
+        : t('playground.playground.executeSuccessTip', { costMs }),
+      duration: 5000,
+    })
+  } else {
+    ElNotification.warning({
+      title: t('playground.playground.executeFailTitle'),
+      message: result.errorMsg
+        ? t('playground.playground.executeFailTip', { errorMsg: result.errorMsg })
+        : t('playground.playground.executeFailGeneric'),
+      duration: 6000,
+    })
+  }
+}
+
 async function handleExecute() {
   if (!selectedSceneCode.value) return
   executing.value = true
@@ -379,7 +425,8 @@ async function handleExecute() {
     }
 
     const res: any = await executePlaygroundScene(selectedSceneCode.value, params)
-    lastResult.value = res.data || res
+    lastResult.value = res
+    notifyExecuteResult(res)
     await loadHistory()
   } catch (e: any) {
     executeError.value = e.message || t('common.networkError')
@@ -421,10 +468,13 @@ function copyResponse() {
   ElMessage.success(t('playground.playground.copied'))
 }
 
-function goToLogs(instanceId: string) {
-  if (instanceId) {
-    router.push({ name: 'Logs', query: { executionId: instanceId } })
+function goToLogs(instanceId?: string | null) {
+  const id = instanceId?.trim() || currentExecutionId.value
+  if (!id) {
+    ElMessage.warning(t('playground.playground.noExecutionId'))
+    return
   }
+  goToLogDetail(router, id, currentAppCode.value)
 }
 
 // === 场景切换 ===

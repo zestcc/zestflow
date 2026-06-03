@@ -93,6 +93,27 @@ class PlaygroundServiceImplTest {
     }
 
     @Test
+    void executeScene_shouldExtractOrderIdFromBusinessApiResponse() {
+        PlaygroundScenePO scene = createTestScene("SCN003");
+        scene.setRequestPath("/api/orders/handleApplyAfterSale");
+        scene.setRequestMethod("POST");
+        when(sceneMapper.selectOne(any())).thenReturn(scene);
+        when(rateLimiter.tryAcquire("SCN003", 30)).thenReturn(true);
+        when(tenantAppContext.getCurrentTenantId()).thenReturn(1L);
+        when(proxyService.executeOnExecutor(eq("playground-app"), eq("POST"),
+                eq("/api/orders/handleApplyAfterSale"), anyString()))
+                .thenReturn("{\"code\":200,\"data\":{\"orderId\":\"exec-abc123\",\"status\":\"SUCCESS\",\"costMs\":120}}");
+        doAnswer(invocation -> { ((PlaygroundRecordPO) invocation.getArgument(0)).setId(1L); return 1; })
+                .when(recordMapper).insert(any(PlaygroundRecordPO.class));
+
+        Map<String, Object> result = playgroundService.executeScene("SCN003", Map.of("applyId", "1"), "10.0.0.1");
+
+        assertThat(result.get("code")).isEqualTo(200);
+        assertThat(result.get("status")).isEqualTo(1);
+        assertThat(result.get("instanceId")).isEqualTo("exec-abc123");
+    }
+
+    @Test
     void executeScene_shouldProxyBusinessApiViaNetty() {
         PlaygroundScenePO scene = createTestScene("SCN002");
         scene.setRequestPath("/api/orders/handleApplyAfterSale");
