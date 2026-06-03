@@ -12,11 +12,7 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.env.Environment;
 
-import java.net.Inet4Address;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -167,7 +163,7 @@ public class ExecutorRegistrar implements ApplicationRunner {
         String appName = properties.getAppName() != null ? properties.getAppName() : appCode;
         return RegisterDTO.builder()
                 .executorId(executorId)
-                .host(resolveHost())
+                .host(properties.getHost())
                 .port(executorServer.getPort())
                 .appCode(appCode)
                 .appName(appName)
@@ -206,31 +202,10 @@ public class ExecutorRegistrar implements ApplicationRunner {
         return "default";
     }
 
-    private String resolveHost() {
-        if (properties.getHost() != null && !properties.getHost().isEmpty()) {
-            return properties.getHost();
-        }
-        try {
-            for (NetworkInterface ni : Collections.list(NetworkInterface.getNetworkInterfaces())) {
-                if (ni.isLoopback() || !ni.isUp()) continue;
-                for (InetAddress addr : Collections.list(ni.getInetAddresses())) {
-                    if (addr instanceof Inet4Address && !addr.isLoopbackAddress()) {
-                        return addr.getHostAddress();
-                    }
-                }
-            }
-            InetAddress local = InetAddress.getLocalHost();
-            return local.getHostAddress();
-        } catch (Exception e) {
-            log.warn("无法获取本机 IP，使用 127.0.0.1", e);
-            return "127.0.0.1";
-        }
-    }
-
     private void initExecutorId() {
         this.executorId = String.format("%s@%s:%d",
                 resolveAppCode(),
-                resolveHost(),
+                properties.getHost(),
                 executorServer.getPort());
     }
 }

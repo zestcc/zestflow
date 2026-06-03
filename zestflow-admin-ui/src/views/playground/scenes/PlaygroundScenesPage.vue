@@ -42,7 +42,16 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="chainCode" :label="$t('playground.scenes.chainCode')" width="180" show-overflow-tooltip />
+        <el-table-column :label="$t('playground.scenes.executionChainCode')" width="180" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span
+              v-if="row.chainCode"
+              class="code-link"
+              @click.stop="openChainDetail(row.chainCode, row.appCode)"
+            >{{ row.chainCode }}</span>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="rateLimit" :label="$t('playground.scenes.rateLimit')" width="100" />
         <el-table-column :label="$t('common.actions')" width="130" fixed="right">
           <template #default="{ row }">
@@ -261,7 +270,14 @@
           <el-descriptions-item :label="$t('playground.scenes.description')">{{ detailData.description || '-' }}</el-descriptions-item>
           <el-descriptions-item :label="$t('playground.scenes.requestPath')">{{ detailData.requestPath }}</el-descriptions-item>
           <el-descriptions-item :label="$t('playground.scenes.requestMethod')">{{ detailData.requestMethod }}</el-descriptions-item>
-          <el-descriptions-item :label="$t('playground.scenes.chainCode')">{{ detailData.chainCode }}</el-descriptions-item>
+          <el-descriptions-item :label="$t('playground.scenes.executionChainCode')">
+            <span
+              v-if="detailData.chainCode"
+              class="code-link"
+              @click="openChainDetail(detailData.chainCode)"
+            >{{ detailData.chainCode }}</span>
+            <span v-else>-</span>
+          </el-descriptions-item>
           <el-descriptions-item :label="$t('playground.scenes.rateLimit')">{{ detailData.rateLimit }}</el-descriptions-item>
           <el-descriptions-item :label="$t('playground.scenes.bodyType')">{{ detailData.bodyType }}</el-descriptions-item>
           <el-descriptions-item :label="$t('playground.scenes.requestHeaders')">
@@ -280,23 +296,30 @@
         </el-descriptions>
       </template>
     </el-drawer>
+
+    <ChainDetailDrawer ref="chainDetailDrawerRef" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
+import ChainDetailDrawer from '@/components/ChainDetailDrawer.vue'
 import { executorApi, type AppOption } from '@/api/executor'
 import { chainApi, type ChainVO } from '@/api/chain'
 import {
-  queryPlaygroundScenePage, getPlaygroundSceneById, createPlaygroundScene, updatePlaygroundScene, deletePlaygroundScene,
+  queryPlaygroundScenePage, getPlaygroundSceneById, getPlaygroundSceneByCode, createPlaygroundScene, updatePlaygroundScene, deletePlaygroundScene,
   getAvailableEndpoints, getEndpointClasses,
   type PlaygroundSceneVO, type PlaygroundSceneCreateDTO, type PlaygroundSceneUpdateDTO,
   type AvailableEndpoint,
 } from '@/api/playground-scene'
 
 const { t } = useI18n()
+const route = useRoute()
+
+const chainDetailDrawerRef = ref<InstanceType<typeof ChainDetailDrawer> | null>(null)
 
 const loading = ref(false)
 const sceneList = ref<PlaygroundSceneVO[]>([])
@@ -543,6 +566,23 @@ async function openDetailDrawer(row: PlaygroundSceneVO) {
   }
 }
 
+async function openDetailBySceneCode(sceneCode: string) {
+  detailVisible.value = true
+  detailData.value = null
+  try {
+    const res: any = await getPlaygroundSceneByCode(sceneCode)
+    detailData.value = res.data || res
+  } catch {
+    detailVisible.value = false
+  }
+}
+
+function openChainDetail(chainCode: string, appCode?: string) {
+  const resolvedAppCode = appCode || detailData.value?.appCode || currentAppCode.value
+  if (!resolvedAppCode) return
+  chainDetailDrawerRef.value?.open(chainCode, resolvedAppCode)
+}
+
 function formatJson(str: string | null | undefined): string {
   if (!str) return '-'
   try {
@@ -572,7 +612,18 @@ function extractFieldsFromBody(body: string | null | undefined): string {
   return names.length > 0 ? names.join(', ') : '-'
 }
 
-onMounted(async () => { await loadApps(); loadData() })
+onMounted(async () => {
+  await loadApps()
+  const appCodeFromQuery = route.query.appCode as string | undefined
+  if (appCodeFromQuery) {
+    currentAppCode.value = appCodeFromQuery
+  }
+  await loadData()
+  const sceneCodeFromQuery = route.query.sceneCode as string | undefined
+  if (sceneCodeFromQuery) {
+    await openDetailBySceneCode(sceneCodeFromQuery)
+  }
+})
 </script>
 
 <style scoped>

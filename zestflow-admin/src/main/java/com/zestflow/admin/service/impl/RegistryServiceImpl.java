@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -30,40 +31,65 @@ public class RegistryServiceImpl implements RegistryService {
     @Transactional(rollbackFor = Exception.class)
     public void register(RegisterDTO dto, Long tenantId) {
         ExecutorRegistryPO existing = findById(dto.getExecutorId());
-
         if (existing != null) {
-            existing.setExecutorHost(dto.getHost());
-            existing.setExecutorPort(dto.getPort());
-            existing.setStatus(RegistryConstants.STATUS_ONLINE);
-            existing.setLastHeartbeat(LocalDateTime.now());
-            if (dto.getAppName() != null) existing.setAppName(dto.getAppName());
-            if (dto.getAppCode() != null) existing.setAppCode(dto.getAppCode());
-            syncComponentDict(dto);
-            executorRegistryMapper.updateById(existing);
-            log.info("执行器重新注册 executorId={} host={}:{}", dto.getExecutorId(), dto.getHost(), dto.getPort());
-        } else {
-            ExecutorRegistryPO po = new ExecutorRegistryPO();
-            po.setExecutorId(dto.getExecutorId());
-            po.setAppCode(dto.getAppCode());
-            po.setAppName(dto.getAppName());
-            po.setExecutorHost(dto.getHost());
-            po.setExecutorPort(dto.getPort());
-            po.setStatus(RegistryConstants.STATUS_ONLINE);
-            po.setLastHeartbeat(LocalDateTime.now());
-            po.setTenantId(tenantId != null ? tenantId : 1L);
-            executorRegistryMapper.insert(po);
-            log.info("执行器首次注册 executorId={} appCode={} appName={} host={}:{}",
-                    dto.getExecutorId(), dto.getAppCode(), dto.getAppName(), dto.getHost(), dto.getPort());
-
-            // 自动创建应用字典项
-            if (dto.getAppCode() != null) {
-                String appLabel = dto.getAppName() != null && !dto.getAppName().isEmpty()
-                        ? dto.getAppName() : dto.getAppCode();
-                dictTypeService.ensureDictData("app_type", dto.getAppCode(), appLabel);
-            }
-            // 自动创建元件类型字典项
-            syncComponentDict(dto);
+            updateExisting(existing, dto);
+            return;
         }
+
+        List<ExecutorRegistryPO> byAddress = findByAddress(dto.getHost(), dto.getPort(), dto.getAppCode());
+        if (!byAddress.isEmpty()) {
+            ExecutorRegistryPO primary = byAddress.get(0);
+            for (int i = 1; i < byAddress.size(); i++) {
+                executorRegistryMapper.deleteById(byAddress.get(i).getId());
+            }
+            primary.setExecutorId(dto.getExecutorId());
+            updateExisting(primary, dto);
+            log.info("执行器重新注册（按地址合并）executorId={} host={}:{}",
+                    dto.getExecutorId(), dto.getHost(), dto.getPort());
+            return;
+        }
+
+        ExecutorRegistryPO po = new ExecutorRegistryPO();
+        po.setExecutorId(dto.getExecutorId());
+        po.setAppCode(dto.getAppCode());
+        po.setAppName(dto.getAppName());
+        po.setExecutorHost(dto.getHost());
+        po.setExecutorPort(dto.getPort());
+        po.setStatus(RegistryConstants.STATUS_ONLINE);
+        po.setLastHeartbeat(LocalDateTime.now());
+        po.setTenantId(tenantId != null ? tenantId : 1L);
+        executorRegistryMapper.insert(po);
+        log.info("执行器首次注册 executorId={} appCode={} appName={} host={}:{}",
+                dto.getExecutorId(), dto.getAppCode(), dto.getAppName(), dto.getHost(), dto.getPort());
+
+        if (dto.getAppCode() != null) {
+            String appLabel = dto.getAppName() != null && !dto.getAppName().isEmpty()
+                    ? dto.getAppName() : dto.getAppCode();
+            dictTypeService.ensureDictData("app_type", dto.getAppCode(), appLabel);
+        }
+        syncComponentDict(dto);
+    }
+
+    private void updateExisting(ExecutorRegistryPO po, RegisterDTO dto) {
+        po.setExecutorHost(dto.getHost());
+        po.setExecutorPort(dto.getPort());
+        po.setStatus(RegistryConstants.STATUS_ONLINE);
+        po.setLastHeartbeat(LocalDateTime.now());
+        if (dto.getAppName() != null) po.setAppName(dto.getAppName());
+        if (dto.getAppCode() != null) po.setAppCode(dto.getAppCode());
+        syncComponentDict(dto);
+        executorRegistryMapper.updateById(po);
+        log.info("执行器重新注册 executorId={} host={}:{}", dto.getExecutorId(), dto.getHost(), dto.getPort());
+    }
+
+    private List<ExecutorRegistryPO> findByAddress(String host, int port, String appCode) {
+        LambdaQueryWrapper<ExecutorRegistryPO> wrapper = new LambdaQueryWrapper<ExecutorRegistryPO>()
+                .eq(ExecutorRegistryPO::getExecutorHost, host)
+                .eq(ExecutorRegistryPO::getExecutorPort, port);
+        if (appCode != null && !appCode.isEmpty()) {
+            wrapper.eq(ExecutorRegistryPO::getAppCode, appCode);
+        }
+        return executorRegistryMapper.selectList(wrapper);
     }
 
     private void syncComponentDict(RegisterDTO dto) {
