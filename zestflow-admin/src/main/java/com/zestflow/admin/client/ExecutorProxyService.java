@@ -199,37 +199,25 @@ public class ExecutorProxyService {
     }
 
     /**
-     * 通过 appCode 解析到 Executor 并执行 POST/PUT/DELETE（多实例时广播）或 GET（单实例轮询）
+     * 通过 appCode 解析到 Executor 并执行写操作或 GET（均路由到单实例，多实例时轮询）
+     * <p>
+     * 全实例广播请显式调用 {@link #broadcastToExecutors}（如链发布 reload）。
      */
     public String executeOnExecutor(String appCode, String method, String path, String body) {
         String upper = method.toUpperCase();
         if ("POST".equals(upper) || "PUT".equals(upper) || "DELETE".equals(upper)) {
-            List<String> urls = resolveAllExecutorUrls(appCode);
-            if (urls.isEmpty()) {
+            String baseUrl = resolveExecutorBaseUrl(appCode);
+            if (baseUrl == null) {
                 return "{\"code\":500,\"message\":\"无可用执行器\"}";
             }
-            if (urls.size() == 1) {
-                ExecutorResult result = executeOnExecutorUrl(urls.get(0), upper, path, body);
-                if (result.isOk()) {
-                    return enrichWithAppCode(
-                            result.getResponseBody() != null ? result.getResponseBody() : "{\"code\":200}",
-                            appCode);
-                }
-                return result.getResponseBody() != null ? result.getResponseBody()
-                        : "{\"code\":500,\"message\":\"" + escapeJson(result.getMessage()) + "\"}";
+            ExecutorResult result = executeOnExecutorUrl(baseUrl, upper, path, body);
+            if (result.isOk()) {
+                return enrichWithAppCode(
+                        result.getResponseBody() != null ? result.getResponseBody() : "{\"code\":200}",
+                        appCode);
             }
-            BroadcastResult broadcast = broadcastToExecutors(appCode, upper, path, body);
-            if (broadcast.isAllSuccess()) {
-                String firstBody = broadcast.getResults().stream()
-                        .filter(ExecutorResult::isOk)
-                        .map(ExecutorResult::getResponseBody)
-                        .filter(Objects::nonNull)
-                        .findFirst()
-                        .orElse("{\"code\":200,\"message\":\"success\"}");
-                return enrichWithAppCode(firstBody, appCode);
-            }
-            return String.format("{\"code\":207,\"message\":\"部分执行器操作失败 success=%d/%d\"}",
-                    broadcast.getSuccess(), broadcast.getTotal());
+            return result.getResponseBody() != null ? result.getResponseBody()
+                    : "{\"code\":500,\"message\":\"" + escapeJson(result.getMessage()) + "\"}";
         }
 
         String baseUrl = resolveExecutorBaseUrl(appCode);
@@ -439,9 +427,7 @@ public class ExecutorProxyService {
                 }
                 if (root.has("records") && root.get("records").isArray()) {
                     for (JsonNode record : root.get("records")) {
-                        String key = record.has("code") ? record.get("code").asText()
-                                : (record.has("id") ? record.get("id").asText() : record.toString());
-                        dedup.putIfAbsent(key, record);
+                        dedup.putIfAbsent(extractMergeRecordKey(record, path), record);
                     }
                 }
             } catch (Exception e) {
@@ -472,6 +458,36 @@ public class ExecutorProxyService {
         }
     }
 
+    /** 多 Executor 合并列表时的去重键（元件用 componentId，链/设计用 code） */
+    static String extractMergeRecordKey(JsonNode record, String path) {
+        if (record == null || !record.isObject()) {
+            return record != null ? record.toString() : "";
+        }
+        if ("/api/components".equals(path)) {
+            if (record.has("componentId") && !record.get("componentId").isNull()) {
+                return record.get("componentId").asText();
+            }
+        }
+        if (path != null && path.startsWith("/api/endpoints")) {
+            if (record.has("path") && !record.get("path").isNull()) {
+                return record.get("path").asText();
+            }
+            if (record.has("className") && !record.get("className").isNull()) {
+                return record.get("className").asText();
+            }
+        }
+        if (record.has("code") && !record.get("code").isNull()) {
+            return record.get("code").asText();
+        }
+        if (record.has("id") && !record.get("id").isNull()) {
+            return record.get("id").asText();
+        }
+        if (record.has("componentId") && !record.get("componentId").isNull()) {
+            return record.get("componentId").asText();
+        }
+        return record.toString();
+    }
+
     private static String extractUpdatedAtSortKey(JsonNode record) {
         if (record == null || !record.isObject()) {
             return null;
@@ -498,10 +514,7 @@ public class ExecutorProxyService {
                 JsonNode root = MAPPER.readTree(future.getNow("[]"));
                 if (root.isArray()) {
                     for (JsonNode item : root) {
-                        String key = item.has("path") ? item.get("path").asText()
-                                : (item.has("code") ? item.get("code").asText()
-                                : (item.has("className") ? item.get("className").asText() : item.toString()));
-                        dedup.putIfAbsent(key, item);
+                        dedup.putIfAbsent(extractMergeRecordKey(item, path), item);
                     }
                 }
             } catch (Exception e) {

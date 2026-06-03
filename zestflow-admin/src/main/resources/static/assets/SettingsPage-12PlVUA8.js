@@ -1,1 +1,0 @@
-import{_ as t}from"./_plugin-vue_export-helper-DlAUqK2U.js";import{N as o,Q as s,aQ as r,aF as a}from"./index-aioZ0rxp.js";const c={},n={class:"settings-page"};function _(i,p){const e=r("router-view");return a(),o("div",n,[s(e)])}const m=t(c,[["render",_],["__scopeId","data-v-537847f5"]]);export{m as default};

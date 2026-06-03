@@ -81,6 +81,31 @@ class ExecutorProxyServiceMergePagingTest {
         assertThat(root.get("records").get(0).get("code").asText()).isEqualTo("chain-b");
     }
 
+    @Test
+    void getFromExecutor_mergesComponentsByComponentId() throws Exception {
+        ExecutorRegistryPO e1 = executor("exec-a", "host-a", 20550);
+        ExecutorRegistryPO e2 = executor("exec-b", "host-b", 20550);
+        when(executorRegistryMapper.selectList(any())).thenReturn(List.of(e1, e2));
+
+        when(restTemplate.exchange(eq("http://host-a:20550/api/components?page=1&size=500"), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(componentPageJson("comp.order.create", "2026-01-03")));
+        when(restTemplate.exchange(eq("http://host-b:20550/api/components?page=1&size=500"), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(componentPageJson("comp.order.create", "2026-01-02")));
+
+        String json = proxyService.getFromExecutor("app", "/api/components", "?page=1&size=10");
+        JsonNode root = MAPPER.readTree(json);
+
+        assertThat(root.get("total").asInt()).isEqualTo(1);
+        assertThat(root.get("records")).hasSize(1);
+        assertThat(root.get("records").get(0).get("componentId").asText()).isEqualTo("comp.order.create");
+    }
+
+    private static String componentPageJson(String componentId, String cachedAt) {
+        return String.format(
+                "{\"records\":[{\"componentId\":\"%s\",\"componentName\":\"测试元件\",\"cachedAt\":\"%s\"}],\"total\":1,\"current\":1,\"size\":10}",
+                componentId, cachedAt);
+    }
+
     private static String pageJson(String code, String updatedAt) {
         return String.format(
                 "{\"records\":[{\"code\":\"%s\",\"updatedAt\":\"%s\"}],\"total\":1,\"current\":1,\"size\":10}",

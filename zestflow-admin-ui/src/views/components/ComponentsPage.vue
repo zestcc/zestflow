@@ -47,9 +47,7 @@
     >
       <el-table-column prop="componentId" :label="$t('components.componentId')" width="240" show-overflow-tooltip>
         <template #default="{ row }">
-          <el-link type="primary" :underline="'never'" style="font-family:monospace;font-weight:500;cursor:pointer" @click="showDetail(row)">
-            {{ row.componentId }}
-          </el-link>
+          <span class="code-link" @click="showDetail(row)">{{ row.componentId }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="componentName" :label="$t('components.componentName')" show-overflow-tooltip min-width="80" />

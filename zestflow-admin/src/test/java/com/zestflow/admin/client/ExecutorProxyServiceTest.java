@@ -124,6 +124,24 @@ class ExecutorProxyServiceTest {
                 eq(String.class));
     }
 
+    @Test
+    void executeOnExecutor_post_multiExecutor_callsSingleInstanceOnly() {
+        ExecutorRegistryPO e1 = executor("exec-a", "host-a", 20550);
+        ExecutorRegistryPO e2 = executor("exec-b", "host-b", 20551);
+        when(executorRegistryMapper.selectList(any())).thenReturn(List.of(e1, e2));
+        when(restTemplate.postForObject(any(String.class), any(HttpEntity.class), eq(String.class)))
+                .thenReturn("{\"code\":200}");
+
+        proxyService.executeOnExecutor("app", "POST", "/api/orders/handleApplyAfterSale", "{}");
+
+        verify(restTemplate).postForObject(
+                eq("http://host-a:20550/api/orders/handleApplyAfterSale"),
+                any(HttpEntity.class),
+                eq(String.class));
+        verify(restTemplate, org.mockito.Mockito.times(1))
+                .postForObject(any(String.class), any(HttpEntity.class), eq(String.class));
+    }
+
     private static ExecutorRegistryPO executor(String executorId, String host, int port) {
         ExecutorRegistryPO po = new ExecutorRegistryPO();
         po.setExecutorId(executorId);

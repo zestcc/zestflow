@@ -40,7 +40,7 @@
     >
       <el-table-column prop="code" :label="$t('chains.code')" width="160" show-overflow-tooltip>
         <template #default="{ row }">
-          <span style="color:#409eff;cursor:pointer;font-family:monospace;font-weight:600;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" @click="openChainDetail(row)">{{ row.code }}</span>
+          <span class="code-link" @click="openChainDetail(row)">{{ row.code }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="name" :label="$t('chains.name')" show-overflow-tooltip min-width="140" />
@@ -61,7 +61,7 @@
       <el-table-column prop="designCode" label="设计编码" width="160" show-overflow-tooltip>
         <template #default="{ row }">
           <span v-if="!row.designCode" style="color:#c0c4cc">-</span>
-          <span v-else style="color:#409eff;cursor:pointer;font-family:monospace;font-weight:600;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" @click="openDesignDetail(row.designCode, row.appCode)">{{ row.designCode }}</span>
+          <span v-else class="code-link" @click="openDesignDetail(row.designCode, row.appCode)">{{ row.designCode }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="description" :label="$t('chains.description')" show-overflow-tooltip min-width="140" />
