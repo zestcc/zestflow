@@ -43,7 +43,7 @@ public class ExecutorDataSourceConfig {
 
     @Bean("executorDataSource")
     @ConditionalOnMissingBean(name = "executorDataSource")
-    public DataSource primaryDataSourceFallback(DataSource primaryDataSource) {
+    public DataSource primaryDataSourceFallback(@Qualifier("dataSource") DataSource primaryDataSource) {
         return primaryDataSource;
     }
 

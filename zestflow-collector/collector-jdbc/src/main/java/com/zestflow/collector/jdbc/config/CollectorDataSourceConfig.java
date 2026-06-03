@@ -51,7 +51,7 @@ public class CollectorDataSourceConfig {
 
     @Bean("collectorDataSource")
     @ConditionalOnMissingBean(name = "collectorDataSource")
-    public DataSource primaryDataSourceFallback(DataSource primaryDataSource) {
+    public DataSource primaryDataSourceFallback(@Qualifier("dataSource") DataSource primaryDataSource) {
         return primaryDataSource;
     }
 
