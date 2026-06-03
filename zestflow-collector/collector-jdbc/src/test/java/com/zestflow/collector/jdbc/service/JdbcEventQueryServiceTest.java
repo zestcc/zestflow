@@ -394,6 +394,42 @@ class JdbcEventQueryServiceTest {
         }
 
         @Test
+        void nodeCounts_retryDoesNotDoubleCountSuccess() {
+            ChainEventPO nStarted = createPO("evt-n1", "NODE_STARTED", "exec-8",
+                    "chain-1", "demo-app", null, 1000L);
+            nStarted.setNodeId("node-a");
+            ChainEventPO nCompleted1 = createPO("evt-n2", "NODE_COMPLETED", "exec-8",
+                    "chain-1", "demo-app", 1, 1500L);
+            nCompleted1.setNodeId("node-a");
+            ChainEventPO nRetry = createPO("evt-n3", "NODE_RETRYING", "exec-8",
+                    "chain-1", "demo-app", null, 1600L);
+            nRetry.setNodeId("node-a");
+            ChainEventPO nCompleted2 = createPO("evt-n4", "NODE_COMPLETED", "exec-8",
+                    "chain-1", "demo-app", 1, 2000L);
+            nCompleted2.setNodeId("node-a");
+            when(chainEventMapper.selectByExecutionId("exec-8"))
+                    .thenReturn(List.of(nStarted, nCompleted1, nRetry, nCompleted2));
+
+            ExecutionTrace trace = queryService.getExecutionTrace("exec-8");
+
+            assertThat(trace.getNodeCount()).isEqualTo(1);
+            assertThat(trace.getSuccessCount()).isEqualTo(1);
+        }
+
+        @Test
+        void inProgressChain_statusIsNegativeOne() {
+            ChainEventPO started = createPO("evt-s", "CHAIN_STARTED", "exec-9",
+                    "chain-1", "demo-app", null, 1000L);
+            when(chainEventMapper.selectByExecutionId("exec-9"))
+                    .thenReturn(List.of(started));
+
+            ExecutionTrace trace = queryService.getExecutionTrace("exec-9");
+
+            assertThat(trace.getStatus()).isEqualTo(-1);
+            assertThat(trace.getCostMs()).isNull();
+        }
+
+        @Test
         void unknownExecutionId_returnsNull() {
             when(chainEventMapper.selectByExecutionId("nonexistent"))
                     .thenReturn(Collections.emptyList());

@@ -115,6 +115,9 @@ public class JdbcEventQueryService implements EventQueryService {
             else if ("CHAIN_FAILED".equals(et)) { status = 0; costMs = po.getCostMs(); errorMessage = po.getErrorMessage(); }
             else if ("CHAIN_TIMEOUT".equals(et)) { status = 0; costMs = po.getCostMs(); errorMessage = "执行超时"; }
         }
+        if (status == null) {
+            status = -1;
+        }
 
         return ExecutionTrace.builder()
                 .executionId(executionId)
@@ -136,26 +139,28 @@ public class JdbcEventQueryService implements EventQueryService {
                 .build();
     }
 
-    /** 按 nodeId 去重统计节点数；成功/失败只计终态事件，避免 STARTED+COMPLETED 双计 */
+    /** 按 nodeId 去重统计节点数；成功/失败只计终态事件且按 nodeId 去重，避免重试/双事件重复计数 */
     static NodeMetrics aggregateNodeMetrics(List<ChainEventPO> events) {
         Set<String> nodeIds = new HashSet<>();
-        int successCount = 0;
-        int failedCount = 0;
+        Set<String> successNodeIds = new HashSet<>();
+        Set<String> failedNodeIds = new HashSet<>();
         for (ChainEventPO po : events) {
             String et = po.getEventType();
             if (et == null) {
                 continue;
             }
-            if (et.startsWith("NODE_") && po.getNodeId() != null && !po.getNodeId().isEmpty()) {
-                nodeIds.add(po.getNodeId());
+            String nodeId = po.getNodeId();
+            boolean hasNodeId = nodeId != null && !nodeId.isEmpty();
+            if (et.startsWith("NODE_") && hasNodeId) {
+                nodeIds.add(nodeId);
             }
-            if ("NODE_COMPLETED".equals(et) || "NODE_FALLBACK_SUCCESS".equals(et)) {
-                successCount++;
-            } else if ("NODE_FAILED".equals(et) || "NODE_FALLBACK_FAILED".equals(et)) {
-                failedCount++;
+            if (hasNodeId && ("NODE_COMPLETED".equals(et) || "NODE_FALLBACK_SUCCESS".equals(et))) {
+                successNodeIds.add(nodeId);
+            } else if (hasNodeId && ("NODE_FAILED".equals(et) || "NODE_FALLBACK_FAILED".equals(et))) {
+                failedNodeIds.add(nodeId);
             }
         }
-        return new NodeMetrics(nodeIds.size(), successCount, failedCount);
+        return new NodeMetrics(nodeIds.size(), successNodeIds.size(), failedNodeIds.size());
     }
 
     record NodeMetrics(int nodeCount, int successCount, int failedCount) {}
@@ -211,6 +216,10 @@ public class JdbcEventQueryService implements EventQueryService {
         int nodeCount = po.getNodeCount() != null ? po.getNodeCount() : 0;
         int successCount = po.getSuccessCount() != null ? po.getSuccessCount() : 0;
         int failedCount = po.getFailedCount() != null ? po.getFailedCount() : 0;
+        Integer status = po.getStatus();
+        if (status == null) {
+            status = -1;
+        }
         return ExecutionTrace.builder()
                 .executionId(po.getExecutionId())
                 .chainCode(po.getChainId())
@@ -220,7 +229,7 @@ public class JdbcEventQueryService implements EventQueryService {
                 .appCode(po.getAppCode())
                 .startTime(po.getTimestamp() != null ? po.getTimestamp() : 0L)
                 .costMs(po.getCostMs())
-                .status(po.getStatus())
+                .status(status)
                 .eventCount(eventCount)
                 .nodeCount(nodeCount)
                 .successCount(successCount)

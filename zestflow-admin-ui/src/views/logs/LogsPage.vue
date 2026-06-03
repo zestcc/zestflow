@@ -55,7 +55,7 @@
       <el-table-column prop="appName" :label="$t('logs.appName')" width="120" show-overflow-tooltip />
       <el-table-column :label="$t('logs.nodeCount')" width="80" align="center">
         <template #default="{ row }">
-          <span>{{ row.nodeCount || '-' }}</span>
+          <span>{{ row.nodeCount != null ? row.nodeCount : '-' }}</span>
         </template>
       </el-table-column>
       <el-table-column :label="$t('logs.successCount')" width="80" align="center">
@@ -137,7 +137,7 @@
             <el-tag v-else-if="traceDetail.status === 0" type="danger" size="small">{{ $t('logs.failure') }}</el-tag>
             <el-tag v-else type="info" size="small">{{ $t('logs.inProgress') }}</el-tag>
           </el-descriptions-item>
-          <el-descriptions-item :label="$t('logs.nodeCount')">{{ traceDetail.nodeCount || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="$t('logs.nodeCount')">{{ traceDetail.nodeCount != null ? traceDetail.nodeCount : '-' }}</el-descriptions-item>
           <el-descriptions-item :label="$t('logs.successCount')">
             <el-tag size="small" type="success">{{ traceDetail.successCount || 0 }}</el-tag>
           </el-descriptions-item>
