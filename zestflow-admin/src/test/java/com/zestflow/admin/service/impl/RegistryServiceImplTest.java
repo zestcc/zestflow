@@ -17,11 +17,13 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -41,6 +43,7 @@ class RegistryServiceImplTest {
     @Test
     void registerNewExecutor() {
         when(executorRegistryMapper.selectOne(any())).thenReturn(null);
+        when(executorRegistryMapper.selectList(any())).thenReturn(Collections.emptyList());
 
         RegisterDTO dto = new RegisterDTO();
         dto.setExecutorId("executor-1");
@@ -66,6 +69,7 @@ class RegistryServiceImplTest {
     @Test
     void registerNewExecutor_withComponents_autoCreatesDictData() {
         when(executorRegistryMapper.selectOne(any())).thenReturn(null);
+        when(executorRegistryMapper.selectList(any())).thenReturn(Collections.emptyList());
 
         RegisterDTO dto = new RegisterDTO();
         dto.setExecutorId("executor-2");
@@ -106,8 +110,84 @@ class RegistryServiceImplTest {
         assertThat(updated.getExecutorHost()).isEqualTo("192.168.1.2");
         assertThat(updated.getExecutorPort()).isEqualTo(9998);
         assertThat(updated.getStatus()).isEqualTo(RegistryConstants.STATUS_ONLINE);
-        // 重新注册不应创建字典项
         verify(dictTypeService, never()).ensureDictData(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void register_sameAddressDifferentExecutorId_mergesByAddress() {
+        when(executorRegistryMapper.selectOne(any())).thenReturn(null);
+
+        ExecutorRegistryPO oldRecord = new ExecutorRegistryPO();
+        oldRecord.setId(1L);
+        oldRecord.setExecutorId("demo-app@192.168.1.5:30550");
+        oldRecord.setExecutorHost("127.0.0.1");
+        oldRecord.setExecutorPort(30550);
+        oldRecord.setAppCode("demo-app");
+        when(executorRegistryMapper.selectList(any())).thenReturn(List.of(oldRecord));
+
+        RegisterDTO dto = new RegisterDTO();
+        dto.setExecutorId("demo-app@127.0.0.1:30550");
+        dto.setHost("127.0.0.1");
+        dto.setPort(30550);
+        dto.setAppCode("demo-app");
+
+        registryService.register(dto, 1L);
+
+        verify(executorRegistryMapper, never()).insert(any(ExecutorRegistryPO.class));
+        verify(executorRegistryMapper).updateById(registryCaptor.capture());
+        ExecutorRegistryPO updated = registryCaptor.getValue();
+        assertThat(updated.getExecutorId()).isEqualTo("demo-app@127.0.0.1:30550");
+        assertThat(updated.getExecutorHost()).isEqualTo("127.0.0.1");
+        assertThat(updated.getStatus()).isEqualTo(RegistryConstants.STATUS_ONLINE);
+    }
+
+    @Test
+    void register_sameAddressDuplicateRows_mergesAndDeletesExtras() {
+        when(executorRegistryMapper.selectOne(any())).thenReturn(null);
+
+        ExecutorRegistryPO old1 = new ExecutorRegistryPO();
+        old1.setId(1L);
+        old1.setExecutorId("demo-app@192.168.1.5:30550");
+        old1.setExecutorHost("127.0.0.1");
+        old1.setExecutorPort(30550);
+        old1.setAppCode("demo-app");
+        ExecutorRegistryPO old2 = new ExecutorRegistryPO();
+        old2.setId(2L);
+        old2.setExecutorId("demo-app@127.0.0.1:30550");
+        old2.setExecutorHost("127.0.0.1");
+        old2.setExecutorPort(30550);
+        old2.setAppCode("demo-app");
+        when(executorRegistryMapper.selectList(any())).thenReturn(List.of(old1, old2));
+
+        RegisterDTO dto = new RegisterDTO();
+        dto.setExecutorId("demo-app@127.0.0.1:30550");
+        dto.setHost("127.0.0.1");
+        dto.setPort(30550);
+        dto.setAppCode("demo-app");
+
+        registryService.register(dto, 1L);
+
+        verify(executorRegistryMapper).deleteById(2L);
+        verify(executorRegistryMapper, times(1)).deleteById(anyLong());
+        verify(executorRegistryMapper).updateById(registryCaptor.capture());
+        assertThat(registryCaptor.getValue().getExecutorId()).isEqualTo("demo-app@127.0.0.1:30550");
+    }
+
+    @Test
+    void register_sameAppDifferentPorts_insertsSeparately() {
+        when(executorRegistryMapper.selectOne(any())).thenReturn(null);
+        when(executorRegistryMapper.selectList(any())).thenReturn(List.of());
+
+        RegisterDTO dto = new RegisterDTO();
+        dto.setExecutorId("demo-app@127.0.0.1:30551");
+        dto.setHost("127.0.0.1");
+        dto.setPort(30551);
+        dto.setAppCode("demo-app");
+
+        registryService.register(dto, 1L);
+
+        verify(executorRegistryMapper).insert(registryCaptor.capture());
+        assertThat(registryCaptor.getValue().getExecutorPort()).isEqualTo(30551);
     }
 
     @Test
