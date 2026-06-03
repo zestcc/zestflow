@@ -1,42 +1,127 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Maven Central（Central Portal）发布配置示例
-  复制到 %USERPROFILE%\.m2\settings.xml 或合并其中的 <servers> / <profiles> 段
+  ZestFlow Maven Central 发布 — 完整 settings.xml 示例
+  复制到: %USERPROFILE%\.m2\settings.xml
 
   前置条件：
   1. central.sonatype.com 命名空间 cn.zestflow.www 已注册
-  2. Central Portal → Account / User Token → Generate User Token
+  2. Central Portal → https://central.sonatype.com/usertoken → Generate User Token
   3. Gpg4win 已安装，私钥已导入（Key ID: 5B28B71AF1128C97）
   4. 公钥已在 keyserver（zestflow <zestcc@126.com>）
 
-  注意：OSSRH（oss.sonatype.org）已下线，必须使用 Central Portal User Token，server id 为 central。
+  注意：
+  - OSSRH（oss.sonatype.org）已下线，server id 必须是 central（不是 ossrh）
+  - deploy 由 central-publishing-maven-plugin 直传 Portal，不受下方 mirror 影响
+  - 请勿将含 Token / GPG 口令的 settings.xml 提交到 Git
 -->
 <settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0
           https://maven.apache.org/xsd/settings-1.2.0.xsd">
 
+    <!-- 本地仓库（可选，默认 %USERPROFILE%\.m2\repository） -->
+    <!-- <localRepository>D:\maven-repo</localRepository> -->
+
+    <!-- ============================================================
+         服务器凭证
+         publishingServerId=central 对应此处 <id>central</id>
+         ============================================================ -->
     <servers>
         <server>
             <id>central</id>
-            <!-- Central Portal → https://central.sonatype.com/usertoken → Generate User Token -->
+            <!-- Central Portal User Token（只显示一次，泄露须 revoke 后重建） -->
             <username>YOUR_SONATYPE_TOKEN_USERNAME</username>
             <password>YOUR_SONATYPE_TOKEN_PASSWORD</password>
         </server>
     </servers>
 
+    <!-- ============================================================
+         镜像：加速依赖下载（与 Central 发布不冲突）
+         mirrorOf 排除 central，避免干扰插件上传
+         ============================================================ -->
+    <mirrors>
+        <mirror>
+            <id>aliyun-public</id>
+            <mirrorOf>*,!central</mirrorOf>
+            <name>Aliyun Maven Public</name>
+            <url>https://maven.aliyun.com/repository/public</url>
+        </mirror>
+    </mirrors>
+
     <profiles>
+        <!-- GPG 签名（release profile 中 maven-gpg-plugin 使用） -->
         <profile>
             <id>gpg</id>
             <properties>
+                <!-- 默认 C:\Program Files\GnuPG\bin\gpg.exe；自定义安装如 D:\IT\GnuPG\bin\gpg.exe -->
                 <gpg.executable>C:\Program Files\GnuPG\bin\gpg.exe</gpg.executable>
                 <gpg.passphrase>YOUR_GPG_PASSPHRASE</gpg.passphrase>
+                <!-- 指定 ZestFlow 发布密钥 -->
+                <gpg.keyname>5B28B71AF1128C97</gpg.keyname>
             </properties>
+        </profile>
+
+        <!-- JDK 17（ZestFlow 编译要求） -->
+        <profile>
+            <id>jdk17</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <maven.compiler.source>17</maven.compiler.source>
+                <maven.compiler.target>17</maven.compiler.target>
+                <maven.compiler.release>17</maven.compiler.release>
+                <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+            </properties>
+        </profile>
+
+        <!-- 备用仓库（mirror 未命中时的补充源，一般不必改） -->
+        <profile>
+            <id>repos</id>
+            <repositories>
+                <repository>
+                    <id>central</id>
+                    <name>Maven Central</name>
+                    <url>https://repo.maven.apache.org/maven2</url>
+                    <releases>
+                        <enabled>true</enabled>
+                    </releases>
+                    <snapshots>
+                        <enabled>false</enabled>
+                    </snapshots>
+                </repository>
+                <repository>
+                    <id>spring-milestones</id>
+                    <name>Spring Milestones</name>
+                    <url>https://repo.spring.io/milestone</url>
+                    <releases>
+                        <enabled>true</enabled>
+                    </releases>
+                    <snapshots>
+                        <enabled>false</enabled>
+                    </snapshots>
+                </repository>
+            </repositories>
+            <pluginRepositories>
+                <pluginRepository>
+                    <id>central</id>
+                    <name>Maven Central Plugins</name>
+                    <url>https://repo.maven.apache.org/maven2</url>
+                    <releases>
+                        <enabled>true</enabled>
+                    </releases>
+                    <snapshots>
+                        <enabled>false</enabled>
+                    </snapshots>
+                </pluginRepository>
+            </pluginRepositories>
         </profile>
     </profiles>
 
     <activeProfiles>
         <activeProfile>gpg</activeProfile>
+        <activeProfile>jdk17</activeProfile>
+        <activeProfile>repos</activeProfile>
     </activeProfiles>
 
 </settings>
