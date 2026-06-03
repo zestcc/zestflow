@@ -267,6 +267,7 @@ export default {
     chainTimeout: '链超时',
     success: '成功',
     failure: '失败',
+    inProgress: '进行中',
     status: '状态',
     costMs: '耗时(ms)',
     timestamp: '时间',

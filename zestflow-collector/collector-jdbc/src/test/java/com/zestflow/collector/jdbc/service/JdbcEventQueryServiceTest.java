@@ -356,19 +356,40 @@ class JdbcEventQueryServiceTest {
         void nodeCounts_aggregatedCorrectly() {
             ChainEventPO nStarted = createPO("evt-n1", "NODE_STARTED", "exec-3",
                     "chain-1", "demo-app", null, 1000L);
+            nStarted.setNodeId("node-a");
             ChainEventPO nCompleted = createPO("evt-n2", "NODE_COMPLETED", "exec-3",
                     "chain-1", "demo-app", 1, 1500L);
+            nCompleted.setNodeId("node-a");
             ChainEventPO nFailed = createPO("evt-n3", "NODE_FAILED", "exec-3",
                     "chain-1", "demo-app", 0, 2000L);
+            nFailed.setNodeId("node-b");
             ChainEventPO completed = createChainCompleted("exec-3", 3000L);
             when(chainEventMapper.selectByExecutionId("exec-3"))
                     .thenReturn(List.of(nStarted, nCompleted, nFailed, completed));
 
             ExecutionTrace trace = queryService.getExecutionTrace("exec-3");
 
-            assertThat(trace.getNodeCount()).isEqualTo(3);
+            assertThat(trace.getNodeCount()).isEqualTo(2);
             assertThat(trace.getSuccessCount()).isEqualTo(1);
             assertThat(trace.getFailedCount()).isEqualTo(1);
+        }
+
+        @Test
+        void nodeCounts_doesNotDoubleCountStartedAndCompleted() {
+            ChainEventPO nStarted = createPO("evt-n1", "NODE_STARTED", "exec-7",
+                    "chain-1", "demo-app", null, 1000L);
+            nStarted.setNodeId("node-a");
+            ChainEventPO nCompleted = createPO("evt-n2", "NODE_COMPLETED", "exec-7",
+                    "chain-1", "demo-app", 1, 1500L);
+            nCompleted.setNodeId("node-a");
+            when(chainEventMapper.selectByExecutionId("exec-7"))
+                    .thenReturn(List.of(nStarted, nCompleted));
+
+            ExecutionTrace trace = queryService.getExecutionTrace("exec-7");
+
+            assertThat(trace.getNodeCount()).isEqualTo(1);
+            assertThat(trace.getSuccessCount()).isEqualTo(1);
+            assertThat(trace.getFailedCount()).isZero();
         }
 
         @Test
@@ -430,16 +451,18 @@ class JdbcEventQueryServiceTest {
         void fallbackEventsCounted() {
             ChainEventPO fbSuccess = createPO("e1", "NODE_FALLBACK_SUCCESS", "exec-6",
                     "chain-1", "demo-app", 1, 1000L);
+            fbSuccess.setNodeId("node-a");
             ChainEventPO fbFailed = createPO("e2", "NODE_FALLBACK_FAILED", "exec-6",
                     "chain-1", "demo-app", 0, 2000L);
+            fbFailed.setNodeId("node-b");
             ChainEventPO completed = createChainCompleted("exec-6", 3000L);
             when(chainEventMapper.selectByExecutionId("exec-6"))
                     .thenReturn(List.of(fbSuccess, fbFailed, completed));
 
             ExecutionTrace trace = queryService.getExecutionTrace("exec-6");
 
-            assertThat(trace.getSuccessCount()).isEqualTo(1); // NODE_FALLBACK_SUCCESS
-            assertThat(trace.getFailedCount()).isEqualTo(1);  // NODE_FALLBACK_FAILED
+            assertThat(trace.getSuccessCount()).isEqualTo(1);
+            assertThat(trace.getFailedCount()).isEqualTo(1);
             assertThat(trace.getNodeCount()).isEqualTo(2);
         }
     }

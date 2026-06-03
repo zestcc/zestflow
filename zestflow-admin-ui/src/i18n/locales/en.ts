@@ -267,6 +267,7 @@ export default {
     chainTimeout: 'Chain Timeout',
     success: 'Success',
     failure: 'Failure',
+    inProgress: 'In Progress',
     status: 'Status',
     costMs: 'Cost(ms)',
     timestamp: 'Timestamp',
