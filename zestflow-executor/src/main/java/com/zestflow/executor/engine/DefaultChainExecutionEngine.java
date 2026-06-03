@@ -159,6 +159,9 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
         // 2. 创建实例（子链继承父链 deadline）
         ChainInstance instance = new ChainInstance(definition, params, parentDeadlineMs);
         String chainDisplayName = chainLoader.resolveChainDisplayName(chainCode);
+        if (chainDisplayName == null) {
+            chainDisplayName = chainCode;
+        }
         instance.getContext().setMetadata(ChainConstants.META_CHAIN_NAME, chainDisplayName);
         instanceManager.register(instance);
 
