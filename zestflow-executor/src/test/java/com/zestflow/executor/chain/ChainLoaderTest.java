@@ -223,4 +223,18 @@ class ChainLoaderTest {
         assertThat(result).isTrue();
         verify(adminClient, never()).notifyChainSync(any());
     }
+
+    @Test
+    void resolveChainDisplayName_dbUnavailable_fallsBackToChainCode() {
+        when(chainRepo.get("linear-test")).thenThrow(new org.springframework.jdbc.BadSqlGrammarException("test", null, null));
+
+        assertThat(chainLoader.resolveChainDisplayName("linear-test")).isEqualTo("linear-test");
+    }
+
+    @Test
+    void resolveChainDisplayName_chainNotFound_fallsBackToChainCode() {
+        when(chainRepo.get("missing")).thenReturn(null);
+
+        assertThat(chainLoader.resolveChainDisplayName("missing")).isEqualTo("missing");
+    }
 }
