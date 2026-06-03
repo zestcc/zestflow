@@ -1,0 +1,25 @@
+# ============================================================
+# Collector JDBC 独立部署 — 生产模板
+# 复制为 application-prod.yml
+# ============================================================
+
+server:
+  port: 8082
+
+spring:
+  application:
+    name: zestflow-collector
+  datasource:
+    url: jdbc:mysql://localhost:3306/zestflow_app_log?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=true
+    username: your-db-username
+    password: your-db-password
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+zestflow:
+  collector:
+    access-token: change-me-collector-access-token-min-16
+    registry:
+      enabled: true
+      port: 20650
+      admin-addresses: http://127.0.0.1:8080
+      registry-token: change-me-registry-token-min-16-chars

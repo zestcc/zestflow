@@ -109,7 +109,11 @@ function Invoke-Api($method, $url, $body, $headers, $timeoutSec = 30) {
         if ($null -ne $body) { $p.Body = $body; $p.ContentType = "application/json" }
         $r = Invoke-WebRequest @p
         $sw.Stop()
-        return @{ status=[int]$r.StatusCode; ok=$true; ms=$sw.ElapsedMilliseconds; body=$r.Content }
+        $bodyText = $r.Content
+        if ($bodyText -is [byte[]]) {
+            $bodyText = [System.Text.Encoding]::UTF8.GetString($bodyText)
+        }
+        return @{ status=[int]$r.StatusCode; ok=$true; ms=$sw.ElapsedMilliseconds; body=$bodyText }
     } catch {
         $sw.Stop()
         $st = 0; $b = ""
@@ -200,19 +204,25 @@ foreach ($m in $modules) {
 $r = Invoke-Api POST "$BaseAdmin/api/logs/events/query" '{"page":1,"size":5}' $h
 Add-F "admin" "logs-events" $r.ok $r.status $r.ms ""
 
-$r = Invoke-Api GET "$BaseAdmin/actuator/health/zestFlowAdmin" $null $null 10
-$healthOk = $r.ok -and ($r.body -match 'deployMode')
-if ($r.ok) {
+$r = Invoke-Api GET "$BaseAdmin/actuator/health" $null $null 10
+$healthOk = ($r.status -eq 200 -or $r.status -eq 503) -and [bool](
+    ($r.body -match 'zestFlowAdmin') -and ($r.body -match 'deployMode'))
+if ($healthOk) {
     try {
         $healthJson = ConvertFrom-Json $r.body
-        $healthStatus = $healthJson.status
-        Add-C "runtime" "zestflow.admin.health.status" $healthStatus "UP/DEGRADED/DOWN"
-        if ($healthJson.components.zestFlowAdmin.details.onlineExecutors -ne $null) {
-            Add-C "runtime" "zestflow.admin.health.onlineExecutors" $healthJson.components.zestFlowAdmin.details.onlineExecutors ""
+        $comp = $healthJson.components.zestFlowAdmin
+        if ($comp) {
+            Add-C "runtime" "zestflow.admin.health.status" ([string]$comp.status) "UP/DEGRADED/DOWN"
+            if ($comp.details -and $comp.details.deployMode) {
+                Add-C "runtime" "zestflow.admin.health.deployMode" $comp.details.deployMode ""
+            }
+            if ($comp.details -and $comp.details.onlineExecutors -ne $null) {
+                Add-C "runtime" "zestflow.admin.health.onlineExecutors" $comp.details.onlineExecutors ""
+            }
         }
     } catch {}
 }
-Add-F "admin" "actuator-zestFlowAdmin" $healthOk $r.status $r.ms ""
+Add-F "admin" "actuator-zestFlowAdmin" ([bool]$healthOk) $(if ($healthOk) { 200 } else { $r.status }) $r.ms ""
 
 $r = Invoke-Api GET "$BaseAdmin/api/chains/active-codes?appCode=$($policyRaw.appCode)" $null $h
 Add-F "admin" "chains-active-codes" $r.ok $r.status $r.ms ""

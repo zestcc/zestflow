@@ -23,6 +23,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Profile;
 import com.zestflow.collector.async.metrics.CollectorMetricsSupport;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.beans.factory.ObjectProvider;
@@ -168,5 +169,11 @@ public class CollectorAutoConfig {
                                                   CollectorRegistryProperties properties,
                                                   Environment environment) {
         return new CollectorRegistrar(adminClient, properties, environment);
+    }
+
+    @Bean
+    @Profile("prod")
+    public CollectorProductionGuard collectorProductionGuard(CollectorProperties properties) {
+        return new CollectorProductionGuard(properties);
     }
 }

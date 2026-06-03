@@ -6,7 +6,7 @@
 
     <groupId>cn.zestflow.www</groupId>
     <artifactId>zestflow</artifactId>
-    <version>1.0.0</version>
+    <version>0.1.0</version>
     <packaging>pom</packaging>
 
     <name>ZestFlow</name>
@@ -74,14 +74,14 @@
         <shedlock.version>5.16.0</shedlock.version>
 
         <!-- ============ 模块版本（独立管理，可各自发布） ============ -->
-        <zestflow-common.version>1.0.0</zestflow-common.version>
-        <zestflow-executor.version>1.0.0</zestflow-executor.version>
-        <collector-core.version>1.0.0</collector-core.version>
-        <collector-jdbc.version>1.0.0</collector-jdbc.version>
-        <collector-kafka.version>1.0.0</collector-kafka.version>
-        <collector-rabbitmq.version>1.0.0</collector-rabbitmq.version>
-        <zestflow-starter.version>1.0.0</zestflow-starter.version>
-        <zestflow-admin.version>1.0.0</zestflow-admin.version>
+        <zestflow-common.version>0.1.0</zestflow-common.version>
+        <zestflow-executor.version>0.1.0</zestflow-executor.version>
+        <collector-core.version>0.1.0</collector-core.version>
+        <collector-jdbc.version>0.1.0</collector-jdbc.version>
+        <collector-kafka.version>0.1.0</collector-kafka.version>
+        <collector-rabbitmq.version>0.1.0</collector-rabbitmq.version>
+        <zestflow-starter.version>0.1.0</zestflow-starter.version>
+        <zestflow-admin.version>0.1.0</zestflow-admin.version>
 
         <!-- release profile：本地验证加 -Dgpg.skip=true；正式发布勿跳过 -->
         <gpg.skip>false</gpg.skip>
@@ -309,7 +309,7 @@
                             <publishingServerId>central</publishingServerId>
                             <autoPublish>true</autoPublish>
                             <waitUntil>published</waitUntil>
-                            <deploymentName>ZestFlow 1.0.0</deploymentName>
+                            <deploymentName>ZestFlow 0.1.0</deploymentName>
                         </configuration>
                     </plugin>
                 </plugins>

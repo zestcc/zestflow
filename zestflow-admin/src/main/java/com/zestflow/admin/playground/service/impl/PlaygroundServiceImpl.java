@@ -26,6 +26,8 @@ import com.zestflow.admin.client.ExecutorProxyService;
 
 import com.zestflow.admin.playground.support.PlaygroundAccessControl;
 
+import com.zestflow.admin.playground.support.PlaygroundRecordStorageHelper;
+
 import com.zestflow.admin.playground.support.PlaygroundRequestPathValidator;
 
 import com.zestflow.admin.service.TenantAppContext;
@@ -400,9 +402,10 @@ public class PlaygroundServiceImpl implements PlaygroundService {
 
         record.setBodyType(scene.getBodyType());
 
-        record.setRequestBody(params != null ? safeWrite(params) : null);
+        record.setRequestBody(PlaygroundRecordStorageHelper.truncateJson(
+                params != null ? safeWrite(params) : null));
 
-        record.setResponseBody(resultJson);
+        record.setResponseBody(PlaygroundRecordStorageHelper.truncateJson(resultJson));
 
         record.setChainCode(scene.getChainCode());
 

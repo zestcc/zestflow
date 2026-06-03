@@ -1,7 +1,7 @@
 # ZestFlow 开源发布就绪清单
 
-> **版本** V1.0-SNAPSHOT · **更新** 2026-06-02  
-> 目标：在开源收尾前，用可重复脚本证明**主链路可靠**；多租户 / IP 演示 / 安全开关分层验收。
+> **版本** 0.1.0 · **更新** 2026-06-03  
+> 目标：在开源收尾前，用可重复脚本证明**主链路可靠**；公网部署须 `prod` profile + [DEPLOY.md](./DEPLOY.md)。
 
 ---
 
@@ -146,11 +146,13 @@ mvn spring-boot:run -pl zestflow-collector/collector-jdbc -Dspring-boot.run.prof
 
 | 项 | 默认开发 | 生产建议 |
 |----|----------|----------|
-| Playground | 需 JWT + RBAC | 可 `enabled=false` |
-| Registry | token 空=放行 | 配置 `registry-token` |
-| Executor Netty | access-token 可选 | 与 Admin 成对配置 |
-| JWT | application-local | 强密钥 + 短 TTL |
-| IP 演示 | 仅演示环境 | **禁止**生产 enabled |
+| Playground | 需 JWT + RBAC | **`enabled=false`**（prod 守卫强制） |
+| Registry | token 空=放行 + WARN | **`registry-token` 必填**（prod 守卫强制） |
+| Executor Netty | access-token 可选 | **与 Admin 成对配置**（prod 守卫强制） |
+| Collector | access-token 可选 | **与 Admin 成对配置**（prod 守卫强制） |
+| JWT | application.yml dev 值 | **≥32 字符随机串**（prod 守卫强制） |
+| 默认管理员 | admin/admin123 | **强口令 + 首次改密**（prod 禁止 admin123） |
+| IP 演示 | enterprise-e2e 专用 | **禁止**生产 enabled（prod 守卫强制） |
 
 性能：Layer B 75 步链在本机 ~75ms；压测用 `run-blackbox.ps1` QPS 段（非门禁必过）。
 
@@ -160,6 +162,8 @@ mvn spring-boot:run -pl zestflow-collector/collector-jdbc -Dspring-boot.run.prof
 
 - [ ] GitHub **CI**（Layer A）全绿：`.github/workflows/ci.yml`（**首次 push 后**在 Actions 查看）
 - [x] `run-enterprise-gate.ps1` Layer A+B 全 PASS（本地，2026-06-02）
+- [x] `scripts/deploy/verify-prod-templates.ps1` — prod 模板无 admin123 / playground 开启
+- [x] **prod 启动守卫** — Admin / Executor / Collector `*ProductionGuard`（令牌、JWT、playground 关闭）
 - [x] 灌库：`Apply-DemoSeed.ps1`（含租户 B + IP 映射 + `SCN20260602000002`）
 - [x] Admin `enterprise-e2e` + `-RequireEnterpriseProfile` 全 PASS（multi 隔离 + IP 演示）
 - [x] Admin 集群 ShedLock：调度 / 离线检测 / 租户清理 / 链同步缓存（`-Pcluster` + `deploy-mode=cluster`）
@@ -181,7 +185,7 @@ mvn spring-boot:run -pl zestflow-collector/collector-jdbc -Dspring-boot.run.prof
 
 ### 已完成（代码侧）
 
-- [x] 版本 `1.0.0`、`distributionManagement`、`release` profile
+- [x] 版本 `0.1.0`、`distributionManagement`、`release` profile
 - [x] developer / issueManagement 元数据（`zestcc@126.com`）
 - [x] 发布脚本：[`scripts/maven/verify-release.ps1`](../scripts/maven/verify-release.ps1)、[`scripts/maven/publish-central.ps1`](../scripts/maven/publish-central.ps1)
 - [x] settings 模板：[`maven/settings.xml.example`](../maven/settings.xml.example)

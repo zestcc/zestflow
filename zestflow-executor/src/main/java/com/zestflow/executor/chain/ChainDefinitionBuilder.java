@@ -88,9 +88,13 @@ public class ChainDefinitionBuilder {
                 if (dto.getVersion() == null) {
                     dto.setVersion(version != null ? version : 1);
                 }
-                return build(dto);
+                // chainData 仅有 entryNodeId 等元数据、无 nodes 时 fallback graphData（设计器未翻译场景）
+                if (dto.getNodes() != null && !dto.getNodes().isEmpty()) {
+                    return build(dto);
+                }
+                log.debug("chainData 无节点，fallback graphData code={}", chainCode);
             } catch (Exception e) {
-                log.warn("chainData 解析失败，fallback 到 graphData code={}", chainCode);
+                log.warn("chainData 解析失败，fallback graphData code={}", chainCode, e);
             }
         }
         return build(chainCode, version, graphDataJson);

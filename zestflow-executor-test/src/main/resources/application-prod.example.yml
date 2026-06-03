@@ -1,18 +1,18 @@
 # ============================================================
-# 生产环境配置（模板）
-# 复制本文件为 application-prod.yml 并按实际环境修改
-# 启动方式：--spring.profiles.active=prod
+# 生产环境配置（模板）— 业务应用（含 Executor + 嵌入式 Collector）
+# 复制为 application-prod.yml，启动：--spring.profiles.active=prod
 # ============================================================
 
 server:
   port: 8081
+  # 业务 Tomcat 仅内网；公网只暴露 Admin :8080
+  address: 127.0.0.1
 
 spring:
   application:
     name: demo-app
   datasource:
-    # 主数据源 — 业务数据库
-    url: jdbc:mysql://localhost:3306/zestflow_app_bussiness?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://localhost:3306/zestflow_app_bussiness?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=true
     username: your-db-username
     password: your-db-password
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -25,38 +25,27 @@ spring:
 zestflow:
   executor:
     port: 20550
+    # 公网关闭 Spring MVC /execute，仅 Admin 经 Netty 回调
     execute-endpoint-enabled: false
-    # 执行器数据源（默认复用主数据源）
     datasource:
-      url: jdbc:mysql://localhost:3306/zestflow_app_bussiness?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+      url: jdbc:mysql://localhost:3306/zestflow_app_bussiness?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=true
       username: your-db-username
       password: your-db-password
       driver-class-name: com.mysql.cj.jdbc.Driver
-    # Admin 服务地址
-    admin-addresses: http://localhost:8080
-    # 与 Admin zestflow.admin.registry-token 一致
-    registry-token: your-registry-token
-    # 与 Admin zestflow.admin.executor-access-token 一致
-    access-token: your-executor-access-token
-    # 注册/心跳 HTTP 超时（毫秒）
+    admin-addresses: http://127.0.0.1:8080
+    registry-token: change-me-registry-token-min-16-chars
+    access-token: change-me-executor-access-token-min-16
     timeout-ms: 5000
-    # Netty /execute 业务线程池（避免阻塞 EventLoop）
     execute-pool-core-size: 8
     execute-pool-max-size: 16
     execute-pool-queue-capacity: 256
-  playground:
-    # 当前服务的基础 URL（用于 Admin 试验场拼接完整请求路径）
-    url: http://localhost:${server.port}
-    scan-packages:
-      - com.zestflow.test.controller
   collector:
-    # 采集器数据源
     datasource:
-      url: jdbc:mysql://localhost:3306/zestflow_app_log?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+      url: jdbc:mysql://localhost:3306/zestflow_app_log?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=true
       username: your-db-username
       password: your-db-password
       driver-class-name: com.mysql.cj.jdbc.Driver
     registry:
       port: 20650
-    access-token: your-collector-access-token
+    access-token: change-me-collector-access-token-min-16
     disk-fallback-enabled: true

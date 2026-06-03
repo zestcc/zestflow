@@ -9,23 +9,31 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AdminProductionGuardTest {
 
+    private MockEnvironment validProdEnv() {
+        MockEnvironment env = new MockEnvironment();
+        env.setProperty("zestflow.admin.registry-token", "prod-registry-secret-ok");
+        env.setProperty("zestflow.admin.executor-access-token", "prod-executor-access-token");
+        env.setProperty("zestflow.collector.access-token", "prod-collector-access-token");
+        env.setProperty("zestflow.jwt.secret", "prod-jwt-secret-value-at-least-32-characters-long");
+        env.setProperty("zestflow.admin.default-user.password", "Str0ng-P@ssw0rd-2026");
+        env.setProperty("zestflow.playground.enabled", "false");
+        env.setProperty("zestflow.tenant.ip-demo-mode", "disabled");
+        return env;
+    }
+
     @Test
     void validateProductionConfig_standaloneWithSecrets_passes() {
-        MockEnvironment env = new MockEnvironment();
-        env.setProperty("zestflow.admin.registry-token", "prod-registry-secret");
-        env.setProperty("zestflow.jwt.secret", "prod-jwt-secret-value");
-
         AdminDeployProperties deploy = new AdminDeployProperties();
         deploy.setDeployMode("standalone");
 
-        AdminProductionGuard guard = new AdminProductionGuard(env, deploy);
+        AdminProductionGuard guard = new AdminProductionGuard(validProdEnv(), deploy);
         assertThatCode(guard::validateProductionConfig).doesNotThrowAnyException();
     }
 
     @Test
     void validateProductionConfig_missingRegistryToken_fails() {
-        MockEnvironment env = new MockEnvironment();
-        env.setProperty("zestflow.jwt.secret", "prod-jwt-secret-value");
+        MockEnvironment env = validProdEnv();
+        env.setProperty("zestflow.admin.registry-token", "");
 
         AdminDeployProperties deploy = new AdminDeployProperties();
         deploy.setDeployMode("standalone");
@@ -38,8 +46,7 @@ class AdminProductionGuardTest {
 
     @Test
     void validateProductionConfig_defaultJwtSecret_fails() {
-        MockEnvironment env = new MockEnvironment();
-        env.setProperty("zestflow.admin.registry-token", "prod-registry-secret");
+        MockEnvironment env = validProdEnv();
         env.setProperty("zestflow.jwt.secret", "ZestFlow_dev_JWT_Secret_Key_Change_Me_In_Production_!!_");
 
         AdminDeployProperties deploy = new AdminDeployProperties();
@@ -51,10 +58,34 @@ class AdminProductionGuardTest {
     }
 
     @Test
+    void validateProductionConfig_playgroundEnabled_fails() {
+        MockEnvironment env = validProdEnv();
+        env.setProperty("zestflow.playground.enabled", "true");
+
+        AdminDeployProperties deploy = new AdminDeployProperties();
+        deploy.setDeployMode("standalone");
+
+        AdminProductionGuard guard = new AdminProductionGuard(env, deploy);
+        assertThatThrownBy(guard::validateProductionConfig)
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void validateProductionConfig_defaultAdminPassword_fails() {
+        MockEnvironment env = validProdEnv();
+        env.setProperty("zestflow.admin.default-user.password", "admin123");
+
+        AdminDeployProperties deploy = new AdminDeployProperties();
+        deploy.setDeployMode("standalone");
+
+        AdminProductionGuard guard = new AdminProductionGuard(env, deploy);
+        assertThatThrownBy(guard::validateProductionConfig)
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
     void validateProductionConfig_clusterWithoutRedis_fails() {
-        MockEnvironment env = new MockEnvironment();
-        env.setProperty("zestflow.admin.registry-token", "prod-registry-secret");
-        env.setProperty("zestflow.jwt.secret", "prod-jwt-secret-value");
+        MockEnvironment env = validProdEnv();
         env.setProperty("zestflow.admin.deploy-mode", "cluster");
 
         AdminDeployProperties deploy = new AdminDeployProperties();

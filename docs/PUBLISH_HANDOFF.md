@@ -10,7 +10,7 @@
 |----|------|
 | Sonatype 命名空间 | `cn.zestflow.www` 已注册 |
 | GPG 公钥 | keyserver 已上传；Key ID `5B28B71AF1128C97`；UID `zestflow <zestcc@126.com>` |
-| 版本 | 全模块 `1.0.0` |
+| 版本 | 全模块 `0.1.0` |
 | 发布插件 | `central-publishing-maven-plugin` 0.10.0（OSSRH 已下线，不用 nexus-staging） |
 | 不发布模块 | `zestflow-admin`、`zestflow-executor-test`（deploy skip） |
 | developer | `zestflow` / `zestcc@126.com` |
@@ -28,7 +28,7 @@
 <dependency>
     <groupId>cn.zestflow.www</groupId>
     <artifactId>zestflow-starter</artifactId>
-    <version>1.0.0</version>
+    <version>0.1.0</version>
 </dependency>
 ```
 
@@ -133,7 +133,7 @@ mvn clean deploy -Prelease -DskipTests
 
 1. https://central.sonatype.com/publishing/deployments → 状态 **Published**（`autoPublish=true`）
 2. 等待索引：https://search.maven.org/search?q=g:cn.zestflow.www
-3. 打 tag：`git tag v1.0.0 && git push origin v1.0.0`
+3. 打 tag：`git tag v0.1.0 && git push origin v0.1.0`
 4. Gitee 发 Release 说明（可选）
 
 ---

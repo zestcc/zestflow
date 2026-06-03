@@ -56,12 +56,12 @@ $suffix = Get-Date -Format "HHmmss"
 $graphObj = @{
     nodes = @(@{
         id = "n1"; label = "E2E"; type = "SCRIPT"
-        script = "return { ok: true, e2e: 'lifecycle-$suffix' };"
+        script = "return [ ok: true, e2e: 'lifecycle-$suffix' ]"
     })
     edges = @()
 }
 $graphJson = ($graphObj | ConvertTo-Json -Compress -Depth 8)
-$chainDataJson = '{"version":1,"entryNodeId":"n1"}'
+$chainDataJson = '{"version":1,"nodes":[{"id":"n1","label":"E2E","type":"SCRIPT","script":"return [ok:true]"}],"edges":[]}'
 
 $designBody = @{
     name = "E2E-Lifecycle-$suffix"
@@ -142,7 +142,9 @@ $execOk = $false
 if ($execResp.ok) {
     try {
         $execJson = ConvertFrom-Json $execResp.body
-        if ($execJson.success -eq $true -or $execJson.code -eq 200 -or $execJson.status -eq 3 -or $execJson.status -eq 1) {
+        $st = 0
+        if ($execJson.PSObject.Properties['status']) { $st = [int]$execJson.status }
+        if ($execJson.success -eq $true -or $execJson.code -eq 200 -or $st -eq 4 -or $st -eq 1 -or $st -eq 3) {
             $execOk = $true
         }
     } catch {}

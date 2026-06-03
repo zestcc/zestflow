@@ -169,13 +169,16 @@ executor-test 进程内：
 
 ### 5.2 安全加固检查清单（上线前）
 
-- [ ] `zestflow.admin.registry-token` 配置强随机
-- [ ] `zestflow.executor.access-token` = `zestflow.admin.executor-access-token`
-- [ ] 关闭或限制 `/api/registry/**` 公网暴露（仅内网）
-- [ ] Executor/Collector 端口防火墙（20550/20650 不对公网）
-- [ ] Tomcat `8081` 保持 `127.0.0.1`
-- [ ] 修改默认 `admin/admin123`
-- [ ] 启用 HTTPS（`zestflow.admin.protocol=https`）
+> **v0.1.0+**：使用 `--spring.profiles.active=prod` 时，`AdminProductionGuard` / `ExecutorProductionGuard` / `CollectorProductionGuard` 会在启动时**自动拒绝**弱令牌、dev JWT、`admin123`、试验场开启、IP 演示开启。以下清单用于反向代理与运维层。
+
+- [ ] 使用 `prod` profile 启动（见 [DEPLOY.md](./DEPLOY.md)）
+- [ ] `application-prod.yml` 中全部 `change-me-*` 已替换为强随机串
+- [ ] `zestflow.admin.registry-token` = Executor/Collector `registry-token`
+- [ ] `zestflow.executor.access-token` = Admin `executor-access-token`
+- [ ] `zestflow.collector.access-token` 三端一致
+- [ ] 防火墙：20550/20650/8081 不对公网；仅 Admin 经 TLS 暴露
+- [ ] 修改默认 bootstrap 管理员口令（prod 禁止 admin123）
+- [ ] HTTPS（Nginx/Caddy 终止 TLS，`zestflow.mail.base-url` 用 https）
 
 ---
 

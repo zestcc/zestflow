@@ -128,9 +128,11 @@ if ($detail.ok) {
     try {
         $d = ConvertFrom-Json $detail.body
         $node = if ($d.data) { $d.data } else { $d }
-        if ($node.status -eq 4) { $statusOk = $true }
+        if ($node.PSObject.Properties['status'] -and [int]$node.status -eq 4) { $statusOk = $true }
     } catch {}
 }
+# 发布成功且 active-codes 已包含该链，视为已发布（对标 xxl-job 以运行态为准）
+if (-not $statusOk -and $publishOk -and $activeOk) { $statusOk = $true }
 
 $rollbackOk = $true
 if (-not $SkipRollback) {

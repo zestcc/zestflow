@@ -138,7 +138,7 @@ zestflow-admin                ──▶ zestflow-common
 | 项目 | 值 |
 |------|------|
 | groupId | `cn.zestflow.www` |
-| 父 POM | `cn.zestflow.www:zestflow:1.0.0-SNAPSHOT` |
+| 父 POM | `cn.zestflow.www:zestflow:0.1.0` |
 | 前端项目 | `zestflow-admin-ui` 无 pom.xml，独立 npm 构建 |
 
 ### 模块版本管理
@@ -147,14 +147,14 @@ zestflow-admin                ──▶ zestflow-common
 
 ```xml
 <properties>
-    <zestflow-common.version>1.0.0-SNAPSHOT</zestflow-common.version>
-    <zestflow-executor.version>1.0.0-SNAPSHOT</zestflow-executor.version>
-    <collector-core.version>1.0.0-SNAPSHOT</collector-core.version>
-    <collector-jdbc.version>1.0.0-SNAPSHOT</collector-jdbc.version>
-    <collector-kafka.version>1.0.0-SNAPSHOT</collector-kafka.version>
-    <collector-rabbitmq.version>1.0.0-SNAPSHOT</collector-rabbitmq.version>
-    <zestflow-starter.version>1.0.0-SNAPSHOT</zestflow-starter.version>
-    <zestflow-admin.version>1.0.0-SNAPSHOT</zestflow-admin.version>
+    <zestflow-common.version>0.1.0</zestflow-common.version>
+    <zestflow-executor.version>0.1.0</zestflow-executor.version>
+    <collector-core.version>0.1.0</collector-core.version>
+    <collector-jdbc.version>0.1.0</collector-jdbc.version>
+    <collector-kafka.version>0.1.0</collector-kafka.version>
+    <collector-rabbitmq.version>0.1.0</collector-rabbitmq.version>
+    <zestflow-starter.version>0.1.0</zestflow-starter.version>
+    <zestflow-admin.version>0.1.0</zestflow-admin.version>
 </properties>
 ```
 
@@ -163,7 +163,7 @@ zestflow-admin                ──▶ zestflow-common
 | 模块层级 | 版本写法 | 示例 |
 |---------|---------|------|
 | 叶子模块（有代码产出） | 表达式 `${xxx.version}` | `<version>${zestflow-common.version}</version>` |
-| 中间聚合 POM | 字面量（继承父版本） | `<version>1.0.0-SNAPSHOT</version>` |
+| 中间聚合 POM | 字面量（继承父版本） | `<version>0.1.0</version>` |
 
 - 中间聚合 POM（如 `zestflow-collector`）不独立发版，用字面量避免 Maven 孙模块解析失败
 - 发版时只需改父 POM 中对应属性，不影响其他模块

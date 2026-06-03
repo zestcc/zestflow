@@ -1,5 +1,5 @@
 server:
-  port: 8088
+  port: 8080
 
 spring:
   application:
@@ -41,6 +41,7 @@ zestflow:
     # Collector HTTP API 地址（可选兜底），采集器注册后自动发现，无需配置
     api-url: http://localhost:20650
   admin:
+    # ⚠ 公网部署须使用 --spring.profiles.active=prod，见 docs/DEPLOY.md
     # 机器接口令牌（Executor/Collector 注册、链同步），生产必须配置；为空则仅开发环境放行
     registry-token:
     # Admin → Executor Netty 鉴权（与 zestflow.executor.access-token 一致，非用户 JWT）
@@ -68,6 +69,7 @@ zestflow:
       enabled: true
       executor-path: /health
       collector-path: /collector/health
+      timeout-ms: 1500
     reconcile:
       enabled: true
       interval-ms: 120000
@@ -112,8 +114,14 @@ mybatis-plus:
 
 management:
   endpoints.web.exposure.include: health,info,metrics,prometheus
-  endpoint.health.show-details: when-authorized
+  endpoint.health.show-details: always
+  endpoint.health.show-components: always
   endpoint.health.probes.enabled: true
+  endpoint.health.status.http-mapping.degraded: 200
+  endpoint.health.status.http-mapping.down: 503
+  endpoint.health.status.http-mapping.out-of-service: 503
+  health.status.order: DOWN,OUT_OF_SERVICE,DEGRADED,UNKNOWN,UP
+  health.mail.enabled: false
   metrics:
     distribution:
       percentiles-histogram:

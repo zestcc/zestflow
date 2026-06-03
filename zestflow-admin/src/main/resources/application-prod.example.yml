@@ -2,6 +2,12 @@
 # 生产环境配置（模板）
 # 复制本文件为 application-prod.yml 并按实际环境修改
 # 启动方式：--spring.profiles.active=prod
+#
+# prod profile 启动时会执行 AdminProductionGuard 硬性校验：
+#   - registry / executor / collector 令牌（≥16 字符，非 your-* 占位符）
+#   - JWT secret（≥32 字符，非 dev 默认值）
+#   - default-user.password（禁止 admin123）
+#   - playground.enabled=false、tenant.ip-demo-mode=disabled
 # ============================================================
 
 server:
@@ -10,7 +16,6 @@ server:
 spring:
   application:
     name: zestflow-admin
-  # application-local.yml 通过 application.yml 的 optional import 加载，不存在时跳过
   messages:
     basename: messages
     encoding: UTF-8
@@ -18,7 +23,8 @@ spring:
   mvc:
     locale-resolver: accept-header
   datasource:
-    url: jdbc:mysql://localhost:3306/zestflow_admin?useUnicode=true&characterEncoding=utf-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    # 生产推荐 useSSL=true 并配置 truststore；内网专线可按实际调整
+    url: jdbc:mysql://localhost:3306/zestflow_admin?useUnicode=true&characterEncoding=utf-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=true
     username: your-db-username
     password: your-db-password
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -31,7 +37,7 @@ spring:
     host: smtp.your-email.com
     port: 465
     username: your-email@your-email.com
-    password: your-auth-code
+    password: your-email-auth-code
     properties:
       mail.smtp.auth: true
       mail.smtp.ssl.enable: true
@@ -42,56 +48,54 @@ spring:
       max-file-size: 5MB
       max-request-size: 10MB
   flyway:
-    enabled: false
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
   thymeleaf:
     enabled: false
 
 zestflow:
   jwt:
-    secret: your-jwt-secret-must-be-at-least-256-bits-long
+    # 至少 32 字符随机串；勿使用 application.yml 中的 dev 默认值
+    secret: change-me-use-openssl-rand-base64-32-or-longer-secret
     expiration: 86400000
   upload:
     avatar-dir: uploads/avatars
   admin:
-    # 内部服务间通信协议（http/https），生产环境如用反向代理 SSL 可改为 https
+    # 反向代理终止 TLS 时可设为 https
     protocol: http
-    registry-token: your-registry-token
-    # 与 zestflow.executor.access-token 一致
-    executor-access-token: your-executor-access-token
-    # deploy-mode：运行时状态 — standalone / cluster（多 Admin 副本）
+    # 三台机器令牌须成对一致（Admin / Executor / Collector），各生成独立强随机串
+    registry-token: change-me-registry-token-min-16-chars
+    executor-access-token: change-me-executor-access-token-min-16
     deploy-mode: standalone
     tenant-id: 1
     system-user: sys
     default-user:
       username: admin
-      password: admin123
-      email: admin@example.com
+      # 首次建库 bootstrap 口令；禁止使用 admin123（prod 启动会拒绝）
+      password: change-me-strong-admin-password
+      email: admin@your-domain.com
     cache:
       type: caffeine
       maximum-size: 10000
       ttl-seconds: 60
     runtime-state:
-      # 仅 deploy-mode=cluster 时生效
       ttl-seconds: 300
+    health-probe:
+      enabled: true
+      timeout-ms: 1500
   tenant:
-    # 租户模式：single（单租户）/ multi（多租户）
     mode: single
-    # IP 演示模式：disabled / enabled
     ip-demo-mode: disabled
-    # IP 租户非活跃超时（分钟）
     ip-tenant-timeout-minutes: 60
   playground:
-    # 开关：true 启用系统演示功能（含演示场景、演示记录、试验场）
-    enabled: true
+    enabled: false
   collector:
-    # Collector 地址通过注册表自动发现；无注册时可配置 api-url 兜底
-    api-url: http://your-collector-host:20650
-    access-token: ''
+    api-url: http://127.0.0.1:20650
+    access-token: change-me-collector-access-token-min-16
   mail:
-    # 总开关：启用邮件发送
     enabled: true
-    # 前端访问域名（用于拼接重置/验证链接）
-    base-url: http://your-domain.com
+    base-url: https://your-domain.com
     from-name: "ZestFlow"
     reset-password:
       subject: "ZestFlow - 密码重置"
@@ -101,7 +105,9 @@ zestflow:
 management:
   endpoints.web.exposure.include: health,info,metrics
   endpoint.health.show-details: when-authorized
+  endpoint.health.show-components: when-authorized
   endpoint.health.probes.enabled: true
+  health.mail.enabled: false
 
 mybatis-plus:
   mapper-locations: classpath:mapper/*.xml
@@ -119,20 +125,7 @@ logging:
   level:
     com.zestflow: info
 
-# Redis（按需启用，单机 standalone + cache.type=caffeine 可整段省略）：
-#   deploy-mode=cluster     → 运行时状态跨实例共享
-#   cache.type=redis        → 权限等业务缓存跨实例共享
-#
-# 多机 Admin 推荐同时开启（须 mvn package -Pcluster 构建以打包 ShedLock 调度锁）：
-# zestflow:
-#   admin:
-#     deploy-mode: cluster
-#     cache:
-#       type: redis
-# spring:
-#   data:
-#     redis:
-#       host: your-redis-host
-#       port: 6379
-#       password: your-redis-password
-#       database: 0
+# Redis（按需 — 多 Admin 副本 deploy-mode=cluster 时启用，须 mvn -Pcluster 构建）：
+# spring.data.redis.host / port / password
+# zestflow.admin.deploy-mode: cluster
+# zestflow.admin.cache.type: redis

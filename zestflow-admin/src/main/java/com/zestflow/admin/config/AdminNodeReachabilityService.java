@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
@@ -27,7 +28,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AdminNodeReachabilityService {
 
-    private final RestTemplate restTemplate;
     private final CollectorRegistryService collectorRegistryService;
     private final ExecutorRegistryMapper executorRegistryMapper;
 
@@ -42,6 +42,19 @@ public class AdminNodeReachabilityService {
 
     @Value("${zestflow.admin.health-probe.collector-path:/collector/health}")
     private String collectorHealthPath;
+
+    @Value("${zestflow.admin.health-probe.timeout-ms:1500}")
+    private int probeTimeoutMs;
+
+    private RestTemplate probeRestTemplate;
+
+    @jakarta.annotation.PostConstruct
+    void initProbeClient() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(probeTimeoutMs);
+        factory.setReadTimeout(probeTimeoutMs);
+        this.probeRestTemplate = new RestTemplate(factory);
+    }
 
     public NodeProbeSummary probeRegisteredNodes() {
         if (!probeEnabled) {
@@ -94,7 +107,7 @@ public class AdminNodeReachabilityService {
 
     private boolean isReachable(String url) {
         try {
-            var response = restTemplate.exchange(url, HttpMethod.GET, HttpEntity.EMPTY, String.class);
+            var response = probeRestTemplate.exchange(url, HttpMethod.GET, HttpEntity.EMPTY, String.class);
             return response.getStatusCode().is2xxSuccessful();
         } catch (ResourceAccessException e) {
             log.debug("节点探活失败 url={}", url);

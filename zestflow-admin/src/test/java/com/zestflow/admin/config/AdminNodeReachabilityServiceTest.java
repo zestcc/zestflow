@@ -26,7 +26,7 @@ import static org.mockito.Mockito.when;
 class AdminNodeReachabilityServiceTest {
 
     @Mock
-    private RestTemplate restTemplate;
+    private RestTemplate probeRestTemplate;
     @Mock
     private CollectorRegistryService collectorRegistryService;
     @Mock
@@ -36,9 +36,10 @@ class AdminNodeReachabilityServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new AdminNodeReachabilityService(restTemplate, collectorRegistryService, executorRegistryMapper);
+        service = new AdminNodeReachabilityService(collectorRegistryService, executorRegistryMapper);
         ReflectionTestUtils.setField(service, "protocol", "http");
         ReflectionTestUtils.setField(service, "probeEnabled", true);
+        ReflectionTestUtils.setField(service, "probeRestTemplate", probeRestTemplate);
     }
 
     @Test
@@ -56,7 +57,7 @@ class AdminNodeReachabilityServiceTest {
                 .build();
         when(collectorRegistryService.listAllOnline()).thenReturn(List.of(collector));
 
-        when(restTemplate.exchange(any(String.class), eq(HttpMethod.GET), eq(HttpEntity.EMPTY), eq(String.class)))
+        when(probeRestTemplate.exchange(any(String.class), eq(HttpMethod.GET), eq(HttpEntity.EMPTY), eq(String.class)))
                 .thenReturn(ResponseEntity.ok("ok"));
 
         AdminNodeReachabilityService.NodeProbeSummary summary = service.probeRegisteredNodes();
@@ -86,7 +87,7 @@ class AdminNodeReachabilityServiceTest {
         when(executorRegistryMapper.selectList(any())).thenReturn(List.of(executor));
         when(collectorRegistryService.listAllOnline()).thenReturn(List.of());
 
-        when(restTemplate.exchange(any(String.class), eq(HttpMethod.GET), eq(HttpEntity.EMPTY), eq(String.class)))
+        when(probeRestTemplate.exchange(any(String.class), eq(HttpMethod.GET), eq(HttpEntity.EMPTY), eq(String.class)))
                 .thenThrow(new org.springframework.web.client.ResourceAccessException("connection refused"));
 
         AdminNodeReachabilityService.NodeProbeSummary summary = service.probeRegisteredNodes();
