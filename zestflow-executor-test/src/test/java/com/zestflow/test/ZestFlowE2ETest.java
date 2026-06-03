@@ -16,6 +16,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
@@ -72,6 +73,8 @@ class ZestFlowE2ETest {
         assertThat(result.getNodeResults()).hasSize(3);
         assertThat(result.getNodeResults()).extracting(nr -> nr.getNodeId())
                 .containsExactly("A", "B", "C");
+
+        awaitEventType(ChainEvent.EventType.CHAIN_COMPLETED, 3_000);
 
         List<String> types = eventCollector.getEventTypes();
         assertThat(types).contains(
@@ -256,6 +259,7 @@ class ZestFlowE2ETest {
         assertThat(result.getStatus()).isEqualTo(ChainConstants.CHAIN_SUCCESS);
         assertThat(result.getNodeResults()).hasSize(7);
         assertThat(eventCollector.getEventsByType(ChainEvent.EventType.CHAIN_STARTED)).hasSize(1);
+        awaitEventType(ChainEvent.EventType.CHAIN_COMPLETED, 3_000);
         assertThat(eventCollector.getEventsByType(ChainEvent.EventType.CHAIN_COMPLETED)).hasSize(1);
     }
 
@@ -301,6 +305,22 @@ class ZestFlowE2ETest {
         return ChainEdgeDTO.builder().source(source).target(target).build();
     }
 
+    /** AsyncEventPublisher 批量刷盘前，轮询等待指定事件类型落盘 */
+    private void awaitEventType(ChainEvent.EventType type, long timeoutMs) {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            if (!eventCollector.getEventsByType(type).isEmpty()) {
+                return;
+            }
+            try {
+                Thread.sleep(25);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+    }
+
     // ==================== InMemory EventCollector ====================
 
     public static class InMemoryEventCollector implements EventCollector {
@@ -320,8 +340,14 @@ class ZestFlowE2ETest {
     @TestConfiguration
     public static class InMemoryCollectorConfig {
         @Bean
-        public InMemoryEventCollector inMemoryEventCollector() {
+        @Primary
+        public EventCollector eventCollector() {
             return new InMemoryEventCollector();
+        }
+
+        @Bean
+        public InMemoryEventCollector inMemoryEventCollector(EventCollector eventCollector) {
+            return (InMemoryEventCollector) eventCollector;
         }
     }
 }
