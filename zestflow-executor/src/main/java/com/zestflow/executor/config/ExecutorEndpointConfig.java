@@ -39,6 +39,7 @@ public class ExecutorEndpointConfig {
     public void wireEndpoints() {
         executorServer.setRequestMappingHandlerMapping(requestMappingHandlerMapping);
         executorServer.setScanPackages(playgroundProperties.getScanPackages());
+        executorServer.setPlaygroundBusinessBaseUrl(playgroundProperties.getUrl());
         NettyMvcDispatcher dispatcher = new NettyMvcDispatcher(
                 requestMappingHandlerMapping,
                 requestMappingHandlerAdapter,

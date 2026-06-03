@@ -81,6 +81,9 @@ public final class ChainConstants {
     /** ChainContext 元数据：停止检查（BooleanSupplier），供 NodeRunner/RetryExecutor 感知 stop() */
     public static final String META_STOP_CHECK = "stopCheck";
 
+    /** 链展示名称（写入 ChainContext metadata，供事件发布） */
+    public static final String META_CHAIN_NAME = "chainName";
+
     /** CONTINUE 策略：上下文标记部分成功 */
     public static final String CTX_PARTIAL_FAILURE = "_partialFailure";
 

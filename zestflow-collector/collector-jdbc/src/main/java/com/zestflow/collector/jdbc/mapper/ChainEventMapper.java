@@ -42,6 +42,7 @@ public interface ChainEventMapper extends BaseMapper<ChainEventPO> {
     @Select({
             "<script>",
             "SELECT e.execution_id AS executionId,",
+            "  ANY_VALUE(e.chain_id) AS chainId,",
             "  ANY_VALUE(e.chain_name) AS chainName,",
             "  ANY_VALUE(e.executor_id) AS executorId,",
             "  ANY_VALUE(e.app_name) AS appName,",

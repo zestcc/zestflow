@@ -295,7 +295,6 @@ const router = useRouter()
 const scenes = ref<PlaygroundSceneVO[]>([])
 const selectedSceneCode = ref('')
 const sceneInfo = ref<PlaygroundSceneVO | null>(null)
-const baseUrl = ref(window.location.origin)
 
 const methodTagType = computed(() => {
   const m = sceneInfo.value?.requestMethod
@@ -327,11 +326,12 @@ function handleAppChange() {
 }
 
 const requestPathDisplay = computed(() => {
-  const path = sceneInfo.value?.requestPath || '/execute'
-  if (path.startsWith('http://') || path.startsWith('https://')) {
-    return path
-  }
-  return `${baseUrl.value}/api${path}`
+  const path = sceneInfo.value?.requestPath || ''
+  if (!selectedSceneCode.value) return path
+  const invoke = `/api/playground/execute/${selectedSceneCode.value}`
+  if (!path || path === '/execute') return invoke
+  if (path.startsWith('http://') || path.startsWith('https://')) return path
+  return `${invoke}  →  ${path}`
 })
 
 // === 请求体 ===

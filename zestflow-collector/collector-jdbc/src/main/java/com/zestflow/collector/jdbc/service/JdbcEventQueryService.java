@@ -118,6 +118,7 @@ public class JdbcEventQueryService implements EventQueryService {
 
         return ExecutionTrace.builder()
                 .executionId(executionId)
+                .chainCode(first.getChainId())
                 .chainName(first.getChainName())
                 .executorId(first.getExecutorId())
                 .appName(first.getAppName())
@@ -212,6 +213,7 @@ public class JdbcEventQueryService implements EventQueryService {
         int failedCount = po.getFailedCount() != null ? po.getFailedCount() : 0;
         return ExecutionTrace.builder()
                 .executionId(po.getExecutionId())
+                .chainCode(po.getChainId())
                 .chainName(po.getChainName())
                 .executorId(po.getExecutorId())
                 .appName(po.getAppName())

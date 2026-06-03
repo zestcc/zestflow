@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -148,7 +149,9 @@ public class ExecutorProxyService {
                 return MAPPER.writeValueAsString(root.get("records"));
             }
             if (root.isArray()) {
-                enrichRecords(root, appCode);
+                if (shouldEnrichArrayPath(path)) {
+                    enrichRecords(root, appCode);
+                }
                 return MAPPER.writeValueAsString(root);
             }
             return json;
@@ -306,6 +309,92 @@ public class ExecutorProxyService {
         return toBaseUrl(selectPrimary(executors));
     }
 
+    private static final ConcurrentHashMap<String, CachedPlaygroundUrl> PLAYGROUND_URL_CACHE = new ConcurrentHashMap<>();
+    private static final long PLAYGROUND_URL_CACHE_MS = 60_000;
+
+    private record CachedPlaygroundUrl(String url, long expiresAt) {}
+
+    /** 读取 Executor 侧 zestflow.playground.url（Tomcat/网关基址） */
+    public String resolveExecutorPlaygroundUrl(String appCode) {
+        if (appCode == null || appCode.isBlank()) {
+            return "";
+        }
+        long now = System.currentTimeMillis();
+        CachedPlaygroundUrl cached = PLAYGROUND_URL_CACHE.get(appCode);
+        if (cached != null && cached.expiresAt > now) {
+            return cached.url;
+        }
+        String fetched = fetchExecutorPlaygroundUrl(appCode);
+        PLAYGROUND_URL_CACHE.put(appCode, new CachedPlaygroundUrl(fetched, now + PLAYGROUND_URL_CACHE_MS));
+        return fetched;
+    }
+
+    private String fetchExecutorPlaygroundUrl(String appCode) {
+        List<ExecutorRegistryPO> executors = findOnlineExecutors(appCode);
+        if (executors.isEmpty()) {
+            return "";
+        }
+        String baseUrl = toBaseUrl(selectPrimary(executors));
+        try {
+            HttpEntity<Void> entity = new HttpEntity<>(executorHeaders());
+            String json = restTemplate.exchange(
+                    baseUrl + "/api/playground/config",
+                    HttpMethod.GET, entity, String.class).getBody();
+            if (json == null || json.isBlank()) {
+                return "";
+            }
+            JsonNode node = MAPPER.readTree(json);
+            return node.path("businessBaseUrl").asText("").trim();
+        } catch (Exception e) {
+            log.warn("读取 Executor playground 配置失败 appCode={}", appCode, e);
+            return "";
+        }
+    }
+
+    /**
+     * 直连业务 Tomcat/网关（不经 Netty 鉴权头）
+     */
+    public String executeOnExternalUrl(String fullUrl, String method, String body) {
+        String upper = method.toUpperCase();
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            String json;
+            switch (upper) {
+                case "GET":
+                    json = restTemplate.exchange(
+                            RequestEntity.get(new java.net.URI(fullUrl)).headers(headers).build(),
+                            String.class).getBody();
+                    break;
+                case "POST":
+                    json = restTemplate.postForObject(
+                            fullUrl, new HttpEntity<>(body != null ? body : "{}", headers), String.class);
+                    break;
+                case "PUT":
+                    json = restTemplate.exchange(
+                            RequestEntity.put(new java.net.URI(fullUrl))
+                                    .headers(headers)
+                                    .body(body != null ? body : "{}"),
+                            String.class).getBody();
+                    break;
+                case "DELETE":
+                    json = restTemplate.exchange(
+                            RequestEntity.delete(new java.net.URI(fullUrl)).headers(headers).build(),
+                            String.class).getBody();
+                    break;
+                default:
+                    return "{\"code\":400,\"message\":\"不支持的方法\"}";
+            }
+            return json != null ? json : "{}";
+        } catch (ResourceAccessException e) {
+            log.warn("业务 API 不可达 url={}", fullUrl);
+            return "{\"code\":500,\"message\":\"业务 API 不可达\"}";
+        } catch (Exception e) {
+            log.error("业务 API 请求失败 url={}", fullUrl, e);
+            return "{\"code\":500,\"message\":\"业务 API 请求失败\"}";
+        }
+    }
+
     private List<ExecutorRegistryPO> findOnlineExecutors(String appCode) {
         if (appCode == null || appCode.isBlank()) {
             return List.of();
@@ -421,12 +510,19 @@ public class ExecutorProxyService {
         }
         ArrayNode merged = MAPPER.createArrayNode();
         dedup.values().forEach(merged::add);
-        enrichRecords(merged, appCode);
+        if (shouldEnrichArrayPath(path)) {
+            enrichRecords(merged, appCode);
+        }
         try {
             return MAPPER.writeValueAsString(merged);
         } catch (Exception e) {
             return "[]";
         }
+    }
+
+    /** 端点扫描结果是固定 schema，注入 appCode/cachedAt 会导致下游反序列化失败 */
+    private static boolean shouldEnrichArrayPath(String path) {
+        return path == null || !path.startsWith("/api/endpoints");
     }
 
     /**

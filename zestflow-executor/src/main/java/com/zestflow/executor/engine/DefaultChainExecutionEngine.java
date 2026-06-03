@@ -158,6 +158,8 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
 
         // 2. 创建实例（子链继承父链 deadline）
         ChainInstance instance = new ChainInstance(definition, params, parentDeadlineMs);
+        String chainDisplayName = chainLoader.resolveChainDisplayName(chainCode);
+        instance.getContext().setMetadata(ChainConstants.META_CHAIN_NAME, chainDisplayName);
         instanceManager.register(instance);
 
         // 3. 注册类型化参数到上下文
@@ -511,12 +513,13 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
             return;
         }
         ChainContext context = instance.getContext();
+        String chainDisplayName = resolveChainDisplayName(context);
         eventPublisher.publish(ChainEvent.builder()
                 .eventId(UUID.randomUUID().toString())
                 .eventType(eventType)
                 .executionId(instance.getInstanceId())
                 .chainId(chainCode)
-                .chainName(chainCode)
+                .chainName(chainDisplayName)
                 .executorId(properties.getAppCode() + "@" + properties.getHost() + ":" + properties.getPort())
                 .appCode(appCode)
                 .appName(properties.getAppName())
@@ -527,6 +530,17 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
                 .costMs(instance.elapsed())
                 .status(eventType == ChainEvent.EventType.CHAIN_COMPLETED ? 1 : 0)
                 .build());
+    }
+
+    private static String resolveChainDisplayName(ChainContext context) {
+        if (context == null) {
+            return null;
+        }
+        Object name = context.getMetadata(ChainConstants.META_CHAIN_NAME);
+        if (name instanceof String s && !s.isEmpty()) {
+            return s;
+        }
+        return context.getChainCode();
     }
 
     private static String toJsonString(Object obj) {

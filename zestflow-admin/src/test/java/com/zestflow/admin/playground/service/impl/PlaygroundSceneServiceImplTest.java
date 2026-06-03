@@ -8,6 +8,7 @@ import com.zestflow.admin.playground.model.entity.PlaygroundScenePO;
 import com.zestflow.admin.playground.model.vo.PlaygroundSceneVO;
 import com.zestflow.admin.playground.repository.PlaygroundSceneMapper;
 import com.zestflow.admin.playground.support.PlaygroundAccessControl;
+import com.zestflow.admin.playground.support.PlaygroundUrlResolver;
 import com.zestflow.admin.service.TenantAppContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,14 +30,18 @@ class PlaygroundSceneServiceImplTest {
     @Mock private PlaygroundSceneMapper sceneMapper;
     @Mock private TenantAppContext tenantAppContext;
     @Mock private PlaygroundAccessControl accessControl;
+    @Mock private PlaygroundUrlResolver playgroundUrlResolver;
     @Captor private ArgumentCaptor<PlaygroundScenePO> poCaptor;
 
     private PlaygroundSceneServiceImpl sceneService;
 
     @BeforeEach
     void setUp() {
-        sceneService = new PlaygroundSceneServiceImpl(sceneMapper, tenantAppContext, accessControl);
+        sceneService = new PlaygroundSceneServiceImpl(sceneMapper, tenantAppContext, accessControl, playgroundUrlResolver);
         lenient().when(accessControl.isIpDemoTenantSession()).thenReturn(false);
+        lenient().when(playgroundUrlResolver.allowedBaseUrls(any())).thenReturn(List.of());
+        lenient().when(playgroundUrlResolver.normalizeForStorage(anyString(), anyString())).thenAnswer(inv -> inv.getArgument(1));
+        lenient().when(playgroundUrlResolver.toDisplayUrl(anyString(), anyString())).thenAnswer(inv -> inv.getArgument(1));
         org.springframework.test.util.ReflectionTestUtils.setField(sceneService, "defaultAppCode", "playground-app");
     }
 

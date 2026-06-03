@@ -15,3 +15,20 @@ html, body, #app {
 * {
   box-sizing: border-box;
 }
+
+.code-link {
+  color: #409eff;
+  cursor: pointer;
+  font-family: monospace;
+  font-weight: 600;
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.code-link:hover {
+  text-decoration: underline;
+}

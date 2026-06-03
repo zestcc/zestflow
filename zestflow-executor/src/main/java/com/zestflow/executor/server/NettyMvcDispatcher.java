@@ -20,7 +20,7 @@ import java.util.List;
 public class NettyMvcDispatcher {
 
     private static final List<String> FRAMEWORK_PREFIXES = List.of(
-            "/api/chains", "/api/designs", "/api/components", "/api/endpoints");
+            "/api/chains", "/api/designs", "/api/components", "/api/endpoints", "/api/playground");
 
     private final RequestMappingHandlerMapping mapping;
     private final RequestMappingHandlerAdapter adapter;

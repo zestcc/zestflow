@@ -150,6 +150,18 @@ public class ChainLoader implements ApplicationRunner, Ordered {
         return reloadChainInternal(chainCode, null, null, false, false);
     }
 
+    /** 解析链展示名称，不存在时回退为链编码 */
+    public String resolveChainDisplayName(String chainCode) {
+        if (chainCode == null || chainCode.isEmpty()) {
+            return chainCode;
+        }
+        ChainPO chain = chainRepo.get(chainCode);
+        if (chain != null && chain.getName() != null && !chain.getName().isEmpty()) {
+            return chain.getName();
+        }
+        return chainCode;
+    }
+
     private ChainReloadResult reloadChainInternal(String chainCode, String graphData, String chainData,
                                                    boolean persistGraph, boolean incrementVersion) {
         try {

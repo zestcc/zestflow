@@ -17,6 +17,7 @@ export interface EventQueryParams {
 
 export interface ExecutionTrace {
   executionId: string
+  chainCode: string
   chainName: string
   executorId: string
   appCode: string
