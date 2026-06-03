@@ -273,6 +273,7 @@ export default {
     timestamp: '时间',
     eventId: '事件ID',
     chainName: '链名称',
+    chainCode: '执行链编码',
     nodeName: '节点名称',
     params: '参数',
     result: '结果',

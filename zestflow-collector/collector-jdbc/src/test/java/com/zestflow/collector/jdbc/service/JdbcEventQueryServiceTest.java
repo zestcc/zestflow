@@ -272,6 +272,7 @@ class JdbcEventQueryServiceTest {
 
             assertThat(traces).hasSize(1);
             assertThat(traces.get(0).getExecutionId()).isEqualTo("exec-1");
+            assertThat(traces.get(0).getChainCode()).isEqualTo("chain-1");
             assertThat(traces.get(0).getChainName()).isEqualTo("test-chain");
         }
 

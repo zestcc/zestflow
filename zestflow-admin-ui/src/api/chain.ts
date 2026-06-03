@@ -4,6 +4,7 @@ import type { AxiosRequestConfig } from 'axios'
 export interface ChainVO {
   code: string
   name: string
+  appCode?: string
   status: number
   description?: string
   designCode?: string

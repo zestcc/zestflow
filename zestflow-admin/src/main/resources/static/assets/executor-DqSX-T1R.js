@@ -1,1 +1,0 @@
-import{aa as e}from"./index-B8gHmd-u.js";const a={list(){return e.get("/executors")},updateStatus(t,s){return e.put(`/executors/${t}/status`,{status:s})},listApps(t){return e.get("/executors/apps",{params:{online:t||!1}})}};export{a as e};

@@ -23,7 +23,10 @@ public class ExecutionTrace implements Serializable {
     /** 执行追踪 ID */
     private String executionId;
 
-    /** 链编码 */
+    /** 链编码（执行链 code） */
+    private String chainCode;
+
+    /** 链名称（展示名） */
     private String chainName;
 
     /** 执行器 ID */

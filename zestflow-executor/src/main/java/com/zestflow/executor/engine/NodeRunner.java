@@ -549,7 +549,7 @@ public class NodeRunner {
                 .eventType(eventType)
                 .executionId(context.getInstanceId())
                 .chainId(context.getChainCode())
-                .chainName(context.getChainCode())
+                .chainName(resolveChainDisplayName(context))
                 .nodeId(nodeDef.getComponent() != null ? nodeDef.getComponent() : nodeDef.getId())
                 .nodeName(nodeDef.getLabel())
                 .executorId(executorId)
@@ -563,6 +563,17 @@ public class NodeRunner {
                 .errorMessage(errorMessage)
                 .timestamp(System.currentTimeMillis())
                 .build());
+    }
+
+    private static String resolveChainDisplayName(ChainContext context) {
+        if (context == null) {
+            return null;
+        }
+        Object name = context.getMetadata(ChainConstants.META_CHAIN_NAME);
+        if (name instanceof String s && !s.isEmpty()) {
+            return s;
+        }
+        return context.getChainCode();
     }
 
     private static String toJsonString(Object obj) {

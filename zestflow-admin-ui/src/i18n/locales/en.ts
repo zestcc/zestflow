@@ -273,6 +273,7 @@ export default {
     timestamp: 'Timestamp',
     eventId: 'Event ID',
     chainName: 'Chain Name',
+    chainCode: 'Chain Code',
     nodeName: 'Node Name',
     params: 'Params',
     result: 'Result',
