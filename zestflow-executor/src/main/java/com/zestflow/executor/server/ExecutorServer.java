@@ -63,6 +63,10 @@ public class ExecutorServer {
         this.serverHandler.setScanPackages(scanPackages);
     }
 
+    public void setPlaygroundBusinessBaseUrl(String playgroundBusinessBaseUrl) {
+        this.serverHandler.setPlaygroundBusinessBaseUrl(playgroundBusinessBaseUrl);
+    }
+
     public void setNettyMvcDispatcher(NettyMvcDispatcher dispatcher) {
         this.serverHandler.setNettyMvcDispatcher(dispatcher);
     }

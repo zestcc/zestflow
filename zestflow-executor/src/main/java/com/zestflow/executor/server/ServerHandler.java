@@ -64,6 +64,8 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
 
     private RequestMappingHandlerMapping requestMappingHandlerMapping;
     private java.util.List<String> scanPackages = java.util.Collections.emptyList();
+    /** 业务 API Tomcat/网关基址；配置后端点导入展示 absoluteUrl */
+    private String playgroundBusinessBaseUrl;
     private NettyMvcDispatcher nettyMvcDispatcher;
     /** 可选 accessToken，非空时校验请求头 X-Access-Token */
     private String accessToken;
@@ -177,6 +179,12 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
         // 控制器类名列表（供前端导入弹窗的 Controller 下拉）
         if (method == HttpMethod.GET && ("/api/endpoints/classes".equals(uri) || uri.startsWith("/api/endpoints/classes?"))) {
             handleListEndpointClasses(ctx);
+            return true;
+        }
+
+        // Playground 运行时配置（businessBaseUrl / channel）
+        if (method == HttpMethod.GET && "/api/playground/config".equals(uri)) {
+            handlePlaygroundConfig(ctx);
             return true;
         }
 
@@ -1084,6 +1092,15 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
         List<String> sorted = new ArrayList<>(classNames);
         Collections.sort(sorted);
         writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(sorted));
+        return true;
+    }
+
+    private boolean handlePlaygroundConfig(ChannelHandlerContext ctx) throws Exception {
+        ObjectNode root = MAPPER.createObjectNode();
+        String base = playgroundBusinessBaseUrl != null ? playgroundBusinessBaseUrl.trim() : "";
+        root.put("businessBaseUrl", base);
+        root.put("channel", base.isEmpty() ? "netty" : "tomcat");
+        writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(root));
         return true;
     }
 

@@ -10,6 +10,7 @@ import com.zestflow.admin.playground.model.vo.PlaygroundSceneVO;
 import com.zestflow.admin.playground.service.PlaygroundSceneService;
 import com.zestflow.admin.playground.model.vo.AvailableEndpointVO;
 import com.zestflow.admin.playground.support.PlaygroundAccessControl;
+import com.zestflow.admin.playground.support.PlaygroundUrlResolver;
 import com.zestflow.common.model.Result;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,7 @@ public class PlaygroundSceneController {
     private final PlaygroundSceneService sceneService;
     private final ExecutorProxyService executorProxyService;
     private final PlaygroundAccessControl accessControl;
+    private final PlaygroundUrlResolver playgroundUrlResolver;
 
     @GetMapping("/page")
     public Result<IPage<PlaygroundSceneVO>> queryPage(
@@ -144,6 +146,9 @@ public class PlaygroundSceneController {
         try {
             List<AvailableEndpointVO> all = MAPPER.readValue(json,
                     new TypeReference<List<AvailableEndpointVO>>() {});
+            for (AvailableEndpointVO ep : all) {
+                ep.setRequestPath(playgroundUrlResolver.toDisplayUrl(appCode, ep.getRequestPath()));
+            }
             int total = all.size();
             int from = (page - 1) * size;
             List<AvailableEndpointVO> records = from >= total

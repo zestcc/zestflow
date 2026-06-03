@@ -10,8 +10,8 @@ import com.zestflow.admin.playground.model.vo.PlaygroundSceneVO;
 import com.zestflow.admin.playground.repository.PlaygroundSceneMapper;
 import com.zestflow.admin.playground.service.PlaygroundSceneService;
 import com.zestflow.admin.playground.support.PlaygroundAccessControl;
-import com.zestflow.admin.playground.support.PlaygroundAccessControl;
 import com.zestflow.admin.playground.support.PlaygroundRequestPathValidator;
+import com.zestflow.admin.playground.support.PlaygroundUrlResolver;
 import com.zestflow.admin.service.TenantAppContext;
 import com.zestflow.admin.util.SecurityUtils;
 import org.springframework.security.core.Authentication;
@@ -37,6 +37,7 @@ public class PlaygroundSceneServiceImpl implements PlaygroundSceneService {
     private final PlaygroundSceneMapper sceneMapper;
     private final TenantAppContext tenantAppContext;
     private final PlaygroundAccessControl accessControl;
+    private final PlaygroundUrlResolver playgroundUrlResolver;
 
     /** 默认应用编码，从配置 zestflow.playground.app-code 注入 */
     @Value("${zestflow.playground.app-code:playground-app}")
@@ -91,14 +92,14 @@ public class PlaygroundSceneServiceImpl implements PlaygroundSceneService {
 
     @Override
     public PlaygroundSceneVO create(PlaygroundSceneCreateDTO dto) {
-        if (org.springframework.util.StringUtils.hasText(dto.getRequestPath())) {
-            PlaygroundRequestPathValidator.validate(dto.getRequestPath());
-        }
+        String appCode = StringUtils.hasText(dto.getAppCode()) ? dto.getAppCode() : defaultAppCode;
+        String storagePath = playgroundUrlResolver.normalizeForStorage(appCode, dto.getRequestPath());
+        PlaygroundRequestPathValidator.validate(storagePath, playgroundUrlResolver.allowedBaseUrls(appCode));
         PlaygroundScenePO po = new PlaygroundScenePO();
         po.setSceneCode(CodeGenerator.generate("SCN"));
         po.setName(dto.getName());
         po.setDescription(dto.getDescription());
-        po.setRequestPath(dto.getRequestPath());
+        po.setRequestPath(storagePath);
         po.setRequestMethod(StringUtils.hasText(dto.getRequestMethod()) ? dto.getRequestMethod().toUpperCase() : "POST");
         po.setRequestHeaders(dto.getRequestHeaders());
         po.setBodyType(StringUtils.hasText(dto.getBodyType()) ? dto.getBodyType() : "JSON");
@@ -120,8 +121,9 @@ public class PlaygroundSceneServiceImpl implements PlaygroundSceneService {
         if (dto.getName() != null) po.setName(dto.getName());
         if (dto.getDescription() != null) po.setDescription(dto.getDescription());
         if (dto.getRequestPath() != null) {
-            PlaygroundRequestPathValidator.validate(dto.getRequestPath());
-            po.setRequestPath(dto.getRequestPath());
+            String storagePath = playgroundUrlResolver.normalizeForStorage(po.getAppCode(), dto.getRequestPath());
+            PlaygroundRequestPathValidator.validate(storagePath, playgroundUrlResolver.allowedBaseUrls(po.getAppCode()));
+            po.setRequestPath(storagePath);
         }
         if (dto.getRequestMethod() != null) po.setRequestMethod(dto.getRequestMethod().toUpperCase());
         if (dto.getRequestHeaders() != null) po.setRequestHeaders(dto.getRequestHeaders());
@@ -163,7 +165,7 @@ public class PlaygroundSceneServiceImpl implements PlaygroundSceneService {
         vo.setSceneCode(po.getSceneCode());
         vo.setName(po.getName());
         vo.setDescription(po.getDescription());
-        vo.setRequestPath(po.getRequestPath());
+        vo.setRequestPath(playgroundUrlResolver.toDisplayUrl(po.getAppCode(), po.getRequestPath()));
         vo.setRequestMethod(po.getRequestMethod());
         vo.setRequestHeaders(po.getRequestHeaders());
         vo.setBodyType(po.getBodyType());

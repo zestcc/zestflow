@@ -6,6 +6,7 @@ import com.zestflow.admin.playground.repository.PlaygroundRecordMapper;
 import com.zestflow.admin.playground.repository.PlaygroundSceneMapper;
 import com.zestflow.admin.client.ExecutorProxyService;
 import com.zestflow.admin.playground.support.PlaygroundAccessControl;
+import com.zestflow.admin.playground.support.PlaygroundUrlResolver;
 import com.zestflow.admin.service.TenantAppContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,6 +31,7 @@ class PlaygroundServiceImplTest {
     @Mock private PlaygroundRateLimiter rateLimiter;
     @Mock private TenantAppContext tenantAppContext;
     @Mock private PlaygroundAccessControl accessControl;
+    @Mock private PlaygroundUrlResolver playgroundUrlResolver;
 
     private PlaygroundServiceImpl playgroundService;
 
@@ -37,7 +39,18 @@ class PlaygroundServiceImplTest {
     void setUp() {
         playgroundService = new PlaygroundServiceImpl(
                 sceneMapper, recordMapper, proxyService, rateLimiter,
-                tenantAppContext, accessControl);
+                tenantAppContext, accessControl, playgroundUrlResolver);
+        lenient().when(playgroundUrlResolver.allowedBaseUrls(anyString())).thenReturn(java.util.List.of());
+        lenient().when(playgroundUrlResolver.stripInternalAbsoluteUrl(anyString())).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(playgroundUrlResolver.isExecutePath(anyString())).thenAnswer(inv -> {
+            String p = inv.getArgument(0);
+            return "/execute".equals(p) || (p != null && p.contains("/execute"));
+        });
+        lenient().when(playgroundUrlResolver.isApiPath(anyString())).thenAnswer(inv -> {
+            String p = inv.getArgument(0);
+            return p != null && p.contains("/api/");
+        });
+        lenient().when(playgroundUrlResolver.isTomcatBusinessUrl(anyString(), anyString())).thenReturn(false);
     }
 
     @Test

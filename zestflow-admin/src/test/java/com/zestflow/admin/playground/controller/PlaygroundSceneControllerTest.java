@@ -2,6 +2,7 @@ package com.zestflow.admin.playground.controller;
 
 import com.zestflow.admin.client.ExecutorProxyService;
 import com.zestflow.admin.playground.support.PlaygroundAccessControl;
+import com.zestflow.admin.playground.support.PlaygroundUrlResolver;
 import com.zestflow.admin.playground.model.dto.PlaygroundSceneCreateDTO;
 import com.zestflow.admin.playground.model.dto.PlaygroundSceneUpdateDTO;
 import com.zestflow.admin.playground.model.vo.PlaygroundSceneVO;
@@ -27,12 +28,14 @@ class PlaygroundSceneControllerTest {
     @Mock private PlaygroundSceneService sceneService;
     @Mock private ExecutorProxyService executorProxyService;
     @Mock private PlaygroundAccessControl accessControl;
+    @Mock private PlaygroundUrlResolver playgroundUrlResolver;
     private PlaygroundSceneController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new PlaygroundSceneController(sceneService, executorProxyService, accessControl);
+        controller = new PlaygroundSceneController(sceneService, executorProxyService, accessControl, playgroundUrlResolver);
         when(sceneService.getDefaultAppCode()).thenReturn("playground-app");
+        when(playgroundUrlResolver.toDisplayUrl(eq("demo-app"), anyString())).thenAnswer(inv -> inv.getArgument(1));
     }
 
     // ==================== create ====================
@@ -158,6 +161,26 @@ class PlaygroundSceneControllerTest {
 
         assertThat(result.getCode()).isEqualTo(200);
         verify(sceneService).listAll(null);
+    }
+
+    // ==================== available-endpoints ====================
+
+    @Test
+    void getAvailableEndpoints_shouldReturnRecords_whenExecutorHasEndpoints() {
+        String json = """
+                [{"className":"OrderController","methodName":"createOrder","requestPath":"/api/orders/create",\
+                "requestMethod":"POST","parameters":[],"hasRequestBody":true,"requestBodyType":"OrderRequest",\
+                "requestBodyTemplate":"{}","responseBodyType":"OrderResponse","responseBodyTemplate":"{}",\
+                "requestHeaders":""}]\
+                """;
+        when(executorProxyService.getArrayFromExecutor(eq("demo-app"), eq("/api/endpoints"), isNull()))
+                .thenReturn(json);
+
+        var result = controller.getAvailableEndpoints("demo-app", null, null, 1, 10);
+
+        assertThat(result.getCode()).isEqualTo(200);
+        assertThat(result.getData().get("total")).isEqualTo(1);
+        assertThat(result.getData().get("records")).asList().hasSize(1);
     }
 
     private PlaygroundSceneVO createTestVO() {

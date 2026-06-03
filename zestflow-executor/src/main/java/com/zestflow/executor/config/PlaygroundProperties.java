@@ -17,8 +17,10 @@ public class PlaygroundProperties {
     private List<String> scanPackages = Collections.emptyList();
 
     /**
-     * 已废弃：端点导入列表仅返回相对路径（如 /api/orders/...），执行统一经 Executor Netty 端口。
+     * 业务 API 对外基址（Tomcat / 网关），如 {@code http://127.0.0.1:8081} 或 {@code https://www.test.zestflow}。
+     * <p>
+     * 配置后：端点导入展示完整 URL，试验场业务调用走此通道；未配置则走 Executor Netty 端口（Admin 代理鉴权）。
+     * 链执行 {@code /execute} 始终走 Netty。
      */
-    @Deprecated
     private String url;
 }

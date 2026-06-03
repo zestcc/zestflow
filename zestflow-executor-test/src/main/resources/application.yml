@@ -24,6 +24,8 @@ zestflow:
   playground:
     scan-packages:
       - com.zestflow.test.controller
+    # 演示业务 Tomcat 基址（试验场业务 API 全路径展示与 Tomcat 通道）
+    url: http://127.0.0.1:8081
   collector:
     # 与 starter 一致：关闭 Collector 二层 async，避免双队列
     async-enabled: false

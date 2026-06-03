@@ -30,9 +30,13 @@ import com.zestflow.admin.playground.support.PlaygroundRecordStorageHelper;
 
 import com.zestflow.admin.playground.support.PlaygroundRequestPathValidator;
 
+import com.zestflow.admin.playground.support.PlaygroundUrlResolver;
+
 import com.zestflow.admin.service.TenantAppContext;
 
 import com.zestflow.common.model.dto.ChainExecuteRequestDTO;
+
+import com.zestflow.common.util.PlaygroundUrlHelper;
 
 import lombok.RequiredArgsConstructor;
 
@@ -98,6 +102,8 @@ public class PlaygroundServiceImpl implements PlaygroundService {
 
     private final PlaygroundAccessControl accessControl;
 
+    private final PlaygroundUrlResolver playgroundUrlResolver;
+
 
 
     @Value("${zestflow.playground.execute-timeout-ms:30000}")
@@ -126,8 +132,9 @@ public class PlaygroundServiceImpl implements PlaygroundService {
 
         accessControl.requireAppPermission(scene.getAppCode(), "APP_EDITOR");
 
-        String requestPath = normalizeRequestPath(scene.getRequestPath());
-        PlaygroundRequestPathValidator.validate(requestPath);
+        String appCode = scene.getAppCode();
+        String requestPath = playgroundUrlResolver.stripInternalAbsoluteUrl(scene.getRequestPath());
+        PlaygroundRequestPathValidator.validate(requestPath, playgroundUrlResolver.allowedBaseUrls(appCode));
 
 
 
@@ -155,7 +162,7 @@ public class PlaygroundServiceImpl implements PlaygroundService {
 
         try {
 
-            if (requestPath.equals("/execute") || requestPath.startsWith("/execute?")) {
+            if (playgroundUrlResolver.isExecutePath(requestPath)) {
 
                 resultJson = executeChain(scene, params);
 
@@ -167,15 +174,19 @@ public class PlaygroundServiceImpl implements PlaygroundService {
 
                 status = resultNode.has("status") && resultNode.get("status").asInt() >= 4 ? 1 : 0;
 
-            } else if (requestPath.startsWith("/api/")) {
+            } else if (playgroundUrlResolver.isApiPath(requestPath)) {
 
                 String method = scene.getRequestMethod() != null ? scene.getRequestMethod() : "POST";
 
-                String path = buildApiPath(requestPath, method, params);
-
                 String reqBody = "GET".equalsIgnoreCase(method) ? null : MAPPER.writeValueAsString(params);
 
-                resultJson = proxyService.executeOnExecutor(scene.getAppCode(), method, path, reqBody);
+                if (playgroundUrlResolver.isTomcatBusinessUrl(appCode, requestPath)) {
+                    String targetUrl = appendGetQueryToFullUrl(requestPath, method, params);
+                    resultJson = proxyService.executeOnExternalUrl(targetUrl, method, reqBody);
+                } else {
+                    String path = buildApiRelativePath(requestPath, method, params);
+                    resultJson = proxyService.executeOnExecutor(appCode, method, path, reqBody);
+                }
 
                 status = parseBusinessStatus(resultJson);
 
@@ -185,7 +196,7 @@ public class PlaygroundServiceImpl implements PlaygroundService {
 
                 }
 
-                log.info("演示场景业务 API sceneCode={} path={} status={}", sceneCode, path, status);
+                log.info("演示场景业务 API sceneCode={} path={} status={}", sceneCode, requestPath, status);
 
             } else {
 
@@ -281,36 +292,31 @@ public class PlaygroundServiceImpl implements PlaygroundService {
 
 
 
-    /** 兼容历史数据中的绝对 URL，统一为 /execute 或 /api 相对路径 */
-    private static String normalizeRequestPath(String raw) {
-        if (raw == null) {
-            return "";
+    /** GET 请求将 params 拼到相对路径 */
+    private static String buildApiRelativePath(String requestPath, String method, Map<String, Object> params) {
+        String relative = requestPath.contains("://")
+                ? PlaygroundUrlHelper.toRelativePath(requestPath)
+                : requestPath;
+        if (!"GET".equalsIgnoreCase(method) || params == null || params.isEmpty()) {
+            return relative;
         }
-        String path = raw.trim();
-        if (path.contains("://")) {
-            int apiIdx = path.indexOf("/api");
-            if (apiIdx >= 0) {
-                return path.substring(apiIdx);
-            }
-            int execIdx = path.indexOf("/execute");
-            if (execIdx >= 0) {
-                return path.substring(execIdx);
-            }
-        }
-        return path;
+        String basePath = relative.split("\\?")[0];
+        String query = params.entrySet().stream()
+                .map(e -> e.getKey() + "=" + URLEncoder.encode(String.valueOf(e.getValue()), StandardCharsets.UTF_8))
+                .collect(Collectors.joining("&"));
+        return basePath + "?" + query;
     }
 
-    /** 业务 API 经 Executor Netty 进程内转发，禁止直连 Tomcat */
-
-    private static String buildApiPath(String requestPath, String method, Map<String, Object> params) {
-
-        String basePath = requestPath.split("\\?")[0];
+    /** GET 请求将 params 拼到完整 URL（Tomcat 通道） */
+    private static String appendGetQueryToFullUrl(String fullUrl, String method, Map<String, Object> params) {
 
         if (!"GET".equalsIgnoreCase(method) || params == null || params.isEmpty()) {
 
-            return requestPath;
+            return fullUrl;
 
         }
+
+        String basePath = fullUrl.split("\\?")[0];
 
         String query = params.entrySet().stream()
 

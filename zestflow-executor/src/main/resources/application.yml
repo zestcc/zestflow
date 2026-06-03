@@ -72,3 +72,10 @@ zestflow:
     execute-pool-max-size: 0
     # 队列容量
     execute-pool-queue-capacity: 256
+
+  # ---- 试验场 / 端点扫描 ----
+  playground:
+    # 控制器扫描包（端点导入白名单，空则不限制）
+    scan-packages: []
+    # 业务 API 对外基址（Tomcat/网关）。配置后试验场业务调用与端点展示走此地址；未配置由 Admin 拼接
+    url:
