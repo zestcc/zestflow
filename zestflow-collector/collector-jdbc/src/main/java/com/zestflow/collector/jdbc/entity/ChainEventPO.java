@@ -83,4 +83,16 @@ public class ChainEventPO {
     /** 事件数（GROUP BY 查询用，非 DB 字段） */
     @TableField(exist = false)
     private Integer eventCount;
+
+    /** 节点数（GROUP BY 查询用，非 DB 字段） */
+    @TableField(exist = false)
+    private Integer nodeCount;
+
+    /** 成功节点数（GROUP BY 查询用，非 DB 字段） */
+    @TableField(exist = false)
+    private Integer successCount;
+
+    /** 失败节点数（GROUP BY 查询用，非 DB 字段） */
+    @TableField(exist = false)
+    private Integer failedCount;
 }

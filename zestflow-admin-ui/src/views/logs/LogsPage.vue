@@ -60,11 +60,11 @@
           <span>{{ row.costMs != null ? row.costMs + 'ms' : '-' }}</span>
         </template>
       </el-table-column>
-      <el-table-column :label="$t('common.status')" width="80" align="center">
+      <el-table-column :label="$t('common.status')" width="90" align="center">
         <template #default="{ row }">
-          <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
-            {{ row.status === 1 ? $t('logs.success') : $t('logs.failure') }}
-          </el-tag>
+          <el-tag v-if="row.status === 1" type="success" size="small">{{ $t('logs.success') }}</el-tag>
+          <el-tag v-else-if="row.status === 0" type="danger" size="small">{{ $t('logs.failure') }}</el-tag>
+          <el-tag v-else type="info" size="small">{{ $t('logs.inProgress') }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column :label="$t('logs.timestamp')" width="170">
@@ -111,9 +111,9 @@
           <el-descriptions-item :label="$t('logs.appName')">{{ traceDetail.appName || '-' }}</el-descriptions-item>
           <el-descriptions-item :label="$t('logs.costMs')">{{ traceDetail.costMs ? traceDetail.costMs + 'ms' : '-' }}</el-descriptions-item>
           <el-descriptions-item :label="$t('common.status')">
-            <el-tag :type="traceDetail.status === 1 ? 'success' : 'danger'" size="small">
-              {{ traceDetail.status === 1 ? $t('logs.success') : $t('logs.failure') }}
-            </el-tag>
+            <el-tag v-if="traceDetail.status === 1" type="success" size="small">{{ $t('logs.success') }}</el-tag>
+            <el-tag v-else-if="traceDetail.status === 0" type="danger" size="small">{{ $t('logs.failure') }}</el-tag>
+            <el-tag v-else type="info" size="small">{{ $t('logs.inProgress') }}</el-tag>
           </el-descriptions-item>
           <el-descriptions-item :label="$t('logs.nodeCount')">{{ traceDetail.nodeCount || '-' }}</el-descriptions-item>
           <el-descriptions-item :label="$t('logs.successCount')">
@@ -210,7 +210,8 @@ const currentAppCode = ref<string>('')
 const stats = computed(() => {
   const success = list.value.filter(r => r.status === 1).length
   const failure = list.value.filter(r => r.status === 0).length
-  return { success, failure }
+  const inProgress = list.value.filter(r => r.status !== 0 && r.status !== 1).length
+  return { success, failure, inProgress }
 })
 
 // 详情抽屉

@@ -15,8 +15,10 @@ import com.zestflow.common.model.dto.ChainEvent;
 import lombok.RequiredArgsConstructor;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -105,18 +107,13 @@ public class JdbcEventQueryService implements EventQueryService {
         Integer status = null;
         Long costMs = null;
         String errorMessage = null;
-        int nodeCount = 0;
-        int successCount = 0;
-        int failedCount = 0;
+        NodeMetrics nodeMetrics = aggregateNodeMetrics(pos);
 
         for (ChainEventPO po : pos) {
             String et = po.getEventType();
             if ("CHAIN_COMPLETED".equals(et)) { status = 1; costMs = po.getCostMs(); }
             else if ("CHAIN_FAILED".equals(et)) { status = 0; costMs = po.getCostMs(); errorMessage = po.getErrorMessage(); }
             else if ("CHAIN_TIMEOUT".equals(et)) { status = 0; costMs = po.getCostMs(); errorMessage = "执行超时"; }
-            else if ("NODE_COMPLETED".equals(et) || "NODE_FALLBACK_SUCCESS".equals(et)) { successCount++; nodeCount++; }
-            else if ("NODE_STARTED".equals(et)) { nodeCount++; }
-            else if ("NODE_FAILED".equals(et) || "NODE_FALLBACK_FAILED".equals(et)) { failedCount++; nodeCount++; }
         }
 
         return ExecutionTrace.builder()
@@ -130,13 +127,37 @@ public class JdbcEventQueryService implements EventQueryService {
                 .costMs(costMs)
                 .status(status)
                 .eventCount(pos.size())
-                .nodeCount(nodeCount)
-                .successCount(successCount)
-                .failedCount(failedCount)
+                .nodeCount(nodeMetrics.nodeCount())
+                .successCount(nodeMetrics.successCount())
+                .failedCount(nodeMetrics.failedCount())
                 .errorMessage(errorMessage)
                 .events(events)
                 .build();
     }
+
+    /** 按 nodeId 去重统计节点数；成功/失败只计终态事件，避免 STARTED+COMPLETED 双计 */
+    static NodeMetrics aggregateNodeMetrics(List<ChainEventPO> events) {
+        Set<String> nodeIds = new HashSet<>();
+        int successCount = 0;
+        int failedCount = 0;
+        for (ChainEventPO po : events) {
+            String et = po.getEventType();
+            if (et == null) {
+                continue;
+            }
+            if (et.startsWith("NODE_") && po.getNodeId() != null && !po.getNodeId().isEmpty()) {
+                nodeIds.add(po.getNodeId());
+            }
+            if ("NODE_COMPLETED".equals(et) || "NODE_FALLBACK_SUCCESS".equals(et)) {
+                successCount++;
+            } else if ("NODE_FAILED".equals(et) || "NODE_FALLBACK_FAILED".equals(et)) {
+                failedCount++;
+            }
+        }
+        return new NodeMetrics(nodeIds.size(), successCount, failedCount);
+    }
+
+    record NodeMetrics(int nodeCount, int successCount, int failedCount) {}
 
     private LambdaQueryWrapper<ChainEventPO> buildQueryWrapper(EventQuery query) {
         LambdaQueryWrapper<ChainEventPO> wrapper = new LambdaQueryWrapper<>();
@@ -185,15 +206,23 @@ public class JdbcEventQueryService implements EventQueryService {
 
     /** PO → 轨迹摘要（不含 events 列表） */
     private static ExecutionTrace poToTraceSummary(ChainEventPO po) {
+        int eventCount = po.getEventCount() != null ? po.getEventCount() : 0;
+        int nodeCount = po.getNodeCount() != null ? po.getNodeCount() : 0;
+        int successCount = po.getSuccessCount() != null ? po.getSuccessCount() : 0;
+        int failedCount = po.getFailedCount() != null ? po.getFailedCount() : 0;
         return ExecutionTrace.builder()
                 .executionId(po.getExecutionId())
                 .chainName(po.getChainName())
                 .executorId(po.getExecutorId())
                 .appName(po.getAppName())
                 .appCode(po.getAppCode())
-                .startTime(po.getTimestamp())
+                .startTime(po.getTimestamp() != null ? po.getTimestamp() : 0L)
+                .costMs(po.getCostMs())
                 .status(po.getStatus())
-                .eventCount(0)
+                .eventCount(eventCount)
+                .nodeCount(nodeCount)
+                .successCount(successCount)
+                .failedCount(failedCount)
                 .build();
     }
 
