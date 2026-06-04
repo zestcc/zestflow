@@ -178,6 +178,7 @@
         </div>
 
         <!-- X6 画布 -->
+        <p style="font-size:12px;color:#909399;margin:0 0 8px">{{ $t('logs.clickNodeHint') }}</p>
         <div ref="graphContainer" class="execution-graph" style="width:100%;height:360px;border:1px solid #e8e8e8;border-radius:6px;background:#fafafa" />
       </template>
       <div v-else-if="detailLoading" style="text-align:center;padding:40px">
@@ -196,6 +197,37 @@
     </el-dialog>
 
     <ChainDetailDrawer ref="chainDetailDrawerRef" />
+
+    <!-- 节点详情抽屉 -->
+    <el-drawer
+      v-model="nodeDetailVisible"
+      :title="$t('logs.nodeDetail')"
+      :size="560"
+      append-to-body
+    >
+      <div v-if="nodeDetailLoading" style="text-align:center;padding:40px">
+        <el-icon class="is-loading" :size="24"><Loading /></el-icon>
+      </div>
+      <template v-else-if="nodeDetail">
+        <el-descriptions :column="1" border size="small">
+          <el-descriptions-item :label="$t('logs.nodeName')">{{ nodeDetail.nodeName || nodeDetail.nodeId || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="$t('logs.costMs')">{{ nodeDetail.costMs != null ? nodeDetail.costMs + 'ms' : '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="$t('common.status')">
+            <el-tag v-if="nodeDetail.status === 1" type="success" size="small">{{ $t('logs.success') }}</el-tag>
+            <el-tag v-else-if="nodeDetail.status === 0" type="danger" size="small">{{ $t('logs.failure') }}</el-tag>
+            <el-tag v-else type="info" size="small">{{ $t('logs.inProgress') }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item v-if="nodeDetail.errorMessage" :label="$t('logs.errorMessage')">
+            <span style="color:var(--el-color-danger)">{{ nodeDetail.errorMessage }}</span>
+          </el-descriptions-item>
+        </el-descriptions>
+        <h4 style="margin:16px 0 8px">{{ $t('logs.nodeInput') }}</h4>
+        <pre class="payload-block">{{ formatPayload(nodeDetail.params) }}</pre>
+        <h4 style="margin:16px 0 8px">{{ $t('logs.nodeOutput') }}</h4>
+        <pre class="payload-block">{{ formatPayload(nodeDetail.result) }}</pre>
+      </template>
+      <el-empty v-else :description="$t('logs.noNodeDetail')" />
+    </el-drawer>
   </div>
 </template>
 
@@ -206,8 +238,8 @@ import { useI18n } from 'vue-i18n'
 import { Loading, FullScreen, Download } from '@element-plus/icons-vue'
 import { Graph } from '@antv/x6'
 import { Export } from '@antv/x6-plugin-export'
-import type { EventQueryParams, ExecutionTrace } from '@/api/logs'
-import { queryExecutionTraces, getExecutionTrace, getSnapshot } from '@/api/logs'
+import type { EventQueryParams, ExecutionTrace, NodeExecutionDetail } from '@/api/logs'
+import { queryExecutionTraces, getExecutionTrace, getSnapshot, getNodeExecutionDetail } from '@/api/logs'
 import { executorApi, type AppOption } from '@/api/executor'
 import { chainApi, type ChainVO } from '@/api/chain'
 import ChainDetailDrawer from '@/components/ChainDetailDrawer.vue'
@@ -265,6 +297,10 @@ const fullscreenGraph = ref<Graph | null>(null)
 const chainDetailDrawerRef = ref<InstanceType<typeof ChainDetailDrawer> | null>(null)
 const chainNameCache = ref<Record<string, string>>({})
 
+const nodeDetailVisible = ref(false)
+const nodeDetailLoading = ref(false)
+const nodeDetail = ref<NodeExecutionDetail | null>(null)
+
 function resolveChainCode(row: ExecutionTrace | null | undefined): string | undefined {
   if (!row) return undefined
   return row.chainCode || row.events?.[0]?.chainId || undefined
@@ -299,6 +335,43 @@ async function enrichChainNames(rows: ExecutionTrace[]) {
   if (tasks.length > 0) {
     await Promise.allSettled(tasks)
   }
+}
+
+function formatPayload(raw: string | null | undefined): string {
+  if (raw == null || raw === '') return '-'
+  try {
+    return JSON.stringify(JSON.parse(raw), null, 2)
+  } catch {
+    return raw
+  }
+}
+
+async function openNodeDetail(node: any) {
+  if (!traceDetail.value?.executionId || !node) return
+  const data = node.getData?.() || {}
+  const shape = node.shape || ''
+  const nodeId = data.componentId || node.id
+  nodeDetailVisible.value = true
+  nodeDetailLoading.value = true
+  nodeDetail.value = null
+  try {
+    const appCode = traceDetail.value.appCode || currentAppCode.value
+    nodeDetail.value = await getNodeExecutionDetail(
+      traceDetail.value.executionId,
+      nodeId,
+      shape,
+      appCode,
+    ) as NodeExecutionDetail
+  } catch {
+    nodeDetail.value = null
+  } finally {
+    nodeDetailLoading.value = false
+  }
+}
+
+function bindNodeClick(g: Graph) {
+  g.on('node:click', ({ node }) => openNodeDetail(node))
+  g.getNodes().forEach(n => n.attr('body/cursor', 'pointer'))
 }
 
 async function openChainDetail(chainCode: string, appCode?: string) {
@@ -545,6 +618,7 @@ function renderExecGraph(graphDataStr: string, events: any[]) {
   g.use(new Export())
   g.fromJSON(graphData)
   applyExecutionColors(g, events)
+  bindNodeClick(g)
   g.zoomToFit({ padding: 20, maxScale: 1.5 })
   execGraph.value = g
 }
@@ -731,6 +805,7 @@ function renderFullscreenGraph() {
 
   g.fromJSON(data)
   applyExecutionColors(g, savedGraphEvents.value)
+  bindNodeClick(g)
   g.zoomToFit({ padding: 30, maxScale: 2 })
   fullscreenGraph.value = g
 }
@@ -770,4 +845,9 @@ function destroyFullscreenGraph() {
 .dot-success { background: #4caf50; }
 .dot-failed  { background: #f44336; }
 .dot-pending { background: #d4d4d4; border: 1px solid #a0a4a8; }
+.payload-block {
+  background: #f5f7fa; border: 1px solid #e4e7ed; border-radius: 4px;
+  padding: 12px; font-size: 12px; line-height: 1.5; max-height: 240px;
+  overflow: auto; white-space: pre-wrap; word-break: break-all; margin: 0;
+}
 </style>

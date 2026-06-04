@@ -3,11 +3,9 @@ package com.zestflow.executor.engine;
 import com.zestflow.executor.chain.ChainDefinition;
 import com.zestflow.executor.chain.ChainDefinition.ChainEdge;
 import com.zestflow.executor.chain.NodeDefinition;
+import com.zestflow.executor.expression.AviatorExpressionEvaluator;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.script.Bindings;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 import java.util.*;
 
 /**
@@ -141,38 +139,9 @@ public class DagSorter {
     }
 
     /**
-     * 评估条件表达式
-     * <p>
-     * V1 仅支持简单的等于/不等于判断。
-     * 后续可扩展为 SpEL / Groovy 表达式引擎。
+     * 评估条件表达式（Aviator）。
      */
     private boolean evaluateCondition(String condition, Map<String, Object> data) {
-        if (condition == null || condition.isEmpty()) {
-            return true;
-        }
-
-        try {
-            String expr = condition.trim();
-            // 处理内联 ${...} 占位符，兼容 ${expr} 和 ${expr} < val 两种格式
-            expr = expr.replaceAll("\\$\\{([^}]*)\\}", "$1");
-
-            ScriptEngine engine = new ScriptEngineManager().getEngineByName("groovy");
-            if (engine == null) {
-                log.warn("Groovy 引擎不可用，条件表达式视为 true condition={}", condition);
-                return true;
-            }
-            Bindings bindings = engine.createBindings();
-            for (Map.Entry<String, Object> entry : data.entrySet()) {
-                bindings.put(entry.getKey(), entry.getValue());
-            }
-            // 兼容 params.xxx 条件表达式
-            bindings.put("params", new HashMap<>(data));
-            Object result = engine.eval(expr, bindings);
-            return Boolean.TRUE.equals(result);
-
-        } catch (Exception e) {
-            log.warn("条件表达式评估失败 condition={}", condition, e);
-            return false;
-        }
+        return AviatorExpressionEvaluator.evaluateBoolean(condition, data);
     }
 }

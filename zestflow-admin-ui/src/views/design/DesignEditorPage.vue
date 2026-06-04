@@ -155,7 +155,7 @@
             <el-tag v-if="selectedNodeData" size="small" :color="nodeColor(selectedNodeData.nodeType)" style="color:#fff;border:none;margin-left:6px">
               {{ typeLabel(selectedNodeData.nodeType) }}
             </el-tag>
-            <el-button v-if="selectedNodeData && canBindComponent(selectedNodeData.nodeType)" size="small" type="primary" plain @click="openBindDialog" style="margin-left:4px">
+            <el-button v-if="selectedNodeData && canBindMainComponent(selectedNodeData)" size="small" type="primary" plain @click="openBindDialog" style="margin-left:4px">
               {{ $t('design.bindComponent') }}
             </el-button>
           </span>
@@ -163,22 +163,73 @@
         <!-- 节点属性 -->
         <div v-if="selectedNodeData" class="panel-body">
           <el-form size="small" label-position="top">
-            <el-form-item v-if="canBindComponent(selectedNodeData.nodeType)" :label="$t('design.componentId')">
+            <!-- 判断元件：脚本 / 绑定双模式 -->
+            <template v-if="selectedNodeData.nodeType === 'condition'">
+              <el-form-item :label="$t('design.predicateMode')">
+                <el-radio-group v-model="selectedNodeData.predicateMode" @change="onPredicateModeChange">
+                  <el-radio value="script">{{ $t('design.predicateModeScript') }}</el-radio>
+                  <el-radio value="bind">{{ $t('design.predicateModeBind') }}</el-radio>
+                </el-radio-group>
+              </el-form-item>
+              <el-form-item :label="$t('design.componentId')">
+                <el-input
+                    v-if="selectedNodeData.predicateMode === 'script'"
+                    v-model="selectedNodeData.componentId"
+                    :placeholder="$t('design.inlinePredIdPlaceholder')"
+                    style="font-family:monospace"
+                    @input="onDataChange"
+                />
+                <template v-else>
+                  <el-link v-if="selectedNodeData.componentId" type="primary" :underline="'never'" style="font-family:monospace;cursor:pointer" @click="openCompDetail(selectedNodeData)">
+                    {{ selectedNodeData.componentId }}
+                  </el-link>
+                  <span v-else style="color:#bbb;font-size:12px">{{ $t('design.autoFill') }}</span>
+                </template>
+              </el-form-item>
+              <el-form-item :label="$t('design.componentName')">
+                <el-input
+                    v-if="selectedNodeData.predicateMode === 'script'"
+                    v-model="selectedNodeData.componentName"
+                    :placeholder="$t('design.inlinePredNamePlaceholder')"
+                    @input="onDataChange"
+                />
+                <el-input v-else :model-value="selectedNodeData.componentName || ''" disabled :placeholder="$t('design.autoFill')" />
+              </el-form-item>
+              <template v-if="selectedNodeData.predicateMode === 'script'">
+                <el-form-item :label="$t('design.trueBranch')">
+                  <el-input v-model="selectedNodeData.trueLabel" placeholder="True" @change="syncConditionBranchLabels" />
+                </el-form-item>
+                <el-form-item :label="$t('design.falseBranch')">
+                  <el-input v-model="selectedNodeData.falseLabel" placeholder="False" @change="syncConditionBranchLabels" />
+                </el-form-item>
+                <el-form-item :label="$t('design.predicateScript')">
+                  <el-input
+                      v-model="selectedNodeData.predicateScript"
+                      type="textarea"
+                      :rows="4"
+                      :placeholder="$t('design.predicateScriptPlaceholder')"
+                      @input="onDataChange"
+                  />
+                </el-form-item>
+                <div style="font-size:11px;color:#909399;line-height:1.5;margin-bottom:8px">{{ $t('design.predicateScriptHint') }}</div>
+              </template>
+            </template>
+            <el-form-item v-if="showsStandardBindPanel(selectedNodeData.nodeType)" :label="$t('design.componentId')">
               <el-link v-if="selectedNodeData.componentId" type="primary" :underline="'never'" style="font-family:monospace;cursor:pointer" @click="openCompDetail(selectedNodeData)">
                 {{ selectedNodeData.componentId }}
               </el-link>
               <span v-else style="color:#bbb;font-size:12px">{{ $t('design.autoFill') }}</span>
             </el-form-item>
-            <el-form-item v-if="canBindComponent(selectedNodeData.nodeType)" :label="$t('design.componentName')">
+            <el-form-item v-if="showsStandardBindPanel(selectedNodeData.nodeType)" :label="$t('design.componentName')">
               <el-input :model-value="selectedNodeData.componentName || ''" disabled :placeholder="$t('design.autoFill')" />
             </el-form-item>
-            <el-form-item v-if="canBindComponent(selectedNodeData.nodeType)" :label="$t('design.executeStrategy')">
+            <el-form-item v-if="showsStandardBindPanel(selectedNodeData.nodeType)" :label="$t('design.executeStrategy')">
               <el-select v-model="selectedNodeData.executeStrategy" style="width:100%" @change="onDataChange">
                 <el-option v-for="item in executeStrategyOptions" :key="item.value" :label="item.label" :value="item.value" />
               </el-select>
             </el-form-item>
             <!-- 参数解析器链 -->
-            <div v-if="canBindComponent(selectedNodeData.nodeType)" style="padding:0 0 8px 0;width:100%">
+            <div v-if="showsStandardBindPanel(selectedNodeData.nodeType)" style="padding:0 0 8px 0;width:100%">
               <div style="font-size:12px;color:#606266;margin-bottom:4px">{{ $t('components.typeParamBinder') }}</div>
               <div v-for="(item, idx) in (selectedNodeData.paramResolvers || [])" :key="idx" style="display:flex;align-items:center;gap:2px;margin-bottom:3px">
                 <el-tag type="info" size="small" closable style="flex:1;overflow:hidden;text-align:left;justify-content:flex-start" @close="removeParamResolver(idx)">
@@ -190,7 +241,7 @@
               <el-button size="small" type="primary" plain @click="openBindDialog('resolver')" style="width:100%">{{ $t('design.addResolver') }}</el-button>
             </div>
             <!-- 参数校验器 -->
-            <div v-if="canBindComponent(selectedNodeData.nodeType)" style="padding:0 0 4px 0;width:100%">
+            <div v-if="showsStandardBindPanel(selectedNodeData.nodeType)" style="padding:0 0 4px 0;width:100%">
               <div style="font-size:12px;color:#606266;margin-bottom:4px">{{ $t('components.typeParamValidator') }}</div>
               <el-tag v-if="selectedNodeData.paramValidatorName" type="info" size="small" closable style="margin-bottom:4px" @close="clearValidator()">
                 {{ selectedNodeData.paramValidatorName }}
@@ -200,7 +251,7 @@
               </el-button>
             </div>
             <!-- 前置处理器 -->
-            <div v-if="canBindComponent(selectedNodeData.nodeType)" style="padding:0 0 8px 0;width:100%">
+            <div v-if="showsStandardBindPanel(selectedNodeData.nodeType)" style="padding:0 0 8px 0;width:100%">
               <div style="font-size:12px;color:#606266;margin-bottom:4px">{{ $t('design.preProcessor') }}</div>
               <div v-for="(item, idx) in (selectedNodeData.preComponents || [])" :key="idx" style="display:flex;align-items:center;gap:2px;margin-bottom:3px">
                 <el-tag type="info" size="small" closable style="flex:1;overflow:hidden;text-align:left;justify-content:flex-start" @close="removePrePost('pre', idx)">
@@ -212,7 +263,7 @@
               <el-button size="small" type="primary" plain @click="openBindDialog('pre')" style="width:100%">{{ $t('design.addPre') }}</el-button>
             </div>
             <!-- 后置处理器 -->
-            <div v-if="canBindComponent(selectedNodeData.nodeType)" style="padding:0 0 8px 0;width:100%">
+            <div v-if="showsStandardBindPanel(selectedNodeData.nodeType)" style="padding:0 0 8px 0;width:100%">
               <div style="font-size:12px;color:#606266;margin-bottom:4px">{{ $t('design.postProcessor') }}</div>
               <div v-for="(item, idx) in (selectedNodeData.postComponents || [])" :key="idx" style="display:flex;align-items:center;gap:2px;margin-bottom:3px">
                 <el-tag type="info" size="small" closable style="flex:1;overflow:hidden;text-align:left;justify-content:flex-start" @close="removePrePost('post', idx)">
@@ -223,7 +274,7 @@
               </div>
               <el-button size="small" type="primary" plain @click="openBindDialog('post')" style="width:100%">{{ $t('design.addPost') }}</el-button>
             </div>
-            <el-form-item v-if="hasDescription(selectedNodeData.nodeType)" :label="$t('design.script')">
+            <el-form-item v-if="hasScriptField(selectedNodeData.nodeType)" :label="$t('design.script')">
               <el-input v-model="selectedNodeData.script" type="textarea" :rows="3" :placeholder="$t('design.scriptPlaceholder')" @input="onDataChange" />
             </el-form-item>
             <el-form-item v-if="hasDescription(selectedNodeData.nodeType)" :label="$t('design.description')">
@@ -766,6 +817,61 @@ function typeLabel(type: string) {
 }
 
 function hasDescription(type: string) { return type === 'task' || type === 'condition' || type === 'multicondition' || type === 'loader' || type === 'parser' || type === 'script' || type === 'subchain' || type === 'iterator' }
+
+function hasScriptField(type: string) {
+  return type === 'loader' || type === 'parser' || type === 'script'
+}
+
+function showsStandardBindPanel(nodeType: string) {
+  return canBindComponent(nodeType) && nodeType !== 'condition'
+}
+
+function canBindMainComponent(data: { nodeType?: string; predicateMode?: string }) {
+  if (!data?.nodeType) return false
+  if (data.nodeType === 'condition') return data.predicateMode === 'bind'
+  return canBindComponent(data.nodeType)
+}
+
+function generateInlinePredId() {
+  return `INLINE_PRED_${Date.now().toString(36).toUpperCase()}`
+}
+
+function ensureConditionDefaults(data: Record<string, any>) {
+  if (data.nodeType !== 'condition') return data
+  if (!data.predicateMode) {
+    data.predicateMode = data.predicateScript ? 'script' : 'bind'
+  }
+  if (!data.trueLabel) data.trueLabel = 'True'
+  if (!data.falseLabel) data.falseLabel = 'False'
+  if (data.predicateMode === 'script' && !data.componentId) data.componentId = generateInlinePredId()
+  if (data.predicateScript === undefined) data.predicateScript = ''
+  return data
+}
+
+function onPredicateModeChange() {
+  if (!selectedNodeData.value) return
+  const data = selectedNodeData.value
+  if (data.predicateMode === 'script') {
+    if (!data.componentId) data.componentId = generateInlinePredId()
+    if (!data.trueLabel) data.trueLabel = 'True'
+    if (!data.falseLabel) data.falseLabel = 'False'
+  } else {
+    data.predicateScript = ''
+  }
+  onDataChange()
+}
+
+/** 同步 True/False 标签到出线（按出线顺序：第一条 True，第二条 False） */
+function syncConditionBranchLabels() {
+  if (!graph || !selectedCell || !selectedNodeData.value) return
+  onDataChange()
+  const data = selectedNodeData.value
+  const edges = graph.getEdges()
+      .filter(e => e.getSourceCellId() === selectedCell.id)
+      .sort((a, b) => a.id.localeCompare(b.id))
+  if (edges.length >= 1 && data.trueLabel) setEdgeLabelSafe(edges[0], data.trueLabel)
+  if (edges.length >= 2 && data.falseLabel) setEdgeLabelSafe(edges[1], data.falseLabel)
+}
 
 // ====== 绑定元件 ======
 
@@ -1500,7 +1606,16 @@ function onDrop(event: DragEvent) {
     y: pos.y - h / 2,
     width: w,
     height: h,
-    data: { label, nodeType: type, description: '', preComponents: [], postComponents: [], paramResolvers: [], paramValidatorId: '', paramValidatorName: '', executeStrategy: 'NORMAL', script: '', subChainCode: '', iteratorDataSource: '', iteratorItemName: 'item' },
+    data: ensureConditionDefaults({
+      label, nodeType: type, description: '', preComponents: [], postComponents: [], paramResolvers: [],
+      paramValidatorId: '', paramValidatorName: '', executeStrategy: 'NORMAL', script: '', subChainCode: '',
+      iteratorDataSource: '', iteratorItemName: 'item',
+      predicateMode: type === 'condition' ? 'script' : undefined,
+      predicateScript: type === 'condition' ? '' : undefined,
+      trueLabel: type === 'condition' ? 'True' : undefined,
+      falseLabel: type === 'condition' ? 'False' : undefined,
+      componentId: type === 'condition' ? generateInlinePredId() : '',
+    }),
   })
   updateNodeVisual(node)
 }
@@ -1822,6 +1937,19 @@ function translateGraphToChain(): any {
         // 描述
         if (data.description) node.description = data.description
 
+        // 判断元件：内联脚本 / 绑定模式
+        if (data.nodeType === 'condition') {
+          const predCfg: Record<string, any> = {}
+          const mode = data.predicateMode || 'bind'
+          predCfg.predicateMode = mode
+          if (mode === 'script') {
+            if (data.predicateScript) predCfg.predicateScript = data.predicateScript
+            if (data.trueLabel) predCfg.trueLabel = data.trueLabel
+            if (data.falseLabel) predCfg.falseLabel = data.falseLabel
+          }
+          node.config = { ...(node.config || {}), ...predCfg }
+        }
+
         // 执行策略配置
         if (Object.keys(config).length > 0) node.config = config
 
@@ -1947,9 +2075,21 @@ function validateChain(): string[] {
   // 4. 业务节点（除 start/end）未绑定元件
   const bindableTypes = new Set(['task', 'condition', 'multicondition', 'loader', 'parser'])
   nodes.forEach(n => {
-    const data = n.getData() || {}
+    const data = ensureConditionDefaults({ ...(n.getData() || {}) })
     const nodeType = data.nodeType
     if (!bindableTypes.has(nodeType)) return
+    if (nodeType === 'condition' && data.predicateMode === 'script') {
+      if (!data.componentId?.trim()) {
+        errors.push(t('design.inlinePredIdRequired', { label: data.label || n.id }))
+      }
+      if (!data.predicateScript?.trim()) {
+        errors.push(t('design.predicateScriptRequired', { label: data.label || n.id }))
+      }
+      if (!data.trueLabel?.trim() || !data.falseLabel?.trim()) {
+        errors.push(t('design.branchLabelRequired', { label: data.label || n.id }))
+      }
+      return
+    }
     if (!data.componentId) {
       errors.push(t('design.nodeNotBound', { label: data.label || n.id, type: typeLabel(nodeType) }))
     }
@@ -2074,6 +2214,9 @@ async function loadDesign() {
           // 序列化可能丢失端口 group 定义，重新注入完整端口配置
           const nodeType = n.getData()?.nodeType || 'task'
           n.setProp('ports', { groups: { handle: handleGroup }, items: getPorts(nodeType) })
+          if (nodeType === 'condition') {
+            n.setData(ensureConditionDefaults({ ...(n.getData() || {}) }))
+          }
         })
         normalizeLoadedEdges()
         graph.zoomToFit({ padding: 60, maxScale: 1 })
@@ -2097,14 +2240,20 @@ async function loadDesign() {
 async function handleSave() {
   if (!graph) return
 
-  // 1. 拓扑校验（阻断）
   const validationErrors = validateChain()
-  if (validationErrors.length > 0) {
-    ElMessage.warning(t('design.validationFailed', { errors: validationErrors.join('\n') }))
-    return
+  const flowValid = validationErrors.length === 0
+
+  if (!flowValid) {
+    try {
+      await ElMessageBox.confirm(
+          t('design.saveDespiteInvalid', { errors: validationErrors.join('\n') }),
+          t('common.confirm'),
+          { confirmButtonText: t('design.saveGraph'), cancelButtonText: t('common.cancel'), type: 'warning' }
+      )
+    } catch { return }
   }
 
-  // 2. 死环警告（不阻断）
+  // 死环警告（不阻断）
   const cycleWarnings = detectCycleWarnings()
   if (cycleWarnings.length > 0) {
     try {
@@ -2133,7 +2282,7 @@ async function handleSave() {
     const json = graph.toJSON()
     const chain = translateGraphToChain()
     await designApi.saveGraph(designCode, appCode, JSON.stringify(json), JSON.stringify(chain))
-    ElMessage.success(t('design.saveGraphSuccess'))
+    ElMessage.success(flowValid ? t('design.saveGraphSuccess') : t('design.saveGraphDesigning'))
   } catch { ElMessage.error(t('design.saveFailed')) }
   finally { saving.value = false }
 }

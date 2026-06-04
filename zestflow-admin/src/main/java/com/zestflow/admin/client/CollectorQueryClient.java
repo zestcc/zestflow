@@ -6,6 +6,8 @@ import com.zestflow.common.protocol.EventQueryResult;
 import com.zestflow.common.protocol.EventStats;
 import com.zestflow.common.protocol.EventStatsQuery;
 import com.zestflow.common.protocol.ExecutionTrace;
+import com.zestflow.common.protocol.InvocationPayloadDTO;
+import com.zestflow.common.protocol.NodeExecutionDetail;
 import com.zestflow.common.protocol.PageResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
@@ -38,6 +40,10 @@ public class CollectorQueryClient {
             new ParameterizedTypeReference<com.zestflow.common.model.Result<ExecutionTrace>>() {};
     private static final ParameterizedTypeReference<com.zestflow.common.model.Result<Void>> RESULT_VOID_TYPE =
             new ParameterizedTypeReference<com.zestflow.common.model.Result<Void>>() {};
+    private static final ParameterizedTypeReference<com.zestflow.common.model.Result<NodeExecutionDetail>> NODE_DETAIL_TYPE =
+            new ParameterizedTypeReference<com.zestflow.common.model.Result<NodeExecutionDetail>>() {};
+    private static final ParameterizedTypeReference<com.zestflow.common.model.Result<InvocationPayloadDTO>> INVOCATION_TYPE =
+            new ParameterizedTypeReference<com.zestflow.common.model.Result<InvocationPayloadDTO>>() {};
     private static final ParameterizedTypeReference<com.zestflow.common.model.Result<ChainSnapshotDTO>> SNAPSHOT_TYPE =
             new ParameterizedTypeReference<com.zestflow.common.model.Result<ChainSnapshotDTO>>() {};
 
@@ -129,6 +135,59 @@ public class CollectorQueryClient {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    /**
+     * 查询节点执行详情（入参/出参按需加载）
+     */
+    public NodeExecutionDetail getNodeExecutionDetail(String baseUrl, String executionId,
+                                                       String nodeId, String nodeShape) {
+        try {
+            String url = baseUrl + "/collector/events/executions/" + executionId + "/nodes/" + nodeId;
+            if (nodeShape != null && !nodeShape.isBlank()) {
+                url += "?nodeShape=" + nodeShape;
+            }
+            HttpEntity<Void> entity = new HttpEntity<>(buildHeaders());
+            var resp = restTemplate.exchange(url, HttpMethod.GET, entity, NODE_DETAIL_TYPE);
+            if (resp.getBody() != null && resp.getBody().getCode() == 200) {
+                return resp.getBody().getData();
+            }
+        } catch (Exception e) {
+            log.warn("查询节点详情失败 executionId={} nodeId={} error={}", executionId, nodeId, e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * 保存外部调用载荷
+     */
+    public boolean saveInvocationPayload(String baseUrl, InvocationPayloadDTO dto) {
+        try {
+            String url = baseUrl + "/collector/invocations";
+            HttpEntity<InvocationPayloadDTO> entity = new HttpEntity<>(dto, buildHeaders());
+            var resp = restTemplate.exchange(url, HttpMethod.POST, entity, RESULT_VOID_TYPE);
+            return resp.getBody() != null && resp.getBody().getCode() == 200;
+        } catch (Exception e) {
+            log.warn("保存调用载荷失败 invocationId={} error={}", dto.getInvocationId(), e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 查询外部调用载荷
+     */
+    public InvocationPayloadDTO getInvocationPayload(String baseUrl, String invocationId) {
+        try {
+            String url = baseUrl + "/collector/invocations/" + invocationId;
+            HttpEntity<Void> entity = new HttpEntity<>(buildHeaders());
+            var resp = restTemplate.exchange(url, HttpMethod.GET, entity, INVOCATION_TYPE);
+            if (resp.getBody() != null && resp.getBody().getCode() == 200) {
+                return resp.getBody().getData();
+            }
+        } catch (Exception e) {
+            log.warn("查询调用载荷失败 invocationId={} error={}", invocationId, e.getMessage());
+        }
+        return null;
     }
 
     /**

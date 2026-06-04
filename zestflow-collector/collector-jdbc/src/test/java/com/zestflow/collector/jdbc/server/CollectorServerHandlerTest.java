@@ -3,6 +3,7 @@ package com.zestflow.collector.jdbc.server;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zestflow.collector.jdbc.service.ChainGraphSnapshotService;
 import com.zestflow.collector.spi.EventQueryService;
+import com.zestflow.collector.spi.InvocationPayloadService;
 import com.zestflow.common.model.Result;
 import com.zestflow.common.model.dto.ChainEvent;
 import com.zestflow.common.model.dto.ChainSnapshotDTO;
@@ -43,6 +44,7 @@ class CollectorServerHandlerTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Mock private EventQueryService eventQueryService;
+    @Mock private InvocationPayloadService invocationPayloadService;
     @Mock private ChainGraphSnapshotService snapshotService;
     @Mock private ChannelHandlerContext ctx;
 
@@ -53,7 +55,8 @@ class CollectorServerHandlerTest {
     @BeforeEach
     void setUp() {
         // accessToken=null 跳过 Token 校验
-        handler = new CollectorServerHandler(eventQueryService, snapshotService, null, null, null);
+        handler = new CollectorServerHandler(eventQueryService, invocationPayloadService,
+                snapshotService, null, null, null);
     }
 
     // ==================== 工具方法 ====================
@@ -104,7 +107,8 @@ class CollectorServerHandlerTest {
 
         @Test
         void health_noAuthRequired() {
-            handler = new CollectorServerHandler(eventQueryService, snapshotService, "secret", null, null);
+            handler = new CollectorServerHandler(eventQueryService, invocationPayloadService,
+                    snapshotService, "secret", null, null);
             invokeHandler(buildRequest(HttpMethod.GET, "/collector/health"));
             FullHttpResponse resp = captureResponse();
             assertThat(resp.status()).isEqualTo(HttpResponseStatus.OK);
@@ -118,7 +122,8 @@ class CollectorServerHandlerTest {
 
         @BeforeEach
         void setUp() {
-            handler = new CollectorServerHandler(eventQueryService, snapshotService, "my-secret", null, null);
+            handler = new CollectorServerHandler(eventQueryService, invocationPayloadService,
+                    snapshotService, "my-secret", null, null);
         }
 
         @Test
@@ -153,7 +158,8 @@ class CollectorServerHandlerTest {
 
         @Test
         void emptyTokenBypasses() {
-            handler = new CollectorServerHandler(eventQueryService, snapshotService, "", null, null);
+            handler = new CollectorServerHandler(eventQueryService, invocationPayloadService,
+                    snapshotService, "", null, null);
             when(eventQueryService.queryEvents(any())).thenReturn(List.of());
             when(eventQueryService.countEvents(any())).thenReturn(0L);
 

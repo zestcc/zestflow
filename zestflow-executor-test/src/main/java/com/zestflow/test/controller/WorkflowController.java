@@ -469,7 +469,7 @@ public class WorkflowController {
 
         var result = orch.loadAndExecute(code, List.of(
                 BizOrchestrationService.normalNode("start", "validateUser"),
-                BizOrchestrationService.scriptNode("bad", "groovy: this is !!! invalid syntax @@@"),
+                BizOrchestrationService.scriptNode("bad", "aviator: !!! invalid @@@"),
                 BizOrchestrationService.normalNode("end", "sendNotify")
         ), List.of(
                 BizOrchestrationService.edge("start", "bad"),

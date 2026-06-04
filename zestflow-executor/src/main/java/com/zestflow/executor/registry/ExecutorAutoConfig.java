@@ -19,6 +19,7 @@ import com.zestflow.executor.interceptor.*;
 import com.zestflow.executor.lifecycle.*;
 import com.zestflow.executor.param.ParamConverterRegistry;
 import com.zestflow.executor.param.resolver.ContextTypeResolver;
+import com.zestflow.executor.param.resolver.ParameterNameResolver;
 import com.zestflow.executor.param.resolver.ParameterResolver;
 import com.zestflow.executor.param.resolver.ZestParamResolver;
 import com.zestflow.executor.retry.RetryExecutor;
@@ -39,14 +40,13 @@ import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Profile;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.env.Environment;
-import org.springframework.web.client.RestTemplate;
+import com.zestflow.collector.http.ZestFlowHttpClient;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @AutoConfiguration
 @EnableConfigurationProperties({ExecutorProperties.class, ExecutorChainProperties.class, ExecutorEventProperties.class})
-@Import({ExecutorDataSourceConfig.class, ExecutorSchedulingConfig.class})
+@Import({ExecutorSchedulingConfig.class})
 public class ExecutorAutoConfig {
 
     @Bean
@@ -78,25 +78,14 @@ public class ExecutorAutoConfig {
     }
 
     @Bean
-    public RestTemplate zestflowRestTemplate(ExecutorProperties properties) {
-        RestTemplate restTemplate = new RestTemplate();
-        org.springframework.http.client.SimpleClientHttpRequestFactory factory =
-                new org.springframework.http.client.SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(properties.getTimeoutMs());
-        factory.setReadTimeout(properties.getTimeoutMs());
-        restTemplate.setRequestFactory(factory);
-        // 默认 StringHttpMessageConverter 用 ISO-8859-1，中文会变 ????
-        restTemplate.getMessageConverters().stream()
-                .filter(c -> c instanceof org.springframework.http.converter.StringHttpMessageConverter)
-                .forEach(c -> ((org.springframework.http.converter.StringHttpMessageConverter) c)
-                        .setDefaultCharset(StandardCharsets.UTF_8));
-        return restTemplate;
+    public ZestFlowHttpClient zestflowAdminHttpClient(ExecutorProperties properties) {
+        return new ZestFlowHttpClient(properties.getTimeoutMs());
     }
 
     @Bean
-    public AdminClient adminClient(@Qualifier("zestflowRestTemplate") RestTemplate restTemplate,
+    public AdminClient adminClient(ZestFlowHttpClient zestflowAdminHttpClient,
                                     ExecutorProperties properties) {
-        return new AdminClient(restTemplate, properties);
+        return new AdminClient(zestflowAdminHttpClient, properties);
     }
 
     @Bean
@@ -168,6 +157,11 @@ public class ExecutorAutoConfig {
     @Bean
     public ZestParamResolver zestParamResolver(ParamConverterRegistry registry) {
         return new ZestParamResolver(registry);
+    }
+
+    @Bean
+    public ParameterNameResolver parameterNameResolver(ParamConverterRegistry registry) {
+        return new ParameterNameResolver(registry);
     }
 
     @Bean

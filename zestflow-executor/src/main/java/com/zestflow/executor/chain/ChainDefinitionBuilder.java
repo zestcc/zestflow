@@ -161,7 +161,11 @@ public class ChainDefinitionBuilder {
                 .retryCount(parseIntConfig(cfg, "retryCount", ChainConstants.DEFAULT_RETRY_COUNT))
                 .retryInterval(parseLongConfig(cfg, "retryInterval", ChainConstants.DEFAULT_RETRY_INTERVAL_MS))
                 .async(parseBoolConfig(cfg, "async", false))
-                .condition(parseStringConfig(cfg, "condition", ""));
+                .condition(parseStringConfig(cfg, "condition", ""))
+                .predicateMode(parseStringConfig(cfg, "predicateMode", "bind"))
+                .predicateScript(parseStringConfig(cfg, "predicateScript", ""))
+                .trueLabel(parseStringConfig(cfg, "trueLabel", "True"))
+                .falseLabel(parseStringConfig(cfg, "falseLabel", "False"));
 
         // 重试相关
         Map<String, Object> retryCfg = parseMapConfig(cfg, "retry");

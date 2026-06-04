@@ -23,10 +23,7 @@ import com.zestflow.executor.scanner.ComponentScanner.ComponentMeta;
 import com.zestflow.executor.scanner.ComponentScanner.TagDef;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.script.Bindings;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
+import com.zestflow.executor.expression.AviatorExpressionEvaluator;
 import com.zestflow.executor.context.ExecuteResultPublisher;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -269,9 +266,21 @@ public class NodeRunner {
     private Object executeNormal(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
         executePreProcessors(nodeDef, context);
         Object result = lifecycleExecutor.execute(nodeDef, context);
-        ExecuteResultPublisher.publish(context, result);
+        publishResult(context, result, nodeDef);
         executePostProcessors(nodeDef, context);
         return result;
+    }
+
+    private void publishResult(ChainContext context, Object result, NodeDefinition nodeDef) {
+        String outputKey = null;
+        String componentId = nodeDef.getComponent();
+        if (componentId != null && !componentId.isEmpty()) {
+            ComponentMeta meta = componentScanner.getComponent(componentId);
+            if (meta != null) {
+                outputKey = meta.getOutputKey();
+            }
+        }
+        ExecuteResultPublisher.publish(context, result, outputKey);
     }
 
     private void executePreProcessors(NodeDefinition nodeDef, ChainContext context) {
@@ -300,6 +309,11 @@ public class NodeRunner {
             }
         }
 
+        // 内联脚本判断：表达式随设计持久化，不依赖 @ZestPredicate 元件
+        if (nodeDef.isInlineScriptPredicate()) {
+            return executeInlineScriptPredicate(nodeDef, context, stateMachine);
+        }
+
         // 无 component 的 CONDITION 节点是纯路由器，跳过元件执行
         String componentId = nodeDef.getComponent();
         if (componentId == null || componentId.isEmpty()) {
@@ -309,7 +323,7 @@ public class NodeRunner {
 
         executePreProcessors(nodeDef, context);
         Object result = lifecycleExecutor.execute(nodeDef, context);
-        ExecuteResultPublisher.publish(context, result);
+        publishResult(context, result, nodeDef);
         executePostProcessors(nodeDef, context);
 
         // 将路由决策写入上下文，供引擎选择匹配的出边
@@ -323,6 +337,31 @@ public class NodeRunner {
         }
 
         return result;
+    }
+
+    /**
+     * 内联脚本判断：评估 Aviator 表达式，将 True/False 标签写入 _branch 供引擎路由。
+     */
+    private Object executeInlineScriptPredicate(NodeDefinition nodeDef, ChainContext context,
+                                                NodeStateMachine stateMachine) {
+        String script = nodeDef.getPredicateScript();
+        if (script == null || script.isBlank()) {
+            throw new IllegalArgumentException("脚本判断表达式为空 nodeId=" + nodeDef.getId());
+        }
+
+        executePreProcessors(nodeDef, context);
+        boolean matched = evaluateCondition(script, context);
+        String trueLabel = nodeDef.getTrueLabel() != null && !nodeDef.getTrueLabel().isBlank()
+                ? nodeDef.getTrueLabel() : "True";
+        String falseLabel = nodeDef.getFalseLabel() != null && !nodeDef.getFalseLabel().isBlank()
+                ? nodeDef.getFalseLabel() : "False";
+        String branch = matched ? trueLabel : falseLabel;
+        context.put("_branch", branch);
+        executePostProcessors(nodeDef, context);
+
+        log.debug("CONDITION 脚本判断 nodeId={} component={} matched={} branch={}",
+                nodeDef.getId(), nodeDef.getComponent(), matched, branch);
+        return branch;
     }
 
     /**
@@ -356,21 +395,11 @@ public class NodeRunner {
             throw new IllegalArgumentException("脚本内容为空 nodeId=" + nodeDef.getId());
         }
 
-        ScriptEngineManager manager = new ScriptEngineManager();
-        ScriptEngine engine = manager.getEngineByName("groovy");
-        if (engine == null) {
-            throw new IllegalStateException("Groovy 脚本引擎不可用，请确保 groovy-jsr223 在 classpath 中 nodeId=" + nodeDef.getId());
-        }
-
-        Bindings bindings = engine.createBindings();
-        bindings.put("ctx", context);
-        bindings.put("params", context.snapshot());
-
         try {
-            Object result = engine.eval(script, bindings);
+            Object result = AviatorExpressionEvaluator.execute(script, AviatorExpressionEvaluator.buildEnv(context));
             log.debug("脚本执行成功 nodeId={}", nodeDef.getId());
             return result;
-        } catch (ScriptException e) {
+        } catch (Exception e) {
             throw new RuntimeException("脚本执行失败 nodeId=" + nodeDef.getId() + " error=" + e.getMessage(), e);
         }
     }
@@ -587,30 +616,6 @@ public class NodeRunner {
     }
 
     private boolean evaluateCondition(String condition, ChainContext context) {
-        if (condition == null || condition.isEmpty()) {
-            return true;
-        }
-        try {
-            String expr = condition.trim();
-            // 处理内联 ${...} 占位符，兼容 ${expr} 和 ${expr} < val 两种格式
-            expr = expr.replaceAll("\\$\\{([^}]*)\\}", "$1");
-            ScriptEngine engine = new ScriptEngineManager().getEngineByName("groovy");
-            if (engine == null) {
-                log.warn("Groovy 引擎不可用，条件表达式视为 true condition={}", condition);
-                return true;
-            }
-            Bindings bindings = engine.createBindings();
-            Map<String, Object> snapshot = context.snapshot();
-            for (Map.Entry<String, Object> entry : snapshot.entrySet()) {
-                bindings.put(entry.getKey(), entry.getValue());
-            }
-            // 兼容 params.xxx 条件表达式
-            bindings.put("params", new HashMap<>(snapshot));
-            Object result = engine.eval(expr, bindings);
-            return Boolean.TRUE.equals(result);
-        } catch (Exception e) {
-            log.error("条件表达式评估失败 condition={}", condition, e);
-            return false;
-        }
+        return AviatorExpressionEvaluator.evaluateBoolean(condition, context.snapshot());
     }
 }

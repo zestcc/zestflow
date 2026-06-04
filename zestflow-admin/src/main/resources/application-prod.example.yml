@@ -63,7 +63,10 @@ zestflow:
     avatar-dir: uploads/avatars
   admin:
     # 反向代理终止 TLS 时可设为 https
-    protocol: http
+    protocol: https
+    # 前端 module script 带 Origin 头；公网域名须加入 CORS 白名单（未升级 jar 前必配）
+    cors:
+      allowed-origins: https://www.zestflow.cn,https://zestflow.cn
     # 三台机器令牌须成对一致（Admin / Executor / Collector），各生成独立强随机串
     registry-token: change-me-registry-token-min-16-chars
     executor-access-token: change-me-executor-access-token-min-16

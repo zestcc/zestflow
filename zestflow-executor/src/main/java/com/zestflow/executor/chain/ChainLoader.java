@@ -3,6 +3,7 @@ package com.zestflow.executor.chain;
 import com.zestflow.common.constant.ChainConstants;
 import com.zestflow.executor.design.DesignPO;
 import com.zestflow.executor.design.DesignRepository;
+import com.zestflow.executor.design.DesignStatus;
 import com.zestflow.common.model.dto.ChainSyncDTO;
 import com.zestflow.executor.engine.NodeRunner;
 import com.zestflow.executor.registry.AdminClient;
@@ -15,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.Ordered;
+import org.springframework.jdbc.CannotGetJdbcConnectionException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -127,8 +129,13 @@ public class ChainLoader implements ApplicationRunner, Ordered {
             log.info("链加载完成 loaded={}/{}", definitions.size(), activeChains.size());
             return true;
 
+        } catch (CannotGetJdbcConnectionException e) {
+            log.warn("链加载跳过：Executor 数据源不可用（{}）。同库模式请删除 zestflow.executor.datasource 配置以复用 spring.datasource；"
+                            + "分库模式请创建对应库并执行 zestflow 表结构迁移",
+                    rootMessage(e));
+            return false;
         } catch (Exception e) {
-            log.error("链加载异常", e);
+            log.warn("链加载异常（应用继续运行）: {}", rootMessage(e));
             return false;
         }
     }
@@ -194,6 +201,9 @@ public class ChainLoader implements ApplicationRunner, Ordered {
             DesignPO design = designRepo.get(designCode);
             if (design == null) {
                 return new ChainReloadResult(false, "设计不存在: " + designCode, 0);
+            }
+            if (design.getStatus() == null || design.getStatus() != DesignStatus.ENABLED) {
+                return new ChainReloadResult(false, "关联设计未启用: " + designCode, 0);
             }
             String actualGraphData = design.getGraphData();
             String actualChainData = design.getChainData();
@@ -277,5 +287,37 @@ public class ChainLoader implements ApplicationRunner, Ordered {
                 executorProperties.getAppCode(),
                 executorProperties.getHost(),
                 executorProperties.getPort());
+    }
+
+    private static String rootMessage(Throwable e) {
+        Throwable root = e;
+        while (root.getCause() != null) {
+            root = root.getCause();
+        }
+        return root.getMessage() != null ? root.getMessage() : e.toString();
+    }
+
+    /**
+     * 校验设计翻译后的链定义是否可执行
+     */
+    public List<String> validateDesignFlow(String chainCode, String graphData, String chainData) {
+        try {
+            ChainDefinition definition = chainDefinitionBuilder.build(chainCode, 1, chainData, graphData);
+            return chainValidator.validate(definition);
+        } catch (Exception e) {
+            log.warn("设计链定义解析失败 chainCode={}", chainCode, e);
+            return List.of("链定义解析失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 从内存卸载链定义（设计/链删除时调用，不影响 DB）
+     */
+    public void unloadFromMemory(String chainCode) {
+        ChainDefinition oldDef = chainManager.get(chainCode);
+        chainManager.unload(chainCode);
+        if (oldDef != null && oldDef.getNodes() != null) {
+            nodeRunner.clearCircuitBreakers(oldDef.getNodes().keySet());
+        }
     }
 }

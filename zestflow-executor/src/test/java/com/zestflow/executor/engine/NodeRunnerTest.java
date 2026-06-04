@@ -207,6 +207,43 @@ class NodeRunnerTest {
         assertThat(result.getStatus()).isEqualTo(ChainConstants.NODE_SUCCESS);
     }
 
+    @Test
+    void inlineScriptPredicateSetsTrueBranch() {
+        NodeDefinition nodeDef = NodeDefinition.builder()
+                .id("n1").type(ChainConstants.NODE_TYPE_CONDITION)
+                .component("INLINE_PRED_TEST")
+                .componentName("hasSupplier")
+                .predicateMode("script")
+                .predicateScript("StringUtils.hasText(supplierType)")
+                .trueLabel("Yes")
+                .falseLabel("No")
+                .build();
+        ChainContext ctx = new ChainContext("inst", "chain", Map.of("supplierType", "OTA"));
+
+        NodeResultDTO result = nodeRunner.execute(nodeDef, ctx);
+
+        assertThat(result.getStatus()).isEqualTo(ChainConstants.NODE_SUCCESS);
+        assertThat(ctx.get("_branch")).isEqualTo("Yes");
+        verify(lifecycleExecutor, never()).execute(any(), any());
+    }
+
+    @Test
+    void inlineScriptPredicateSetsFalseBranch() {
+        NodeDefinition nodeDef = NodeDefinition.builder()
+                .id("n1").type(ChainConstants.NODE_TYPE_CONDITION)
+                .component("INLINE_PRED_TEST")
+                .predicateMode("script")
+                .predicateScript("StringUtils.hasText(supplierType)")
+                .trueLabel("Yes")
+                .falseLabel("No")
+                .build();
+        ChainContext ctx = new ChainContext("inst", "chain", Map.of());
+
+        nodeRunner.execute(nodeDef, ctx);
+
+        assertThat(ctx.get("_branch")).isEqualTo("No");
+    }
+
     // ==================== 重试 ====================
 
     @Test

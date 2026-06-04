@@ -1,1 +1,2 @@
+com.zestflow.collector.jdbc.config.CollectorDataSourceAutoConfiguration
 com.zestflow.collector.jdbc.config.CollectorAutoConfig

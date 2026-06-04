@@ -128,11 +128,38 @@ public class ChainRepository {
         return get(code);
     }
 
-    /** 回退绑定链的发布状态（graphData 修改时触发） */
+    /** 回退绑定链的发布状态（graphData 修改且校验通过时触发） */
     public void resetBoundChainStatus(String designCode, String updatedBy) {
-        jdbc.update("UPDATE zf_chain c INNER JOIN zf_design_binding b ON c.code = b.chain_code" +
-                        " SET c.status = 2, c.updated_by = ?, c.updated_at = ? WHERE b.design_code = ? AND c.status IN (3, 4) AND c.tenant_id = ?",
-                updatedBy != null ? updatedBy : "", LocalDateTime.now().format(DTF), designCode, tenantId);
+        jdbc.update("UPDATE zf_chain SET status = ?, updated_by = ?, updated_at = ?"
+                        + " WHERE code IN (SELECT chain_code FROM zf_design_binding WHERE design_code = ? AND tenant_id = ?)"
+                        + " AND status IN (?, ?) AND tenant_id = ?",
+                ChainLifecycleStatus.UNPUBLISHED,
+                updatedBy != null ? updatedBy : "",
+                LocalDateTime.now().format(DTF),
+                designCode,
+                tenantId,
+                ChainLifecycleStatus.PUBLISHING,
+                ChainLifecycleStatus.PUBLISHED,
+                tenantId);
+    }
+
+    /**
+     * 设计保存后同步绑定链状态：校验通过→未发布，失败→设计中
+     */
+    public void syncBoundChainStatusAfterDesignSave(String designCode, boolean flowValid, String updatedBy) {
+        int targetStatus = flowValid ? ChainLifecycleStatus.UNPUBLISHED : ChainLifecycleStatus.DESIGNING;
+        int updated = jdbc.update("UPDATE zf_chain SET status = ?, updated_by = ?, updated_at = ?"
+                        + " WHERE code IN (SELECT chain_code FROM zf_design_binding WHERE design_code = ? AND tenant_id = ?)"
+                        + " AND status != ? AND tenant_id = ? AND is_deleted = 0",
+                targetStatus,
+                updatedBy != null ? updatedBy : "",
+                LocalDateTime.now().format(DTF),
+                designCode,
+                tenantId,
+                ChainLifecycleStatus.DISABLED,
+                tenantId);
+        log.info("设计保存同步链状态 designCode={} flowValid={} targetStatus={} updated={}",
+                designCode, flowValid, targetStatus, updated);
     }
 
     // ==================== 版本化 ====================

@@ -10,6 +10,7 @@ import org.springframework.context.ApplicationContext;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -43,20 +44,33 @@ class ComponentScannerTest {
         scanner.scan(ctx);
 
         assertThat(scanner.componentCount()).isEqualTo(1);
-        // 默认 ID = 类简单名.方法名
-        assertThat(scanner.getComponentIds()).contains("DefaultIdHandler.execute");
+        assertThat(scanner.getComponentIds()).contains("execute");
     }
 
     @Test
-    void scanDuplicateIdWarnsAndOverwrites() {
+    void scanDefaultNameUsesValue() {
+        ApplicationContext ctx = mock(ApplicationContext.class);
+        when(ctx.getBeansWithAnnotation(ZestComponent.class))
+                .thenReturn(Map.of("defaultHandler", new DefaultIdHandler()));
+
+        scanner.scan(ctx);
+
+        ComponentScanner.ComponentMeta meta = scanner.getComponent("execute");
+        assertThat(meta).isNotNull();
+        assertThat(meta.getName()).isEqualTo("execute");
+    }
+
+    @Test
+    void scanDuplicateIdThrowsWithMethodPaths() {
         ApplicationContext ctx = mock(ApplicationContext.class);
         when(ctx.getBeansWithAnnotation(ZestComponent.class))
                 .thenReturn(Map.of("dupHandler1", new DupHandler1(), "dupHandler2", new DupHandler2()));
 
-        scanner.scan(ctx);
-
-        // 后扫描的覆盖之前的，最终只保留 1 个
-        assertThat(scanner.componentCount()).isEqualTo(1);
+        assertThatThrownBy(() -> scanner.scan(ctx))
+                .isInstanceOf(ComponentIdConflictException.class)
+                .hasMessageContaining("sameId")
+                .hasMessageContaining("DupHandler1")
+                .hasMessageContaining("DupHandler2");
     }
 
     @Test
@@ -250,7 +264,7 @@ class ComponentScannerTest {
         int count = scanner.refresh();
 
         assertThat(count).isEqualTo(1);
-        assertThat(scanner.getComponentIds()).contains("DefaultIdHandler.execute");
+        assertThat(scanner.getComponentIds()).contains("execute");
     }
 
     @Test
@@ -273,7 +287,7 @@ class ComponentScannerTest {
     }
 
     @Test
-    void registerOverwritesExisting() {
+    void registerDuplicateThrows() {
         ComponentScanner.ComponentMeta meta1 = new ComponentScanner.ComponentMeta();
         meta1.setExecuteId("dupKey");
         scanner.register("dupKey", meta1);
@@ -283,11 +297,8 @@ class ComponentScannerTest {
         meta2.setExecuteId("dupKey");
         meta2.setComponentType(ComponentType.PREDICATE);
 
-        boolean isNew = scanner.register("dupKey", meta2);
-
-        assertThat(isNew).isFalse();
-        assertThat(scanner.componentCount()).isEqualTo(1);
-        assertThat(scanner.getComponent("dupKey").getComponentType()).isEqualTo(ComponentType.PREDICATE);
+        assertThatThrownBy(() -> scanner.register("dupKey", meta2))
+                .isInstanceOf(ComponentIdConflictException.class);
     }
 
     @Test

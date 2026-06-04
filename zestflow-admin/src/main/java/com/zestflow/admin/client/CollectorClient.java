@@ -142,6 +142,9 @@ public class CollectorClient {
                 return (Map<String, Object>) response.get("data");
             }
             return Map.of();
+        } catch (org.springframework.web.client.HttpClientErrorException.Unauthorized e) {
+            log.warn("Collector 鉴权失败(401) — 请对齐 Admin 与下游的 zestflow.collector.access-token；本地开发可两者均留空");
+            return Map.of();
         } catch (Exception e) {
             log.error("查询事件统计失败", e);
             return Map.of();

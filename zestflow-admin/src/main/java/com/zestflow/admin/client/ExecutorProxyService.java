@@ -109,6 +109,10 @@ public class ExecutorProxyService {
         } catch (ResourceAccessException e) {
             log.warn("Executor 不可达 appCode={} url={}", appCode, url);
             return emptyPage();
+        } catch (org.springframework.web.client.HttpClientErrorException.Unauthorized e) {
+            log.warn("Executor 鉴权失败(401) appCode={} url={} — 请确认 Admin 的 zestflow.admin.executor-access-token "
+                    + "与下游 zestflow.executor.access-token 完全一致；本地开发可两者均留空", appCode, url);
+            return emptyPage();
         } catch (Exception e) {
             log.error("代理 GET 请求失败 appCode={} url={}", appCode, url, e);
             return emptyPage();
@@ -158,6 +162,10 @@ public class ExecutorProxyService {
         } catch (ResourceAccessException e) {
             log.warn("Executor 不可达 appCode={}", appCode);
             return "[]";
+        } catch (org.springframework.web.client.HttpClientErrorException.Unauthorized e) {
+            log.warn("Executor 鉴权失败(401) appCode={} — 请对齐 zestflow.admin.executor-access-token "
+                    + "与下游 zestflow.executor.access-token", appCode);
+            return "[]";
         } catch (Exception e) {
             log.error("代理 GET 数组请求失败 appCode={}", appCode, e);
             return "[]";
@@ -191,6 +199,10 @@ public class ExecutorProxyService {
             return restTemplate.exchange(fullUrl, HttpMethod.GET, entity, String.class).getBody();
         } catch (ResourceAccessException e) {
             log.warn("Executor 不可达 url={}", url);
+            return emptyPage();
+        } catch (org.springframework.web.client.HttpClientErrorException.Unauthorized e) {
+            log.warn("Executor 鉴权失败(401) url={} — 请对齐 zestflow.admin.executor-access-token "
+                    + "与下游 zestflow.executor.access-token", url);
             return emptyPage();
         } catch (Exception e) {
             log.error("代理 GET 请求失败 url={}", url, e);
@@ -547,6 +559,9 @@ public class ExecutorProxyService {
 
     private String enrichWithAppCode(String json, String appCode, String executorSource) {
         if (json == null) return emptyPage();
+        if (!looksLikeJsonBody(json)) {
+            return json;
+        }
         try {
             JsonNode root = MAPPER.readTree(json);
             if (root.has("records")) {
@@ -571,9 +586,24 @@ public class ExecutorProxyService {
             }
             return json;
         } catch (Exception e) {
-            log.warn("JSON 补充 appCode 失败", e);
+            log.debug("JSON 补充 appCode 跳过 appCode={} reason={}", appCode, e.getMessage());
             return json;
         }
+    }
+
+    /** 仅 JSON 对象/数组才注入 appCode；XML、纯文本等原样透传 */
+    static boolean looksLikeJsonBody(String body) {
+        if (body == null || body.isBlank()) {
+            return false;
+        }
+        for (int i = 0; i < body.length(); i++) {
+            char c = body.charAt(i);
+            if (Character.isWhitespace(c)) {
+                continue;
+            }
+            return c == '{' || c == '[';
+        }
+        return false;
     }
 
     private void enrichRecords(JsonNode records, String appCode) {

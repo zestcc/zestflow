@@ -11,8 +11,7 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.util.ReflectionUtils;
 
-import java.util.HashMap;
-
+import java.util.stream.Collectors;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.*;
@@ -26,7 +25,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * 注册 key 规则：
  * <ol>
  *   <li>注解 value 不为空 → 直接使用该值</li>
- *   <li>value 为空 → 默认 "类简单名.方法名"</li>
+ *   <li>value 为空 → 默认使用方法名</li>
+ *   <li>name 为空 → 默认使用 value（executeId）</li>
  * </ol>
  */
 @Slf4j
@@ -55,6 +55,9 @@ public class ComponentScanner implements ApplicationContextAware {
         Map<String, Object> beans = applicationContext.getBeansWithAnnotation(ZestComponent.class);
         log.info("开始扫描执行元件，共发现 {} 个组件类", beans.size());
 
+        Map<String, ComponentMeta> pending = new LinkedHashMap<>();
+        Map<String, List<String>> idToPaths = new LinkedHashMap<>();
+
         for (Map.Entry<String, Object> entry : beans.entrySet()) {
             Object bean = entry.getValue();
             Class<?> rawClass = AopProxyUtils.ultimateTargetClass(bean);
@@ -63,7 +66,6 @@ public class ComponentScanner implements ApplicationContextAware {
             ZestComponent compAnn = AnnotationUtils.findAnnotation(targetClass, ZestComponent.class);
             String groupName = (compAnn != null) ? compAnn.value() : "";
 
-            // 扫描类中所有带元件注解的方法
             ReflectionUtils.doWithMethods(targetClass,
                     method -> {
                         ComponentType type = resolveComponentType(method);
@@ -71,18 +73,20 @@ public class ComponentScanner implements ApplicationContextAware {
 
                         String annotationValue = resolveAnnotationValue(method, type);
                         String executeId = resolveExecuteId(annotationValue, method);
-                        if (registry.containsKey(executeId)) {
-                            log.warn("执行元件 ID 重复: {}，后扫描的将覆盖之前的", executeId);
-                        }
+                        String methodPath = formatMethodPath(targetClass, method);
 
-                        ComponentMeta meta = buildComponentMeta(executeId, groupName, bean, targetClass, method, type);
-                        registry.put(executeId, meta);
-                        log.debug("注册执行元件 type={} executeId={} class={}.{}()",
-                                type, executeId, targetClass.getSimpleName(), method.getName());
+                        idToPaths.computeIfAbsent(executeId, k -> new ArrayList<>()).add(methodPath);
+                        pending.put(executeId, buildComponentMeta(executeId, groupName, bean, targetClass, method, type));
+                        log.debug("扫描执行元件 type={} executeId={} path={}",
+                                type, executeId, methodPath);
                     },
                     method -> !method.getDeclaringClass().equals(Object.class)
             );
         }
+
+        assertNoConflicts(idToPaths);
+        registry.clear();
+        registry.putAll(pending);
 
         log.info("执行元件扫描完成，共注册 {} 个元件", registry.size());
     }
@@ -121,10 +125,9 @@ public class ComponentScanner implements ApplicationContextAware {
             log.warn("ApplicationContext 未初始化，无法刷新");
             return registry.size();
         }
-        Map<String, ComponentMeta> oldRegistry = new HashMap<>(registry);
-        registry.clear();
+        int oldSize = registry.size();
         scan(applicationContext);
-        log.info("元件注册表刷新完成 old={} new={}", oldRegistry.size(), registry.size());
+        log.info("元件注册表刷新完成 old={} new={}", oldSize, registry.size());
         return registry.size();
     }
 
@@ -137,9 +140,16 @@ public class ComponentScanner implements ApplicationContextAware {
         if (executeId == null || executeId.isEmpty()) {
             throw new IllegalArgumentException("executeId 不能为空");
         }
-        ComponentMeta old = registry.put(executeId, meta);
-        log.info("动态注册元件 executeId={} type={} replaced={}", executeId, meta.getComponentType(), old != null);
-        return old == null;
+        if (registry.containsKey(executeId)) {
+            ComponentMeta existing = registry.get(executeId);
+            List<String> paths = new ArrayList<>(2);
+            paths.add(describeComponentPath(existing));
+            paths.add(describeComponentPath(meta));
+            throw new ComponentIdConflictException(Map.of(executeId, paths));
+        }
+        registry.put(executeId, meta);
+        log.info("动态注册元件 executeId={} type={}", executeId, meta.getComponentType());
+        return true;
     }
 
     // ==================== 私有方法 ====================
@@ -208,7 +218,33 @@ public class ComponentScanner implements ApplicationContextAware {
         if (annotationValue != null && !annotationValue.isEmpty()) {
             return annotationValue;
         }
-        return method.getDeclaringClass().getSimpleName() + "." + method.getName();
+        return method.getName();
+    }
+
+    private String formatMethodPath(Class<?> targetClass, Method method) {
+        return targetClass.getName() + "#" + method.getName() + "()";
+    }
+
+    private String describeComponentPath(ComponentMeta meta) {
+        if (meta.getTargetClass() != null && meta.getExecuteMethod() != null) {
+            return formatMethodPath(meta.getTargetClass(), meta.getExecuteMethod());
+        }
+        return meta.getExecuteId();
+    }
+
+    private void assertNoConflicts(Map<String, List<String>> idToPaths) {
+        Map<String, List<String>> conflicts = idToPaths.entrySet().stream()
+                .filter(e -> e.getValue().size() > 1)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a, LinkedHashMap::new));
+        if (!conflicts.isEmpty()) {
+            throw new ComponentIdConflictException(conflicts);
+        }
+    }
+
+    private void applyDisplayNameDefault(ComponentMeta meta) {
+        if (meta.getName() == null || meta.getName().isEmpty()) {
+            meta.setName(meta.getExecuteId());
+        }
     }
 
     private ComponentMeta buildComponentMeta(String executeId, String groupName,
@@ -291,12 +327,19 @@ public class ComponentScanner implements ApplicationContextAware {
             }
         }
 
+        // 扫描 @ZestOutput（简单类型返回值写入 DataBus）
+        ZestOutput output = method.getAnnotation(ZestOutput.class);
+        if (output != null && !output.value().isEmpty()) {
+            meta.setOutputKey(output.value());
+        }
+
         // 扫描 @ZestTag 标签定义（所有类型元件都可标注）
         scanZestTags(method, meta);
 
         // 扫描 @ZestParam 字段
         scanZestParamFields(targetClass, meta);
 
+        applyDisplayNameDefault(meta);
         return meta;
     }
 
@@ -358,6 +401,9 @@ public class ComponentScanner implements ApplicationContextAware {
 
         /** @ZestTag 标签定义列表 */
         private List<TagDef> tagDefs = new ArrayList<>();
+
+        /** @ZestOutput 写入 DataBus 的 key（简单类型返回值） */
+        private String outputKey;
 
         public void addParamField(Field field, ZestParam annotation) {
             paramFields.add(new ParamField(field, annotation));

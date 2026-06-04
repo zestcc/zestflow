@@ -159,6 +159,13 @@ public class ChainValidator {
         Map<String, NodeDefinition> nodes = def.getNodes();
         if (nodes == null) return;
         for (NodeDefinition node : nodes.values()) {
+            // 内联脚本判断不依赖元件注册表，仅校验脚本内容
+            if (node.isCondition() && node.isInlineScriptPredicate()) {
+                if (node.getPredicateScript() == null || node.getPredicateScript().isBlank()) {
+                    errors.add("节点[" + node.getId() + "] 脚本判断模式缺少 predicateScript");
+                }
+                continue;
+            }
             if (node.isNormal() || node.isCondition()) {
                 if (node.getComponent() == null || node.getComponent().isEmpty()) {
                     errors.add("节点[" + node.getId() + "] 缺少 component 配置");

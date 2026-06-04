@@ -27,7 +27,7 @@ public @interface ZestExecute {
 
     /**
      * 执行元件唯一标识，对应链定义中 node.component 的值。
-     * 为空时默认取 "类简单名.方法名"
+     * 为空时默认取方法名
      */
     String value() default "";
 

@@ -232,6 +232,13 @@ public class ChainController {
             if (designCode != null && !designCode.isEmpty()) {
                 String designJson = proxyService.getFromExecutor(appCode, "/api/designs/" + designCode, null);
                 JsonNode designNode = MAPPER.readTree(designJson);
+                int designStatus = designNode.has("status") && !designNode.get("status").isNull()
+                        ? designNode.get("status").asInt() : 0;
+                if (designStatus != 1) {
+                    log.warn("发布失败：关联设计未启用 chainCode={} designCode={} status={}",
+                            code, designCode, designStatus);
+                    return "{\"code\":400,\"message\":\"关联设计未启用，无法发布\",\"total\":0,\"success\":0}";
+                }
                 if (designNode.has("graphData")) {
                     graphData = designNode.get("graphData").asText();
                 }

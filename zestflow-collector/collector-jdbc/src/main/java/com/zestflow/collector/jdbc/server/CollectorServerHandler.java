@@ -4,7 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zestflow.collector.jdbc.metrics.CollectorMetricsProvider;
 import com.zestflow.collector.jdbc.service.ChainGraphSnapshotService;
 import com.zestflow.collector.spi.EventQueryService;
+import com.zestflow.collector.spi.InvocationPayloadService;
 import com.zestflow.common.model.Result;
+import com.zestflow.common.protocol.InvocationPayloadDTO;
+import com.zestflow.common.protocol.NodeExecutionDetail;
 import com.zestflow.common.model.dto.ChainSnapshotDTO;
 import com.zestflow.common.model.dto.ChainSnapshotSyncDTO;
 import com.zestflow.common.protocol.EventQuery;
@@ -41,17 +44,20 @@ public class CollectorServerHandler extends SimpleChannelInboundHandler<FullHttp
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final EventQueryService eventQueryService;
+    private final InvocationPayloadService invocationPayloadService;
     private final ChainGraphSnapshotService snapshotService;
     private final String accessToken;
     private final ExecutorService queryExecutor;
     private final CollectorMetricsProvider metricsProvider;
 
     public CollectorServerHandler(EventQueryService eventQueryService,
+                                  InvocationPayloadService invocationPayloadService,
                                   ChainGraphSnapshotService snapshotService,
                                   String accessToken,
                                   ExecutorService queryExecutor,
                                   CollectorMetricsProvider metricsProvider) {
         this.eventQueryService = eventQueryService;
+        this.invocationPayloadService = invocationPayloadService;
         this.snapshotService = snapshotService;
         this.accessToken = accessToken;
         this.queryExecutor = queryExecutor;
@@ -149,6 +155,52 @@ public class CollectorServerHandler extends SimpleChannelInboundHandler<FullHttp
                     return toJson(Result.fail(404, "NOT_FOUND", "Event not found"));
                 }
                 return toJson(Result.success(event));
+            });
+            return true;
+        }
+
+        // GET /collector/events/executions/{executionId}/nodes/{nodeId}
+        if (parts.length == 7 && "events".equals(parts[2]) && "executions".equals(parts[3])
+                && "nodes".equals(parts[5]) && method == HttpMethod.GET) {
+            String executionId = parts[4];
+            String nodeId = parts[6];
+            Map<String, String> params = parseQueryParams(uri);
+            String nodeShape = params.get("nodeShape");
+            runBlockingQuery(ctx, () -> {
+                NodeExecutionDetail detail = eventQueryService.getNodeExecutionDetail(
+                        executionId, nodeId, nodeShape);
+                if (detail == null) {
+                    return toJson(Result.fail(404, "NOT_FOUND", "Node execution detail not found"));
+                }
+                return toJson(Result.success(detail));
+            });
+            return true;
+        }
+
+        // POST /collector/invocations
+        if (parts.length == 3 && "invocations".equals(parts[2]) && method == HttpMethod.POST) {
+            InvocationPayloadDTO dto = MAPPER.readValue(body, InvocationPayloadDTO.class);
+            if (dto.getInvocationId() == null || dto.getInvocationId().isEmpty()) {
+                writeResponse(ctx, HttpResponseStatus.BAD_REQUEST,
+                        toJson(Result.fail(400, "BAD_REQUEST", "invocationId is required")));
+                return true;
+            }
+            runBlockingQuery(ctx, () -> {
+                invocationPayloadService.save(dto);
+                return toJson(Result.success(null));
+            });
+            return true;
+        }
+
+        // GET /collector/invocations/{invocationId}
+        if (parts.length == 4 && "invocations".equals(parts[2]) && method == HttpMethod.GET) {
+            String invocationId = parts[3];
+            runBlockingQuery(ctx, () -> {
+                InvocationPayloadDTO dto = invocationPayloadService.getByInvocationId(invocationId);
+                if (dto == null) {
+                    return toJson(Result.fail(404, "NOT_FOUND", "Invocation payload not found"));
+                }
+                return toJson(Result.success(dto));
             });
             return true;
         }

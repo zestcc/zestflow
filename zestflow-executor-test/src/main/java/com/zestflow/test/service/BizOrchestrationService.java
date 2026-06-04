@@ -168,7 +168,7 @@ public class BizOrchestrationService {
     public ChainExecuteResultDTO scriptDiscount(String code, Map<String, Object> params) {
         return loadAndExecute(code, List.of(
                 normalNode("getPrice", "calcDiscount"),
-                scriptNode("calc", "groovy: def base = (int)ctx.get('price'); ctx.put('discount', base * 0.8); return [discounted: base * 0.8]"),
+                scriptNode("calc", "let base = long(ctx.get('price')); ctx.put('discount', base * 0.8); seq.map('discounted', base * 0.8)"),
                 normalNode("result", "sendNotify")
         ), List.of(edge("getPrice", "calc"), edge("calc", "result")), params);
     }
@@ -348,7 +348,7 @@ public class BizOrchestrationService {
         ), List.of(edge("sub-start", "sub-end")), params);
         return loadAndExecute(code, List.of(
                 normalNode("start", "validateUser"),
-                scriptNode("script", "groovy: ctx.put('msg', 'hello'); return [ok: true]"),
+                scriptNode("script", "ctx.put('msg', 'hello'); seq.map('ok', true)"),
                 conditionNode("cond", Map.of("condition", "params.status == 'PASS'")),
                 normalNode("pass", "processPayment"),
                 subChainNode("sub", subCode),

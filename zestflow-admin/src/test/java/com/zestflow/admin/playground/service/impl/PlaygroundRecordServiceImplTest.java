@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zestflow.admin.playground.model.dto.PlaygroundRecordQueryDTO;
 import com.zestflow.admin.playground.model.entity.PlaygroundRecordPO;
 import com.zestflow.admin.playground.model.vo.PlaygroundRecordVO;
+import com.zestflow.admin.client.CollectorQueryAggregator;
+import com.zestflow.common.protocol.InvocationPayloadDTO;
 import com.zestflow.admin.playground.repository.PlaygroundRecordMapper;
 import com.zestflow.admin.playground.support.PlaygroundAccessControl;
 import com.zestflow.admin.service.TenantAppContext;
@@ -35,11 +37,12 @@ class PlaygroundRecordServiceImplTest {
     @Mock private PlaygroundRecordMapper recordMapper;
     @Mock private PlaygroundAccessControl accessControl;
     @Mock private TenantAppContext tenantAppContext;
+    @Mock private CollectorQueryAggregator collectorQueryAggregator;
     private PlaygroundRecordServiceImpl recordService;
 
     @BeforeEach
     void setUp() {
-        recordService = new PlaygroundRecordServiceImpl(recordMapper, accessControl, tenantAppContext);
+        recordService = new PlaygroundRecordServiceImpl(recordMapper, accessControl, tenantAppContext, collectorQueryAggregator);
         when(accessControl.isSuperAdmin()).thenReturn(true);
         Authentication auth = mock(Authentication.class);
         when(auth.isAuthenticated()).thenReturn(true);
@@ -111,12 +114,20 @@ class PlaygroundRecordServiceImplTest {
     void getById_shouldReturnVO_whenExists() {
         PlaygroundRecordPO po = createTestPO(1L, "SCN001", 1);
         when(recordMapper.selectById(1L)).thenReturn(po);
+        when(collectorQueryAggregator.getInvocationPayload("inv-001", "demo-app"))
+                .thenReturn(InvocationPayloadDTO.builder()
+                        .invocationId("inv-001")
+                        .requestBody("{\"key\":\"val\"}")
+                        .responseBody("{\"code\":200}")
+                        .build());
 
         PlaygroundRecordVO vo = recordService.getById(1L);
 
         assertThat(vo).isNotNull();
         assertThat(vo.getSceneCode()).isEqualTo("SCN001");
         assertThat(vo.getStatus()).isEqualTo(1);
+        assertThat(vo.getRequestBody()).isEqualTo("{\"key\":\"val\"}");
+        assertThat(vo.getResponseBody()).isEqualTo("{\"code\":200}");
     }
 
     @Test
@@ -164,8 +175,8 @@ class PlaygroundRecordServiceImplTest {
         po.setRequestMethod("POST");
         po.setRequestPath("/execute");
         po.setBodyType("JSON");
-        po.setRequestBody("{\"key\":\"val\"}");
-        po.setResponseBody("{\"code\":200}");
+        po.setInvocationId("inv-001");
+        po.setAppCode("demo-app");
         po.setChainCode("CHN_TEST");
         po.setInstanceId("inst-001");
         po.setStatus(status);

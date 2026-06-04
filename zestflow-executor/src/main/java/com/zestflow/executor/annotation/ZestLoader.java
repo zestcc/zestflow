@@ -5,21 +5,14 @@ import java.lang.annotation.*;
 /**
  * 标记一个方法为 ZestFlow 数据加载器元件。
  * <p>
- * 负责从外部数据源（数据库、缓存、HTTP 接口等）获取数据，
- * 并将数据写入 ChainContext，供后续节点消费。
- * 典型的用法是在执行器之前加载必要的上下文数据。
+ * 负责从外部数据源获取数据并写入 ChainContext，供后续节点消费。
  * <p>
- * 使用示例：
- * <pre>{@code
- * @ZestComponent("order")
- * public class OrderHandler {
- *     @ZestLoader("loadPriceConfig")
- *     public void loadConfig(ChainContext ctx) {
- *         PriceConfig config = priceService.getConfig();
- *         ctx.put("priceConfig", config);
- *     }
- * }
- * }</pre>
+ * 写入方式（三选一）：
+ * <ul>
+ *   <li>方法内 {@code ctx.put(key, value)}（void 返回）</li>
+ *   <li>返回 {@code Map} / POJO（自动展平到 DataBus）</li>
+ *   <li>返回简单类型 + {@link ZestOutput} 指定 key</li>
+ * </ul>
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)

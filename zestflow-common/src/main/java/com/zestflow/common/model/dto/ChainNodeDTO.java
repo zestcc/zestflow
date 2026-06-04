@@ -38,7 +38,7 @@ public class ChainNodeDTO {
     /** 描述 */
     private String description;
 
-    /** 脚本内容（SCRIPT 类型必填，格式 "groovy:..." 或 "js:..."） */
+    /** 脚本内容（SCRIPT 类型必填，格式 "aviator:..." 或纯 Aviator 表达式） */
     private String script;
 
     /** 子链编码（SUB_CHAIN 类型必填） */

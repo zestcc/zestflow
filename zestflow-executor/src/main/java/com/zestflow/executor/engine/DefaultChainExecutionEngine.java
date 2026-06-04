@@ -309,7 +309,7 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
             log.error("链执行异常 chainCode={} cost={}ms", chainCode, costMs, e);
 
             instance.getStateMachine().transit(ChainConstants.CHAIN_FAILED);
-            publishChainEvent(ChainEvent.EventType.CHAIN_FAILED, chainCode, instance);
+            publishChainEvent(ChainEvent.EventType.CHAIN_FAILED, chainCode, instance, e.getMessage());
 
             return ChainExecuteResultDTO.builder()
                     .instanceId(instance.getInstanceId())
@@ -512,11 +512,34 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
      * 发布链级事件
      */
     private void publishChainEvent(ChainEvent.EventType eventType, String chainCode, ChainInstance instance) {
+        publishChainEvent(eventType, chainCode, instance, null);
+    }
+
+    private void publishChainEvent(ChainEvent.EventType eventType, String chainCode,
+                                     ChainInstance instance, String errorMessage) {
         if (eventPublisher == EventPublisher.NOOP) {
             return;
         }
         ChainContext context = instance.getContext();
         String chainDisplayName = resolveChainDisplayName(context);
+
+        String params = null;
+        String result = null;
+        String err = errorMessage;
+        if (eventType == ChainEvent.EventType.CHAIN_STARTED) {
+            params = toJsonString(context != null ? context.snapshot() : null);
+        } else if (eventType == ChainEvent.EventType.CHAIN_COMPLETED) {
+            result = toJsonString(context != null ? context.snapshot() : null);
+        } else if (eventType == ChainEvent.EventType.CHAIN_FAILED || eventType == ChainEvent.EventType.CHAIN_TIMEOUT) {
+            if (err == null && context != null) {
+                Object msg = context.get("_errorMessage");
+                err = msg != null ? String.valueOf(msg) : null;
+            }
+            if (eventType == ChainEvent.EventType.CHAIN_TIMEOUT && (err == null || err.isBlank())) {
+                err = "执行超时";
+            }
+        }
+
         eventPublisher.publish(ChainEvent.builder()
                 .eventId(UUID.randomUUID().toString())
                 .eventType(eventType)
@@ -527,8 +550,9 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
                 .appCode(appCode)
                 .appName(properties.getAppName())
                 .tenantId(properties.getTenantId())
-                .params(toJsonString(context != null ? context.snapshot() : null))
-                .result(toJsonString(context != null ? context.snapshot() : null))
+                .params(params)
+                .result(result)
+                .errorMessage(err)
                 .timestamp(System.currentTimeMillis())
                 .costMs(instance.elapsed())
                 .status(eventType == ChainEvent.EventType.CHAIN_COMPLETED ? 1 : 0)

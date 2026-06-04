@@ -530,10 +530,23 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
                     "{\"code\":404,\"message\":\"设计不存在: " + code + "\"}");
             return true;
         }
-        // 2026-05-31：重置已发布链的发布状态（设计修改后需重新发布）
-        chainRepo.resetBoundChainStatus(code, updatedBy);
-        log.info("保存设计图谱 code={} updatedBy={}", code, updatedBy);
-        writeResponse(ctx, HttpResponseStatus.OK, "{\"code\":200,\"message\":\"保存成功\"}");
+        boolean flowValid = false;
+        if (chainLoader != null) {
+            List<ChainPO> bindings = designRepo.getBindings(code);
+            String sampleChainCode = bindings.isEmpty() ? code : bindings.get(0).getCode();
+            List<String> errors = chainLoader.validateDesignFlow(sampleChainCode, graphData, chainData);
+            flowValid = errors.isEmpty();
+            if (!flowValid) {
+                log.warn("设计保存时流程校验未通过 code={} errors={}", code, errors);
+            }
+            chainRepo.syncBoundChainStatusAfterDesignSave(code, flowValid, updatedBy);
+        } else {
+            chainRepo.resetBoundChainStatus(code, updatedBy);
+        }
+        log.info("保存设计图谱 code={} flowValid={} updatedBy={}", code, flowValid, updatedBy);
+        String message = flowValid ? "保存成功" : "保存成功（流程未通过校验，关联链状态为设计中）";
+        writeResponse(ctx, HttpResponseStatus.OK,
+                "{\"code\":200,\"message\":\"" + message + "\",\"flowValid\":" + flowValid + "}");
         return true;
     }
 
@@ -543,6 +556,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
             Map<String, String> params = parseQueryParams(uri);
             updatedBy = params.get("updatedBy");
         }
+        List<String> boundChainCodes = designRepo.listBoundChainCodes(code);
         DesignPO removed = designRepo.delete(code, updatedBy);
         if (removed == null) {
             log.warn("删除设计不存在 code={}", code);
@@ -550,7 +564,13 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
                     "{\"code\":404,\"message\":\"设计不存在: " + code + "\"}");
             return true;
         }
-        log.info("删除设计 code={} name={} updatedBy={}", code, removed.getName(), updatedBy);
+        if (chainLoader != null) {
+            for (String chainCode : boundChainCodes) {
+                chainLoader.unloadFromMemory(chainCode);
+            }
+        }
+        log.info("删除设计 code={} name={} cascadedChains={} updatedBy={}",
+                code, removed.getName(), boundChainCodes.size(), updatedBy);
         writeResponse(ctx, HttpResponseStatus.OK, "{\"code\":200,\"message\":\"删除成功\"}");
         return true;
     }

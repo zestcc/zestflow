@@ -142,6 +142,29 @@ class ExecutorProxyServiceTest {
                 .postForObject(any(String.class), any(HttpEntity.class), eq(String.class));
     }
 
+    @Test
+    void looksLikeJsonBody_detectsJsonAndNonJson() {
+        assertThat(ExecutorProxyService.looksLikeJsonBody("{\"a\":1}")).isTrue();
+        assertThat(ExecutorProxyService.looksLikeJsonBody("[1,2]")).isTrue();
+        assertThat(ExecutorProxyService.looksLikeJsonBody("  {\"a\":1}")).isTrue();
+        assertThat(ExecutorProxyService.looksLikeJsonBody("<Response></Response>")).isFalse();
+        assertThat(ExecutorProxyService.looksLikeJsonBody("plain text")).isFalse();
+        assertThat(ExecutorProxyService.looksLikeJsonBody("")).isFalse();
+    }
+
+    @Test
+    void executeOnExecutor_returnsXmlBodyUnchanged() {
+        ExecutorRegistryPO e1 = executor("exec-a", "host-a", 20550);
+        when(executorRegistryMapper.selectList(any())).thenReturn(List.of(e1));
+        String xml = "<Response><hotel id=\"1\"/></Response>";
+        when(restTemplate.postForObject(any(String.class), any(HttpEntity.class), eq(String.class)))
+                .thenReturn(xml);
+
+        String result = proxyService.executeOnExecutor("app", "POST", "/api/heytrip/ota/rc/getHotels", "{}");
+
+        assertThat(result).isEqualTo(xml);
+    }
+
     private static ExecutorRegistryPO executor(String executorId, String host, int port) {
         ExecutorRegistryPO po = new ExecutorRegistryPO();
         po.setExecutorId(executorId);

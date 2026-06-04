@@ -2,6 +2,7 @@ package com.zestflow.executor.chain;
 
 import com.zestflow.executor.design.DesignPO;
 import com.zestflow.executor.design.DesignRepository;
+import com.zestflow.executor.design.DesignStatus;
 import com.zestflow.executor.engine.NodeRunner;
 import com.zestflow.executor.registry.AdminClient;
 import com.zestflow.executor.registry.ExecutorProperties;
@@ -38,7 +39,8 @@ class ChainLoaderReloadFromDatabaseTest {
         ChainPO chain = ChainPO.builder()
                 .code("CHN001").status(4).designCode("DSN001").version(1).build();
         DesignPO design = DesignPO.builder()
-                .code("DSN001").graphData("{\"nodes\":[]}").chainData("{\"version\":1}").build();
+                .code("DSN001").status(DesignStatus.ENABLED)
+                .graphData("{\"nodes\":[]}").chainData("{\"version\":1}").build();
         ChainDefinition definition = mock(ChainDefinition.class);
         when(definition.getCode()).thenReturn("CHN001");
         when(definition.nodeCount()).thenReturn(1);

@@ -1,7 +1,9 @@
 package com.zestflow.collector.jdbc.collector;
 
 import com.zestflow.collector.jdbc.entity.ChainEventPO;
+import com.zestflow.collector.jdbc.entity.ChainEventPayloadPO;
 import com.zestflow.collector.jdbc.mapper.ChainEventMapper;
+import com.zestflow.collector.jdbc.mapper.ChainEventPayloadMapper;
 import com.zestflow.common.spi.EventCollector;
 import com.zestflow.common.model.dto.ChainEvent;
 import lombok.RequiredArgsConstructor;
@@ -11,19 +13,20 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * JDBC 事件采集器 — 批量写入 chain_event 表
+ * JDBC 事件采集器 — 索引表 + 载荷表双写
  * <p>
- * 幂等性保障：依赖 uk_event_id 唯一约束 + INSERT IGNORE，相同 eventId 重复写入不产生重复数据。
+ * 幂等性保障：依赖 uk_event_id 唯一约束 + INSERT IGNORE。
  */
 @Slf4j
 @RequiredArgsConstructor
 public class JdbcEventCollector implements EventCollector {
 
     private final ChainEventMapper chainEventMapper;
+    private final ChainEventPayloadMapper chainEventPayloadMapper;
 
     @Override
     public void collect(ChainEvent event) {
-        chainEventMapper.insert(toPO(event));
+        collectBatch(List.of(event));
     }
 
     @Override
@@ -31,16 +34,30 @@ public class JdbcEventCollector implements EventCollector {
         if (events == null || events.isEmpty()) {
             return;
         }
-        List<ChainEventPO> pos = events.stream()
-                .map(JdbcEventCollector::toPO)
+        List<ChainEventPO> indexRows = events.stream()
+                .map(JdbcEventCollector::toIndexPO)
                 .collect(Collectors.toList());
-        int rows = chainEventMapper.insertIgnoreBatch(pos);
+        List<ChainEventPayloadPO> payloadRows = events.stream()
+                .map(JdbcEventCollector::toPayloadPO)
+                .filter(p -> hasPayload(p))
+                .collect(Collectors.toList());
+
+        int rows = chainEventMapper.insertIgnoreBatch(indexRows);
         if (rows < events.size()) {
-            log.warn("批量写入去重 {} 条，实际写入 {} 条", events.size(), rows);
+            log.warn("批量写入索引去重 {} 条，实际写入 {} 条", events.size(), rows);
+        }
+        if (!payloadRows.isEmpty()) {
+            chainEventPayloadMapper.insertIgnoreBatch(payloadRows);
         }
     }
 
-    static ChainEventPO toPO(ChainEvent event) {
+    private static boolean hasPayload(ChainEventPayloadPO p) {
+        return (p.getParams() != null && !p.getParams().isEmpty())
+                || (p.getResult() != null && !p.getResult().isEmpty())
+                || (p.getErrorMessage() != null && !p.getErrorMessage().isEmpty());
+    }
+
+    static ChainEventPO toIndexPO(ChainEvent event) {
         return ChainEventPO.builder()
                 .eventId(event.getEventId())
                 .eventType(event.getEventType().name())
@@ -53,13 +70,19 @@ public class JdbcEventCollector implements EventCollector {
                 .appCode(event.getAppCode())
                 .appName(event.getAppName())
                 .tenantId(event.getTenantId())
-                .params(event.getParams())
-                .result(event.getResult())
-                .errorMessage(event.getErrorMessage())
                 .costMs(event.getCostMs())
                 .status(event.getStatus())
                 .timestamp(event.getTimestamp())
                 .metadata(event.getMetadata())
+                .build();
+    }
+
+    static ChainEventPayloadPO toPayloadPO(ChainEvent event) {
+        return ChainEventPayloadPO.builder()
+                .eventId(event.getEventId())
+                .params(event.getParams())
+                .result(event.getResult())
+                .errorMessage(event.getErrorMessage())
                 .build();
     }
 }

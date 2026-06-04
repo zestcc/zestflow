@@ -1,20 +1,12 @@
 package com.zestflow.starter;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.PropertySource;
 
 /**
- * ZestFlow 一键引入自动配置
- * <p>
- * 聚合 Executor + Collector-JDBC 的自动装配，
- * 业务方引入 zestflow-starter 后无需额外配置。
+ * ZestFlow 一键引入 — 仅聚合默认配置；各模块通过 {@code AutoConfiguration.imports} 自注册。
  */
 @AutoConfiguration
 @PropertySource("classpath:zestflow-starter-defaults.properties")
-@Import({
-        com.zestflow.executor.registry.ExecutorAutoConfig.class,
-        com.zestflow.collector.jdbc.config.CollectorAutoConfig.class
-})
 public class ZestFlowAutoConfiguration {
 }

@@ -1,4 +1,13 @@
 -- ZestFlow E2E Test Schema (H2 MySQL compatible)
+-- 测试环境每次重建表，避免 CREATE IF NOT EXISTS 无法追加新列
+
+DROP TABLE IF EXISTS zf_design_binding;
+DROP TABLE IF EXISTS zf_chain_version;
+DROP TABLE IF EXISTS chain_event_payload;
+DROP TABLE IF EXISTS invocation_payload;
+DROP TABLE IF EXISTS chain_event;
+DROP TABLE IF EXISTS zf_design;
+DROP TABLE IF EXISTS zf_chain;
 
 -- ==================== 业务表 ====================
 
@@ -7,10 +16,11 @@ CREATE TABLE IF NOT EXISTS zf_chain (
     name        VARCHAR(128) NOT NULL DEFAULT '',
     description VARCHAR(500) DEFAULT NULL,
     status      TINYINT      NOT NULL DEFAULT 1,
-    design_code VARCHAR(64)  DEFAULT NULL,
     version     INT          NOT NULL DEFAULT 1,
     created_by  VARCHAR(64)  DEFAULT NULL,
     updated_by  VARCHAR(64)  DEFAULT NULL,
+    tenant_id   BIGINT       DEFAULT 1,
+    app_code    VARCHAR(50)  DEFAULT NULL,
     is_deleted  TINYINT      DEFAULT 0,
     created_at  VARCHAR(32)  DEFAULT NULL,
     updated_at  VARCHAR(32)  DEFAULT NULL
@@ -26,6 +36,8 @@ CREATE TABLE IF NOT EXISTS zf_design (
     chain_data  TEXT         DEFAULT NULL,
     created_by  VARCHAR(64)  DEFAULT NULL,
     updated_by  VARCHAR(64)  DEFAULT NULL,
+    tenant_id   BIGINT       DEFAULT 1,
+    app_code    VARCHAR(50)  DEFAULT NULL,
     is_deleted  TINYINT      DEFAULT 0,
     created_at  VARCHAR(32)  DEFAULT NULL,
     updated_at  VARCHAR(32)  DEFAULT NULL
@@ -34,6 +46,8 @@ CREATE TABLE IF NOT EXISTS zf_design (
 CREATE TABLE IF NOT EXISTS zf_design_binding (
     design_code VARCHAR(64) NOT NULL,
     chain_code  VARCHAR(64) NOT NULL,
+    tenant_id   BIGINT      DEFAULT 1,
+    app_code    VARCHAR(50) DEFAULT NULL,
     PRIMARY KEY (design_code, chain_code)
 );
 
@@ -45,6 +59,8 @@ CREATE TABLE IF NOT EXISTS zf_chain_version (
     graph_data  TEXT         DEFAULT NULL,
     chain_data  TEXT         DEFAULT NULL,
     created_by  VARCHAR(64)  DEFAULT NULL,
+    tenant_id   BIGINT       DEFAULT 1,
+    app_code    VARCHAR(50)  DEFAULT NULL,
     created_at  VARCHAR(32)  NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_chain_version ON zf_chain_version(chain_code, version);
@@ -62,9 +78,8 @@ CREATE TABLE IF NOT EXISTS chain_event (
     node_name     VARCHAR(128) DEFAULT NULL,
     executor_id   VARCHAR(128) DEFAULT NULL,
     app_name      VARCHAR(64)  DEFAULT NULL,
-    params        TEXT         DEFAULT NULL,
-    result        TEXT         DEFAULT NULL,
-    error_message TEXT         DEFAULT NULL,
+    app_code      VARCHAR(64)  DEFAULT NULL,
+    tenant_id     BIGINT       DEFAULT 1,
     cost_ms       BIGINT       DEFAULT NULL,
     status        TINYINT      DEFAULT NULL,
     timestamp     BIGINT       NOT NULL,
@@ -75,3 +90,23 @@ CREATE UNIQUE INDEX IF NOT EXISTS uk_event_id ON chain_event(event_id);
 CREATE INDEX IF NOT EXISTS idx_execution_id ON chain_event(execution_id);
 CREATE INDEX IF NOT EXISTS idx_chain_id ON chain_event(chain_id);
 CREATE INDEX IF NOT EXISTS idx_timestamp ON chain_event(timestamp);
+
+CREATE TABLE IF NOT EXISTS chain_event_payload (
+    event_id       VARCHAR(64)  NOT NULL PRIMARY KEY,
+    params         CLOB         DEFAULT NULL,
+    result         CLOB         DEFAULT NULL,
+    error_message  CLOB         DEFAULT NULL
+);
+
+CREATE TABLE IF NOT EXISTS invocation_payload (
+    invocation_id   VARCHAR(64)  NOT NULL PRIMARY KEY,
+    source_type     VARCHAR(32)  NOT NULL,
+    execution_id    VARCHAR(64)  DEFAULT NULL,
+    scene_code      VARCHAR(64)  DEFAULT NULL,
+    request_body    CLOB         DEFAULT NULL,
+    response_body   CLOB         DEFAULT NULL,
+    request_headers CLOB         DEFAULT NULL,
+    tenant_id       BIGINT       DEFAULT 1,
+    app_code        VARCHAR(50)  DEFAULT NULL,
+    created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

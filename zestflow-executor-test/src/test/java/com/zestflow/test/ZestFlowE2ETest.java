@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * ZestFlow E2E 全链路集成测试（10 场景）
+ * ZestFlow E2E 全链路集成测试（12 场景）
  * <p>
  * 加载完整 Spring 上下文 + 真实 @ZestComponent 处理器，
  * 通过 ChainDefinitionBuilder → ChainManager → ChainExecutionEngine 执行全流程。
@@ -129,7 +129,7 @@ class ZestFlowE2ETest {
                 node("start", "NORMAL", "validateUser"),
                 ChainNodeDTO.builder().id("script1").label("script1")
                         .type("SCRIPT")
-                        .script("groovy: ctx.put('msg', 'hello'); return [greeting: 'hello']")
+                        .script("ctx.put('msg', 'hello'); seq.map('greeting', 'hello')")
                         .build(),
                 node("end", "NORMAL", "processPayment")
         ), List.of(
@@ -215,6 +215,74 @@ class ZestFlowE2ETest {
         assertThat(result.getStatus()).isEqualTo(ChainConstants.CHAIN_SUCCESS);
         assertThat(result.getNodeResults()).extracting(nr -> nr.getNodeId())
                 .contains("cond1", "pass", "end");
+    }
+
+    // ==================== 7b. 内联脚本判断（Aviator）True 分支路由 ====================
+
+    @Test
+    void inlineScriptPredicateRoutesTrueBranch() {
+        Map<String, Object> predCfg = Map.of(
+                "predicateMode", "script",
+                "predicateScript", "StringUtils.hasText(supplierType)",
+                "trueLabel", "True",
+                "falseLabel", "False"
+        );
+        com.zestflow.common.model.dto.ChainExecuteResultDTO result = execute("inline-pred-true", List.of(
+                node("start", "NORMAL", "validateUser"),
+                ChainNodeDTO.builder().id("cond").label("hasSupplier")
+                        .type("CONDITION")
+                        .component("INLINE_PRED_E2E")
+                        .componentName("hasSupplier")
+                        .config(predCfg)
+                        .build(),
+                node("pass", "NORMAL", "processPayment"),
+                node("fail", "NORMAL", "deductStock"),
+                node("end", "NORMAL", "sendNotify")
+        ), List.of(
+                edge("start", "cond"),
+                edge("cond", "pass", "True"),
+                edge("cond", "fail", "False"),
+                edge("pass", "end"),
+                edge("fail", "end")
+        ), Map.of("supplierType", "OTA", "userId", "U001"));
+
+        assertThat(result.getStatus()).isEqualTo(ChainConstants.CHAIN_SUCCESS);
+        assertThat(result.getNodeResults()).extracting(nr -> nr.getNodeId())
+                .containsExactly("start", "cond", "pass", "end");
+    }
+
+    // ==================== 7c. 内联脚本判断（Aviator）False 分支路由 ====================
+
+    @Test
+    void inlineScriptPredicateRoutesFalseBranch() {
+        Map<String, Object> predCfg = Map.of(
+                "predicateMode", "script",
+                "predicateScript", "StringUtils.hasText(supplierType)",
+                "trueLabel", "True",
+                "falseLabel", "False"
+        );
+        com.zestflow.common.model.dto.ChainExecuteResultDTO result = execute("inline-pred-false", List.of(
+                node("start", "NORMAL", "validateUser"),
+                ChainNodeDTO.builder().id("cond").label("hasSupplier")
+                        .type("CONDITION")
+                        .component("INLINE_PRED_E2E")
+                        .componentName("hasSupplier")
+                        .config(predCfg)
+                        .build(),
+                node("pass", "NORMAL", "processPayment"),
+                node("fail", "NORMAL", "deductStock"),
+                node("end", "NORMAL", "sendNotify")
+        ), List.of(
+                edge("start", "cond"),
+                edge("cond", "pass", "True"),
+                edge("cond", "fail", "False"),
+                edge("pass", "end"),
+                edge("fail", "end")
+        ), Map.of("userId", "U001"));
+
+        assertThat(result.getStatus()).isEqualTo(ChainConstants.CHAIN_SUCCESS);
+        assertThat(result.getNodeResults()).extracting(nr -> nr.getNodeId())
+                .containsExactly("start", "cond", "fail", "end");
     }
 
     // ==================== 8. 重试 + 降级 ====================
@@ -303,6 +371,10 @@ class ZestFlowE2ETest {
 
     private static ChainEdgeDTO edge(String source, String target) {
         return ChainEdgeDTO.builder().source(source).target(target).build();
+    }
+
+    private static ChainEdgeDTO edge(String source, String target, String label) {
+        return ChainEdgeDTO.builder().source(source).target(target).label(label).build();
     }
 
     /** AsyncEventPublisher 批量刷盘前，轮询等待指定事件类型落盘 */

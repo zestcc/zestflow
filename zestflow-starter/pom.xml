@@ -26,5 +26,10 @@
             <groupId>cn.zestflow.www</groupId>
             <artifactId>collector-jdbc</artifactId>
         </dependency>
+        <!-- 保证嵌入方 classpath 含 MP 分页模块（3.5.9+ 不再随 extension 传递） -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-jsqlparser</artifactId>
+        </dependency>
     </dependencies>
 </project>

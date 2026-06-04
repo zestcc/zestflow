@@ -7,7 +7,7 @@ CREATE DATABASE IF NOT EXISTS `zestflow_app_log` DEFAULT CHARACTER SET utf8mb4 C
 
 USE `zestflow_app_log`;
 
--- ==================== 日志表 ====================
+-- ==================== 链事件索引表（轻量，便于清理与聚合） ====================
 
 CREATE TABLE IF NOT EXISTS `chain_event` (
     `id`            BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '自增主键',
@@ -16,15 +16,12 @@ CREATE TABLE IF NOT EXISTS `chain_event` (
     `execution_id`  VARCHAR(64)  DEFAULT NULL             COMMENT '执行追踪 ID（同一次链执行的所有事件共享）',
     `chain_id`      VARCHAR(64)  DEFAULT NULL             COMMENT '链编码',
     `chain_name`    VARCHAR(128) DEFAULT NULL             COMMENT '链名称',
-    `node_id`       VARCHAR(64)  DEFAULT NULL             COMMENT '节点编码',
+    `node_id`       VARCHAR(64)  DEFAULT NULL             COMMENT '节点编码（元件 ID 或图节点 ID）',
     `node_name`     VARCHAR(128) DEFAULT NULL             COMMENT '节点名称',
     `executor_id`   VARCHAR(128) DEFAULT NULL             COMMENT '执行器 ID',
     `app_code`      VARCHAR(64)  DEFAULT NULL             COMMENT '应用编码',
     `app_name`      VARCHAR(64)  DEFAULT NULL             COMMENT '应用名',
     `tenant_id`     BIGINT       DEFAULT 1                COMMENT '租户ID',
-    `params`        TEXT         DEFAULT NULL             COMMENT '执行入参 JSON',
-    `result`        TEXT         DEFAULT NULL             COMMENT '执行结果 JSON',
-    `error_message` TEXT         DEFAULT NULL             COMMENT '错误消息',
     `cost_ms`       BIGINT       DEFAULT NULL             COMMENT '执行耗时（毫秒）',
     `status`        TINYINT      DEFAULT NULL             COMMENT '节点状态：0-失败 1-成功',
     `timestamp`     BIGINT       NOT NULL                 COMMENT '事件发生时间戳（毫秒）',
@@ -38,7 +35,33 @@ CREATE TABLE IF NOT EXISTS `chain_event` (
     KEY `idx_app_event` (`app_name`, `event_type`),
     KEY `idx_execution_id` (`execution_id`),
     KEY `idx_tenant_id` (`tenant_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='链执行事件表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='链执行事件索引表';
+
+-- 2026-06-04：事件载荷分表（params/result/error_message）
+CREATE TABLE IF NOT EXISTS `chain_event_payload` (
+    `event_id`       VARCHAR(64)  NOT NULL PRIMARY KEY     COMMENT '事件 ID，关联 chain_event.event_id',
+    `params`         MEDIUMTEXT   DEFAULT NULL             COMMENT '入参（节点入参 / 链入参 / CHAIN_STARTED）',
+    `result`         MEDIUMTEXT   DEFAULT NULL             COMMENT '出参（节点出参 / 链最终结果 / CHAIN_COMPLETED）',
+    `error_message`  TEXT         DEFAULT NULL             COMMENT '错误消息',
+    KEY `idx_event_id` (`event_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='链事件载荷表';
+
+-- 2026-06-04：外部调用载荷（试验场 request/response 等，替代 Admin playground_record 大字段）
+CREATE TABLE IF NOT EXISTS `invocation_payload` (
+    `invocation_id`   VARCHAR(64)  NOT NULL PRIMARY KEY    COMMENT '调用唯一 ID',
+    `source_type`     VARCHAR(32)  NOT NULL                COMMENT 'PLAYGROUND/SCHEDULE/API',
+    `execution_id`    VARCHAR(64)  DEFAULT NULL            COMMENT '关联链 execution_id（若有）',
+    `scene_code`      VARCHAR(64)  DEFAULT NULL            COMMENT '试验场场景编码',
+    `request_body`    MEDIUMTEXT   DEFAULT NULL            COMMENT '请求体',
+    `response_body`   MEDIUMTEXT   DEFAULT NULL            COMMENT '响应体',
+    `request_headers` TEXT         DEFAULT NULL            COMMENT '请求头 JSON',
+    `tenant_id`       BIGINT       DEFAULT 1               COMMENT '租户ID',
+    `app_code`        VARCHAR(50)  DEFAULT NULL            COMMENT '应用编码',
+    `created_at`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    KEY `idx_execution_id` (`execution_id`),
+    KEY `idx_scene_code` (`scene_code`),
+    KEY `idx_tenant_app` (`tenant_id`, `app_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='外部调用载荷表';
 
 -- 2026-06-01：链图数据快照表，发布时快照供历史日志 X6 图还原
 CREATE TABLE IF NOT EXISTS `chain_graph_snapshot` (

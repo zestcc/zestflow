@@ -4,6 +4,7 @@ import com.zestflow.common.protocol.EventQuery;
 import com.zestflow.common.protocol.EventStats;
 import com.zestflow.common.protocol.EventStatsQuery;
 import com.zestflow.common.protocol.ExecutionTrace;
+import com.zestflow.common.protocol.NodeExecutionDetail;
 import com.zestflow.common.model.dto.ChainEvent;
 
 import java.util.List;
@@ -16,7 +17,7 @@ import java.util.List;
 public interface EventQueryService {
 
     /**
-     * 按条件查询事件列表（分页）
+     * 按条件查询事件列表（分页，轻量无 payload）
      */
     List<ChainEvent> queryEvents(EventQuery query);
 
@@ -26,7 +27,7 @@ public interface EventQueryService {
     long countEvents(EventQuery query);
 
     /**
-     * 按事件 ID 查询单条事件详情
+     * 按事件 ID 查询单条事件详情（含 payload）
      */
     ChainEvent getById(String eventId);
 
@@ -46,7 +47,14 @@ public interface EventQueryService {
     long countExecutionTraces(EventQuery query);
 
     /**
-     * 查询单次执行轨迹详情（含所有事件）
+     * 查询单次执行轨迹详情（含所有轻量事件，无 payload）
      */
     ExecutionTrace getExecutionTrace(String executionId);
+
+    /**
+     * 按需加载某次执行中单个节点的入参/出参详情
+     *
+     * @param nodeShape 图节点 shape（flow-start / flow-end / flow-task 等），可为空
+     */
+    NodeExecutionDetail getNodeExecutionDetail(String executionId, String nodeId, String nodeShape);
 }

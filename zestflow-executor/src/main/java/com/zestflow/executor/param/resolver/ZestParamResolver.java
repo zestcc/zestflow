@@ -41,7 +41,7 @@ public class ZestParamResolver implements ParameterResolver {
     @Override
     public Object resolve(Parameter param, ChainContext context) {
         ZestParam zp = param.getAnnotation(ZestParam.class);
-        String key = zp.value();
+        String key = resolveParamKey(zp, param);
 
         // 按数据来源取值
         Object value;
@@ -71,5 +71,12 @@ public class ZestParamResolver implements ParameterResolver {
         }
 
         return null;
+    }
+
+    private static String resolveParamKey(ZestParam zp, Parameter param) {
+        if (zp.value() != null && !zp.value().isEmpty()) {
+            return zp.value();
+        }
+        return param.getName();
     }
 }

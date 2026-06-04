@@ -124,11 +124,32 @@ public class DesignRepository {
     public DesignPO delete(String code, String updatedBy) {
         DesignPO cur = get(code);
         if (cur == null) return null;
+
+        List<ChainPO> bindings = getBindings(code);
         String now = LocalDateTime.now().format(DTF);
+        String operator = updatedBy != null ? updatedBy : cur.getUpdatedBy();
+
+        // 级联假删绑定的执行链
+        if (!bindings.isEmpty()) {
+            jdbc.update("UPDATE zf_chain c INNER JOIN zf_design_binding b ON c.code = b.chain_code" +
+                            " SET c.is_deleted=1, c.updated_by=?, c.updated_at=?" +
+                            " WHERE b.design_code=? AND c.tenant_id=? AND c.is_deleted=0",
+                    operator, now, code, tenantId);
+            log.info("设计删除级联假删链 designCode={} chainCount={}", code, bindings.size());
+        }
+
+        // 绑定表允许硬删
+        deleteBindingsByDesign(code);
+
         jdbc.update("UPDATE zf_design SET is_deleted=1, updated_by=?, updated_at=? WHERE code=? AND tenant_id=?",
-                updatedBy != null ? updatedBy : cur.getUpdatedBy(), now, code, tenantId);
-        log.info("设计假删成功 code={} updatedBy={}", code, updatedBy);
+                operator, now, code, tenantId);
+        log.info("设计假删成功 code={} updatedBy={}", code, operator);
         return cur;
+    }
+
+    /** 删除设计前查询绑定链编码（用于内存卸载） */
+    public List<String> listBoundChainCodes(String designCode) {
+        return getBindings(designCode).stream().map(ChainPO::getCode).toList();
     }
 
     public DesignPO toggleStatus(String code, String updatedBy) {
@@ -146,7 +167,7 @@ public class DesignRepository {
 
     public List<ChainPO> getBindings(String designCode) {
         return jdbc.query(
-                "SELECT c.*, b.design_code FROM zf_chain c INNER JOIN zf_design_binding b ON c.code = b.chain_code WHERE b.design_code = ? AND c.tenant_id = ? ORDER BY c.updated_at DESC",
+                "SELECT c.*, b.design_code FROM zf_chain c INNER JOIN zf_design_binding b ON c.code = b.chain_code WHERE b.design_code = ? AND c.tenant_id = ? AND c.is_deleted = 0 ORDER BY c.updated_at DESC",
                 CHAIN_ROW_MAPPER, designCode, tenantId);
     }
 
@@ -179,5 +200,9 @@ public class DesignRepository {
 
     public void deleteBindingsByChain(String chainCode) {
         jdbc.update("DELETE FROM zf_design_binding WHERE chain_code = ? AND tenant_id = ?", chainCode, tenantId);
+    }
+
+    public void deleteBindingsByDesign(String designCode) {
+        jdbc.update("DELETE FROM zf_design_binding WHERE design_code = ? AND tenant_id = ?", designCode, tenantId);
     }
 }

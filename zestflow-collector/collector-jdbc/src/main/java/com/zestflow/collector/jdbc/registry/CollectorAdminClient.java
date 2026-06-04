@@ -1,50 +1,42 @@
 package com.zestflow.collector.jdbc.registry;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.zestflow.collector.http.ZestFlowHttpClient;
 import com.zestflow.common.constant.RegistryAuthConstants;
-import com.zestflow.common.constant.RegistryConstants;
 import com.zestflow.common.model.Result;
 import com.zestflow.common.model.dto.HeartbeatDTO;
 import com.zestflow.common.model.dto.RegisterDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.RestTemplate;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 采集器 Admin 客户端 — 向 Admin 注册、心跳、下线
- * <p>
- * 对标 executor 端 AdminClient 的设计模式，但用于采集器注册场景。
  */
 @Slf4j
 @RequiredArgsConstructor
 public class CollectorAdminClient {
 
-    private final RestTemplate restTemplate;
+    private final ZestFlowHttpClient httpClient;
     private final CollectorRegistryProperties properties;
 
-    private static final ParameterizedTypeReference<Result<Void>> RESULT_VOID_TYPE =
-            new ParameterizedTypeReference<Result<Void>>() {};
+    private static final TypeReference<Result<Void>> RESULT_VOID_TYPE =
+            new TypeReference<Result<Void>>() {};
 
     public boolean register(RegisterDTO dto) {
         List<String> adminList = parseAddresses();
         for (String adminUrl : adminList) {
             try {
                 String url = adminUrl + "/api/registry/collector/register";
-                HttpEntity<RegisterDTO> entity = new HttpEntity<>(dto, buildHeaders());
-                ResponseEntity<Result<Void>> resp = restTemplate.exchange(
-                        url, HttpMethod.POST, entity, RESULT_VOID_TYPE);
-                if (resp.getBody() != null && resp.getBody().getCode() == 200) {
+                Result<Void> result = httpClient.post(url, dto, buildHeaders(), RESULT_VOID_TYPE);
+                if (result != null && result.getCode() == 200) {
                     log.info("采集器注册成功 adminUrl={} collectorId={}", adminUrl, dto.getExecutorId());
                     return true;
                 }
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log.warn("采集器注册失败 adminUrl={} error={}", adminUrl, e.getMessage());
             }
         }
@@ -57,13 +49,11 @@ public class CollectorAdminClient {
         for (String adminUrl : adminList) {
             try {
                 String url = adminUrl + "/api/registry/collector/heartbeat";
-                HttpEntity<HeartbeatDTO> entity = new HttpEntity<>(dto, buildHeaders());
-                ResponseEntity<Result<Void>> resp = restTemplate.exchange(
-                        url, HttpMethod.POST, entity, RESULT_VOID_TYPE);
-                if (resp.getBody() != null && resp.getBody().getCode() == 200) {
+                Result<Void> result = httpClient.post(url, dto, buildHeaders(), RESULT_VOID_TYPE);
+                if (result != null && result.getCode() == 200) {
                     return true;
                 }
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log.debug("采集器心跳失败 adminUrl={} error={}", adminUrl, e.getMessage());
             }
         }
@@ -76,13 +66,11 @@ public class CollectorAdminClient {
         for (String adminUrl : adminList) {
             try {
                 String url = adminUrl + "/api/registry/collector/" + collectorId;
-                HttpEntity<Void> entity = new HttpEntity<>(buildHeaders());
-                ResponseEntity<Result<Void>> resp = restTemplate.exchange(
-                        url, HttpMethod.DELETE, entity, RESULT_VOID_TYPE);
-                if (resp.getBody() == null || resp.getBody().getCode() != 200) {
+                Result<Void> result = httpClient.delete(url, buildHeaders(), RESULT_VOID_TYPE);
+                if (result == null || result.getCode() != 200) {
                     allSuccess = false;
                 }
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log.warn("采集器注销失败 adminUrl={} error={}", adminUrl, e.getMessage());
                 allSuccess = false;
             }
@@ -90,14 +78,14 @@ public class CollectorAdminClient {
         return allSuccess;
     }
 
-    private HttpHeaders buildHeaders() {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+    private Map<String, String> buildHeaders() {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Content-Type", "application/json;charset=UTF-8");
         if (properties.getAccessToken() != null && !properties.getAccessToken().isEmpty()) {
-            headers.set("Authorization", "Bearer " + properties.getAccessToken());
+            headers.put("Authorization", "Bearer " + properties.getAccessToken());
         }
         if (properties.getRegistryToken() != null && !properties.getRegistryToken().isEmpty()) {
-            headers.set(RegistryAuthConstants.REGISTRY_TOKEN_HEADER, properties.getRegistryToken());
+            headers.put(RegistryAuthConstants.REGISTRY_TOKEN_HEADER, properties.getRegistryToken());
         }
         return headers;
     }

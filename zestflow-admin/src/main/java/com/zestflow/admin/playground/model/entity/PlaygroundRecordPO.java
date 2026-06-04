@@ -40,14 +40,11 @@ public class PlaygroundRecordPO {
     /** 请求体类型 */
     private String bodyType;
 
-    /** 请求体 JSON */
-    private String requestBody;
+    /** 调用载荷 ID（request/response 存 app_log） */
+    private String invocationId;
 
     /** HTTP 响应状态码 */
     private Integer responseStatus;
-
-    /** 响应体 JSON */
-    private String responseBody;
 
     /** 响应头 JSON */
     private String responseHeaders;

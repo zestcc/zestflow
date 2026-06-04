@@ -54,11 +54,15 @@ public class CollectorRegistrar implements ApplicationRunner {
         resolvedPort = resolvePort();
         collectorId = buildCollectorId();
         RegisterDTO registerDTO = buildRegisterDTO();
-        if (adminClient.register(registerDTO)) {
-            registered.set(true);
-            log.info("采集器首次注册成功 collectorId={}", collectorId);
-        } else {
-            log.warn("采集器首次注册失败，进入退避重试模式 collectorId={}", collectorId);
+        try {
+            if (adminClient.register(registerDTO)) {
+                registered.set(true);
+                log.info("采集器首次注册成功 collectorId={}", collectorId);
+            } else {
+                log.warn("采集器首次注册失败，进入退避重试模式 collectorId={}", collectorId);
+            }
+        } catch (Throwable e) {
+            log.warn("采集器首次注册异常，进入退避重试模式 collectorId={} error={}", collectorId, e.getMessage());
         }
         heartbeatScheduler.schedule(this::tick, 0, TimeUnit.MILLISECONDS);
     }

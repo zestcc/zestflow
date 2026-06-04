@@ -7,6 +7,8 @@ import com.zestflow.admin.service.CollectorRegistryService;
 import com.zestflow.admin.util.SecurityUtils;
 import com.zestflow.common.model.Result;
 import com.zestflow.common.model.dto.ChainSnapshotDTO;
+import com.zestflow.common.protocol.InvocationPayloadDTO;
+import com.zestflow.common.protocol.NodeExecutionDetail;
 import com.zestflow.common.protocol.EventQuery;
 import com.zestflow.common.protocol.EventQueryResult;
 import com.zestflow.common.protocol.ExecutionTrace;
@@ -69,6 +71,19 @@ public class LogController {
             return Result.fail(404, "NOT_FOUND", "未找到执行轨迹");
         }
         return Result.success(trace);
+    }
+
+    @GetMapping("/executions/{executionId}/nodes/{nodeId}")
+    public Result<NodeExecutionDetail> getNodeExecutionDetail(@PathVariable String executionId,
+                                                               @PathVariable String nodeId,
+                                                               @RequestParam(required = false) String nodeShape,
+                                                               @RequestParam(required = false) String appCode) {
+        NodeExecutionDetail detail = collectorQueryAggregator.getNodeExecutionDetail(
+                executionId, nodeId, nodeShape, appCode);
+        if (detail == null) {
+            return Result.fail(404, "NOT_FOUND", "未找到节点执行详情");
+        }
+        return Result.success(detail);
     }
 
     @GetMapping("/snapshots")

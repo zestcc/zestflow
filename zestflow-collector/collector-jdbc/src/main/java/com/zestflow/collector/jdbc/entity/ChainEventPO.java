@@ -55,15 +55,6 @@ public class ChainEventPO {
     /** 租户 ID */
     private Long tenantId;
 
-    /** 执行入参 JSON */
-    private String params;
-
-    /** 执行结果 JSON */
-    private String result;
-
-    /** 错误消息 */
-    private String errorMessage;
-
     /** 执行耗时（毫秒） */
     private Long costMs;
 

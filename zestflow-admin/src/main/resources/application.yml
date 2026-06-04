@@ -75,9 +75,9 @@ zestflow:
       interval-ms: 120000
   tenant:
     # 租户模式：single（单租户）/ multi（多租户）
-    mode: multi
+    mode: single
     # IP 演示模式：disabled / enabled
-    ip-demo-mode: enabled
+    ip-demo-mode: disabled
     # IP 租户非活跃超时（分钟）
     ip-tenant-timeout-minutes: 60
   playground:

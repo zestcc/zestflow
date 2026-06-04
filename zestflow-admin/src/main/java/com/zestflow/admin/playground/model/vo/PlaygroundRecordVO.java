@@ -18,8 +18,12 @@ public class PlaygroundRecordVO {
     private String requestPath;
     private String requestHeaders;
     private String bodyType;
+    /** 调用载荷 ID */
+    private String invocationId;
+    /** 详情页按需从 app_log 加载 */
     private String requestBody;
     private Integer responseStatus;
+    /** 详情页按需从 app_log 加载 */
     private String responseBody;
     private String responseHeaders;
     private String chainCode;

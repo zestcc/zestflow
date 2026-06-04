@@ -121,6 +121,21 @@ public class NodeDefinition {
     /** 条件表达式（CONDITION 类型），空则始终执行 */
     private String condition;
 
+    /** 判断模式：bind=绑定元件 / script=内联脚本（随设计持久化） */
+    @Builder.Default
+    private String predicateMode = "bind";
+
+    /** 内联脚本表达式（script 模式），Aviator 语法 */
+    private String predicateScript;
+
+    /** script 模式 True 分支标签（匹配出线 label） */
+    @Builder.Default
+    private String trueLabel = "True";
+
+    /** script 模式 False 分支标签（匹配出线 label） */
+    @Builder.Default
+    private String falseLabel = "False";
+
     public boolean isNormal() {
         return ChainConstants.NODE_TYPE_NORMAL.equals(type);
     }
@@ -139,5 +154,10 @@ public class NodeDefinition {
 
     public boolean isIterator() {
         return ChainConstants.NODE_TYPE_ITERATOR.equals(type);
+    }
+
+    /** 是否内联脚本判断（不依赖 Executor 元件注册表） */
+    public boolean isInlineScriptPredicate() {
+        return "script".equalsIgnoreCase(predicateMode);
     }
 }

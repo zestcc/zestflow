@@ -3,6 +3,7 @@ package com.zestflow.collector.jdbc.server;
 import com.zestflow.collector.jdbc.metrics.CollectorMetricsProvider;
 import com.zestflow.collector.jdbc.service.ChainGraphSnapshotService;
 import com.zestflow.collector.spi.EventQueryService;
+import com.zestflow.collector.spi.InvocationPayloadService;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
@@ -37,6 +38,7 @@ public class CollectorServer {
     private Channel channel;
 
     public CollectorServer(int port, EventQueryService eventQueryService,
+                           InvocationPayloadService invocationPayloadService,
                            ChainGraphSnapshotService snapshotService,
                            String accessToken,
                            CollectorMetricsProvider metricsProvider) {
@@ -48,8 +50,8 @@ public class CollectorServer {
                     t.setDaemon(true);
                     return t;
                 });
-        this.serverHandler = new CollectorServerHandler(eventQueryService, snapshotService,
-                accessToken, queryExecutor, metricsProvider);
+        this.serverHandler = new CollectorServerHandler(eventQueryService, invocationPayloadService,
+                snapshotService, accessToken, queryExecutor, metricsProvider);
     }
 
     public void start() throws InterruptedException {

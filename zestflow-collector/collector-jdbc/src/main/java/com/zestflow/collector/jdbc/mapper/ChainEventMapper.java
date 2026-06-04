@@ -24,13 +24,13 @@ public interface ChainEventMapper extends BaseMapper<ChainEventPO> {
     @Insert({
             "<script>",
             "INSERT IGNORE INTO chain_event(event_id, event_type, execution_id, chain_id, chain_name,",
-            "  node_id, node_name, executor_id, app_code, app_name, tenant_id, params, result,",
-            "  error_message, cost_ms, status, timestamp, metadata, create_time)",
+            "  node_id, node_name, executor_id, app_code, app_name, tenant_id,",
+            "  cost_ms, status, timestamp, metadata, create_time)",
             "VALUES ",
             "<foreach collection='list' item='e' separator=','>",
             "  (#{e.eventId}, #{e.eventType}, #{e.executionId}, #{e.chainId}, #{e.chainName},",
-            "   #{e.nodeId}, #{e.nodeName}, #{e.executorId}, #{e.appCode}, #{e.appName}, #{e.tenantId}, #{e.params}, #{e.result},",
-            "   #{e.errorMessage}, #{e.costMs}, #{e.status}, #{e.timestamp}, #{e.metadata}, NOW())",
+            "   #{e.nodeId}, #{e.nodeName}, #{e.executorId}, #{e.appCode}, #{e.appName}, #{e.tenantId},",
+            "   #{e.costMs}, #{e.status}, #{e.timestamp}, #{e.metadata}, NOW())",
             "</foreach>",
             "</script>"
     })

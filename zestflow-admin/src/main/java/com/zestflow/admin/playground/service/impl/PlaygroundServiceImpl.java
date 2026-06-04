@@ -23,6 +23,8 @@ import com.zestflow.admin.playground.repository.PlaygroundSceneMapper;
 import com.zestflow.admin.playground.service.PlaygroundService;
 
 import com.zestflow.admin.client.ExecutorProxyService;
+import com.zestflow.admin.client.CollectorQueryAggregator;
+import com.zestflow.common.protocol.InvocationPayloadDTO;
 
 import com.zestflow.admin.playground.support.PlaygroundAccessControl;
 
@@ -33,6 +35,8 @@ import com.zestflow.admin.playground.support.PlaygroundRequestPathValidator;
 import com.zestflow.admin.playground.support.PlaygroundUrlResolver;
 
 import com.zestflow.admin.service.TenantAppContext;
+
+import com.zestflow.common.constant.ChainConstants;
 
 import com.zestflow.common.model.dto.ChainExecuteRequestDTO;
 
@@ -104,6 +108,8 @@ public class PlaygroundServiceImpl implements PlaygroundService {
 
     private final PlaygroundUrlResolver playgroundUrlResolver;
 
+    private final CollectorQueryAggregator collectorQueryAggregator;
+
 
 
     @Value("${zestflow.playground.execute-timeout-ms:30000}")
@@ -172,7 +178,11 @@ public class PlaygroundServiceImpl implements PlaygroundService {
 
                 instanceId = extractExecutionId(resultJson);
 
-                status = resultNode.has("status") && resultNode.get("status").asInt() >= 4 ? 1 : 0;
+                ExecutionStatus resolved = resolveExecutionStatus(resultJson);
+
+                status = resolved.status();
+
+                errorMsg = resolved.errorMsg();
 
             } else if (playgroundUrlResolver.isApiPath(requestPath)) {
 
@@ -188,13 +198,13 @@ public class PlaygroundServiceImpl implements PlaygroundService {
                     resultJson = proxyService.executeOnExecutor(appCode, method, path, reqBody);
                 }
 
-                status = parseBusinessStatus(resultJson);
+                ExecutionStatus resolved = resolveExecutionStatus(resultJson);
 
-                if (status == 0) {
+                status = resolved.status();
 
-                    errorMsg = extractErrorMessage(resultJson);
+                errorMsg = resolved.errorMsg();
 
-                }
+                instanceId = extractExecutionId(resultJson);
 
                 log.info("演示场景业务 API sceneCode={} path={} status={}", sceneCode, requestPath, status);
 
@@ -254,17 +264,7 @@ public class PlaygroundServiceImpl implements PlaygroundService {
 
         }
 
-        try {
-
-            if (resultJson != null) {
-
-                result.put("result", MAPPER.readTree(resultJson));
-
-            }
-
-        } catch (Exception ignored) {
-
-        }
+        putResponsePayload(result, resultJson);
 
         return result;
 
@@ -376,62 +376,104 @@ public class PlaygroundServiceImpl implements PlaygroundService {
         return null;
     }
 
-    private static int parseBusinessStatus(String resultJson) {
-
+    /**
+     * 试验场成功判定 — 优先链/节点执行结果，不以业务 Result.code 作为唯一依据。
+     * <p>
+     * 1. 含链运行 status（0–8）→ 仅 {@link ChainConstants#CHAIN_SUCCESS} 为成功<br>
+     * 2. 含 nodeResults → 无失败节点即为成功<br>
+     * 3. 非 JSON（XML/纯文本）或非标准 JSON → 有响应体即成功（代理 HTTP 已成功）
+     */
+    static ExecutionStatus resolveExecutionStatus(String resultJson) {
         if (resultJson == null || resultJson.isBlank()) {
-
-            return 0;
-
+            return ExecutionStatus.failure("响应为空");
         }
-
         try {
-
             JsonNode node = MAPPER.readTree(resultJson);
-
-            if (node.has("code")) {
-
-                int code = node.get("code").asInt();
-
-                return code == 200 ? 1 : 0;
-
+            ExecutionStatus fromNodes = resolveNodeResultsStatus(node);
+            if (fromNodes != null) {
+                return fromNodes;
             }
-
-            if (node.has("success")) {
-
-                return node.get("success").asBoolean() ? 1 : 0;
-
+            if (node.has("data") && node.get("data").isObject()) {
+                fromNodes = resolveNodeResultsStatus(node.get("data"));
+                if (fromNodes != null) {
+                    return fromNodes;
+                }
             }
-
-            return 1;
-
+            ExecutionStatus fromChain = resolveChainExecutionStatus(node);
+            if (fromChain != null) {
+                return fromChain;
+            }
+            if (node.has("data") && node.get("data").isObject()) {
+                fromChain = resolveChainExecutionStatus(node.get("data"));
+                if (fromChain != null) {
+                    return fromChain;
+                }
+            }
+            return ExecutionStatus.success();
         } catch (Exception e) {
-
-            return 0;
-
+            return ExecutionStatus.success();
         }
-
     }
 
+    private static ExecutionStatus resolveChainExecutionStatus(JsonNode node) {
+        if (node == null || !node.has("status") || !node.get("status").isNumber()) {
+            return null;
+        }
+        int chainStatus = node.get("status").asInt();
+        if (chainStatus < ChainConstants.CHAIN_INIT || chainStatus > ChainConstants.CHAIN_STOPPED) {
+            return null;
+        }
+        if (chainStatus == ChainConstants.CHAIN_SUCCESS) {
+            return ExecutionStatus.success();
+        }
+        String error = firstNonBlankText(node, "errorMessage", "message");
+        if (error == null) {
+            error = "链执行未成功，status=" + chainStatus;
+        }
+        return ExecutionStatus.failure(error);
+    }
 
-
-    private static String extractErrorMessage(String resultJson) {
-
-        try {
-
-            JsonNode node = MAPPER.readTree(resultJson);
-
-            if (node.has("message")) {
-
-                return node.get("message").asText();
-
+    private static ExecutionStatus resolveNodeResultsStatus(JsonNode node) {
+        if (node == null || !node.has("nodeResults") || !node.get("nodeResults").isArray()) {
+            return null;
+        }
+        JsonNode nodeResults = node.get("nodeResults");
+        if (nodeResults.isEmpty()) {
+            return ExecutionStatus.success();
+        }
+        for (JsonNode nr : nodeResults) {
+            if (nr.has("status") && nr.get("status").asInt() == ChainConstants.NODE_FAILED) {
+                String err = nr.has("errorMessage") && !nr.get("errorMessage").isNull()
+                        ? nr.get("errorMessage").asText()
+                        : null;
+                if (err == null && nr.has("nodeId")) {
+                    err = "节点执行失败: " + nr.get("nodeId").asText();
+                }
+                return ExecutionStatus.failure(err != null ? err : "节点执行失败");
             }
+        }
+        return ExecutionStatus.success();
+    }
 
-        } catch (Exception ignored) {
+    private static void putResponsePayload(Map<String, Object> result, String resultJson) {
+        if (resultJson == null) {
+            return;
+        }
+        try {
+            result.put("result", MAPPER.readTree(resultJson));
+        } catch (Exception e) {
+            result.put("result", resultJson);
+        }
+    }
 
+    record ExecutionStatus(int status, String errorMsg) {
+        static ExecutionStatus success() {
+            return new ExecutionStatus(1, null);
         }
 
-        return null;
-
+        static ExecutionStatus failure(String errorMsg) {
+            return new ExecutionStatus(0, errorMsg);
+        }
     }
 
 
@@ -439,6 +481,25 @@ public class PlaygroundServiceImpl implements PlaygroundService {
     private void saveRecord(PlaygroundScenePO scene, Map<String, Object> params, String requestIp,
 
                             String resultJson, String instanceId, int status, long costMs, String errorMsg) {
+
+        String invocationId = UUID.randomUUID().toString().replace("-", "");
+        String requestBody = PlaygroundRecordStorageHelper.truncateJson(
+                params != null ? safeWrite(params) : null);
+        String responseBody = PlaygroundRecordStorageHelper.truncateJson(resultJson);
+
+        InvocationPayloadDTO payload = InvocationPayloadDTO.builder()
+                .invocationId(invocationId)
+                .sourceType("PLAYGROUND")
+                .executionId(instanceId)
+                .sceneCode(scene.getSceneCode())
+                .requestBody(requestBody)
+                .responseBody(responseBody)
+                .tenantId(tenantAppContext.getCurrentTenantId())
+                .appCode(scene.getAppCode())
+                .build();
+        if (!collectorQueryAggregator.saveInvocationPayload(payload)) {
+            log.warn("试验场载荷写入 app_log 失败 invocationId={} sceneCode={}", invocationId, scene.getSceneCode());
+        }
 
         PlaygroundRecordPO record = new PlaygroundRecordPO();
 
@@ -454,10 +515,7 @@ public class PlaygroundServiceImpl implements PlaygroundService {
 
         record.setBodyType(scene.getBodyType());
 
-        record.setRequestBody(PlaygroundRecordStorageHelper.truncateJson(
-                params != null ? safeWrite(params) : null));
-
-        record.setResponseBody(PlaygroundRecordStorageHelper.truncateJson(resultJson));
+        record.setInvocationId(invocationId);
 
         record.setChainCode(scene.getChainCode());
 

@@ -20,6 +20,7 @@ import io.netty.handler.timeout.IdleStateHandler;
 import com.zestflow.executor.registry.ExecutorProperties;
 import lombok.extern.slf4j.Slf4j;
 
+import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -129,6 +130,9 @@ public class ExecutorServer {
     }
 
     public int getPort() {
+        if (port == 0 && channel != null && channel.localAddress() instanceof InetSocketAddress addr) {
+            return addr.getPort();
+        }
         return port;
     }
 }

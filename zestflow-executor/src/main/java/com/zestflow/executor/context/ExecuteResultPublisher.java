@@ -19,6 +19,10 @@ public final class ExecuteResultPublisher {
     }
 
     public static void publish(ChainContext context, Object result) {
+        publish(context, result, null);
+    }
+
+    public static void publish(ChainContext context, Object result, String outputKey) {
         if (result == null) {
             return;
         }
@@ -27,6 +31,9 @@ public final class ExecuteResultPublisher {
             return;
         }
         if (isSimpleValue(result)) {
+            if (outputKey != null && !outputKey.isEmpty()) {
+                context.put(outputKey, result);
+            }
             return;
         }
         context.register(result);

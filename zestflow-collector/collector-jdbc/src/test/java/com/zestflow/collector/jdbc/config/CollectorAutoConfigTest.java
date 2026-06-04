@@ -3,8 +3,6 @@ package com.zestflow.collector.jdbc.config;
 import com.zestflow.collector.async.AsyncEventCollector;
 import com.zestflow.common.spi.EventCollector;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.ObjectProvider;
-
 import java.lang.reflect.Method;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -20,8 +18,8 @@ class CollectorAutoConfigTest {
         Method method = CollectorAutoConfig.class.getDeclaredMethod(
                 "asyncEventCollector",
                 com.zestflow.collector.jdbc.mapper.ChainEventMapper.class,
-                CollectorProperties.class,
-                ObjectProvider.class);
+                com.zestflow.collector.jdbc.mapper.ChainEventPayloadMapper.class,
+                CollectorProperties.class);
         assertThat(method.getReturnType()).isEqualTo(AsyncEventCollector.class);
         assertThat(AsyncEventCollector.class.getDeclaredMethod("destroy")).isNotNull();
     }
@@ -30,7 +28,8 @@ class CollectorAutoConfigTest {
     void jdbcEventCollectorBean_declaresEventCollectorReturnType() throws NoSuchMethodException {
         Method method = CollectorAutoConfig.class.getDeclaredMethod(
                 "jdbcEventCollector",
-                com.zestflow.collector.jdbc.mapper.ChainEventMapper.class);
+                com.zestflow.collector.jdbc.mapper.ChainEventMapper.class,
+                com.zestflow.collector.jdbc.mapper.ChainEventPayloadMapper.class);
         assertThat(method.getReturnType()).isEqualTo(EventCollector.class);
     }
 }

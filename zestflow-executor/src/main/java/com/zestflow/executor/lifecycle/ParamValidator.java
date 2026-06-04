@@ -31,7 +31,7 @@ public class ParamValidator {
         this.validator = validator;
     }
 
-    @ZestParamValidator("defaultParamValidator")
+    @ZestParamValidator(value = "defaultParamValidator", name = "默认参数校验器")
     public void validate(Object[] args, Parameter[] params) {
         if (validator == null) {
             log.trace("Jakarta Validator 不可用，跳过校验");

@@ -456,10 +456,14 @@ function flattenJson() {
 
 const formatResponseBody = computed(() => {
   if (!lastResult.value) return ''
+  const payload = lastResult.value.result !== undefined && lastResult.value.result !== null
+    ? lastResult.value.result
+    : lastResult.value
+  if (typeof payload === 'string') return payload
   try {
-    return JSON.stringify(lastResult.value, null, 2)
+    return JSON.stringify(payload, null, 2)
   } catch {
-    return String(lastResult.value)
+    return String(payload)
   }
 })
 

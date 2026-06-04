@@ -4,7 +4,9 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zestflow.collector.jdbc.entity.ChainEventPO;
+import com.zestflow.collector.jdbc.entity.ChainEventPayloadPO;
 import com.zestflow.collector.jdbc.mapper.ChainEventMapper;
+import com.zestflow.collector.jdbc.mapper.ChainEventPayloadMapper;
 import com.zestflow.common.model.dto.ChainEvent;
 import com.zestflow.common.model.dto.ChainEvent.EventType;
 import com.zestflow.common.protocol.EventQuery;
@@ -37,6 +39,7 @@ import static org.mockito.Mockito.*;
 class JdbcEventQueryServiceTest {
 
     @Mock private ChainEventMapper chainEventMapper;
+    @Mock private ChainEventPayloadMapper chainEventPayloadMapper;
     @Captor private ArgumentCaptor<LambdaQueryWrapper<ChainEventPO>> wrapperCaptor;
     @Captor private ArgumentCaptor<Page<ChainEventPO>> pageCaptor;
 
@@ -44,7 +47,7 @@ class JdbcEventQueryServiceTest {
 
     @BeforeEach
     void setUp() {
-        queryService = new JdbcEventQueryService(chainEventMapper);
+        queryService = new JdbcEventQueryService(chainEventMapper, chainEventPayloadMapper);
     }
 
     // ==================== 测试数据 ====================
@@ -64,9 +67,6 @@ class JdbcEventQueryServiceTest {
                 .appCode(appCode)
                 .appName(appCode)
                 .tenantId(1L)
-                .params("{}")
-                .result("{\"ok\":true}")
-                .errorMessage(null)
                 .costMs(100L)
                 .status(status)
                 .timestamp(timestamp)
@@ -83,7 +83,6 @@ class JdbcEventQueryServiceTest {
     private ChainEventPO createChainFailed(String executionId, long timestamp) {
         ChainEventPO po = createPO("evt-failed", "CHAIN_FAILED", executionId, "chain-1",
                 "demo-app", 0, timestamp);
-        po.setErrorMessage("业务异常");
         po.setCostMs(500L);
         return po;
     }
@@ -345,6 +344,11 @@ class JdbcEventQueryServiceTest {
             ChainEventPO failed = createChainFailed("exec-2", 2000L);
             when(chainEventMapper.selectByExecutionId("exec-2"))
                     .thenReturn(List.of(started, failed));
+            when(chainEventPayloadMapper.selectByEventId("evt-failed"))
+                    .thenReturn(ChainEventPayloadPO.builder()
+                            .eventId("evt-failed")
+                            .errorMessage("业务异常")
+                            .build());
 
             ExecutionTrace trace = queryService.getExecutionTrace("exec-2");
 

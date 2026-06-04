@@ -154,7 +154,7 @@ class ChainControllerTest {
         when(proxyService.resolveAllExecutorUrls(anyString())).thenReturn(java.util.List.of());
         when(proxyService.getFromExecutor(anyString(), anyString(), anyString()))
                 .thenReturn("{\"code\":200,\"designCode\":\"DSN001\"}")
-                .thenReturn("{\"code\":200,\"graphData\":\"{}\",\"chainData\":\"\"}");
+                .thenReturn("{\"code\":200,\"status\":1,\"graphData\":\"{}\",\"chainData\":\"\"}");
 
         chainController.publish("chain-1", "app-a");
 
@@ -173,7 +173,7 @@ class ChainControllerTest {
                 .thenReturn("{\"code\":\"c1\",\"designCode\":\"DSN001\",\"status\":2}")
                 .thenReturn("{\"code\":\"c1\",\"designCode\":\"DSN001\",\"status\":2}");
         when(proxyService.getFromExecutor(eq("app-a"), eq("/api/designs/DSN001"), isNull()))
-                .thenReturn("{\"code\":\"DSN001\",\"graphData\":\"{\\\"nodes\\\":[]}\",\"chainData\":\"{}\"}");
+                .thenReturn("{\"code\":\"DSN001\",\"status\":1,\"graphData\":\"{\\\"nodes\\\":[]}\",\"chainData\":\"{}\"}");
 
         ExecutorProxyService.BroadcastResult broadcast = ExecutorProxyService.BroadcastResult.of(
                 1, 1, java.util.List.of(new ExecutorProxyService.ExecutorResult("http://exec-a:20550", true, "OK", "{}")));
@@ -192,6 +192,28 @@ class ChainControllerTest {
         org.assertj.core.api.Assertions.assertThat(data.get("total").asInt()).isEqualTo(1);
         verify(runtimeStateStore).savePublishProgress("c1", 1, 1);
         verify(collectorClient).syncSnapshot(any());
+    }
+
+    @Test
+    void publish_designDisabled_returns400() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(1L, true, 1L));
+
+        when(proxyService.resolveAllExecutorUrls("app-a"))
+                .thenReturn(java.util.List.of("http://exec-a:20550"));
+        when(proxyService.getFromExecutor(eq("app-a"), eq("/api/chains/c1"), isNull()))
+                .thenReturn("{\"code\":\"c1\",\"designCode\":\"DSN001\",\"status\":2}");
+        when(proxyService.getFromExecutor(eq("app-a"), eq("/api/designs/DSN001"), isNull()))
+                .thenReturn("{\"code\":\"DSN001\",\"status\":0,\"graphData\":\"{}\"}");
+
+        String json = chainController.publish("c1", "app-a");
+        ObjectMapper mapper = new ObjectMapper();
+        var root = mapper.readTree(json);
+
+        org.assertj.core.api.Assertions.assertThat(root.get("code").asInt()).isEqualTo(400);
+        org.assertj.core.api.Assertions.assertThat(root.get("message").asText()).contains("关联设计未启用");
+        verify(proxyService, never()).broadcastToExecutors(anyString(), anyString(), anyString(), anyString());
     }
 
     // ==================== activeCodes / getByCode / versions ====================

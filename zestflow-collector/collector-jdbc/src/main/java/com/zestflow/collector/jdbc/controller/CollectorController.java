@@ -7,6 +7,9 @@ import com.zestflow.common.protocol.EventStats;
 import com.zestflow.common.protocol.EventStatsQuery;
 import com.zestflow.common.protocol.ExecutionTrace;
 import com.zestflow.collector.spi.EventQueryService;
+import com.zestflow.collector.spi.InvocationPayloadService;
+import com.zestflow.common.protocol.InvocationPayloadDTO;
+import com.zestflow.common.protocol.NodeExecutionDetail;
 import com.zestflow.common.model.Result;
 import com.zestflow.common.model.dto.ChainEvent;
 import jakarta.servlet.http.HttpServletRequest;
@@ -29,6 +32,7 @@ import java.util.List;
 public class CollectorController {
 
     private final EventQueryService eventQueryService;
+    private final InvocationPayloadService invocationPayloadService;
     private final CollectorProperties properties;
     private final CollectorMetricsProvider metricsProvider;
 
@@ -103,6 +107,45 @@ public class CollectorController {
             return Result.fail(404, "NOT_FOUND", "Execution trace not found");
         }
         return Result.success(trace);
+    }
+
+    @GetMapping("/events/executions/{executionId}/nodes/{nodeId}")
+    public Result<?> getNodeExecutionDetail(@PathVariable String executionId,
+                                             @PathVariable String nodeId,
+                                             @RequestParam(required = false) String nodeShape,
+                                             HttpServletRequest request) {
+        if (!checkToken(request)) {
+            return Result.fail(401, "UNAUTHORIZED", "Invalid collector token");
+        }
+        NodeExecutionDetail detail = eventQueryService.getNodeExecutionDetail(executionId, nodeId, nodeShape);
+        if (detail == null) {
+            return Result.fail(404, "NOT_FOUND", "Node execution detail not found");
+        }
+        return Result.success(detail);
+    }
+
+    @PostMapping("/invocations")
+    public Result<?> saveInvocation(@RequestBody InvocationPayloadDTO dto, HttpServletRequest request) {
+        if (!checkToken(request)) {
+            return Result.fail(401, "UNAUTHORIZED", "Invalid collector token");
+        }
+        if (dto.getInvocationId() == null || dto.getInvocationId().isEmpty()) {
+            return Result.fail(400, "BAD_REQUEST", "invocationId is required");
+        }
+        invocationPayloadService.save(dto);
+        return Result.success(null);
+    }
+
+    @GetMapping("/invocations/{invocationId}")
+    public Result<?> getInvocation(@PathVariable String invocationId, HttpServletRequest request) {
+        if (!checkToken(request)) {
+            return Result.fail(401, "UNAUTHORIZED", "Invalid collector token");
+        }
+        InvocationPayloadDTO dto = invocationPayloadService.getByInvocationId(invocationId);
+        if (dto == null) {
+            return Result.fail(404, "NOT_FOUND", "Invocation payload not found");
+        }
+        return Result.success(dto);
     }
 
     /**

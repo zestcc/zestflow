@@ -81,3 +81,27 @@ export interface ChainSnapshotDTO {
 export function getSnapshot(chainCode: string, timestamp: number) {
   return request.get('/logs/snapshots', { params: { chainCode, timestamp } })
 }
+
+export interface NodeExecutionDetail {
+  executionId: string
+  nodeId: string
+  nodeName: string
+  nodeShape: string
+  params: string
+  result: string
+  errorMessage: string
+  costMs: number
+  status: number
+  timeline: ChainEvent[]
+}
+
+export function getNodeExecutionDetail(
+  executionId: string,
+  nodeId: string,
+  nodeShape?: string,
+  appCode?: string,
+) {
+  return request.get(`/logs/executions/${executionId}/nodes/${encodeURIComponent(nodeId)}`, {
+    params: { nodeShape, appCode },
+  })
+}

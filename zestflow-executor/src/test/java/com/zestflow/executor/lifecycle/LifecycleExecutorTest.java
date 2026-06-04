@@ -76,6 +76,11 @@ class LifecycleExecutorTest {
             return name;
         }
 
+        @ZestExecute("paramByName")
+        public String paramByName(String orderId) {
+            return "order=" + orderId;
+        }
+
         public String getLastArg() { return lastArg; }
     }
 
@@ -87,9 +92,11 @@ class LifecycleExecutorTest {
 
     @BeforeEach
     void setUp() {
-        zestResolver = new ZestParamResolver(new ParamConverterRegistry());
+        ParamConverterRegistry registry = new ParamConverterRegistry();
+        zestResolver = new ZestParamResolver(registry);
+        ParameterResolver nameResolver = new com.zestflow.executor.param.resolver.ParameterNameResolver(registry);
         contextResolver = new ContextTypeResolver();
-        executor = new LifecycleExecutor(scanner, List.of(zestResolver, contextResolver));
+        executor = new LifecycleExecutor(scanner, List.of(zestResolver, nameResolver, contextResolver));
     }
 
     // ==================== 基本调用 ====================
@@ -106,6 +113,21 @@ class LifecycleExecutorTest {
         Object result = executor.execute(nodeDef, ctx);
 
         assertThat(result).isEqualTo("hello zest");
+    }
+
+    @Test
+    void executeWithParameterNameFallback() throws Exception {
+        TestComponent bean = new TestComponent();
+        Method method = TestComponent.class.getMethod("paramByName", String.class);
+        mockComponent(scanner, "paramByNameComp", bean, method);
+
+        NodeDefinition nodeDef = nodeDefWithComponent("paramByNameComp");
+        String paramName = method.getParameters()[0].getName();
+        ChainContext ctx = new ChainContext("inst1", "chain1", Map.of(paramName, "ORD-999"));
+
+        Object result = executor.execute(nodeDef, ctx);
+
+        assertThat(result).isEqualTo("order=ORD-999");
     }
 
     @Test
@@ -434,10 +456,6 @@ class LifecycleExecutorTest {
     private static NodeDefinition nodeDefWithComponent(String component) {
         return NodeDefinition.builder()
                 .id("n1").component(component)
-                .paramResolvers(List.of(
-                        new ComponentRef("zestParamResolver", null),
-                        new ComponentRef("contextTypeResolver", null)
-                ))
                 .build();
     }
 

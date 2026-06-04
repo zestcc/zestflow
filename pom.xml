@@ -58,7 +58,8 @@
 
         <!-- 框架版本 -->
         <spring-boot.version>3.2.5</spring-boot.version>
-        <mybatis-plus.version>3.5.7</mybatis-plus.version>
+        <mybatis-plus.version>3.5.15</mybatis-plus.version>
+        <mybatis-spring.version>3.0.4</mybatis-spring.version>
 
         <!-- 中间件版本 -->
         <mysql.version>8.3.0</mysql.version>
@@ -69,7 +70,7 @@
         <lombok.version>1.18.34</lombok.version>
         <slf4j.version>2.0.13</slf4j.version>
         <jackson.version>2.17.1</jackson.version>
-        <groovy.version>4.0.18</groovy.version>
+        <aviator.version>5.4.3</aviator.version>
         <junit.version>5.10.2</junit.version>
         <shedlock.version>5.16.0</shedlock.version>
 
@@ -140,10 +141,36 @@
             </dependency>
 
             <!-- ============ 第三方依赖 ============ -->
+            <!-- 使用 boot3-starter 的模块须同时声明 mybatis-plus-jsqlparser（3.5.9+ 分页/租户插件） -->
             <dependency>
                 <groupId>com.baomidou</groupId>
                 <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
                 <version>${mybatis-plus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-core</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-extension</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-jsqlparser</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-spring</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mybatis</groupId>
+                <artifactId>mybatis-spring</artifactId>
+                <version>${mybatis-spring.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.mysql</groupId>
@@ -162,9 +189,9 @@
                 <version>${slf4j.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.apache.groovy</groupId>
-                <artifactId>groovy-jsr223</artifactId>
-                <version>${groovy.version}</version>
+                <groupId>com.googlecode.aviator</groupId>
+                <artifactId>aviator</artifactId>
+                <version>${aviator.version}</version>
             </dependency>
             <dependency>
                 <groupId>net.javacrumbs.shedlock</groupId>

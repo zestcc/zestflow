@@ -20,13 +20,14 @@ import java.util.stream.Collectors;
  * <p>
  * 负责定位元件方法 → 参数解析器链按序匹配 → 参数校验 → 反射调用。
  * 参数解析器从 NodeDefinition 配置的 {@code paramResolvers} 中动态获取，
- * 未配置时默认使用 {@code zestParamResolver} + {@code contextTypeResolver}。
+ * 未配置时默认使用 {@code zestParamResolver} + {@code parameterNameResolver} + {@code contextTypeResolver}。
  */
 @Slf4j
 public class LifecycleExecutor {
 
     private static final List<ComponentRef> DEFAULT_RESOLVER_REFS = List.of(
             new ComponentRef("zestParamResolver", null),
+            new ComponentRef("parameterNameResolver", null),
             new ComponentRef("contextTypeResolver", null)
     );
 

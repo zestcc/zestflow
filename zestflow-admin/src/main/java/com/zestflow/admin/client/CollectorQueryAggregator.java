@@ -5,6 +5,8 @@ import com.zestflow.admin.service.CollectorRegistryService;
 import com.zestflow.common.protocol.EventQuery;
 import com.zestflow.common.protocol.EventQueryResult;
 import com.zestflow.common.protocol.ExecutionTrace;
+import com.zestflow.common.protocol.InvocationPayloadDTO;
+import com.zestflow.common.protocol.NodeExecutionDetail;
 import com.zestflow.common.protocol.PageResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -78,6 +80,37 @@ public class CollectorQueryAggregator {
             ExecutionTrace trace = queryClient.getExecutionTrace(url, executionId);
             if (trace != null) {
                 return trace;
+            }
+        }
+        return null;
+    }
+
+    public NodeExecutionDetail getNodeExecutionDetail(String executionId, String nodeId,
+                                                       String nodeShape, String appCode) {
+        for (String url : resolveCollectorUrls(appCode)) {
+            NodeExecutionDetail detail = queryClient.getNodeExecutionDetail(
+                    url, executionId, nodeId, nodeShape);
+            if (detail != null) {
+                return detail;
+            }
+        }
+        return null;
+    }
+
+    public boolean saveInvocationPayload(InvocationPayloadDTO dto) {
+        for (String url : resolveCollectorUrls(dto.getAppCode())) {
+            if (queryClient.saveInvocationPayload(url, dto)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public InvocationPayloadDTO getInvocationPayload(String invocationId, String appCode) {
+        for (String url : resolveCollectorUrls(appCode)) {
+            InvocationPayloadDTO dto = queryClient.getInvocationPayload(url, invocationId);
+            if (dto != null) {
+                return dto;
             }
         }
         return null;

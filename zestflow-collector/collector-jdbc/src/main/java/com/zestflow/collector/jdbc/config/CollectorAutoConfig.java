@@ -5,6 +5,8 @@ import com.zestflow.collector.jdbc.collector.JdbcEventCollector;
 import com.zestflow.collector.jdbc.controller.CollectorController;
 import com.zestflow.collector.jdbc.controller.GraphSnapshotController;
 import com.zestflow.collector.jdbc.mapper.ChainEventMapper;
+import com.zestflow.collector.jdbc.mapper.ChainEventPayloadMapper;
+import com.zestflow.collector.jdbc.mapper.InvocationPayloadMapper;
 import com.zestflow.collector.jdbc.mapper.ChainGraphSnapshotMapper;
 import com.zestflow.collector.jdbc.registry.CollectorAdminClient;
 import com.zestflow.collector.jdbc.registry.CollectorRegistrar;
@@ -13,29 +15,25 @@ import com.zestflow.collector.jdbc.server.CollectorServer;
 import com.zestflow.collector.jdbc.metrics.CollectorMetricsProvider;
 import com.zestflow.collector.jdbc.service.ChainGraphSnapshotService;
 import com.zestflow.collector.jdbc.service.JdbcEventQueryService;
+import com.zestflow.collector.jdbc.service.JdbcInvocationPayloadService;
+import com.zestflow.collector.spi.InvocationPayloadService;
 import com.zestflow.common.spi.EventCollector;
 import com.zestflow.collector.spi.EventQueryService;
-import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Profile;
-import com.zestflow.collector.async.metrics.CollectorMetricsSupport;
-import io.micrometer.core.instrument.MeterRegistry;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
-import org.springframework.web.client.RestTemplate;
+import com.zestflow.collector.http.ZestFlowHttpClient;
 
 /**
  * Collector JDBC 自动配置
  */
 @AutoConfiguration
 @EnableConfigurationProperties({CollectorProperties.class, CollectorRegistryProperties.class})
-@Import(CollectorDataSourceConfig.class)
 public class CollectorAutoConfig {
 
     /**
@@ -48,31 +46,31 @@ public class CollectorAutoConfig {
     @ConditionalOnProperty(prefix = "zestflow.collector", name = "async-enabled",
             havingValue = "true", matchIfMissing = true)
     public AsyncEventCollector asyncEventCollector(ChainEventMapper chainEventMapper,
-                                                   CollectorProperties properties,
-                                                   ObjectProvider<MeterRegistry> meterRegistry) {
-        JdbcEventCollector delegate = new JdbcEventCollector(chainEventMapper);
-        AsyncEventCollector async = new AsyncEventCollector(delegate, properties.toAsyncSettings());
-        meterRegistry.ifAvailable(registry -> CollectorMetricsSupport.bindIfAvailable(async, registry));
-        return async;
+                                                   ChainEventPayloadMapper chainEventPayloadMapper,
+                                                   CollectorProperties properties) {
+        JdbcEventCollector delegate = new JdbcEventCollector(chainEventMapper, chainEventPayloadMapper);
+        return new AsyncEventCollector(delegate, properties.toAsyncSettings());
     }
 
     @Bean
     @ConditionalOnMissingBean(EventCollector.class)
     @ConditionalOnProperty(prefix = "zestflow.collector", name = "async-enabled", havingValue = "false")
-    public EventCollector jdbcEventCollector(ChainEventMapper chainEventMapper) {
-        return new JdbcEventCollector(chainEventMapper);
+    public EventCollector jdbcEventCollector(ChainEventMapper chainEventMapper,
+                                             ChainEventPayloadMapper chainEventPayloadMapper) {
+        return new JdbcEventCollector(chainEventMapper, chainEventPayloadMapper);
     }
 
     @Bean
     @ConditionalOnMissingBean
-    public EventQueryService jdbcEventQueryService(ChainEventMapper chainEventMapper) {
-        return new JdbcEventQueryService(chainEventMapper);
+    public EventQueryService jdbcEventQueryService(ChainEventMapper chainEventMapper,
+                                                   ChainEventPayloadMapper chainEventPayloadMapper) {
+        return new JdbcEventQueryService(chainEventMapper, chainEventPayloadMapper);
     }
 
     @Bean
     @ConditionalOnMissingBean
-    public MetaObjectHandler myMetaObjectHandler() {
-        return new MyMetaObjectHandler();
+    public InvocationPayloadService jdbcInvocationPayloadService(InvocationPayloadMapper invocationPayloadMapper) {
+        return new JdbcInvocationPayloadService(invocationPayloadMapper);
     }
 
     @Bean
@@ -93,12 +91,13 @@ public class CollectorAutoConfig {
     @Bean(initMethod = "start", destroyMethod = "stop")
     @ConditionalOnProperty(prefix = "zestflow.collector", name = "netty-enabled", havingValue = "true", matchIfMissing = true)
     public CollectorServer collectorServer(EventQueryService eventQueryService,
+                                            InvocationPayloadService invocationPayloadService,
                                             ChainGraphSnapshotService snapshotService,
                                             CollectorRegistryProperties registryProperties,
                                             CollectorProperties collectorProperties,
                                             CollectorMetricsProvider metricsProvider) {
         int port = registryProperties.getPort() > 0 ? registryProperties.getPort() : 20650;
-        return new CollectorServer(port, eventQueryService, snapshotService,
+        return new CollectorServer(port, eventQueryService, invocationPayloadService, snapshotService,
                 collectorProperties.getAccessToken(), metricsProvider);
     }
 
@@ -109,9 +108,10 @@ public class CollectorAutoConfig {
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "zestflow.collector", name = "netty-enabled", havingValue = "false")
     public CollectorController collectorController(EventQueryService eventQueryService,
+                                                    InvocationPayloadService invocationPayloadService,
                                                     CollectorProperties properties,
                                                     CollectorMetricsProvider metricsProvider) {
-        return new CollectorController(eventQueryService, properties, metricsProvider);
+        return new CollectorController(eventQueryService, invocationPayloadService, properties, metricsProvider);
     }
 
     // ==================== 图数据快照 ====================
@@ -136,26 +136,17 @@ public class CollectorAutoConfig {
 
     // ==================== 采集器注册 ====================
 
-    /**
-     * 注册用 RestTemplate（独立 Bean，避免与业务应用的 RestTemplate 冲突）
-     */
     @Bean
-    @ConditionalOnMissingBean
-    public RestTemplate collectorRestTemplate(CollectorProperties properties) {
-        RestTemplate restTemplate = new RestTemplate();
-        org.springframework.http.client.SimpleClientHttpRequestFactory factory =
-                new org.springframework.http.client.SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(properties.getHttpTimeoutMs());
-        factory.setReadTimeout(properties.getHttpTimeoutMs());
-        restTemplate.setRequestFactory(factory);
-        return restTemplate;
+    @ConditionalOnMissingBean(name = "collectorAdminHttpClient")
+    public ZestFlowHttpClient collectorAdminHttpClient(CollectorProperties properties) {
+        return new ZestFlowHttpClient(properties.getHttpTimeoutMs());
     }
 
     @Bean
     @ConditionalOnMissingBean
-    public CollectorAdminClient collectorAdminClient(RestTemplate collectorRestTemplate,
+    public CollectorAdminClient collectorAdminClient(ZestFlowHttpClient collectorAdminHttpClient,
                                                       CollectorRegistryProperties properties) {
-        return new CollectorAdminClient(collectorRestTemplate, properties);
+        return new CollectorAdminClient(collectorAdminHttpClient, properties);
     }
 
     /**

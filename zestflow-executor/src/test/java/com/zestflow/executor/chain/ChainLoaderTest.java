@@ -2,6 +2,7 @@ package com.zestflow.executor.chain;
 
 import com.zestflow.executor.design.DesignPO;
 import com.zestflow.executor.design.DesignRepository;
+import com.zestflow.executor.design.DesignStatus;
 import com.zestflow.executor.engine.NodeRunner;
 import com.zestflow.executor.registry.AdminClient;
 import com.zestflow.executor.registry.ExecutorProperties;
@@ -57,8 +58,7 @@ class ChainLoaderTest {
     void reloadChainLocalSavesVersionSnapshotAfterSuccessfulReload() throws Exception {
         ChainPO chain = ChainPO.builder()
                 .code("CHN001").status(4).designCode("DSN001").build();
-        DesignPO design = DesignPO.builder()
-                .code("DSN001").graphData("{\"nodes\":[]}").chainData("{\"version\":1}").build();
+        DesignPO design = enabledDesign("DSN001", "{\"nodes\":[]}", "{\"version\":1}");
         ChainDefinition definition = mock(ChainDefinition.class);
         when(definition.getCode()).thenReturn("CHN001");
         when(definition.nodeCount()).thenReturn(3);
@@ -84,8 +84,7 @@ class ChainLoaderTest {
     void reloadChainLocalDoesNotSaveVersionOnValidationFailure() throws Exception {
         ChainPO chain = ChainPO.builder()
                 .code("CHN001").status(4).designCode("DSN001").version(1).build();
-        DesignPO design = DesignPO.builder()
-                .code("DSN001").graphData("{\"nodes\":[]}").chainData("{\"version\":1}").build();
+        DesignPO design = enabledDesign("DSN001", "{\"nodes\":[]}", "{\"version\":1}");
 
         when(chainRepo.get("CHN001")).thenReturn(chain);
         when(designRepo.get("DSN001")).thenReturn(design);
@@ -108,8 +107,7 @@ class ChainLoaderTest {
     void reloadChainLocalNotifiesAdminOnSuccess() throws Exception {
         ChainPO chain = ChainPO.builder()
                 .code("CHN001").status(4).designCode("DSN001").build();
-        DesignPO design = DesignPO.builder()
-                .code("DSN001").graphData("{}").chainData("{}").build();
+        DesignPO design = enabledDesign("DSN001", "{}", "{}");
         ChainDefinition definition = mock(ChainDefinition.class);
         when(definition.getCode()).thenReturn("CHN001");
         when(definition.nodeCount()).thenReturn(2);
@@ -153,14 +151,31 @@ class ChainLoaderTest {
         // No exception thrown
     }
 
+    @Test
+    void reloadChainLocalFailsWhenDesignDisabled() {
+        ChainPO chain = ChainPO.builder()
+                .code("CHN001").status(4).designCode("DSN001").build();
+        DesignPO design = DesignPO.builder()
+                .code("DSN001").status(DesignStatus.DISABLED)
+                .graphData("{}").chainData("{}").build();
+
+        when(chainRepo.get("CHN001")).thenReturn(chain);
+        when(designRepo.get("DSN001")).thenReturn(design);
+
+        ChainLoader.ChainReloadResult result = chainLoader.reloadChainLocal("CHN001", null, null);
+
+        assertThat(result.isSuccess()).isFalse();
+        assertThat(result.getErrorMessage()).contains("关联设计未启用");
+        verify(chainManager, never()).load(any());
+    }
+
     // ==================== reloadChainLocal — circuit breaker cleanup ====================
 
     @Test
     void reloadChainLocalClearsOldCircuitBreakers() throws Exception {
         ChainPO chain = ChainPO.builder()
                 .code("CHN001").status(4).designCode("DSN001").build();
-        DesignPO design = DesignPO.builder()
-                .code("DSN001").graphData("{}").chainData("{}").build();
+        DesignPO design = enabledDesign("DSN001", "{}", "{}");
 
         NodeDefinition oldNode1 = NodeDefinition.builder().id("old-n1").build();
         NodeDefinition oldNode2 = NodeDefinition.builder().id("old-n2").build();
@@ -192,8 +207,7 @@ class ChainLoaderTest {
     void loadAllChainsNotifiesAdminOnSuccess() {
         ChainPO chain = ChainPO.builder()
                 .code("CHN001").status(4).designCode("DSN001").version(1).build();
-        DesignPO design = DesignPO.builder()
-                .code("DSN001").graphData("{\"nodes\":[]}").chainData("{\"version\":1}").build();
+        DesignPO design = enabledDesign("DSN001", "{\"nodes\":[]}", "{\"version\":1}");
         ChainDefinition definition = mock(ChainDefinition.class);
         when(definition.getCode()).thenReturn("CHN001");
         when(definition.nodeCount()).thenReturn(2);
@@ -236,5 +250,26 @@ class ChainLoaderTest {
         when(chainRepo.get("missing")).thenReturn(null);
 
         assertThat(chainLoader.resolveChainDisplayName("missing")).isEqualTo("missing");
+    }
+
+    @Test
+    void unloadFromMemory_clearsChainAndCircuitBreakers() {
+        ChainDefinition oldDef = mock(ChainDefinition.class);
+        when(oldDef.getNodes()).thenReturn(java.util.Map.of("n1", mock(com.zestflow.executor.chain.NodeDefinition.class)));
+        when(chainManager.get("CHN001")).thenReturn(oldDef);
+
+        chainLoader.unloadFromMemory("CHN001");
+
+        verify(chainManager).unload("CHN001");
+        verify(nodeRunner).clearCircuitBreakers(anySet());
+    }
+
+    private static DesignPO enabledDesign(String code, String graphData, String chainData) {
+        return DesignPO.builder()
+                .code(code)
+                .status(DesignStatus.ENABLED)
+                .graphData(graphData)
+                .chainData(chainData)
+                .build();
     }
 }

@@ -274,6 +274,42 @@ class ChainValidatorTest {
         assertThat(errors).noneMatch(e -> e.contains("component"));
     }
 
+    @Test
+    void validateInlineScriptPredicateSkipsComponentCheck() {
+        when(componentScanner.getComponent("validateUser")).thenReturn(new ComponentScanner.ComponentMeta());
+
+        NodeDefinition start = buildNodeDef("start", "validateUser", ChainConstants.NODE_TYPE_NORMAL);
+        NodeDefinition cond = NodeDefinition.builder()
+                .id("cond")
+                .type(ChainConstants.NODE_TYPE_CONDITION)
+                .component("INLINE_PRED_TEST")
+                .predicateMode("script")
+                .predicateScript("StringUtils.hasText(supplierType)")
+                .trueLabel("True")
+                .falseLabel("False")
+                .timeout(-1)
+                .retryCount(0)
+                .build();
+        NodeDefinition pass = buildNodeDef("pass", "validateUser", ChainConstants.NODE_TYPE_NORMAL);
+
+        Map<String, List<String>> adj = new HashMap<>();
+        adj.put("start", List.of("cond"));
+        adj.put("cond", List.of("pass"));
+
+        ChainDefinition def = ChainDefinition.builder()
+                .code("inline-pred")
+                .nodes(Map.of("start", start, "cond", cond, "pass", pass))
+                .edges(List.of(
+                        new ChainDefinition.ChainEdge("start", "cond", null, null),
+                        new ChainDefinition.ChainEdge("cond", "pass", "True", null)
+                ))
+                .adjacency(adj)
+                .build();
+
+        List<String> errors = validator.validate(def);
+        assertThat(errors).isEmpty();
+    }
+
     private ChainDefinition buildValidDefinition() {
         NodeDefinition node1 = buildNodeDef("node-1", "comp-1", ChainConstants.NODE_TYPE_NORMAL);
         NodeDefinition node2 = buildNodeDef("node-2", "comp-2", ChainConstants.NODE_TYPE_NORMAL);

@@ -6,7 +6,9 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zestflow.admin.playground.model.dto.PlaygroundRecordQueryDTO;
 import com.zestflow.admin.playground.model.entity.PlaygroundRecordPO;
 import com.zestflow.admin.playground.model.vo.PlaygroundRecordVO;
+import com.zestflow.admin.client.CollectorQueryAggregator;
 import com.zestflow.admin.constant.ErrorCode;
+import com.zestflow.common.protocol.InvocationPayloadDTO;
 import com.zestflow.admin.playground.repository.PlaygroundRecordMapper;
 import com.zestflow.admin.playground.service.PlaygroundRecordService;
 import com.zestflow.admin.playground.support.PlaygroundAccessControl;
@@ -33,6 +35,7 @@ public class PlaygroundRecordServiceImpl implements PlaygroundRecordService {
     private final PlaygroundRecordMapper recordMapper;
     private final PlaygroundAccessControl accessControl;
     private final TenantAppContext tenantAppContext;
+    private final CollectorQueryAggregator collectorQueryAggregator;
 
     @Override
     public IPage<PlaygroundRecordVO> queryPage(PlaygroundRecordQueryDTO dto) {
@@ -55,7 +58,7 @@ public class PlaygroundRecordServiceImpl implements PlaygroundRecordService {
 
         Page<PlaygroundRecordPO> poPage = recordMapper.selectPage(
                 new Page<>(dto.getPage(), dto.getSize()), wrapper);
-        return poPage.convert(this::toVO);
+        return poPage.convert(po -> toVO(po, false));
     }
 
     @Override
@@ -65,7 +68,7 @@ public class PlaygroundRecordServiceImpl implements PlaygroundRecordService {
             return null;
         }
         assertCanAccessRecord(po);
-        return toVO(po);
+        return toVO(po, true);
     }
 
     /** 非超管仅能查看本人创建的记录；并限制在已授权 appCode 内 */
@@ -102,7 +105,7 @@ public class PlaygroundRecordServiceImpl implements PlaygroundRecordService {
         return po;
     }
 
-    private PlaygroundRecordVO toVO(PlaygroundRecordPO po) {
+    private PlaygroundRecordVO toVO(PlaygroundRecordPO po, boolean loadPayload) {
         if (po == null) return null;
         PlaygroundRecordVO vo = new PlaygroundRecordVO();
         vo.setId(po.getId());
@@ -113,9 +116,8 @@ public class PlaygroundRecordServiceImpl implements PlaygroundRecordService {
         vo.setRequestPath(po.getRequestPath());
         vo.setRequestHeaders(po.getRequestHeaders());
         vo.setBodyType(po.getBodyType());
-        vo.setRequestBody(po.getRequestBody());
+        vo.setInvocationId(po.getInvocationId());
         vo.setResponseStatus(po.getResponseStatus());
-        vo.setResponseBody(po.getResponseBody());
         vo.setResponseHeaders(po.getResponseHeaders());
         vo.setChainCode(po.getChainCode());
         vo.setInstanceId(po.getInstanceId());
@@ -126,6 +128,14 @@ public class PlaygroundRecordServiceImpl implements PlaygroundRecordService {
         vo.setUpdatedBy(po.getUpdatedBy());
         vo.setCreatedAt(po.getCreatedAt());
         vo.setUpdatedAt(po.getUpdatedAt());
+        if (loadPayload && po.getInvocationId() != null && !po.getInvocationId().isBlank()) {
+            InvocationPayloadDTO payload = collectorQueryAggregator.getInvocationPayload(
+                    po.getInvocationId(), po.getAppCode());
+            if (payload != null) {
+                vo.setRequestBody(payload.getRequestBody());
+                vo.setResponseBody(payload.getResponseBody());
+            }
+        }
         return vo;
     }
 }

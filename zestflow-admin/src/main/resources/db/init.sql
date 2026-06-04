@@ -283,9 +283,8 @@ CREATE TABLE IF NOT EXISTS `playground_record` (
     `request_path`     VARCHAR(256) NOT NULL                 COMMENT '请求路径',
     `request_headers`  TEXT         DEFAULT NULL             COMMENT '请求头 JSON',
     `body_type`        VARCHAR(10)  DEFAULT NULL             COMMENT '请求体类型',
-    `request_body`     MEDIUMTEXT   DEFAULT NULL             COMMENT '请求体 JSON',
+    `invocation_id`    VARCHAR(64)  DEFAULT NULL             COMMENT '调用载荷 ID（request/response 存 app_log）',
     `response_status`  INT          DEFAULT NULL             COMMENT 'HTTP 响应状态码',
-    `response_body`    MEDIUMTEXT   DEFAULT NULL             COMMENT '响应体 JSON',
     `response_headers` TEXT         DEFAULT NULL             COMMENT '响应头 JSON',
     `chain_code`       VARCHAR(64)  DEFAULT NULL             COMMENT '关联链编码',
     `instance_id`      VARCHAR(128) DEFAULT NULL             COMMENT '链执行实例 ID',
@@ -303,5 +302,6 @@ CREATE TABLE IF NOT EXISTS `playground_record` (
     KEY `idx_scene_id` (`scene_id`),
     KEY `idx_created_at` (`created_at`),
     KEY `idx_status` (`status`),
-    KEY `idx_chain_code` (`chain_code`)
+    KEY `idx_chain_code` (`chain_code`),
+    KEY `idx_invocation_id` (`invocation_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='试验场执行记录表';

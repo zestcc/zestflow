@@ -25,8 +25,8 @@ import java.lang.annotation.*;
 @Documented
 public @interface ZestParam {
 
-    /** 参数键名（对应 ChainContext 中的 key） */
-    String value();
+    /** 参数键名（对应 ChainContext 中的 key），为空时使用参数/字段名 */
+    String value() default "";
 
     /** 是否必填（为 true 且值为空时抛出异常） */
     boolean required() default false;
