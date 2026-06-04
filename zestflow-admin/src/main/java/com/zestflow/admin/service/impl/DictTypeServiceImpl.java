@@ -75,6 +75,17 @@ public class DictTypeServiceImpl implements DictTypeService {
                         dataItem("hash", "哈希", ""),
                         dataItem("random", "随机", "")
                 ));
+        initSystemDictType("transaction_propagation", "事务传播策略",
+                List.of(
+                        dataItem("INHERIT", "继承链级", "info"),
+                        dataItem("REQUIRED", "REQUIRED（加入当前事务）", "primary"),
+                        dataItem("REQUIRES_NEW", "REQUIRES_NEW（独立新事务）", "warning"),
+                        dataItem("NESTED", "NESTED（嵌套事务）", ""),
+                        dataItem("SUPPORTS", "SUPPORTS（支持当前事务）", ""),
+                        dataItem("NOT_SUPPORTED", "NOT_SUPPORTED（挂起事务）", "danger"),
+                        dataItem("MANDATORY", "MANDATORY（必须在事务中）", ""),
+                        dataItem("NEVER", "NEVER（禁止事务）", "")
+                ));
         initSystemDictType("tag_type", "标签类型",
                 List.of(
                         dataItem("primary", "primary", "primary"),

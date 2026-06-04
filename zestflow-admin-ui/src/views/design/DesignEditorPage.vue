@@ -228,6 +228,12 @@
                 <el-option v-for="item in executeStrategyOptions" :key="item.value" :label="item.label" :value="item.value" />
               </el-select>
             </el-form-item>
+            <el-form-item v-if="showsStandardBindPanel(selectedNodeData.nodeType)" :label="$t('design.transactionPropagation')">
+              <el-select v-model="selectedNodeData.transactionPropagation" style="width:100%" @change="onDataChange">
+                <el-option v-for="item in transactionPropagationOptions" :key="item.value" :label="item.label" :value="item.value" />
+              </el-select>
+              <div style="font-size:11px;color:#909399;line-height:1.5;margin-top:4px">{{ $t('design.transactionPropagationHint') }}</div>
+            </el-form-item>
             <!-- 参数解析器链 -->
             <div v-if="showsStandardBindPanel(selectedNodeData.nodeType)" style="padding:0 0 8px 0;width:100%">
               <div style="font-size:12px;color:#606266;margin-bottom:4px">{{ $t('components.typeParamBinder') }}</div>
@@ -313,9 +319,19 @@
             </el-form-item>
           </el-form>
         </div>
-        <div v-else class="panel-empty">
-          <el-icon style="font-size:32px;color:#dcdfe6;margin-bottom:8px"><Pointer /></el-icon>
-          <span>{{ $t('design.design') }}</span>
+        <div v-else class="panel-body">
+          <div class="panel-header" style="margin-bottom:12px">{{ $t('design.chainSettings') }}</div>
+          <el-form size="small" label-position="top">
+            <el-form-item :label="$t('design.chainTransaction')">
+              <el-switch v-model="chainSettings.transactionEnabled" />
+            </el-form-item>
+            <el-form-item v-if="chainSettings.transactionEnabled" :label="$t('design.transactionPropagation')">
+              <el-select v-model="chainSettings.transactionPropagation" style="width:100%">
+                <el-option v-for="item in chainTransactionPropagationOptions" :key="item.value" :label="item.label" :value="item.value" />
+              </el-select>
+              <div style="font-size:11px;color:#909399;line-height:1.5;margin-top:4px">{{ $t('design.chainTransactionHint') }}</div>
+            </el-form-item>
+          </el-form>
         </div>
       </div>
     </div>
@@ -545,6 +561,7 @@ import { Keyboard } from '@antv/x6-plugin-keyboard'
 import { Clipboard } from '@antv/x6-plugin-clipboard'
 import { Export } from '@antv/x6-plugin-export'
 import { designApi } from '@/api/design'
+import { dictApi, type DictDataVO } from '@/api/dict'
 import { componentApi } from '@/api/component'
 import { executorApi } from '@/api/executor'
 import {
@@ -588,6 +605,38 @@ const executeStrategyOptions = computed(() => [
   { value: 'STOP_ON_EXCEPTION', label: t('design.strategyStopOnException') },
   { value: 'IGNORE_EXCEPTION', label: t('design.strategyIgnoreException') },
 ])
+
+const chainSettings = reactive({
+  transactionEnabled: false,
+  transactionPropagation: 'REQUIRED',
+})
+
+const transactionPropagationDict = ref<DictDataVO[]>([])
+
+const fallbackTransactionPropagationOptions = computed(() => [
+  { value: 'INHERIT', label: t('design.txInherit') },
+  { value: 'REQUIRED', label: t('design.txRequired') },
+  { value: 'REQUIRES_NEW', label: t('design.txRequiresNew') },
+  { value: 'NESTED', label: t('design.txNested') },
+  { value: 'NOT_SUPPORTED', label: t('design.txNotSupported') },
+])
+
+const transactionPropagationOptions = computed(() => {
+  if (transactionPropagationDict.value.length === 0) {
+    return fallbackTransactionPropagationOptions.value
+  }
+  return transactionPropagationDict.value.map(d => ({ value: d.value, label: d.label }))
+})
+
+const chainTransactionPropagationOptions = computed(() =>
+  transactionPropagationOptions.value.filter(o => o.value !== 'INHERIT')
+)
+
+function loadTransactionPropagationDict() {
+  dictApi.getDictData('transaction_propagation').then(data => {
+    if (data?.length) transactionPropagationDict.value = data
+  }).catch(() => { /* 字典未就绪时使用 i18n 兜底 */ })
+}
 
 // 绑定元件弹窗状态
 const bindDialog = reactive({
@@ -1608,7 +1657,8 @@ function onDrop(event: DragEvent) {
     height: h,
     data: ensureConditionDefaults({
       label, nodeType: type, description: '', preComponents: [], postComponents: [], paramResolvers: [],
-      paramValidatorId: '', paramValidatorName: '', executeStrategy: 'NORMAL', script: '', subChainCode: '',
+      paramValidatorId: '', paramValidatorName: '', executeStrategy: 'NORMAL',
+      transactionPropagation: 'INHERIT', script: '', subChainCode: '',
       iteratorDataSource: '', iteratorItemName: 'item',
       predicateMode: type === 'condition' ? 'script' : undefined,
       predicateScript: type === 'condition' ? '' : undefined,
@@ -1893,6 +1943,17 @@ function translateGraphToChain(): any {
   if (design.value?.name) root.name = design.value.name
   if (designCode) root.code = designCode
 
+  const chainConfig: Record<string, any> = {}
+  if (chainSettings.transactionEnabled) {
+    chainConfig.transaction = {
+      enabled: true,
+      propagation: chainSettings.transactionPropagation || 'REQUIRED',
+    }
+  }
+  if (Object.keys(chainConfig).length > 0) {
+    root.config = chainConfig
+  }
+
   // 只翻译业务节点（跳过 start/end）
   root.nodes = graph.getNodes()
       .filter(n => { const t = n.getData()?.nodeType; return t && t !== 'start' && t !== 'end' })
@@ -1903,6 +1964,9 @@ function translateGraphToChain(): any {
         // 执行策略（有非默认值时才带出）
         if (data.executeStrategy && data.executeStrategy !== 'NORMAL') {
           config.executeStrategy = data.executeStrategy
+        }
+        if (data.transactionPropagation && data.transactionPropagation !== 'INHERIT') {
+          config.transactionPropagation = data.transactionPropagation
         }
 
         const node: Record<string, any> = {
@@ -2181,6 +2245,42 @@ function showChainDataDialog() {
   chainDataDialog.visible = true
 }
 
+function hydrateNodeTransactionFromChainData() {
+  if (!graph || !design.value?.chainData) return
+  try {
+    let chainData = design.value.chainData
+    if (typeof chainData === 'string') chainData = JSON.parse(chainData)
+    const nodes = chainData?.nodes
+    if (!Array.isArray(nodes)) return
+    const txMap = new Map<string, string>()
+    nodes.forEach((n: any) => {
+      const prop = n?.config?.transactionPropagation
+      if (n?.id && prop) txMap.set(n.id, prop)
+    })
+    graph.getNodes().forEach(n => {
+      const prop = txMap.get(n.id)
+      if (prop) {
+        n.setData({ ...(n.getData() || {}), transactionPropagation: prop })
+      }
+    })
+  } catch { /* ignore */ }
+}
+
+function hydrateChainSettingsFromDesign() {
+  chainSettings.transactionEnabled = false
+  chainSettings.transactionPropagation = 'REQUIRED'
+  if (!design.value?.chainData) return
+  try {
+    let chainData = design.value.chainData
+    if (typeof chainData === 'string') chainData = JSON.parse(chainData)
+    const tx = chainData?.config?.transaction
+    if (tx) {
+      chainSettings.transactionEnabled = !!tx.enabled
+      if (tx.propagation) chainSettings.transactionPropagation = String(tx.propagation).toUpperCase()
+    }
+  } catch { /* ignore */ }
+}
+
 // ====== 加载设计 ======
 async function loadDesign() {
   try {
@@ -2194,6 +2294,7 @@ async function loadDesign() {
       } catch { /* ignore */ }
     }
     if (!graph) return
+    hydrateChainSettingsFromDesign()
     if (design.value.graphData) {
       // graphData 可能是字符串或已解析对象
       let data = design.value.graphData
@@ -2219,6 +2320,7 @@ async function loadDesign() {
           }
         })
         normalizeLoadedEdges()
+        hydrateNodeTransactionFromChainData()
         graph.zoomToFit({ padding: 60, maxScale: 1 })
         return
       }
@@ -2292,6 +2394,7 @@ function goBack() { router.push('/design') }
 // ====== 生命周期 ======
 onMounted(async () => {
   registerShapes()
+  loadTransactionPropagationDict()
   await nextTick()
   initGraph()
   await loadDesign()

@@ -125,9 +125,9 @@ On startup the Executor registers with Admin; scan components, design chains, an
 # 1. Run db/init.sql + initData.sql
 # 2. Copy application-local.example.yml → application-local.yml
 # 3. Start
-mvn install -pl zestflow-executor-test -am -DskipTests
+mvn install -pl zestflow-demo -am -DskipTests
 mvn spring-boot:run -pl zestflow-admin
-mvn spring-boot:run -pl zestflow-executor-test
+mvn spring-boot:run -pl zestflow-demo
 ```
 
 - Admin: http://localhost:8080, login `admin` / `admin123` (local only)

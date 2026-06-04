@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zestflow.common.constant.ChainConstants;
+import com.zestflow.common.exception.BizException;
 import com.zestflow.common.model.dto.ChainEvent;
 import com.zestflow.common.model.dto.ChainExecuteResultDTO;
 import com.zestflow.common.model.dto.ComponentRef;
@@ -174,6 +175,7 @@ public class NodeRunner {
                     .nodeId(nodeId)
                     .status(ChainConstants.NODE_SUCCESS)
                     .costMs(costMs)
+                    .returnValue(result)
                     .outputData(context.snapshot())
                     .build();
 
@@ -202,8 +204,20 @@ public class NodeRunner {
                     .status(ChainConstants.NODE_FAILED)
                     .costMs(costMs)
                     .errorMessage(e.getMessage())
+                    .errorCode(resolveErrorCode(e))
                     .build();
         }
+    }
+
+    private static String resolveErrorCode(Throwable e) {
+        Throwable t = e;
+        while (t != null) {
+            if (t instanceof BizException biz) {
+                return biz.getErrorCode();
+            }
+            t = t.getCause();
+        }
+        return null;
     }
 
     /**

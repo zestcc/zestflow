@@ -143,6 +143,48 @@ class DictTypeServiceImplTest {
     // ==================== getDictData（缓存） ====================
 
     @Test
+    void getDictData_transactionPropagation_returnsEightStrategies() {
+        when(dictDataMapper.selectList(any())).thenReturn(List.of(
+                dataPo("INHERIT", "继承链级", 1),
+                dataPo("REQUIRED", "REQUIRED（加入当前事务）", 2),
+                dataPo("REQUIRES_NEW", "REQUIRES_NEW（独立新事务）", 3),
+                dataPo("NESTED", "NESTED（嵌套事务）", 4),
+                dataPo("SUPPORTS", "SUPPORTS（支持当前事务）", 5),
+                dataPo("NOT_SUPPORTED", "NOT_SUPPORTED（挂起事务）", 6),
+                dataPo("MANDATORY", "MANDATORY（必须在事务中）", 7),
+                dataPo("NEVER", "NEVER（禁止事务）", 8)
+        ));
+
+        List<DictDataVO> result = dictTypeService.getDictData("transaction_propagation");
+
+        assertThat(result).hasSize(8);
+        assertThat(result).extracting(DictDataVO::getValue)
+                .containsExactly("INHERIT", "REQUIRED", "REQUIRES_NEW", "NESTED",
+                        "SUPPORTS", "NOT_SUPPORTED", "MANDATORY", "NEVER");
+    }
+
+    @Test
+    void initSystemDicts_seedsTransactionPropagationDict() {
+        when(dictTypeMapper.selectOne(any())).thenReturn(null);
+
+        dictTypeService.initSystemDicts();
+
+        verify(dictTypeMapper, atLeastOnce()).insert(typeCaptor.capture());
+        assertThat(typeCaptor.getAllValues())
+                .extracting(DictTypePO::getCode)
+                .contains("transaction_propagation");
+
+        verify(dictDataMapper, atLeastOnce()).insert(dataCaptor.capture());
+        List<String> txValues = dataCaptor.getAllValues().stream()
+                .filter(d -> "transaction_propagation".equals(d.getTypeCode()))
+                .map(DictDataPO::getValue)
+                .toList();
+        assertThat(txValues).containsExactlyInAnyOrder(
+                "INHERIT", "REQUIRED", "REQUIRES_NEW", "NESTED",
+                "SUPPORTS", "NOT_SUPPORTED", "MANDATORY", "NEVER");
+    }
+
+    @Test
     void getDictData_cached_returnsFromCache() {
         DictDataVO data = DictDataVO.builder().label("L1").value("V1").build();
         // 先用 getByCode 填充缓存
@@ -375,6 +417,17 @@ class DictTypeServiceImplTest {
         po.setTypeCode("type-1");
         po.setStatus(1);
         po.setDefaultFlag(0);
+        return po;
+    }
+
+    private DictDataPO dataPo(String value, String label, int sort) {
+        DictDataPO po = new DictDataPO();
+        po.setValue(value);
+        po.setLabel(label);
+        po.setTypeCode("transaction_propagation");
+        po.setStatus(1);
+        po.setSort(sort);
+        po.setDefaultFlag("REQUIRED".equals(value) ? 1 : 0);
         return po;
     }
 }

@@ -38,6 +38,9 @@ zestflow:
     host: localhost
     port: 0
     execute-endpoint-enabled: false
+    chain-route-enabled: false
+    execute-response-mode: BODY
+    execute-failure-policy: PROPAGATE
     execute-pool-queue-capacity: 64
     event:
       queue-capacity: 8192

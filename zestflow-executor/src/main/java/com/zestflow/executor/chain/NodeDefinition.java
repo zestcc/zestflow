@@ -136,6 +136,12 @@ public class NodeDefinition {
     @Builder.Default
     private String falseLabel = "False";
 
+    /**
+     * 节点事务传播策略覆盖（设计器 config.transactionPropagation）。
+     * 空或 INHERIT 表示继承链级；REQUIRES_NEW 等表示在此节点切开/独立事务。
+     */
+    private String transactionPropagation;
+
     public boolean isNormal() {
         return ChainConstants.NODE_TYPE_NORMAL.equals(type);
     }

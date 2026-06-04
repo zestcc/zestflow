@@ -11,7 +11,14 @@ import com.zestflow.executor.chain.ChainManager;
 import com.zestflow.executor.chain.ChainReloadMonitor;
 import com.zestflow.executor.chain.ChainValidator;
 import com.zestflow.executor.chain.ExecutorChainProperties;
+import com.zestflow.executor.config.ChainRouteWebConfig;
 import com.zestflow.executor.config.ExecutorSchedulingConfig;
+import com.zestflow.executor.controller.ExecutionController;
+import com.zestflow.executor.http.ChainErrorHandlerInvoker;
+import com.zestflow.executor.http.ChainExecuteFacade;
+import com.zestflow.executor.http.ChainExecutionExceptionAdvice;
+import com.zestflow.executor.http.ChainGateway;
+import com.zestflow.executor.route.ChainRouteRegistry;
 import com.zestflow.executor.engine.*;
 import com.zestflow.executor.fallback.FallbackStrategy;
 import com.zestflow.executor.fallback.DefaultFallbackStrategy;
@@ -21,21 +28,26 @@ import com.zestflow.executor.param.ParamConverterRegistry;
 import com.zestflow.executor.param.resolver.ContextTypeResolver;
 import com.zestflow.executor.param.resolver.ParameterNameResolver;
 import com.zestflow.executor.param.resolver.ParameterResolver;
+import com.zestflow.executor.param.resolver.ZestFailureParameterResolver;
 import com.zestflow.executor.param.resolver.ZestParamResolver;
+import com.zestflow.executor.param.resolver.ZestResultParameterResolver;
 import com.zestflow.executor.retry.RetryExecutor;
 import com.zestflow.executor.scanner.ComponentScanner;
 import com.zestflow.executor.chain.ChainRepository;
 import com.zestflow.executor.design.DesignRepository;
 import com.zestflow.executor.server.ExecutorServer;
-import com.zestflow.executor.controller.ExecutionController;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.beans.factory.ObjectProvider;
 import com.zestflow.executor.config.ExecutorProductionGuard;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Profile;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -46,7 +58,7 @@ import java.util.List;
 
 @AutoConfiguration
 @EnableConfigurationProperties({ExecutorProperties.class, ExecutorChainProperties.class, ExecutorEventProperties.class})
-@Import({ExecutorSchedulingConfig.class})
+@Import({ExecutorSchedulingConfig.class, ChainRouteWebConfig.class})
 public class ExecutorAutoConfig {
 
     @Bean
@@ -70,11 +82,35 @@ public class ExecutorAutoConfig {
     @Bean
     @ConditionalOnProperty(prefix = "zestflow.executor", name = "execute-endpoint-enabled",
             havingValue = "true", matchIfMissing = false)
-    public ExecutionController executionController(ChainExecutionEngine chainExecutionEngine,
-                                                    ChainManager chainManager,
-                                                    ExecutionIdempotencyGuard idempotencyGuard,
-                                                    ExecutorProperties properties) {
-        return new ExecutionController(chainExecutionEngine, chainManager, idempotencyGuard, properties);
+    public ExecutionController executionController(ChainExecuteFacade chainExecuteFacade) {
+        return new ExecutionController(chainExecuteFacade);
+    }
+
+    @Bean
+    public ChainErrorHandlerInvoker chainErrorHandlerInvoker(ComponentScanner componentScanner,
+                                                              LifecycleExecutor lifecycleExecutor) {
+        return new ChainErrorHandlerInvoker(componentScanner, lifecycleExecutor);
+    }
+
+    @Bean
+    public ChainExecuteFacade chainExecuteFacade(ChainExecutionEngine chainExecutionEngine,
+                                                  ChainManager chainManager,
+                                                  ExecutionIdempotencyGuard idempotencyGuard,
+                                                  ExecutorProperties properties,
+                                                  ChainErrorHandlerInvoker errorHandlerInvoker) {
+        return new ChainExecuteFacade(chainExecutionEngine, chainManager, idempotencyGuard,
+                properties, errorHandlerInvoker);
+    }
+
+    @Bean
+    public ChainGateway chainGateway(ChainExecuteFacade chainExecuteFacade) {
+        return new ChainGateway(chainExecuteFacade);
+    }
+
+    @Bean
+    @ConditionalOnClass(name = "org.springframework.web.bind.annotation.RestControllerAdvice")
+    public ChainExecutionExceptionAdvice chainExecutionExceptionAdvice() {
+        return new ChainExecutionExceptionAdvice();
     }
 
     @Bean
@@ -147,12 +183,24 @@ public class ExecutorAutoConfig {
                                    DesignRepository designRepo,
                                    NodeRunner nodeRunner,
                                    AdminClient adminClient,
-                                   ExecutorProperties executorProperties) {
+                                   ExecutorProperties executorProperties,
+                                   ObjectProvider<ChainRouteRegistry> chainRouteRegistryProvider) {
         return new ChainLoader(chainManager, componentScanner,
-                chainValidator, chainDefinitionBuilder, chainRepo, designRepo, nodeRunner, adminClient, executorProperties);
+                chainValidator, chainDefinitionBuilder, chainRepo, designRepo, nodeRunner, adminClient,
+                executorProperties, chainRouteRegistryProvider);
     }
 
     // ==================== 参数解析器 ====================
+
+    @Bean
+    public ZestResultParameterResolver zestResultParameterResolver(ParamConverterRegistry registry) {
+        return new ZestResultParameterResolver(registry);
+    }
+
+    @Bean
+    public ZestFailureParameterResolver zestFailureParameterResolver() {
+        return new ZestFailureParameterResolver();
+    }
 
     @Bean
     public ZestParamResolver zestParamResolver(ParamConverterRegistry registry) {
@@ -236,6 +284,15 @@ public class ExecutorAutoConfig {
                 interceptorChain, lifecycleExecutor, retryExecutor, chainManager, properties);
     }
 
+    @Bean
+    public ChainTransactionExecutor chainTransactionExecutor(
+            @Autowired(required = false) @Qualifier("executorTransactionManager")
+            PlatformTransactionManager transactionManager) {
+        return transactionManager != null
+                ? new ChainTransactionExecutor(transactionManager)
+                : ChainTransactionExecutor.noop();
+    }
+
     @Bean(destroyMethod = "destroy")
     public DefaultChainExecutionEngine chainExecutionEngine(ChainManager chainManager,
                                                              DagSorter dagSorter,
@@ -244,9 +301,10 @@ public class ExecutorAutoConfig {
                                                              EventPublisher eventPublisher,
                                                              InterceptorChain interceptorChain,
                                                              ExecutorProperties properties,
-                                                             ChainLoader chainLoader) {
+                                                             ChainLoader chainLoader,
+                                                             ChainTransactionExecutor chainTransactionExecutor) {
         DefaultChainExecutionEngine engine = new DefaultChainExecutionEngine(chainManager, dagSorter, nodeRunner,
-                instanceManager, eventPublisher, interceptorChain, properties);
+                instanceManager, eventPublisher, interceptorChain, properties, chainTransactionExecutor);
         // setter 注入打破循环依赖：NodeRunner → ChainExecutionEngine, ChainExecutionEngine → ChainLoader
         engine.setChainLoader(chainLoader);
         nodeRunner.setChainExecutionEngine(engine);

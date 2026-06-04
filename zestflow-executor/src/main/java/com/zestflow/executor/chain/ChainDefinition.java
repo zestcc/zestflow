@@ -1,6 +1,7 @@
 package com.zestflow.executor.chain;
 
 import com.zestflow.common.constant.ChainConstants;
+import com.zestflow.common.protocol.ChainTransactionConfig;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -65,7 +66,15 @@ public class ChainDefinition {
     @Builder.Default
     private Map<String, Object> extraConfig = new HashMap<>();
 
+    /** 链级 Spring 事务（设计器 config.transaction） */
+    @Builder.Default
+    private ChainTransactionConfig transactionConfig = ChainTransactionConfig.disabled();
+
     // ==================== 便捷查询方法 ====================
+
+    public boolean isTransactionEnabled() {
+        return transactionConfig != null && transactionConfig.isEnabled();
+    }
 
     /**
      * 获取节点

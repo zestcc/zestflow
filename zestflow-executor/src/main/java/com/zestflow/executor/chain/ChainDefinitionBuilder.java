@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zestflow.common.constant.ChainConstants;
+import com.zestflow.common.protocol.ChainTransactionConfig;
 import com.zestflow.common.model.dto.ChainDefinitionDTO;
 import com.zestflow.common.model.dto.ChainEdgeDTO;
 import com.zestflow.common.model.dto.ChainNodeDTO;
@@ -52,6 +53,7 @@ public class ChainDefinitionBuilder {
         int parallelThreshold = parseIntConfig(dto.getConfig(), "parallelThreshold", ChainConstants.DEFAULT_PARALLEL_THRESHOLD);
         String errorStrategy = parseStringConfig(dto.getConfig(), "errorStrategy", ChainConstants.ERROR_STRATEGY_STOP);
         boolean traceEnabled = parseBoolConfig(dto.getConfig(), "traceEnabled", false);
+        ChainTransactionConfig transactionConfig = ChainTransactionConfig.fromExtraConfig(dto.getConfig());
 
         // 5. 构建最终 ChainDefinition
         ChainDefinition definition = ChainDefinition.builder()
@@ -67,6 +69,7 @@ public class ChainDefinitionBuilder {
                 .parallelThreshold(parallelThreshold)
                 .errorStrategy(errorStrategy)
                 .traceEnabled(traceEnabled)
+                .transactionConfig(transactionConfig)
                 .extraConfig(dto.getConfig() != null ? dto.getConfig() : Map.of())
                 .build();
 
@@ -165,7 +168,8 @@ public class ChainDefinitionBuilder {
                 .predicateMode(parseStringConfig(cfg, "predicateMode", "bind"))
                 .predicateScript(parseStringConfig(cfg, "predicateScript", ""))
                 .trueLabel(parseStringConfig(cfg, "trueLabel", "True"))
-                .falseLabel(parseStringConfig(cfg, "falseLabel", "False"));
+                .falseLabel(parseStringConfig(cfg, "falseLabel", "False"))
+                .transactionPropagation(parseOptionalStringConfig(cfg, "transactionPropagation"));
 
         // 重试相关
         Map<String, Object> retryCfg = parseMapConfig(cfg, "retry");
@@ -355,6 +359,14 @@ public class ChainDefinitionBuilder {
         if (config == null) return defaultValue;
         Object val = config.get(key);
         return val instanceof String ? (String) val : defaultValue;
+    }
+
+    private static String parseOptionalStringConfig(Map<String, Object> config, String key) {
+        if (config == null) return null;
+        Object val = config.get(key);
+        if (val == null) return null;
+        String s = String.valueOf(val).trim();
+        return s.isEmpty() ? null : s;
     }
 
     @SuppressWarnings("unchecked")

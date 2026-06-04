@@ -999,6 +999,20 @@ zestflow:
 
 `ExecutorProxyService.resolveExecutorBaseUrl` 从 `LIMIT 1` 改为 `AtomicInteger` 轮询，多实例部署时请求均匀分布。
 
+### HTTP 双通道 /execute 约定（2026-06）
+
+Admin 试验场与对外 API 使用**不同通道**，禁止混用 `executeHttp()`：
+
+| 通道 | 端口 | 入口 | 响应 | 配置 |
+|------|------|------|------|------|
+| **Netty** | `zestflow.executor.port`（20550） | `POST /execute` | **固定 DETAIL** — 完整 `ChainExecuteResultDTO` JSON | 不受 `execute-response-mode` 影响 |
+| **Tomcat Mode 1** | `server.port`（8081） | `POST /execute`（需 `execute-endpoint-enabled=true`） | 默认 **BODY** — PARSER 返回值 | `execute-response-mode` / `execute-failure-policy` |
+
+- Netty 实现：`ServerHandler.doHandleExecute` → `ChainExecuteFacade.executeCore()` → 直接序列化 DTO
+- Tomcat 实现：`ExecutionController` → `ChainExecuteFacade.executeHttp()` → `ChainHttpResponseWriter`
+- Admin 试验场（`PlaygroundServiceImpl.executeChain`）依赖 Netty 响应中的 `instanceId`、`status`、`nodeResults`；链失败时仍为 HTTP 200 + 结构化失败 DTO
+- 防误改：`ServerHandlerNettyExecuteTest` 锁定上述契约
+
 ### Redis 分布式缓存（条件装配）
 
 - pom.xml 添加 `spring-boot-starter-data-redis` 依赖，但 `RedisAutoConfiguration` 在主应用排除

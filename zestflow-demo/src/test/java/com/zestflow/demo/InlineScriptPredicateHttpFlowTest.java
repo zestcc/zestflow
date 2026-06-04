@@ -2,6 +2,7 @@ package com.zestflow.demo;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.zestflow.common.constant.ChainConstants;
 import com.zestflow.common.model.dto.ChainDefinitionDTO;
 import com.zestflow.common.model.dto.ChainEdgeDTO;
@@ -132,13 +133,22 @@ class InlineScriptPredicateHttpFlowTest {
         return chainCode;
     }
 
-    private ChainExecuteResultDTO executeChain(String chainCode, Map<String, Object> params) {
+    private ChainExecuteResultDTO executeChain(String chainCode, Map<String, Object> params) throws Exception {
         ChainExecuteRequestDTO request = ChainExecuteRequestDTO.builder()
                 .chainCode(chainCode)
                 .params(params)
                 .source("http-flow-test")
                 .build();
-        return postForObject("/execute", request, ChainExecuteResultDTO.class);
+        ResponseEntity<String> resp = exchange("/execute", HttpMethod.POST, request);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        JsonNode tree = mapper.readTree(resp.getBody());
+        if (tree instanceof ObjectNode obj) {
+            // Netty DETAIL 响应含 Jackson 无法反序列化的 resultTypedData（Class 键）及 getter 衍生字段
+            obj.remove("resultTypedData");
+            obj.remove("success");
+            obj.remove("returnValue");
+        }
+        return mapper.treeToValue(tree, ChainExecuteResultDTO.class);
     }
 
     private String buildPredicateChainDataJson() throws Exception {

@@ -222,6 +222,10 @@ public class ChainContext {
         metadata.put(key, value);
     }
 
+    public void removeMetadata(String key) {
+        metadata.remove(key);
+    }
+
     public Object getMetadata(String key) {
         return metadata.get(key);
     }

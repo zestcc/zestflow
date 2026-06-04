@@ -27,6 +27,8 @@ public class LifecycleExecutor {
 
     private static final List<ComponentRef> DEFAULT_RESOLVER_REFS = List.of(
             new ComponentRef("zestParamResolver", null),
+            new ComponentRef("zestResultResolver", null),
+            new ComponentRef("zestFailureResolver", null),
             new ComponentRef("parameterNameResolver", null),
             new ComponentRef("contextTypeResolver", null)
     );

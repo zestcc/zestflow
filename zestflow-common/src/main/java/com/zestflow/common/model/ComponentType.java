@@ -22,6 +22,8 @@ public enum ComponentType {
     /** 参数绑定器 — 在节点执行前运行，负责入参格式转换、数据组装 */
     PARAM_BINDER,
     /** 参数校验器 — 在参数绑定后运行，负责必填检查、业务规则校验 */
-    PARAM_VALIDATOR
+    PARAM_VALIDATOR,
+    /** HTTP 错误处理器 — 链失败时生成对外响应体 */
+    ERROR_HANDLER
 
 }

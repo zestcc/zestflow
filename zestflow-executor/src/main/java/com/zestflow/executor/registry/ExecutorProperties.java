@@ -1,6 +1,8 @@
 package com.zestflow.executor.registry;
 
 import com.zestflow.common.constant.RegistryConstants;
+import com.zestflow.common.protocol.ChainFailurePolicy;
+import com.zestflow.common.protocol.ChainHttpResponseMode;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -76,6 +78,15 @@ public class ExecutorProperties implements EnvironmentAware {
 
     /** 是否启用统一执行端点（Spring MVC /execute），默认关闭 */
     private boolean executeEndpointEnabled = false;
+
+    /** 是否启用链 HTTP 路由（Mode 2：chainData.config.http.path 别名），默认关闭 */
+    private boolean chainRouteEnabled = false;
+
+    /** Mode 1/2 成功响应模式：BODY= PARSER 返回值，DETAIL= 完整执行明细 */
+    private ChainHttpResponseMode executeResponseMode = ChainHttpResponseMode.BODY;
+
+    /** Mode 1/2 失败策略：PROPAGATE= 抛异常，ERROR_HANDLER= 调 errorHandler 元件，WRAPPED= success:false 包装 */
+    private ChainFailurePolicy executeFailurePolicy = ChainFailurePolicy.PROPAGATE;
 
     /** 租户 ID（默认 1，多租户环境下 Admin 分配） */
     private long tenantId = 1L;

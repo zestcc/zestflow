@@ -114,6 +114,37 @@ class DefaultChainExecutionEngineIntegrationTest {
     }
 
     @Test
+    void chainCompletedUsesLastNodeReturnValue() {
+        ChainDefinition def = ChainDefinition.builder()
+                .code("chain1")
+                .nodes(Map.of("A", nodeDef("A", ChainConstants.NODE_TYPE_NORMAL)))
+                .edges(List.of())
+                .adjacency(new HashMap<>())
+                .inDegree(Map.of("A", 0))
+                .predecessors(new HashMap<>())
+                .build();
+        when(chainManager.get("chain1")).thenReturn(def);
+        String xml = "<Response><hotel id=\"324\"/></Response>";
+        when(nodeRunner.execute(any(NodeDefinition.class), any())).thenReturn(
+                NodeResultDTO.builder()
+                        .nodeId("A")
+                        .status(ChainConstants.NODE_SUCCESS)
+                        .costMs(10L)
+                        .returnValue(xml)
+                        .build()
+        );
+
+        engine.execute("chain1", Map.of());
+
+        verify(eventCollector, atLeast(2)).collect(eventCaptor.capture());
+        ChainEvent completed = eventCaptor.getAllValues().stream()
+                .filter(e -> e.getEventType() == ChainEvent.EventType.CHAIN_COMPLETED)
+                .findFirst()
+                .orElseThrow();
+        assertThat(completed.getResult()).isEqualTo(xml);
+    }
+
+    @Test
     void chainNotFoundReturnsFailed() {
         when(chainManager.get("non-existent")).thenReturn(null);
         when(chainLoader.reloadChainLocal(any(), any(), any()))

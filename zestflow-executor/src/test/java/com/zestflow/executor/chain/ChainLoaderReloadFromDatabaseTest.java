@@ -13,6 +13,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.beans.factory.ObjectProvider;
 
 import java.util.List;
 
@@ -33,6 +34,7 @@ class ChainLoaderReloadFromDatabaseTest {
     @Mock NodeRunner nodeRunner;
     @Mock AdminClient adminClient;
     @Mock ExecutorProperties executorProperties;
+    @Mock ObjectProvider<com.zestflow.executor.route.ChainRouteRegistry> chainRouteRegistryProvider;
 
     @Test
     void reloadFromDatabase_doesNotIncrementVersionOrNotifyAdmin() throws Exception {
@@ -52,7 +54,8 @@ class ChainLoaderReloadFromDatabaseTest {
         when(chainValidator.validate(definition)).thenReturn(List.of());
 
         ChainLoader loader = new ChainLoader(chainManager, componentScanner, chainValidator,
-                chainDefinitionBuilder, chainRepo, designRepo, nodeRunner, adminClient, executorProperties);
+                chainDefinitionBuilder, chainRepo, designRepo, nodeRunner, adminClient, executorProperties,
+                chainRouteRegistryProvider);
 
         ChainLoader.ChainReloadResult result = loader.reloadFromDatabase("CHN001");
 

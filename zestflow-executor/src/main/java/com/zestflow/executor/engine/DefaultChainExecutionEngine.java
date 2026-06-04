@@ -7,6 +7,7 @@ import com.zestflow.common.constant.ChainConstants;
 import com.zestflow.common.model.dto.ChainEvent;
 import com.zestflow.common.model.dto.ChainExecuteResultDTO;
 import com.zestflow.common.model.dto.NodeResultDTO;
+import com.zestflow.common.protocol.ChainTransactionConfig;
 import com.zestflow.executor.event.EventPublisher;
 import com.zestflow.executor.chain.ChainDefinition;
 import com.zestflow.executor.chain.ChainDefinition.ChainEdge;
@@ -59,6 +60,7 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
     private final InterceptorChain interceptorChain;
     private final ExecutorProperties properties;
     private final String appCode;
+    private final ChainTransactionExecutor chainTransactionExecutor;
 
     private static final ObjectMapper JSON_MAPPER = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -80,6 +82,16 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
                                        ChainInstanceManager instanceManager,
                                        EventPublisher eventPublisher, InterceptorChain interceptorChain,
                                        ExecutorProperties properties) {
+        this(chainManager, dagSorter, nodeRunner, instanceManager, eventPublisher,
+                interceptorChain, properties, ChainTransactionExecutor.noop());
+    }
+
+    public DefaultChainExecutionEngine(ChainManager chainManager,
+                                       DagSorter dagSorter, NodeRunner nodeRunner,
+                                       ChainInstanceManager instanceManager,
+                                       EventPublisher eventPublisher, InterceptorChain interceptorChain,
+                                       ExecutorProperties properties,
+                                       ChainTransactionExecutor chainTransactionExecutor) {
         this.chainManager = chainManager;
         this.dagSorter = dagSorter;
         this.nodeRunner = nodeRunner;
@@ -88,6 +100,8 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
         this.interceptorChain = interceptorChain;
         this.properties = properties;
         this.appCode = properties.getAppCode();
+        this.chainTransactionExecutor = chainTransactionExecutor != null
+                ? chainTransactionExecutor : ChainTransactionExecutor.noop();
     }
 
     /** 关闭 ForkJoinPool + 清理过期实例，释放线程资源 */
@@ -120,21 +134,33 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
 
     @Override
     public ChainExecuteResultDTO execute(String chainCode, Object... args) {
-        return doExecute(chainCode, null, ChainInstance.NO_PARENT_DEADLINE, args);
+        return doExecute(chainCode, null, null, ChainInstance.NO_PARENT_DEADLINE, args);
     }
 
     @Override
     public ChainExecuteResultDTO execute(String chainCode, Map<String, Object> params, Object... args) {
-        return doExecute(chainCode, params, ChainInstance.NO_PARENT_DEADLINE, args);
+        return doExecute(chainCode, params, null, ChainInstance.NO_PARENT_DEADLINE, args);
+    }
+
+    @Override
+    public ChainExecuteResultDTO execute(String chainCode, Map<String, Object> params,
+                                         Map<String, String> headers, Object... args) {
+        return doExecute(chainCode, params, headers, ChainInstance.NO_PARENT_DEADLINE, args);
     }
 
     @Override
     public ChainExecuteResultDTO executeWithDeadline(String chainCode, Map<String, Object> params,
                                                       long parentDeadlineMs) {
-        return doExecute(chainCode, params, parentDeadlineMs);
+        return doExecute(chainCode, params, null, parentDeadlineMs);
     }
 
     private ChainExecuteResultDTO doExecute(String chainCode, Map<String, Object> params,
+                                               long parentDeadlineMs, Object... typedArgs) {
+        return doExecute(chainCode, params, null, parentDeadlineMs, typedArgs);
+    }
+
+    private ChainExecuteResultDTO doExecute(String chainCode, Map<String, Object> params,
+                                               Map<String, String> headers,
                                                long parentDeadlineMs, Object... typedArgs) {
         long startTime = System.currentTimeMillis();
         log.info("链执行开始 chainCode={}", chainCode);
@@ -156,6 +182,10 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
                     .build();
         }
 
+        if (definition.isTransactionEnabled() && !chainTransactionExecutor.isAvailable()) {
+            log.warn("链已启用事务但无 PlatformTransactionManager chainCode={}", chainCode);
+        }
+
         // 2. 创建实例（子链继承父链 deadline）
         ChainInstance instance = new ChainInstance(definition, params, parentDeadlineMs);
         String chainDisplayName = chainLoader.resolveChainDisplayName(chainCode);
@@ -163,6 +193,9 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
             chainDisplayName = chainCode;
         }
         instance.getContext().setMetadata(ChainConstants.META_CHAIN_NAME, chainDisplayName);
+        if (headers != null && !headers.isEmpty()) {
+            headers.forEach((k, v) -> instance.getContext().setHeader(k, v));
+        }
         instanceManager.register(instance);
 
         // 3. 注册类型化参数到上下文
@@ -175,8 +208,55 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
             }
         }
 
+        ChainExecutionContext execCtx = new ChainExecutionContext(
+                chainCode, definition, instance, typedArgs, startTime);
+
+        if (definition.isTransactionEnabled() && chainTransactionExecutor.isAvailable()) {
+            try {
+                String propagation = definition.getTransactionConfig().getPropagation();
+                return chainTransactionExecutor.execute(propagation, execCtx::run);
+            } catch (RuntimeException e) {
+                long costMs = System.currentTimeMillis() - startTime;
+                log.error("链事务执行失败 chainCode={} cost={}ms", chainCode, costMs, e);
+                instance.getStateMachine().transit(ChainConstants.CHAIN_FAILED);
+                publishChainEvent(ChainEvent.EventType.CHAIN_FAILED, chainCode, instance, e.getMessage());
+                return ChainExecuteResultDTO.builder()
+                        .instanceId(instance.getInstanceId())
+                        .chainCode(chainCode)
+                        .status(ChainConstants.CHAIN_FAILED)
+                        .costMs(costMs)
+                        .errorMessage(e.getMessage())
+                        .build();
+            } finally {
+                instanceManager.unregister(instance.getInstanceId());
+            }
+        }
+
         try {
+            return execCtx.run();
+        } finally {
+            instanceManager.unregister(instance.getInstanceId());
+        }
+    }
+
+    /** 链执行运行时上下文（实例注册/注销由外层 doExecute 负责） */
+    private final class ChainExecutionContext {
+        private final String chainCode;
+        private final ChainDefinition definition;
+        private final ChainInstance instance;
+        private final long startTime;
+
+        private ChainExecutionContext(String chainCode, ChainDefinition definition,
+                                      ChainInstance instance, Object[] typedArgs, long startTime) {
+            this.chainCode = chainCode;
+            this.definition = definition;
+            this.instance = instance;
+            this.startTime = startTime;
+        }
+
+        ChainExecuteResultDTO run() {
             ChainContext context = instance.getContext();
+            try {
             context.setMetadata(ChainConstants.META_STOP_CHECK, (BooleanSupplier) instance::isStopped);
             ChainStateMachine stateMachine = instance.getStateMachine();
             List<NodeResultDTO> allNodeResults = new ArrayList<>();
@@ -229,7 +309,8 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
                     break;
                 }
 
-                List<NodeResultDTO> layerResults = executeLayer(executableNodeIds, definition, context, instance);
+                List<NodeResultDTO> layerResults = executeLayer(executableNodeIds, definition, context, instance,
+                        allNodeResults);
                 allNodeResults.addAll(layerResults);
                 layerResults.stream()
                         .filter(r -> !isNodeFailure(r))
@@ -250,11 +331,11 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
                     break;
                 }
 
-                boolean hasFailed = layerResults.stream().anyMatch(this::isNodeFailure);
+                boolean hasFailed = layerResults.stream().anyMatch(DefaultChainExecutionEngine.this::isNodeFailure);
                 if (hasFailed) {
                     String errorStrategy = definition.getErrorStrategy();
                     String nodeError = layerResults.stream()
-                            .filter(this::isNodeFailure)
+                            .filter(DefaultChainExecutionEngine.this::isNodeFailure)
                             .map(NodeResultDTO::getErrorMessage)
                             .filter(Objects::nonNull)
                             .findFirst().orElse(null);
@@ -265,6 +346,9 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
                     if (ChainConstants.ERROR_STRATEGY_STOP.equals(errorStrategy)) {
                         log.warn("节点执行失败，终止链执行 chainCode={}", chainCode);
                         stateMachine.transit(ChainConstants.CHAIN_FAILED);
+                        if (definition.isTransactionEnabled() && chainTransactionExecutor.isTransactionActive()) {
+                            chainTransactionExecutor.markRollbackOnly();
+                        }
                         break;
                     }
                     if (ChainConstants.ERROR_STRATEGY_COMPENSATE.equals(errorStrategy)) {
@@ -272,7 +356,7 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
                         List<NodeResultDTO> compResults = runCompensation(
                                 definition, context, succeededNodeIds, instance);
                         allNodeResults.addAll(compResults);
-                        boolean compFailed = compResults.stream().anyMatch(this::isNodeFailure);
+                        boolean compFailed = compResults.stream().anyMatch(DefaultChainExecutionEngine.this::isNodeFailure);
                         stateMachine.transit(compFailed ? ChainConstants.CHAIN_FAILED : ChainConstants.CHAIN_COMPENSATED);
                         break;
                     }
@@ -286,19 +370,23 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
             interceptorChain.afterChain(chainCode, context, allNodeResults);
 
             // 7. 发布终态事件（超时已在层间发布，避免重复发 FAILED）
-            publishFinalChainEvent(chainCode, instance, stateMachine);
+            publishFinalChainEvent(chainCode, instance, stateMachine, allNodeResults);
 
             long costMs = System.currentTimeMillis() - startTime;
             log.info("链执行完成 chainCode={} status={} cost={}ms nodes={}",
                     chainCode, stateMachine.current(), costMs, allNodeResults.size());
 
             String errorMsg = (String) context.get("_errorMessage");
+            NodeResultDTO firstFailure = ChainFinalResultResolver.findFirstFailure(allNodeResults);
             return ChainExecuteResultDTO.builder()
                     .instanceId(instance.getInstanceId())
                     .chainCode(chainCode)
                     .status(stateMachine.current())
                     .costMs(costMs)
                     .errorMessage(errorMsg)
+                    .failedNodeId(firstFailure != null ? firstFailure.getNodeId() : null)
+                    .errorCode(firstFailure != null ? firstFailure.getErrorCode() : null)
+                    .finalReturnValue(ChainFinalResultResolver.resolve(allNodeResults))
                     .resultData(context.snapshot())
                     .resultTypedData(context.typedSnapshot())
                     .nodeResults(allNodeResults)
@@ -318,8 +406,7 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
                     .costMs(costMs)
                     .errorMessage(e.getMessage())
                     .build();
-        } finally {
-            instanceManager.unregister(instance.getInstanceId());
+            }
         }
     }
 
@@ -343,7 +430,8 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
         return instanceManager.listByChainCode(chainCode);
     }
 
-    private void publishFinalChainEvent(String chainCode, ChainInstance instance, ChainStateMachine stateMachine) {
+    private void publishFinalChainEvent(String chainCode, ChainInstance instance, ChainStateMachine stateMachine,
+                                        List<NodeResultDTO> allNodeResults) {
         if (eventPublisher == EventPublisher.NOOP) {
             return;
         }
@@ -359,7 +447,10 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
             default -> ChainEvent.EventType.CHAIN_FAILED;
         };
         if (eventType != null) {
-            publishChainEvent(eventType, chainCode, instance);
+            String finalResult = eventType == ChainEvent.EventType.CHAIN_COMPLETED
+                    ? resolveFinalResult(allNodeResults)
+                    : null;
+            publishChainEvent(eventType, chainCode, instance, null, finalResult);
         }
     }
 
@@ -376,7 +467,9 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
      * effectiveTimeout = min(链剩余预算, nodeDef.timeout)。
      */
     private NodeResultDTO invokeNodeWithTimeout(NodeDefinition nodeDef, ChainContext context,
-                                                 ChainInstance instance) {
+                                                 ChainInstance instance, ChainDefinition definition,
+                                                 List<NodeResultDTO> completedResults) {
+        injectPredecessorResult(nodeDef, definition, completedResults, context);
         if (instance.isStopped()) {
             return nodeFailure(nodeDef.getId(), ChainConstants.NODE_FAILED, "链执行已终止");
         }
@@ -385,15 +478,20 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
         }
 
         long timeoutMs = resolveNodeTimeoutMs(nodeDef, instance);
+        if (chainTransactionExecutor.isTransactionActive()
+                || needsTransactionBoundary(definition, nodeDef)) {
+            return invokeNodeWithTransactionBoundary(nodeDef, context, instance, definition, completedResults);
+        }
         if (timeoutMs == 0) {
             return nodeFailure(nodeDef.getId(), ChainConstants.NODE_TIMEOUT, "链执行超时");
         }
         if (timeoutMs >= ChainInstance.NO_PARENT_DEADLINE) {
-            return nodeRunner.execute(nodeDef, context);
+            return invokeNodeWithTransactionBoundary(nodeDef, context, instance, definition, completedResults);
         }
 
         CompletableFuture<NodeResultDTO> future = CompletableFuture.supplyAsync(
-                () -> nodeRunner.execute(nodeDef, context), forkJoinPool);
+                () -> invokeNodeWithTransactionBoundary(nodeDef, context, instance, definition, completedResults),
+                forkJoinPool);
         try {
             return future.get(safeWaitMs(timeoutMs), TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
@@ -410,6 +508,25 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
             Thread.currentThread().interrupt();
             return nodeFailure(nodeDef.getId(), ChainConstants.NODE_FAILED, "节点执行被中断");
         }
+    }
+
+    private boolean needsTransactionBoundary(ChainDefinition definition, NodeDefinition nodeDef) {
+        return definition.isTransactionEnabled()
+                || ChainTransactionConfig.requiresDedicatedTemplate(
+                nodeDef.getTransactionPropagation(), definition.getTransactionConfig());
+    }
+
+    private NodeResultDTO invokeNodeWithTransactionBoundary(NodeDefinition nodeDef, ChainContext context,
+                                                             ChainInstance instance, ChainDefinition definition,
+                                                             List<NodeResultDTO> completedResults) {
+        ChainTransactionConfig chainTx = definition.getTransactionConfig();
+        String nodePropagation = nodeDef.getTransactionPropagation();
+        if (ChainTransactionConfig.requiresDedicatedTemplate(nodePropagation, chainTx)) {
+            String propagation = ChainTransactionConfig.resolveNodePropagation(nodePropagation, chainTx);
+            return chainTransactionExecutor.execute(propagation,
+                    () -> nodeRunner.execute(nodeDef, context));
+        }
+        return nodeRunner.execute(nodeDef, context);
     }
 
     private static long resolveNodeTimeoutMs(NodeDefinition nodeDef, ChainInstance instance) {
@@ -512,11 +629,16 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
      * 发布链级事件
      */
     private void publishChainEvent(ChainEvent.EventType eventType, String chainCode, ChainInstance instance) {
-        publishChainEvent(eventType, chainCode, instance, null);
+        publishChainEvent(eventType, chainCode, instance, null, null);
     }
 
     private void publishChainEvent(ChainEvent.EventType eventType, String chainCode,
                                      ChainInstance instance, String errorMessage) {
+        publishChainEvent(eventType, chainCode, instance, errorMessage, null);
+    }
+
+    private void publishChainEvent(ChainEvent.EventType eventType, String chainCode,
+                                     ChainInstance instance, String errorMessage, String finalResult) {
         if (eventPublisher == EventPublisher.NOOP) {
             return;
         }
@@ -529,7 +651,11 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
         if (eventType == ChainEvent.EventType.CHAIN_STARTED) {
             params = toJsonString(context != null ? context.snapshot() : null);
         } else if (eventType == ChainEvent.EventType.CHAIN_COMPLETED) {
-            result = toJsonString(context != null ? context.snapshot() : null);
+            if (finalResult != null && !finalResult.isBlank()) {
+                result = finalResult;
+            } else {
+                result = toJsonString(context != null ? context.snapshot() : null);
+            }
         } else if (eventType == ChainEvent.EventType.CHAIN_FAILED || eventType == ChainEvent.EventType.CHAIN_TIMEOUT) {
             if (err == null && context != null) {
                 Object msg = context.get("_errorMessage");
@@ -559,6 +685,29 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
                 .build());
     }
 
+    /**
+     * 链终态结果：取最后一个成功节点的元件返回值（如 HTTP 响应 XML），供结束节点展示。
+     */
+    private static String resolveFinalResult(List<NodeResultDTO> nodeResults) {
+        if (nodeResults == null || nodeResults.isEmpty()) {
+            return null;
+        }
+        for (int i = nodeResults.size() - 1; i >= 0; i--) {
+            NodeResultDTO r = nodeResults.get(i);
+            if (r.getStatus() != null && r.getStatus() == ChainConstants.NODE_SUCCESS && r.getReturnValue() != null) {
+                return serializeReturnValue(r.getReturnValue());
+            }
+        }
+        return null;
+    }
+
+    private static String serializeReturnValue(Object value) {
+        if (value instanceof CharSequence cs) {
+            return cs.toString();
+        }
+        return toJsonString(value);
+    }
+
     private static String resolveChainDisplayName(ChainContext context) {
         if (context == null) {
             return null;
@@ -582,10 +731,45 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
         }
     }
 
+    private static void injectPredecessorResult(NodeDefinition nodeDef, ChainDefinition definition,
+                                                 List<NodeResultDTO> completedResults, ChainContext context) {
+        if (definition == null || definition.getPredecessors() == null) {
+            context.removeMetadata(ChainConstants.META_PREDECESSOR_RESULT);
+            return;
+        }
+        List<String> preds = definition.getPredecessors().get(nodeDef.getId());
+        if (preds == null || preds.isEmpty()) {
+            context.removeMetadata(ChainConstants.META_PREDECESSOR_RESULT);
+            return;
+        }
+        Object predResult = null;
+        for (int i = preds.size() - 1; i >= 0; i--) {
+            String predId = preds.get(i);
+            for (int j = completedResults.size() - 1; j >= 0; j--) {
+                NodeResultDTO nr = completedResults.get(j);
+                if (predId.equals(nr.getNodeId())
+                        && nr.getStatus() != null
+                        && nr.getStatus() == ChainConstants.NODE_SUCCESS) {
+                    predResult = nr.getReturnValue();
+                    break;
+                }
+            }
+            if (predResult != null) {
+                break;
+            }
+        }
+        if (predResult != null) {
+            context.setMetadata(ChainConstants.META_PREDECESSOR_RESULT, predResult);
+        } else {
+            context.removeMetadata(ChainConstants.META_PREDECESSOR_RESULT);
+        }
+    }
+
     private List<NodeResultDTO> executeLayer(List<String> nodeIds,
                                               ChainDefinition definition,
                                               ChainContext context,
-                                              ChainInstance instance) {
+                                              ChainInstance instance,
+                                              List<NodeResultDTO> completedResults) {
         if (nodeIds.isEmpty()) {
             return List.of();
         }
@@ -594,27 +778,29 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
             if (nodeDef == null) {
                 return List.of();
             }
-            return List.of(invokeNodeWithTimeout(nodeDef, context, instance));
+            return List.of(invokeNodeWithTimeout(nodeDef, context, instance, definition, completedResults));
         }
 
         int parallelThreshold = definition.getParallelThreshold();
+        boolean forceSequential = definition.isTransactionEnabled();
         boolean anyAsync = nodeIds.stream()
                 .map(definition::getNode)
                 .filter(Objects::nonNull)
                 .anyMatch(NodeDefinition::isAsync);
-        boolean useParallelFork = nodeIds.size() >= parallelThreshold || anyAsync;
+        boolean useParallelFork = !forceSequential && (nodeIds.size() >= parallelThreshold || anyAsync);
 
         if (!useParallelFork) {
-            return executeLayerSequential(nodeIds, definition, context, instance);
+            return executeLayerSequential(nodeIds, definition, context, instance, completedResults);
         }
 
-        return executeLayerParallel(nodeIds, definition, context, instance);
+        return executeLayerParallel(nodeIds, definition, context, instance, completedResults);
     }
 
     private List<NodeResultDTO> executeLayerSequential(List<String> nodeIds,
                                                         ChainDefinition definition,
                                                         ChainContext context,
-                                                        ChainInstance instance) {
+                                                        ChainInstance instance,
+                                                        List<NodeResultDTO> completedResults) {
         List<NodeResultDTO> results = new ArrayList<>();
         for (String nodeId : nodeIds) {
             if (instance.isStopped() || instance.isTimedOut()) {
@@ -624,7 +810,7 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
             if (nodeDef == null) {
                 continue;
             }
-            results.add(invokeNodeWithTimeout(nodeDef, context, instance));
+            results.add(invokeNodeWithTimeout(nodeDef, context, instance, definition, completedResults));
         }
         return results;
     }
@@ -632,7 +818,8 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
     private List<NodeResultDTO> executeLayerParallel(List<String> nodeIds,
                                                       ChainDefinition definition,
                                                       ChainContext context,
-                                                      ChainInstance instance) {
+                                                      ChainInstance instance,
+                                                      List<NodeResultDTO> completedResults) {
         List<CompletableFuture<ParallelNodeOutcome>> futures = new ArrayList<>();
 
         for (String nodeId : nodeIds) {
@@ -643,7 +830,8 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
             ChainContext forkedContext = context.fork();
             futures.add(CompletableFuture.supplyAsync(
                     () -> new ParallelNodeOutcome(
-                            invokeNodeWithTimeout(nodeDef, forkedContext, instance), forkedContext),
+                            invokeNodeWithTimeout(nodeDef, forkedContext, instance, definition, completedResults),
+                            forkedContext),
                     forkJoinPool));
         }
 

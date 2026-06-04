@@ -5,8 +5,7 @@ import com.zestflow.collector.jdbc.collector.JdbcEventCollector;
 import com.zestflow.collector.jdbc.controller.CollectorController;
 import com.zestflow.collector.jdbc.controller.GraphSnapshotController;
 import com.zestflow.collector.jdbc.mapper.ChainEventMapper;
-import com.zestflow.collector.jdbc.mapper.ChainEventPayloadMapper;
-import com.zestflow.collector.jdbc.mapper.InvocationPayloadMapper;
+import com.zestflow.collector.jdbc.mapper.ExecutionPayloadMapper;
 import com.zestflow.collector.jdbc.mapper.ChainGraphSnapshotMapper;
 import com.zestflow.collector.jdbc.registry.CollectorAdminClient;
 import com.zestflow.collector.jdbc.registry.CollectorRegistrar;
@@ -46,9 +45,9 @@ public class CollectorAutoConfig {
     @ConditionalOnProperty(prefix = "zestflow.collector", name = "async-enabled",
             havingValue = "true", matchIfMissing = true)
     public AsyncEventCollector asyncEventCollector(ChainEventMapper chainEventMapper,
-                                                   ChainEventPayloadMapper chainEventPayloadMapper,
+                                                   ExecutionPayloadMapper executionPayloadMapper,
                                                    CollectorProperties properties) {
-        JdbcEventCollector delegate = new JdbcEventCollector(chainEventMapper, chainEventPayloadMapper);
+        JdbcEventCollector delegate = new JdbcEventCollector(chainEventMapper, executionPayloadMapper);
         return new AsyncEventCollector(delegate, properties.toAsyncSettings());
     }
 
@@ -56,21 +55,21 @@ public class CollectorAutoConfig {
     @ConditionalOnMissingBean(EventCollector.class)
     @ConditionalOnProperty(prefix = "zestflow.collector", name = "async-enabled", havingValue = "false")
     public EventCollector jdbcEventCollector(ChainEventMapper chainEventMapper,
-                                             ChainEventPayloadMapper chainEventPayloadMapper) {
-        return new JdbcEventCollector(chainEventMapper, chainEventPayloadMapper);
+                                             ExecutionPayloadMapper executionPayloadMapper) {
+        return new JdbcEventCollector(chainEventMapper, executionPayloadMapper);
     }
 
     @Bean
     @ConditionalOnMissingBean
     public EventQueryService jdbcEventQueryService(ChainEventMapper chainEventMapper,
-                                                   ChainEventPayloadMapper chainEventPayloadMapper) {
-        return new JdbcEventQueryService(chainEventMapper, chainEventPayloadMapper);
+                                                   ExecutionPayloadMapper executionPayloadMapper) {
+        return new JdbcEventQueryService(chainEventMapper, executionPayloadMapper);
     }
 
     @Bean
     @ConditionalOnMissingBean
-    public InvocationPayloadService jdbcInvocationPayloadService(InvocationPayloadMapper invocationPayloadMapper) {
-        return new JdbcInvocationPayloadService(invocationPayloadMapper);
+    public InvocationPayloadService jdbcInvocationPayloadService(ExecutionPayloadMapper executionPayloadMapper) {
+        return new JdbcInvocationPayloadService(executionPayloadMapper);
     }
 
     @Bean

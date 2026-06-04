@@ -37,31 +37,25 @@ CREATE TABLE IF NOT EXISTS `chain_event` (
     KEY `idx_tenant_id` (`tenant_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='链执行事件索引表';
 
--- 2026-06-04：事件载荷分表（params/result/error_message）
-CREATE TABLE IF NOT EXISTS `chain_event_payload` (
-    `event_id`       VARCHAR(64)  NOT NULL PRIMARY KEY     COMMENT '事件 ID，关联 chain_event.event_id',
-    `params`         MEDIUMTEXT   DEFAULT NULL             COMMENT '入参（节点入参 / 链入参 / CHAIN_STARTED）',
-    `result`         MEDIUMTEXT   DEFAULT NULL             COMMENT '出参（节点出参 / 链最终结果 / CHAIN_COMPLETED）',
-    `error_message`  TEXT         DEFAULT NULL             COMMENT '错误消息',
-    KEY `idx_event_id` (`event_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='链事件载荷表';
-
--- 2026-06-04：外部调用载荷（试验场 request/response 等，替代 Admin playground_record 大字段）
-CREATE TABLE IF NOT EXISTS `invocation_payload` (
-    `invocation_id`   VARCHAR(64)  NOT NULL PRIMARY KEY    COMMENT '调用唯一 ID',
-    `source_type`     VARCHAR(32)  NOT NULL                COMMENT 'PLAYGROUND/SCHEDULE/API',
-    `execution_id`    VARCHAR(64)  DEFAULT NULL            COMMENT '关联链 execution_id（若有）',
-    `scene_code`      VARCHAR(64)  DEFAULT NULL            COMMENT '试验场场景编码',
-    `request_body`    MEDIUMTEXT   DEFAULT NULL            COMMENT '请求体',
-    `response_body`   MEDIUMTEXT   DEFAULT NULL            COMMENT '响应体',
-    `request_headers` TEXT         DEFAULT NULL            COMMENT '请求头 JSON',
-    `tenant_id`       BIGINT       DEFAULT 1               COMMENT '租户ID',
-    `app_code`        VARCHAR(50)  DEFAULT NULL            COMMENT '应用编码',
+-- 2026-06-04：执行载荷统一表（链事件 + 试验场/API 调用）
+CREATE TABLE IF NOT EXISTS `execution_payload` (
+    `ref_id`          VARCHAR(64)  NOT NULL PRIMARY KEY     COMMENT '关联 ID：chain_event.event_id 或 invocation_id',
+    `ref_type`        VARCHAR(16)  NOT NULL                 COMMENT 'CHAIN_EVENT | INVOCATION',
+    `execution_id`    VARCHAR(64)  DEFAULT NULL             COMMENT '链 execution_id（可选）',
+    `source_type`     VARCHAR(32)  DEFAULT NULL             COMMENT 'PLAYGROUND/SCHEDULE/API（仅 INVOCATION）',
+    `scene_code`      VARCHAR(64)  DEFAULT NULL             COMMENT '试验场场景编码',
+    `params`          MEDIUMTEXT   DEFAULT NULL             COMMENT '入参 / 请求体',
+    `result`          MEDIUMTEXT   DEFAULT NULL             COMMENT '出参 / 响应体',
+    `error_message`   TEXT         DEFAULT NULL             COMMENT '错误消息',
+    `extra`           TEXT         DEFAULT NULL             COMMENT '扩展 JSON（如 request_headers）',
+    `tenant_id`       BIGINT       DEFAULT 1                COMMENT '租户ID',
+    `app_code`        VARCHAR(50)  DEFAULT NULL             COMMENT '应用编码',
     `created_at`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     KEY `idx_execution_id` (`execution_id`),
+    KEY `idx_ref_type` (`ref_type`),
     KEY `idx_scene_code` (`scene_code`),
     KEY `idx_tenant_app` (`tenant_id`, `app_code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='外部调用载荷表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='执行载荷统一表';
 
 -- 2026-06-01：链图数据快照表，发布时快照供历史日志 X6 图还原
 CREATE TABLE IF NOT EXISTS `chain_graph_snapshot` (

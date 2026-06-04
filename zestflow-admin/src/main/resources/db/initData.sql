@@ -99,6 +99,21 @@ INSERT IGNORE INTO `playground_scene` (`scene_code`, `name`, `description`, `req
 ('SCN20260601000229', '售后单处理', '售后单处理', '/api/orders/handleApplyAfterSale', 'POST', 'JSON', '{"applyId":"BB-PG-001"}', '{"code":200}', 'CHN_DEMO_AFTER_SALE', 30, 1, 'demo-app', 'system', 'system', NOW(), NOW()),
 ('SCN20260602000001', '失败继续', '失败继续', '/execute', 'POST', 'JSON', '{"userId":"U10086"}', '{"code":200}', 'CHN_DEMO_CONTINUE_ON_ERROR', 30, 1, 'demo-app', 'system', 'system', NOW(), NOW());
 
+-- 2026-06-04：事务传播策略字典（链编排设计器）
+INSERT IGNORE INTO `zestflow_admin`.`sys_dict_type` (`code`, `name`, `description`, `status`, `sort`, `tenant_id`, `created_by`)
+VALUES ('transaction_propagation', '事务传播策略', 'Spring 事务传播策略，用于链编排设计器链级/节点级配置', 1, 10, 1, 'system');
+
+INSERT IGNORE INTO `zestflow_admin`.`sys_dict_data` (`type_code`, `label`, `value`, `sort`, `status`, `default_flag`, `tag_type`, `tenant_id`, `created_by`)
+VALUES
+('transaction_propagation', '继承链级', 'INHERIT', 1, 1, 0, 'info', 1, 'system'),
+('transaction_propagation', 'REQUIRED（加入当前事务）', 'REQUIRED', 2, 1, 1, 'primary', 1, 'system'),
+('transaction_propagation', 'REQUIRES_NEW（独立新事务）', 'REQUIRES_NEW', 3, 1, 0, 'warning', 1, 'system'),
+('transaction_propagation', 'NESTED（嵌套事务）', 'NESTED', 4, 1, 0, NULL, 1, 'system'),
+('transaction_propagation', 'SUPPORTS（支持当前事务）', 'SUPPORTS', 5, 1, 0, NULL, 1, 'system'),
+('transaction_propagation', 'NOT_SUPPORTED（挂起事务）', 'NOT_SUPPORTED', 6, 1, 0, 'danger', 1, 'system'),
+('transaction_propagation', 'MANDATORY（必须在事务中）', 'MANDATORY', 7, 1, 0, NULL, 1, 'system'),
+('transaction_propagation', 'NEVER（禁止事务）', 'NEVER', 8, 1, 0, NULL, 1, 'system');
+
 -- 2026-06-04：E2E 租户 B 专属场景（仅 tenant_id=2，IP 10.0.0.101 映射）
 INSERT IGNORE INTO `playground_scene` (`scene_code`, `name`, `description`, `request_path`, `request_method`, `body_type`, `request_body`, `response_example`, `chain_code`, `rate_limit`, `tenant_id`, `app_code`, `created_by`, `updated_by`, `created_at`, `updated_at`) VALUES
 ('SCN20260602000002', '租户B专属', 'E2E 多租户隔离验收', '/execute', 'POST', 'JSON', '{"userId":"U10086"}', '{"code":200}', 'CHN_DEMO_NODE_1', 30, 2, 'demo-app', 'system', 'system', NOW(), NOW());

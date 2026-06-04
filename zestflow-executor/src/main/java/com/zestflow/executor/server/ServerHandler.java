@@ -16,6 +16,8 @@ import com.zestflow.executor.design.DesignPO;
 import com.zestflow.executor.design.DesignRepository;
 import com.zestflow.executor.engine.ChainExecutionEngine;
 import com.zestflow.executor.engine.ExecutionIdempotencyGuard;
+import com.zestflow.executor.http.ChainExecuteFacade;
+import com.zestflow.executor.http.HttpChainRequestAdapter;
 import com.zestflow.executor.registry.ExecutorProperties;
 import com.zestflow.executor.scanner.ComponentScanner;
 import io.netty.buffer.ByteBuf;
@@ -73,6 +75,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
     private ChainExecuteThreadPool executeThreadPool;
     private ExecutionIdempotencyGuard idempotencyGuard;
     private ExecutorProperties executorProperties;
+    private ChainExecuteFacade chainExecuteFacade;
     private final AtomicBoolean acceptingExecuteRequests = new AtomicBoolean(true);
 
     public ServerHandler(ChainExecutionEngine chainExecutionEngine, ChainRepository chainRepo, DesignRepository designRepo) {
@@ -112,7 +115,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
         }
 
         try {
-            if (!dispatchApiRoute(ctx, request.method(), uri, content)) {
+            if (!dispatchApiRoute(ctx, request, uri, content)) {
                 writeResponse(ctx, HttpResponseStatus.NOT_FOUND,
                         "{\"code\":404,\"message\":\"Not found: " + uri + "\"}");
             }
@@ -128,7 +131,8 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
      *
      * @return true 表示已处理
      */
-    private boolean dispatchApiRoute(ChannelHandlerContext ctx, HttpMethod method, String uri, String body) throws Exception {
+    private boolean dispatchApiRoute(ChannelHandlerContext ctx, FullHttpRequest request, String uri, String body) throws Exception {
+        HttpMethod method = request.method();
         // 健康检查
         if ("/health".equals(uri) && method == HttpMethod.GET) {
             writeResponse(ctx, HttpResponseStatus.OK,
@@ -138,7 +142,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
 
         // 链执行
         if ("/execute".equals(uri) && method == HttpMethod.POST) {
-            handleExecute(ctx, body);
+            handleExecute(ctx, request, body);
             return true;
         }
 
@@ -934,24 +938,29 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
         log.info("Executor 已停止接受新的 /execute 请求");
     }
 
-    private void handleExecute(ChannelHandlerContext ctx, String body) {
+    private void handleExecute(ChannelHandlerContext ctx, FullHttpRequest request, String body) {
         if (!acceptingExecuteRequests.get()) {
             writeResponse(ctx, HttpResponseStatus.SERVICE_UNAVAILABLE,
                     "{\"code\":503,\"message\":\"executor shutting down\"}");
             return;
         }
         if (executeThreadPool != null) {
-            executeThreadPool.execute(() -> doHandleExecute(ctx, body));
+            executeThreadPool.execute(() -> doHandleExecute(ctx, request, body));
             return;
         }
-        doHandleExecute(ctx, body);
+        doHandleExecute(ctx, request, body);
     }
 
-    private void doHandleExecute(ChannelHandlerContext ctx, String body) {
+    private void doHandleExecute(ChannelHandlerContext ctx, FullHttpRequest request, String body) {
         try {
             log.info("收到执行请求 body={}", body);
-            ChainExecuteRequestDTO request = MAPPER.readValue(body, ChainExecuteRequestDTO.class);
-            ChainExecuteResultDTO result = executeWithIdempotency(request);
+            ChainExecuteRequestDTO chainRequest = HttpChainRequestAdapter.fromNettyBody(body, request.headers());
+            // Netty /execute 固定 DETAIL：必须走 executeCore 并序列化完整 ChainExecuteResultDTO。
+            // 禁止改为 executeHttp() —— 那会受 execute-response-mode=BODY 影响，Admin 试验场将丢失 instanceId/nodeResults。
+            // 失败时同样返回 HTTP 200 + 结构化 DTO（status=FAILED），供 PlaygroundServiceImpl 判定。
+            ChainExecuteResultDTO result = chainExecuteFacade != null
+                    ? chainExecuteFacade.executeCore(chainRequest)
+                    : executeWithIdempotency(chainRequest);
             String json = MAPPER.writeValueAsString(result);
             writeResponse(ctx, HttpResponseStatus.OK, json);
         } catch (Exception e) {
@@ -963,14 +972,14 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
 
     private ChainExecuteResultDTO executeWithIdempotency(ChainExecuteRequestDTO request) {
         if (idempotencyGuard == null || executorProperties == null || !executorProperties.isIdempotencyEnabled()) {
-            return chainExecutionEngine.execute(request.getChainCode(), request.getParams());
+            return chainExecutionEngine.execute(request.getChainCode(), request.getParams(), request.getHeaders());
         }
         String key = request.resolveIdempotencyKey();
         return idempotencyGuard.execute(
                 key,
                 executorProperties.getIdempotencyTtlMs(),
                 executorProperties.getIdempotencyWaitMs(),
-                () -> chainExecutionEngine.execute(request.getChainCode(), request.getParams()));
+                () -> chainExecutionEngine.execute(request.getChainCode(), request.getParams(), request.getHeaders()));
     }
 
     // ==================== 端点扫描 ====================

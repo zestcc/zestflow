@@ -72,6 +72,10 @@ public class ExecutorServer {
         this.serverHandler.setNettyMvcDispatcher(dispatcher);
     }
 
+    public void setChainExecuteFacade(com.zestflow.executor.http.ChainExecuteFacade chainExecuteFacade) {
+        this.serverHandler.setChainExecuteFacade(chainExecuteFacade);
+    }
+
     public void start() throws InterruptedException {
         bossGroup = new NioEventLoopGroup(1, r -> {
             Thread t = new Thread(r, "zestflow-server-boss");

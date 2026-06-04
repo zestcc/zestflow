@@ -4,9 +4,9 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zestflow.collector.jdbc.entity.ChainEventPO;
-import com.zestflow.collector.jdbc.entity.ChainEventPayloadPO;
+import com.zestflow.collector.jdbc.entity.ExecutionPayloadPO;
 import com.zestflow.collector.jdbc.mapper.ChainEventMapper;
-import com.zestflow.collector.jdbc.mapper.ChainEventPayloadMapper;
+import com.zestflow.collector.jdbc.mapper.ExecutionPayloadMapper;
 import com.zestflow.common.model.dto.ChainEvent;
 import com.zestflow.common.model.dto.ChainEvent.EventType;
 import com.zestflow.common.protocol.EventQuery;
@@ -39,7 +39,7 @@ import static org.mockito.Mockito.*;
 class JdbcEventQueryServiceTest {
 
     @Mock private ChainEventMapper chainEventMapper;
-    @Mock private ChainEventPayloadMapper chainEventPayloadMapper;
+    @Mock private ExecutionPayloadMapper executionPayloadMapper;
     @Captor private ArgumentCaptor<LambdaQueryWrapper<ChainEventPO>> wrapperCaptor;
     @Captor private ArgumentCaptor<Page<ChainEventPO>> pageCaptor;
 
@@ -47,7 +47,7 @@ class JdbcEventQueryServiceTest {
 
     @BeforeEach
     void setUp() {
-        queryService = new JdbcEventQueryService(chainEventMapper, chainEventPayloadMapper);
+        queryService = new JdbcEventQueryService(chainEventMapper, executionPayloadMapper);
     }
 
     // ==================== 测试数据 ====================
@@ -344,9 +344,9 @@ class JdbcEventQueryServiceTest {
             ChainEventPO failed = createChainFailed("exec-2", 2000L);
             when(chainEventMapper.selectByExecutionId("exec-2"))
                     .thenReturn(List.of(started, failed));
-            when(chainEventPayloadMapper.selectByEventId("evt-failed"))
-                    .thenReturn(ChainEventPayloadPO.builder()
-                            .eventId("evt-failed")
+            when(executionPayloadMapper.selectByRefId("evt-failed"))
+                    .thenReturn(ExecutionPayloadPO.builder()
+                            .refId("evt-failed")
                             .errorMessage("业务异常")
                             .build());
 

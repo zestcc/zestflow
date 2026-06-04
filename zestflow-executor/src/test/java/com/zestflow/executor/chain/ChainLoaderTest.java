@@ -16,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.beans.factory.ObjectProvider;
 
 import java.util.List;
 import java.util.Map;
@@ -38,6 +39,7 @@ class ChainLoaderTest {
     @Mock NodeRunner nodeRunner;
     @Mock AdminClient adminClient;
     @Mock ExecutorProperties executorProperties;
+    @Mock ObjectProvider<com.zestflow.executor.route.ChainRouteRegistry> chainRouteRegistryProvider;
 
     @Captor ArgumentCaptor<Set<String>> nodeIdCaptor;
 
@@ -49,7 +51,8 @@ class ChainLoaderTest {
         when(executorProperties.getHost()).thenReturn("127.0.0.1");
         when(executorProperties.getPort()).thenReturn(20550);
         chainLoader = new ChainLoader(chainManager, componentScanner,
-                chainValidator, chainDefinitionBuilder, chainRepo, designRepo, nodeRunner, adminClient, executorProperties);
+                chainValidator, chainDefinitionBuilder, chainRepo, designRepo, nodeRunner, adminClient,
+                executorProperties, chainRouteRegistryProvider);
     }
 
     // ==================== reloadChainLocal — version snapshot ====================
@@ -139,7 +142,8 @@ class ChainLoaderTest {
     @Test
     void reloadChainLocalAdminClientNullDoesNotThrow() {
         ChainLoader loaderWithoutAdmin = new ChainLoader(chainManager, componentScanner,
-                chainValidator, chainDefinitionBuilder, chainRepo, designRepo, nodeRunner, null, executorProperties);
+                chainValidator, chainDefinitionBuilder, chainRepo, designRepo, nodeRunner, null, executorProperties,
+                chainRouteRegistryProvider);
 
         ChainPO chain = ChainPO.builder()
                 .code("CHN001").status(0).build();

@@ -84,6 +84,12 @@ public final class ChainConstants {
     /** 链展示名称（写入 ChainContext metadata，供事件发布） */
     public static final String META_CHAIN_NAME = "chainName";
 
+    /** ChainContext 元数据：前驱节点 returnValue，供 @ZestResult 注入 */
+    public static final String META_PREDECESSOR_RESULT = "predecessorResult";
+
+    /** ChainContext 元数据：链失败结果 DTO，供 @ZestFailure / errorHandler 注入 */
+    public static final String META_CHAIN_FAILURE_RESULT = "chainFailureResult";
+
     /** CONTINUE 策略：上下文标记部分成功 */
     public static final String CTX_PARTIAL_FAILURE = "_partialFailure";
 

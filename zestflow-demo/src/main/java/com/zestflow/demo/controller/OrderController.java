@@ -2,7 +2,7 @@ package com.zestflow.demo.controller;
 
 import com.zestflow.common.model.Result;
 import com.zestflow.common.model.dto.ChainExecuteResultDTO;
-import com.zestflow.executor.engine.ChainExecutionEngine;
+import com.zestflow.executor.http.ChainGateway;
 import com.zestflow.demo.dto.ApplyAfterSaleRequest;
 import com.zestflow.demo.dto.OrderRequest;
 import com.zestflow.demo.dto.OrderResponse;
@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 public class OrderController {
 
     private final BizOrchestrationService orch;
-    private final ChainExecutionEngine chainExecutionEngine;
+    private final ChainGateway chainGateway;
 
     // ==================== S01: 简单线性下单 ====================
 
@@ -269,8 +269,7 @@ public class OrderController {
     @PostMapping("/handleApplyAfterSale")
     public Result<OrderResponse> handleApplyAfterSale(@RequestBody ApplyAfterSaleRequest afterSaleRequest) {
         String chainCode = "CHN_DEMO_AFTER_SALE";
-
-        var result  = chainExecutionEngine.execute(chainCode, afterSaleRequest);
+        ChainExecuteResultDTO result = chainGateway.executeOrThrow(chainCode, afterSaleRequest);
         OrderResponse resp = OrderResponse.builder()
                 .orderId(result.getInstanceId())
                 .status(statusText(result.getStatus()))

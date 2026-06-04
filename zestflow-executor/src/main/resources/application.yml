@@ -21,8 +21,15 @@ zestflow:
     host:
     # 执行器暴露的 Port（Netty 服务端端口）
     port: 20550
-    # 统一执行端点开关（true 则在 Web 端口注册 POST /execute）
+    # 统一执行端点开关（true 则在 Web 端口注册 POST /execute、/api/execute）
     execute-endpoint-enabled: false
+    # 链 HTTP 路由（Mode 2：chainData.config.http.path 别名，优先级低于已有 @RequestMapping）
+    chain-route-enabled: false
+    # 成功响应模式：BODY=PARSER 返回值，DETAIL=完整执行明细（仅 Tomcat Mode 1/2，见 executeHttp）
+    execute-response-mode: BODY
+    # Netty POST /execute 固定 DETAIL（完整 ChainExecuteResultDTO），不受 execute-response-mode 影响；Admin 试验场依赖 instanceId/nodeResults
+    # 失败策略：PROPAGATE=抛 ChainExecutionException，ERROR_HANDLER=调 errorHandler 元件，WRAPPED=success:false
+    execute-failure-policy: PROPAGATE
     # 注册/心跳请求超时（毫秒）
     timeout-ms: 5000
 

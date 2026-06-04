@@ -1,5 +1,6 @@
 package com.zestflow.executor.config;
 
+import com.zestflow.executor.http.ChainExecuteFacade;
 import com.zestflow.executor.server.ExecutorServer;
 import jakarta.annotation.PostConstruct;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -24,15 +25,18 @@ public class ExecutorEndpointConfig {
     private final RequestMappingHandlerMapping requestMappingHandlerMapping;
     private final RequestMappingHandlerAdapter requestMappingHandlerAdapter;
     private final PlaygroundProperties playgroundProperties;
+    private final ChainExecuteFacade chainExecuteFacade;
 
     public ExecutorEndpointConfig(ExecutorServer executorServer,
                                    RequestMappingHandlerMapping requestMappingHandlerMapping,
                                    RequestMappingHandlerAdapter requestMappingHandlerAdapter,
-                                   PlaygroundProperties playgroundProperties) {
+                                   PlaygroundProperties playgroundProperties,
+                                   ChainExecuteFacade chainExecuteFacade) {
         this.executorServer = executorServer;
         this.requestMappingHandlerMapping = requestMappingHandlerMapping;
         this.requestMappingHandlerAdapter = requestMappingHandlerAdapter;
         this.playgroundProperties = playgroundProperties;
+        this.chainExecuteFacade = chainExecuteFacade;
     }
 
     @PostConstruct
@@ -45,5 +49,6 @@ public class ExecutorEndpointConfig {
                 requestMappingHandlerAdapter,
                 playgroundProperties.getScanPackages());
         executorServer.setNettyMvcDispatcher(dispatcher);
+        executorServer.setChainExecuteFacade(chainExecuteFacade);
     }
 }

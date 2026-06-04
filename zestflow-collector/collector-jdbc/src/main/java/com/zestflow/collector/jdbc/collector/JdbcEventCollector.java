@@ -1,9 +1,9 @@
 package com.zestflow.collector.jdbc.collector;
 
 import com.zestflow.collector.jdbc.entity.ChainEventPO;
-import com.zestflow.collector.jdbc.entity.ChainEventPayloadPO;
+import com.zestflow.collector.jdbc.entity.ExecutionPayloadPO;
 import com.zestflow.collector.jdbc.mapper.ChainEventMapper;
-import com.zestflow.collector.jdbc.mapper.ChainEventPayloadMapper;
+import com.zestflow.collector.jdbc.mapper.ExecutionPayloadMapper;
 import com.zestflow.common.spi.EventCollector;
 import com.zestflow.common.model.dto.ChainEvent;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 public class JdbcEventCollector implements EventCollector {
 
     private final ChainEventMapper chainEventMapper;
-    private final ChainEventPayloadMapper chainEventPayloadMapper;
+    private final ExecutionPayloadMapper executionPayloadMapper;
 
     @Override
     public void collect(ChainEvent event) {
@@ -37,9 +37,9 @@ public class JdbcEventCollector implements EventCollector {
         List<ChainEventPO> indexRows = events.stream()
                 .map(JdbcEventCollector::toIndexPO)
                 .collect(Collectors.toList());
-        List<ChainEventPayloadPO> payloadRows = events.stream()
+        List<ExecutionPayloadPO> payloadRows = events.stream()
                 .map(JdbcEventCollector::toPayloadPO)
-                .filter(p -> hasPayload(p))
+                .filter(JdbcEventCollector::hasPayload)
                 .collect(Collectors.toList());
 
         int rows = chainEventMapper.insertIgnoreBatch(indexRows);
@@ -47,11 +47,11 @@ public class JdbcEventCollector implements EventCollector {
             log.warn("批量写入索引去重 {} 条，实际写入 {} 条", events.size(), rows);
         }
         if (!payloadRows.isEmpty()) {
-            chainEventPayloadMapper.insertIgnoreBatch(payloadRows);
+            executionPayloadMapper.insertIgnoreBatch(payloadRows);
         }
     }
 
-    private static boolean hasPayload(ChainEventPayloadPO p) {
+    private static boolean hasPayload(ExecutionPayloadPO p) {
         return (p.getParams() != null && !p.getParams().isEmpty())
                 || (p.getResult() != null && !p.getResult().isEmpty())
                 || (p.getErrorMessage() != null && !p.getErrorMessage().isEmpty());
@@ -77,9 +77,11 @@ public class JdbcEventCollector implements EventCollector {
                 .build();
     }
 
-    static ChainEventPayloadPO toPayloadPO(ChainEvent event) {
-        return ChainEventPayloadPO.builder()
-                .eventId(event.getEventId())
+    static ExecutionPayloadPO toPayloadPO(ChainEvent event) {
+        return ExecutionPayloadPO.builder()
+                .refId(event.getEventId())
+                .refType(ExecutionPayloadPO.REF_CHAIN_EVENT)
+                .executionId(event.getExecutionId())
                 .params(event.getParams())
                 .result(event.getResult())
                 .errorMessage(event.getErrorMessage())

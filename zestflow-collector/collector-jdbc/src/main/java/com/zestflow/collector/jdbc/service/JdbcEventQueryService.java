@@ -5,9 +5,9 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zestflow.collector.jdbc.entity.ChainEventPO;
-import com.zestflow.collector.jdbc.entity.ChainEventPayloadPO;
+import com.zestflow.collector.jdbc.entity.ExecutionPayloadPO;
 import com.zestflow.collector.jdbc.mapper.ChainEventMapper;
-import com.zestflow.collector.jdbc.mapper.ChainEventPayloadMapper;
+import com.zestflow.collector.jdbc.mapper.ExecutionPayloadMapper;
 import com.zestflow.common.protocol.EventQuery;
 import com.zestflow.common.protocol.EventStats;
 import com.zestflow.common.protocol.EventStatsQuery;
@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 public class JdbcEventQueryService implements EventQueryService {
 
     private final ChainEventMapper chainEventMapper;
-    private final ChainEventPayloadMapper chainEventPayloadMapper;
+    private final ExecutionPayloadMapper executionPayloadMapper;
 
     @Override
     public List<ChainEvent> queryEvents(EventQuery query) {
@@ -61,7 +61,7 @@ public class JdbcEventQueryService implements EventQueryService {
             return null;
         }
         ChainEvent dto = toSlimDTO(po);
-        mergePayload(dto, chainEventPayloadMapper.selectByEventId(eventId));
+        mergePayload(dto, executionPayloadMapper.selectByRefId(eventId));
         return dto;
     }
 
@@ -183,7 +183,7 @@ public class JdbcEventQueryService implements EventQueryService {
         if ("flow-start".equals(nodeShape)) {
             for (ChainEventPO po : pos) {
                 if ("CHAIN_STARTED".equals(po.getEventType())) {
-                    ChainEventPayloadPO payload = chainEventPayloadMapper.selectByEventId(po.getEventId());
+                    ExecutionPayloadPO payload = executionPayloadMapper.selectByRefId(po.getEventId());
                     params = payload != null ? payload.getParams() : null;
                     nodeName = po.getChainName();
                     timeline.add(toSlimDTO(po));
@@ -194,13 +194,16 @@ public class JdbcEventQueryService implements EventQueryService {
         } else if ("flow-end".equals(nodeShape)) {
             ChainEventPO terminal = findTerminalChainEvent(pos);
             if (terminal != null) {
-                ChainEventPayloadPO payload = chainEventPayloadMapper.selectByEventId(terminal.getEventId());
+                ExecutionPayloadPO payload = executionPayloadMapper.selectByRefId(terminal.getEventId());
                 result = payload != null ? payload.getResult() : null;
                 errorMessage = payload != null ? payload.getErrorMessage() : null;
                 costMs = terminal.getCostMs();
                 nodeName = terminal.getChainName();
                 status = terminalStatus(terminal.getEventType());
                 timeline.add(toSlimDTO(terminal));
+            }
+            if (result == null) {
+                result = loadLastSuccessfulNodeResult(pos);
             }
         } else if (nodeId != null && !nodeId.isBlank()) {
             for (ChainEventPO po : pos) {
@@ -222,7 +225,7 @@ public class JdbcEventQueryService implements EventQueryService {
             }
             errorMessage = loadPayloadField(pos, nodeId, "NODE_FAILED", false);
             if (errorMessage == null) {
-                ChainEventPayloadPO failPayload = findPayload(pos, nodeId, "NODE_FAILED");
+                ExecutionPayloadPO failPayload = findPayload(pos, nodeId, "NODE_FAILED");
                 if (failPayload != null) {
                     errorMessage = failPayload.getErrorMessage();
                 }
@@ -245,8 +248,23 @@ public class JdbcEventQueryService implements EventQueryService {
                 .build();
     }
 
+    private String loadLastSuccessfulNodeResult(List<ChainEventPO> pos) {
+        for (int i = pos.size() - 1; i >= 0; i--) {
+            ChainEventPO po = pos.get(i);
+            String et = po.getEventType();
+            if (!"NODE_COMPLETED".equals(et) && !"NODE_FALLBACK_SUCCESS".equals(et)) {
+                continue;
+            }
+            ExecutionPayloadPO payload = executionPayloadMapper.selectByRefId(po.getEventId());
+            if (payload != null && payload.getResult() != null && !payload.getResult().isBlank()) {
+                return payload.getResult();
+            }
+        }
+        return null;
+    }
+
     private String loadErrorMessage(String eventId) {
-        ChainEventPayloadPO payload = chainEventPayloadMapper.selectByEventId(eventId);
+        ExecutionPayloadPO payload = executionPayloadMapper.selectByRefId(eventId);
         return payload != null ? payload.getErrorMessage() : null;
     }
 
@@ -268,18 +286,18 @@ public class JdbcEventQueryService implements EventQueryService {
     }
 
     private String loadPayloadField(List<ChainEventPO> pos, String nodeId, String eventType, boolean paramsField) {
-        ChainEventPayloadPO payload = findPayload(pos, nodeId, eventType);
+        ExecutionPayloadPO payload = findPayload(pos, nodeId, eventType);
         if (payload == null) {
             return null;
         }
         return paramsField ? payload.getParams() : payload.getResult();
     }
 
-    private ChainEventPayloadPO findPayload(List<ChainEventPO> pos, String nodeId, String eventType) {
+    private ExecutionPayloadPO findPayload(List<ChainEventPO> pos, String nodeId, String eventType) {
         for (int i = pos.size() - 1; i >= 0; i--) {
             ChainEventPO po = pos.get(i);
             if (eventType.equals(po.getEventType()) && nodeId.equals(po.getNodeId())) {
-                return chainEventPayloadMapper.selectByEventId(po.getEventId());
+                return executionPayloadMapper.selectByRefId(po.getEventId());
             }
         }
         return null;
@@ -435,7 +453,7 @@ public class JdbcEventQueryService implements EventQueryService {
                 .build();
     }
 
-    private static void mergePayload(ChainEvent dto, ChainEventPayloadPO payload) {
+    private static void mergePayload(ChainEvent dto, ExecutionPayloadPO payload) {
         if (dto == null || payload == null) {
             return;
         }

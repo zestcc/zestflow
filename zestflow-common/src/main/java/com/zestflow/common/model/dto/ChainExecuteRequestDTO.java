@@ -34,6 +34,9 @@ public class ChainExecuteRequestDTO {
     /** 幂等键 — 与 traceId 二选一；相同键在 TTL 内返回同一执行结果 */
     private String idempotencyKey;
 
+    /** 请求 HTTP 头（Mode 1/2 透传至 ChainContext.headers） */
+    private Map<String, String> headers;
+
     /**
      * 解析实际幂等键：优先 idempotencyKey，否则 traceId。
      */

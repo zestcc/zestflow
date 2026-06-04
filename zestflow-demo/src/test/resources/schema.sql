@@ -3,8 +3,7 @@
 
 DROP TABLE IF EXISTS zf_design_binding;
 DROP TABLE IF EXISTS zf_chain_version;
-DROP TABLE IF EXISTS chain_event_payload;
-DROP TABLE IF EXISTS invocation_payload;
+DROP TABLE IF EXISTS execution_payload;
 DROP TABLE IF EXISTS chain_event;
 DROP TABLE IF EXISTS zf_design;
 DROP TABLE IF EXISTS zf_chain;
@@ -91,22 +90,27 @@ CREATE INDEX IF NOT EXISTS idx_execution_id ON chain_event(execution_id);
 CREATE INDEX IF NOT EXISTS idx_chain_id ON chain_event(chain_id);
 CREATE INDEX IF NOT EXISTS idx_timestamp ON chain_event(timestamp);
 
-CREATE TABLE IF NOT EXISTS chain_event_payload (
-    event_id       VARCHAR(64)  NOT NULL PRIMARY KEY,
-    params         CLOB         DEFAULT NULL,
-    result         CLOB         DEFAULT NULL,
-    error_message  CLOB         DEFAULT NULL
-);
-
-CREATE TABLE IF NOT EXISTS invocation_payload (
-    invocation_id   VARCHAR(64)  NOT NULL PRIMARY KEY,
-    source_type     VARCHAR(32)  NOT NULL,
+CREATE TABLE IF NOT EXISTS execution_payload (
+    ref_id          VARCHAR(64)  NOT NULL PRIMARY KEY,
+    ref_type        VARCHAR(16)  NOT NULL,
     execution_id    VARCHAR(64)  DEFAULT NULL,
+    source_type     VARCHAR(32)  DEFAULT NULL,
     scene_code      VARCHAR(64)  DEFAULT NULL,
-    request_body    CLOB         DEFAULT NULL,
-    response_body   CLOB         DEFAULT NULL,
-    request_headers CLOB         DEFAULT NULL,
+    params          CLOB         DEFAULT NULL,
+    result          CLOB         DEFAULT NULL,
+    error_message   CLOB         DEFAULT NULL,
+    extra           CLOB         DEFAULT NULL,
     tenant_id       BIGINT       DEFAULT 1,
     app_code        VARCHAR(50)  DEFAULT NULL,
     created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_payload_execution_id ON execution_payload(execution_id);
+CREATE INDEX IF NOT EXISTS idx_payload_ref_type ON execution_payload(ref_type);
+
+-- 2026-06-04：链事务 E2E 探针表
+DROP TABLE IF EXISTS chain_tx_probe;
+CREATE TABLE chain_tx_probe (
+    id        BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    probe_key VARCHAR(64)  NOT NULL,
+    created_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

@@ -18,7 +18,7 @@ class CollectorAutoConfigTest {
         Method method = CollectorAutoConfig.class.getDeclaredMethod(
                 "asyncEventCollector",
                 com.zestflow.collector.jdbc.mapper.ChainEventMapper.class,
-                com.zestflow.collector.jdbc.mapper.ChainEventPayloadMapper.class,
+                com.zestflow.collector.jdbc.mapper.ExecutionPayloadMapper.class,
                 CollectorProperties.class);
         assertThat(method.getReturnType()).isEqualTo(AsyncEventCollector.class);
         assertThat(AsyncEventCollector.class.getDeclaredMethod("destroy")).isNotNull();
@@ -29,7 +29,7 @@ class CollectorAutoConfigTest {
         Method method = CollectorAutoConfig.class.getDeclaredMethod(
                 "jdbcEventCollector",
                 com.zestflow.collector.jdbc.mapper.ChainEventMapper.class,
-                com.zestflow.collector.jdbc.mapper.ChainEventPayloadMapper.class);
+                com.zestflow.collector.jdbc.mapper.ExecutionPayloadMapper.class);
         assertThat(method.getReturnType()).isEqualTo(EventCollector.class);
     }
 }

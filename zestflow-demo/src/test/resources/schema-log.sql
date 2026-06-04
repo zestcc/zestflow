@@ -1,6 +1,5 @@
 -- Collector 日志库表结构（H2 test_log 独立数据源）
-DROP TABLE IF EXISTS chain_event_payload;
-DROP TABLE IF EXISTS invocation_payload;
+DROP TABLE IF EXISTS execution_payload;
 DROP TABLE IF EXISTS chain_event;
 
 CREATE TABLE IF NOT EXISTS chain_event (
@@ -27,22 +26,19 @@ CREATE INDEX IF NOT EXISTS idx_execution_id ON chain_event(execution_id);
 CREATE INDEX IF NOT EXISTS idx_chain_id ON chain_event(chain_id);
 CREATE INDEX IF NOT EXISTS idx_timestamp ON chain_event(timestamp);
 
-CREATE TABLE IF NOT EXISTS chain_event_payload (
-    event_id       VARCHAR(64)  NOT NULL PRIMARY KEY,
-    params         CLOB         DEFAULT NULL,
-    result         CLOB         DEFAULT NULL,
-    error_message  CLOB         DEFAULT NULL
-);
-
-CREATE TABLE IF NOT EXISTS invocation_payload (
-    invocation_id   VARCHAR(64)  NOT NULL PRIMARY KEY,
-    source_type     VARCHAR(32)  NOT NULL,
+CREATE TABLE IF NOT EXISTS execution_payload (
+    ref_id          VARCHAR(64)  NOT NULL PRIMARY KEY,
+    ref_type        VARCHAR(16)  NOT NULL,
     execution_id    VARCHAR(64)  DEFAULT NULL,
+    source_type     VARCHAR(32)  DEFAULT NULL,
     scene_code      VARCHAR(64)  DEFAULT NULL,
-    request_body    CLOB         DEFAULT NULL,
-    response_body   CLOB         DEFAULT NULL,
-    request_headers CLOB         DEFAULT NULL,
+    params          CLOB         DEFAULT NULL,
+    result          CLOB         DEFAULT NULL,
+    error_message   CLOB         DEFAULT NULL,
+    extra           CLOB         DEFAULT NULL,
     tenant_id       BIGINT       DEFAULT 1,
     app_code        VARCHAR(50)  DEFAULT NULL,
     created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE INDEX IF NOT EXISTS idx_payload_execution_id ON execution_payload(execution_id);
+CREATE INDEX IF NOT EXISTS idx_payload_ref_type ON execution_payload(ref_type);

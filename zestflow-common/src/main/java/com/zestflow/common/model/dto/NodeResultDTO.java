@@ -28,8 +28,14 @@ public class NodeResultDTO {
     /** 输出数据（写入 DataBus 给下游节点） */
     private Map<String, Object> outputData;
 
+    /** 元件原始返回值（用于链终态结果展示） */
+    private Object returnValue;
+
     /** 错误信息 */
     private String errorMessage;
+
+    /** 业务错误码（BizException 等） */
+    private String errorCode;
 
     /** 重试次数 */
     private Integer retryCount;

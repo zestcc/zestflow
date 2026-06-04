@@ -6,8 +6,10 @@ import com.zestflow.executor.design.DesignRepository;
 import com.zestflow.executor.design.DesignStatus;
 import com.zestflow.common.model.dto.ChainSyncDTO;
 import com.zestflow.executor.engine.NodeRunner;
+import org.springframework.beans.factory.ObjectProvider;
 import com.zestflow.executor.registry.AdminClient;
 import com.zestflow.executor.registry.ExecutorProperties;
+import com.zestflow.executor.route.ChainRouteRegistry;
 import com.zestflow.executor.scanner.ComponentScanner;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -41,6 +43,7 @@ public class ChainLoader implements ApplicationRunner, Ordered {
     private final NodeRunner nodeRunner;
     private final AdminClient adminClient;
     private final ExecutorProperties executorProperties;
+    private final ObjectProvider<ChainRouteRegistry> chainRouteRegistryProvider;
 
     @Data
     @AllArgsConstructor
@@ -122,6 +125,7 @@ public class ChainLoader implements ApplicationRunner, Ordered {
 
             // 5. 加载到 ChainManager
             chainManager.reload(definitions);
+            refreshHttpRoutes();
 
             // 6. 通知 Admin 同步状态
             notifyAdminSync(definitions, "READY", null);
@@ -241,6 +245,7 @@ public class ChainLoader implements ApplicationRunner, Ordered {
             // 清理旧链的熔断器状态
             ChainDefinition oldDef = chainManager.get(chainCode);
             chainManager.load(definition);
+            refreshHttpRoutes();
             if (oldDef != null) {
                 nodeRunner.clearCircuitBreakers(oldDef.getNodes().keySet());
             }
@@ -258,6 +263,10 @@ public class ChainLoader implements ApplicationRunner, Ordered {
             log.error("链热加载异常 code={}", chainCode, e);
             return new ChainReloadResult(false, "加载异常: " + e.getMessage(), 0);
         }
+    }
+
+    private void refreshHttpRoutes() {
+        chainRouteRegistryProvider.ifAvailable(registry -> registry.refresh(chainManager));
     }
 
     /**
@@ -316,6 +325,7 @@ public class ChainLoader implements ApplicationRunner, Ordered {
     public void unloadFromMemory(String chainCode) {
         ChainDefinition oldDef = chainManager.get(chainCode);
         chainManager.unload(chainCode);
+        refreshHttpRoutes();
         if (oldDef != null && oldDef.getNodes() != null) {
             nodeRunner.clearCircuitBreakers(oldDef.getNodes().keySet());
         }

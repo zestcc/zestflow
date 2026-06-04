@@ -167,6 +167,7 @@ public class ComponentScanner implements ApplicationContextAware {
         if (method.getAnnotation(ZestPostProcessor.class) != null) return ComponentType.POST_PROCESSOR;
         if (method.getAnnotation(ZestParamBinder.class) != null) return ComponentType.PARAM_BINDER;
         if (method.getAnnotation(ZestParamValidator.class) != null) return ComponentType.PARAM_VALIDATOR;
+        if (method.getAnnotation(ZestErrorHandler.class) != null) return ComponentType.ERROR_HANDLER;
         return null;
     }
 
@@ -209,6 +210,10 @@ public class ComponentScanner implements ApplicationContextAware {
             }
             case PARAM_VALIDATOR -> {
                 ZestParamValidator a = method.getAnnotation(ZestParamValidator.class);
+                yield a != null ? a.value() : "";
+            }
+            case ERROR_HANDLER -> {
+                ZestErrorHandler a = method.getAnnotation(ZestErrorHandler.class);
                 yield a != null ? a.value() : "";
             }
         };
@@ -320,6 +325,13 @@ public class ComponentScanner implements ApplicationContextAware {
             }
             case PARAM_VALIDATOR -> {
                 ZestParamValidator a = method.getAnnotation(ZestParamValidator.class);
+                if (a != null) {
+                    meta.setName(a.name());
+                    meta.setDescription(a.description());
+                }
+            }
+            case ERROR_HANDLER -> {
+                ZestErrorHandler a = method.getAnnotation(ZestErrorHandler.class);
                 if (a != null) {
                     meta.setName(a.name());
                     meta.setDescription(a.description());

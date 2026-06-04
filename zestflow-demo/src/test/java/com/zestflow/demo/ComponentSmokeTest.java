@@ -38,7 +38,10 @@ class ComponentSmokeTest {
 
     private static final Set<String> SKIP_IDS = Set.of(
             "zestParamResolver",
-            "contextTypeResolver"
+            "contextTypeResolver",
+            "txInsertA",
+            "txInsertB",
+            "txProbeFail"
     );
 
     /** 需多节点前置上下文的元件 */
