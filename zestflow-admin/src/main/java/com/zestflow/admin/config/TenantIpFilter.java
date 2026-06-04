@@ -1,9 +1,9 @@
 package com.zestflow.admin.config;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.zestflow.admin.demo.ip.DemoTenantProvisioner;
 import com.zestflow.admin.model.entity.TenantIpMappingPO;
 import com.zestflow.admin.repository.TenantIpMappingMapper;
+import com.zestflow.admin.tenant.TenantProvisioner;
 import com.zestflow.admin.util.SecurityUtils;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -11,7 +11,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -26,11 +25,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * IP → 租户自动映射过滤器（演示环境）
+ * IP → 租户自动映射（零门槛试玩）。
  * <p>
- * 在 JwtAuthFilter 之前执行。对于没有 JWT 的请求，根据客户端 IP 解析租户：
- * 先查 tenant_ip_mapping；无映射且 multi+ip-demo 时自动创建试玩租户并克隆母版场景。
- * 有 JWT 的请求跳过（由 JwtAuthFilter 处理）。
+ * 无 JWT 时根据 IP 解析租户；无映射则调用 {@link TenantProvisioner#resolveOrProvisionByIp(String)}。
  */
 @Slf4j
 @Component
@@ -40,7 +37,7 @@ public class TenantIpFilter extends OncePerRequestFilter {
 
     private final TenantIpMappingMapper tenantIpMappingMapper;
     private final TenantModeConfig tenantModeConfig;
-    private final ObjectProvider<DemoTenantProvisioner> demoTenantProvisioner;
+    private final TenantProvisioner tenantProvisioner;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -71,11 +68,9 @@ public class TenantIpFilter extends OncePerRequestFilter {
 
         try {
             TenantIpMappingPO mapping = resolveMapping(clientIp);
-
             if (mapping != null) {
                 applyIpDemoSession(mapping);
             }
-
             filterChain.doFilter(request, response);
         } finally {
             TenantContextHolder.clear();
@@ -94,17 +89,14 @@ public class TenantIpFilter extends OncePerRequestFilter {
         if (!"multi".equals(tenantModeConfig.getMode())) {
             return null;
         }
-        DemoTenantProvisioner provisioner = demoTenantProvisioner.getIfAvailable();
-        if (provisioner == null) {
-            return null;
-        }
-        return provisioner.resolveOrProvision(clientIp);
+        return tenantProvisioner.resolveOrProvisionByIp(clientIp);
     }
 
     private void applyIpDemoSession(TenantIpMappingPO mapping) {
         TenantContextHolder.setTenantId(mapping.getTenantId());
         mapping.setLastActiveAt(LocalDateTime.now());
         tenantIpMappingMapper.updateById(mapping);
+        tenantProvisioner.touchTenantActivity(mapping.getTenantId());
 
         UsernamePasswordAuthenticationToken ipAuth =
                 new UsernamePasswordAuthenticationToken("ip-demo", null,

@@ -93,9 +93,18 @@ zestflow:
 
 启动 Admin E2E：`profiles=local,enterprise-e2e` → `run-enterprise-gate.ps1 -RequireEnterpriseProfile`
 
-公网试玩：`profiles=local,demo`（**勿与 prod 同开**）。首次访问 IP 自动创建租户并从 `tenant_id=1` 克隆 `demo-app` 的 `playground_scene`。
+公网试玩：`profiles=demo`（**勿与 prod 同开**）。首次访问 IP 自动调用统一 `TenantProvisioner` 创建 trial 租户并全盘克隆母版数据。
 
-已有库升级试玩 V1：执行 `db/migration/V3__ip_demo_tenant_constraints.sql`。
+**建库/灌库**（仅两种脚本）：
+
+```powershell
+powershell -File scripts/init.ps1      # DDL：admin + executor + collector
+powershell -File scripts/initData.ps1  # DML：种子数据
+```
+
+已有库需删库重建后重跑上述脚本（未正式发布前推荐）；`init.sql` 已含 V3–V5 全部结构变更。
+
+公开开户（可选）：`POST /api/public/tenants/provision`（需 `public-provision-enabled: true`）。
 
 ### 4.2 security-e2e（机器鉴权成对）
 
@@ -142,10 +151,10 @@ mvn spring-boot:run -pl zestflow-collector/collector-jdbc -Dspring-boot.run.prof
 种子数据（`initData.sql`）：
 
 - 租户 B `id=2`，admin 绑定 `user_tenant`
-- `tenant_ip_mapping`: `10.0.0.101→2`, `10.0.0.102→1`（E2E 预埋；新 IP 由 `DemoTenantProvisioner` 自动创建）
+- `tenant_ip_mapping`: `10.0.0.101→2`, `10.0.0.102→1`（E2E 预埋；新 IP 由 `TenantProvisioner` 自动创建 trial 租户）
 - 场景 `SCN20260602000002` 仅 `tenant_id=2`
 
-**注意**：IP 隔离依赖 `mode=multi`（MyBatis-Plus 租户行插件）；仅开 ip-demo 而 single 无效。`scene_code` 唯一约束为 `(tenant_id, scene_code)`，见 V3 迁移。
+**注意**：IP 隔离依赖 `mode=multi`（MyBatis-Plus 租户行插件）；仅开 ip-demo 而 single 无效。业务唯一约束均为 `(tenant_id, …)`，见 `init.sql`。
 
 ---
 
@@ -171,7 +180,7 @@ mvn spring-boot:run -pl zestflow-collector/collector-jdbc -Dspring-boot.run.prof
 - [x] `run-enterprise-gate.ps1` Layer A+B 全 PASS（本地，2026-06-02）
 - [x] `scripts/deploy/verify-prod-templates.ps1` — prod 模板无 admin123 / playground 开启
 - [x] **prod 启动守卫** — Admin / Executor / Collector `*ProductionGuard`（令牌、JWT、playground 关闭）
-- [x] 灌库：`Apply-DemoSeed.ps1`（含租户 B + IP 映射 + `SCN20260602000002`）
+- [x] 灌库：`scripts/init.ps1` + `scripts/initData.ps1`（含租户 B + IP 映射 + 全盘母版种子）
 - [x] Admin `enterprise-e2e` + `-RequireEnterpriseProfile` 全 PASS（multi 隔离 + IP 演示）
 - [x] Admin 集群 ShedLock：调度 / 离线检测 / 租户清理 / 链同步缓存（`-Pcluster` + `deploy-mode=cluster`）
 - [x] Admin→Executor 幂等键贯通（调度 cron/manual、试验场）

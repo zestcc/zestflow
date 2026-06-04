@@ -59,9 +59,8 @@
 ## 生成与灌库
 
 ```powershell
-powershell -File scripts/seed/Generate-DemoChains.ps1
-powershell -File scripts/seed/Merge-InitData.ps1
-powershell -File scripts/seed/Apply-DemoSeed.ps1
+powershell -File scripts/init.ps1
+powershell -File scripts/initData.ps1
 ```
 
 `CHN_DEMO_AFTER_SALE` 复杂 graph 仍由 `initData.sql` 内手工块保留（与编辑器导出一致）。

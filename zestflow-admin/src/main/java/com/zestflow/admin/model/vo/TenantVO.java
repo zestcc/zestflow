@@ -18,6 +18,9 @@ public class TenantVO {
     private String code;
     private String description;
     private Integer status;
+    private String tenantType;
+    private String provisionSource;
+    private LocalDateTime expiresAt;
     private LocalDateTime lastActiveAt;
     private String createdBy;
     private String updatedBy;

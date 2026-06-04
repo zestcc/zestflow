@@ -86,6 +86,7 @@ public class PlaygroundSceneServiceImpl implements PlaygroundSceneService {
     public PlaygroundSceneVO getByCode(String sceneCode) {
         PlaygroundScenePO po = sceneMapper.selectOne(
                 new LambdaQueryWrapper<PlaygroundScenePO>()
+                        .eq(PlaygroundScenePO::getTenantId, tenantAppContext.getCurrentTenantId())
                         .eq(PlaygroundScenePO::getSceneCode, sceneCode));
         return po != null ? toVO(po) : null;
     }

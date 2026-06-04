@@ -37,6 +37,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // 用户认证相关（登录/注册/找回密码等）
                 .requestMatchers("/api/auth/**", "/api/uploads/**").permitAll()
+                .requestMatchers("/api/public/**").permitAll()
                 // 机器间通信：Executor/Collector 注册注销（后续可改为 Registry Token）
                 .requestMatchers(HttpMethod.POST, "/api/registry/**").permitAll()
                 .requestMatchers(HttpMethod.DELETE, "/api/registry/**").permitAll()

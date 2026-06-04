@@ -17,12 +17,8 @@ public class StandaloneTenantCleanupMonitor {
     private final TenantCleanupService tenantCleanupService;
 
     @Scheduled(fixedRate = 300_000)
-    public void cleanupInactiveIpMappings() {
-        tenantCleanupService.cleanupInactiveIpMappings();
-    }
-
-    @Scheduled(fixedRate = 300_000)
-    public void updateInactiveTenants() {
-        tenantCleanupService.updateInactiveTenants();
+    public void cleanupTrialTenants() {
+        tenantCleanupService.cleanupExpiredTrialTenants();
+        tenantCleanupService.cleanupOrphanIpMappings();
     }
 }

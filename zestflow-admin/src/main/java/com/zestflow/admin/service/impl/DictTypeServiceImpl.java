@@ -35,11 +35,13 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class DictTypeServiceImpl implements DictTypeService {
 
+    private static final long SYSTEM_TEMPLATE_TENANT_ID = 1L;
+
     private final DictTypeMapper dictTypeMapper;
     private final DictDataMapper dictDataMapper;
     private final TenantAppContext tenantAppContext;
 
-    /** 本地缓存：typeCode → DictDataVO list */
+    /** 本地缓存：tenantId:typeCode → DictDataVO list */
     private final Map<String, List<DictDataVO>> dictDataCache = new ConcurrentHashMap<>();
 
     /** 确保字典数据项存在的锁 */
@@ -100,7 +102,9 @@ public class DictTypeServiceImpl implements DictTypeService {
 
     private void initSystemDictType(String code, String name, List<DictDataPO> dataItems) {
         DictTypePO exists = dictTypeMapper.selectOne(
-                new LambdaQueryWrapper<DictTypePO>().eq(DictTypePO::getCode, code));
+                new LambdaQueryWrapper<DictTypePO>()
+                        .eq(DictTypePO::getTenantId, SYSTEM_TEMPLATE_TENANT_ID)
+                        .eq(DictTypePO::getCode, code));
         if (exists != null) {
             return;
         }
@@ -109,6 +113,7 @@ public class DictTypeServiceImpl implements DictTypeService {
         po.setName(name);
         po.setStatus(1);
         po.setSort(1);
+        po.setTenantId(SYSTEM_TEMPLATE_TENANT_ID);
         dictTypeMapper.insert(po);
         log.info("系统字典类型创建 code={} name={}", code, name);
 
@@ -121,6 +126,7 @@ public class DictTypeServiceImpl implements DictTypeService {
             item.setSort(i + 1);
             item.setStatus(1);
             item.setDefaultFlag(i == 0 ? 1 : 0);
+            item.setTenantId(SYSTEM_TEMPLATE_TENANT_ID);
             try {
                 dictDataMapper.insert(item);
             } catch (Exception e) {
@@ -142,6 +148,7 @@ public class DictTypeServiceImpl implements DictTypeService {
     @Override
     public IPage<DictTypeVO> list(String keyword, Integer status, Integer page, Integer size) {
         LambdaQueryWrapper<DictTypePO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(DictTypePO::getTenantId, tenantAppContext.getCurrentTenantId());
         if (status != null) {
             wrapper.eq(DictTypePO::getStatus, status);
         }
@@ -165,7 +172,9 @@ public class DictTypeServiceImpl implements DictTypeService {
     @Override
     public DictTypeVO getByCode(String code) {
         DictTypePO po = dictTypeMapper.selectOne(
-                new LambdaQueryWrapper<DictTypePO>().eq(DictTypePO::getCode, code));
+                new LambdaQueryWrapper<DictTypePO>()
+                        .eq(DictTypePO::getTenantId, tenantAppContext.getCurrentTenantId())
+                        .eq(DictTypePO::getCode, code));
         if (po == null) {
             throw new BizException(ErrorCode.DICT_TYPE_NOT_FOUND);
         }
@@ -189,21 +198,24 @@ public class DictTypeServiceImpl implements DictTypeService {
 
     @Override
     public List<DictDataVO> getDictData(String typeCode) {
-        List<DictDataVO> cached = dictDataCache.get(typeCode);
+        String cacheKey = cacheKey(typeCode);
+        List<DictDataVO> cached = dictDataCache.get(cacheKey);
         if (cached != null) {
             return cached;
         }
         List<DictDataVO> list = listDataByCode(typeCode);
-        dictDataCache.put(typeCode, list);
+        dictDataCache.put(cacheKey, list);
         return list;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DictTypeVO create(DictTypeCreateDTO dto, String username) {
-        // 检查编码唯一性
+        // 检查编码唯一性（租户内）
         Long exists = dictTypeMapper.selectCount(
-                new LambdaQueryWrapper<DictTypePO>().eq(DictTypePO::getCode, dto.getCode()));
+                new LambdaQueryWrapper<DictTypePO>()
+                        .eq(DictTypePO::getTenantId, tenantAppContext.getCurrentTenantId())
+                        .eq(DictTypePO::getCode, dto.getCode()));
         if (exists != null && exists > 0) {
             throw new BizException(ErrorCode.DICT_TYPE_CODE_EXISTS);
         }
@@ -255,6 +267,7 @@ public class DictTypeServiceImpl implements DictTypeService {
         }
         // 同时删除其下所有数据项
         dictDataMapper.delete(new LambdaQueryWrapper<DictDataPO>()
+                .eq(DictDataPO::getTenantId, tenantAppContext.getCurrentTenantId())
                 .eq(DictDataPO::getTypeCode, po.getCode()));
         dictTypeMapper.deleteById(id);
         clearCache(po.getCode());
@@ -282,7 +295,9 @@ public class DictTypeServiceImpl implements DictTypeService {
     public DictDataVO addData(DictDataCreateDTO dto, String username) {
         // 检查字典类型是否存在
         DictTypePO typePo = dictTypeMapper.selectOne(
-                new LambdaQueryWrapper<DictTypePO>().eq(DictTypePO::getCode, dto.getTypeCode()));
+                new LambdaQueryWrapper<DictTypePO>()
+                        .eq(DictTypePO::getTenantId, tenantAppContext.getCurrentTenantId())
+                        .eq(DictTypePO::getCode, dto.getTypeCode()));
         if (typePo == null) {
             throw new BizException(ErrorCode.DICT_TYPE_NOT_FOUND);
         }
@@ -295,7 +310,8 @@ public class DictTypeServiceImpl implements DictTypeService {
         Integer sort = dto.getSort();
         if (sort == null || sort <= 0) {
             LambdaQueryWrapper<DictDataPO> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(DictDataPO::getTypeCode, dto.getTypeCode())
+            wrapper.eq(DictDataPO::getTenantId, tenantAppContext.getCurrentTenantId())
+                    .eq(DictDataPO::getTypeCode, dto.getTypeCode())
                     .orderByDesc(DictDataPO::getSort).last("LIMIT 1");
             DictDataPO maxSort = dictDataMapper.selectOne(wrapper);
             sort = (maxSort != null ? maxSort.getSort() : 0) + 1;
@@ -353,13 +369,16 @@ public class DictTypeServiceImpl implements DictTypeService {
         synchronized (ensureLock) {
             // 确保字典类型存在
             DictTypePO typePo = dictTypeMapper.selectOne(
-                    new LambdaQueryWrapper<DictTypePO>().eq(DictTypePO::getCode, typeCode));
+                    new LambdaQueryWrapper<DictTypePO>()
+                            .eq(DictTypePO::getTenantId, tenantAppContext.getCurrentTenantId())
+                            .eq(DictTypePO::getCode, typeCode));
             if (typePo == null) {
                 DictTypePO newType = new DictTypePO();
                 newType.setCode(typeCode);
                 newType.setName(typeCode);
                 newType.setStatus(1);
                 newType.setSort(1);
+                newType.setTenantId(tenantAppContext.getCurrentTenantId());
                 dictTypeMapper.insert(newType);
                 log.info("字典类型自动创建 code={}", typeCode);
             }
@@ -367,6 +386,7 @@ public class DictTypeServiceImpl implements DictTypeService {
             // 确保字典数据项存在
             Long count = dictDataMapper.selectCount(
                     new LambdaQueryWrapper<DictDataPO>()
+                            .eq(DictDataPO::getTenantId, tenantAppContext.getCurrentTenantId())
                             .eq(DictDataPO::getTypeCode, typeCode)
                             .eq(DictDataPO::getValue, value));
             if (count == null || count == 0) {
@@ -387,6 +407,7 @@ public class DictTypeServiceImpl implements DictTypeService {
     private List<DictDataVO> listDataByCode(String code) {
         List<DictDataPO> poList = dictDataMapper.selectList(
                 new LambdaQueryWrapper<DictDataPO>()
+                        .eq(DictDataPO::getTenantId, tenantAppContext.getCurrentTenantId())
                         .eq(DictDataPO::getTypeCode, code)
                         .orderByAsc(DictDataPO::getSort)
                         .orderByDesc(DictDataPO::getDefaultFlag));
@@ -394,7 +415,11 @@ public class DictTypeServiceImpl implements DictTypeService {
     }
 
     private void clearCache(String typeCode) {
-        dictDataCache.remove(typeCode);
+        dictDataCache.remove(cacheKey(typeCode));
+    }
+
+    private String cacheKey(String typeCode) {
+        return tenantAppContext.getCurrentTenantId() + ":" + typeCode;
     }
 
     private DictTypeVO toTypeVO(DictTypePO po) {

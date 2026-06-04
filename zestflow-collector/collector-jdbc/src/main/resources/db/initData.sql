@@ -1,6 +1,6 @@
 ﻿-- ZestFlow Collector log DB seed: chain_graph_snapshot for demo chains
 -- 2026-06-02: synced from executor initData zf_chain_version
--- Run after collector init.sql (Apply-DemoSeed.ps1 applies this file)
+-- 用法：先执行 init.sql，再执行本文件（或 scripts/initData.ps1）
 
 USE `zestflow_app_log`;
 

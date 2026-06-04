@@ -70,8 +70,8 @@ public class UserManageServiceImpl implements UserManageService {
                 .collect(Collectors.groupingBy(UserAppRolePO::getUserId));
 
         List<RolePO> allRoles = roleMapper.selectList(null);
-        Map<Long, RolePO> roleMap = allRoles.stream()
-                .collect(Collectors.toMap(RolePO::getId, r -> r));
+        Map<String, RolePO> roleMap = allRoles.stream()
+                .collect(Collectors.toMap(r -> r.getTenantId() + ":" + r.getId(), r -> r, (a, b) -> a));
 
         return users.stream()
                 .map(user -> toManageVO(user, assignmentMap.getOrDefault(user.getId(), Collections.emptyList()), roleMap))
@@ -99,8 +99,8 @@ public class UserManageServiceImpl implements UserManageService {
                 .collect(Collectors.groupingBy(UserAppRolePO::getUserId));
 
         List<RolePO> allRoles = roleMapper.selectList(null);
-        Map<Long, RolePO> roleMap = allRoles.stream()
-                .collect(Collectors.toMap(RolePO::getId, r -> r));
+        Map<String, RolePO> roleMap = allRoles.stream()
+                .collect(Collectors.toMap(r -> r.getTenantId() + ":" + r.getId(), r -> r, (a, b) -> a));
 
         return poPage.convert(user -> toManageVO(user, assignmentMap.getOrDefault(user.getId(), Collections.emptyList()), roleMap));
     }
@@ -116,8 +116,8 @@ public class UserManageServiceImpl implements UserManageService {
                 new LambdaQueryWrapper<UserAppRolePO>().eq(UserAppRolePO::getUserId, id)
         );
 
-        Map<Long, RolePO> roleMap = roleMapper.selectList(null).stream()
-                .collect(Collectors.toMap(RolePO::getId, r -> r));
+        Map<String, RolePO> roleMap = roleMapper.selectList(null).stream()
+                .collect(Collectors.toMap(r -> r.getTenantId() + ":" + r.getId(), r -> r, (a, b) -> a));
 
         return toManageVO(user, assignments, roleMap);
     }
@@ -245,12 +245,16 @@ public class UserManageServiceImpl implements UserManageService {
         if (user == null) {
             throw new BizException(ErrorCode.USER_NOT_FOUND);
         }
-        if (roleMapper.selectById(roleId) == null) {
+        if (roleMapper.selectOne(new LambdaQueryWrapper<RolePO>()
+                .eq(RolePO::getId, roleId)
+                .eq(RolePO::getTenantId, tenantAppContext.getCurrentTenantId())) == null) {
             throw new BizException(ErrorCode.ROLE_NOT_FOUND);
         }
 
+        Long tenantId = tenantAppContext.getCurrentTenantId();
         UserAppRolePO existing = userAppRoleMapper.selectOne(
                 new LambdaQueryWrapper<UserAppRolePO>()
+                        .eq(UserAppRolePO::getTenantId, tenantId)
                         .eq(UserAppRolePO::getUserId, userId)
                         .eq(UserAppRolePO::getAppCode, appCode)
                         .last("LIMIT 1")
@@ -266,6 +270,7 @@ public class UserManageServiceImpl implements UserManageService {
             assignment.setUserId(userId);
             assignment.setAppCode(appCode);
             assignment.setRoleId(roleId);
+            assignment.setTenantId(tenantId);
             assignment.setCreatedAt(LocalDateTime.now());
             assignment.setUpdatedAt(LocalDateTime.now());
             userAppRoleMapper.insert(assignment);
@@ -278,6 +283,7 @@ public class UserManageServiceImpl implements UserManageService {
     public void removeAppRole(Long userId, String appCode) {
         userAppRoleMapper.delete(
                 new LambdaQueryWrapper<UserAppRolePO>()
+                        .eq(UserAppRolePO::getTenantId, tenantAppContext.getCurrentTenantId())
                         .eq(UserAppRolePO::getUserId, userId)
                         .eq(UserAppRolePO::getAppCode, appCode)
         );
@@ -293,10 +299,10 @@ public class UserManageServiceImpl implements UserManageService {
     }
 
     private UserManageVO toManageVO(UserPO user, List<UserAppRolePO> assignments,
-                                     Map<Long, RolePO> roleMap) {
+                                     Map<String, RolePO> roleMap) {
         List<UserManageVO.AppRoleAssignmentVO> roleVOs = assignments.stream()
                 .map(a -> {
-                    RolePO role = roleMap.get(a.getRoleId());
+                    RolePO role = roleMap.get(a.getTenantId() + ":" + a.getRoleId());
                     return UserManageVO.AppRoleAssignmentVO.builder()
                             .appCode(a.getAppCode())
                             .roleId(a.getRoleId())

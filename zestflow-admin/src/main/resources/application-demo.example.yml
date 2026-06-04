@@ -1,15 +1,14 @@
 # 公网 IP 试玩 Profile 示例
-# 用法：
-#   1. 复制为 application-demo.yml（与 application-local.yml 同级）
-#   2. 启动：--spring.profiles.active=local,demo
-#
-# ⚠ 勿与 prod 同开：AdminProductionGuard 禁止 prod + ip-demo / playground。
-#    公网试玩请单独部署一台「试玩机」，或独立 profile，不用 prod。
+# 复制为 application-demo.yml，启动：--spring.profiles.active=demo
+# ⚠ 勿与 prod 同开
 
 zestflow:
   tenant:
     mode: multi
     ip-demo-mode: enabled
     ip-tenant-timeout-minutes: 60
+    template-tenant-id: 1
+    trial-lifecycle-enabled: true
+    public-provision-enabled: true
   playground:
     enabled: true

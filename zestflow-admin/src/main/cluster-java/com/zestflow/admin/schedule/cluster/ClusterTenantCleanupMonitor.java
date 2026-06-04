@@ -16,20 +16,14 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ClusterTenantCleanupMonitor {
 
-    private static final String LOCK_IP = "zestflow-admin-tenant-ip-cleanup";
-    private static final String LOCK_STATUS = "zestflow-admin-tenant-status-cleanup";
+    private static final String LOCK_TRIAL = "zestflow-admin-tenant-trial-cleanup";
 
     private final TenantCleanupService tenantCleanupService;
 
     @Scheduled(fixedRate = 300_000)
-    @SchedulerLock(name = LOCK_IP, lockAtMostFor = "PT5M", lockAtLeastFor = "PT10S")
-    public void cleanupInactiveIpMappings() {
-        tenantCleanupService.cleanupInactiveIpMappings();
-    }
-
-    @Scheduled(fixedRate = 300_000)
-    @SchedulerLock(name = LOCK_STATUS, lockAtMostFor = "PT5M", lockAtLeastFor = "PT10S")
-    public void updateInactiveTenants() {
-        tenantCleanupService.updateInactiveTenants();
+    @SchedulerLock(name = LOCK_TRIAL, lockAtMostFor = "PT5M", lockAtLeastFor = "PT10S")
+    public void cleanupTrialTenants() {
+        tenantCleanupService.cleanupExpiredTrialTenants();
+        tenantCleanupService.cleanupOrphanIpMappings();
     }
 }

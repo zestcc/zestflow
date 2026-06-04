@@ -31,7 +31,7 @@ if ($rows.Count -eq 0) {
 $sb = New-Object System.Text.StringBuilder
 [void]$sb.AppendLine('-- ZestFlow Collector log DB seed: chain_graph_snapshot for demo chains')
 [void]$sb.AppendLine('-- 2026-06-02: synced from executor initData zf_chain_version')
-[void]$sb.AppendLine('-- Run after collector init.sql (Apply-DemoSeed.ps1 applies this file)')
+[void]$sb.AppendLine('-- 用法：先 init.sql，再 initData.sql（或 scripts/initData.ps1）')
 [void]$sb.AppendLine('')
 [void]$sb.AppendLine('USE `zestflow_app_log`;')
 [void]$sb.AppendLine('')

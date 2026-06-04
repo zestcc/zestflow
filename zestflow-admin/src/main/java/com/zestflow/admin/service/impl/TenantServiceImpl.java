@@ -11,6 +11,11 @@ import com.zestflow.admin.model.vo.TenantVO;
 import com.zestflow.admin.repository.TenantMapper;
 import com.zestflow.admin.repository.UserTenantMapper;
 import com.zestflow.admin.service.TenantService;
+import com.zestflow.admin.tenant.ProvisionSources;
+import com.zestflow.admin.tenant.TenantProvisionRequest;
+import com.zestflow.admin.tenant.TenantProvisionResult;
+import com.zestflow.admin.tenant.TenantProvisioner;
+import com.zestflow.admin.tenant.TenantTypes;
 import com.zestflow.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +34,7 @@ public class TenantServiceImpl implements TenantService {
 
     private final TenantMapper tenantMapper;
     private final UserTenantMapper userTenantMapper;
+    private final TenantProvisioner tenantProvisioner;
 
     @Override
     public List<TenantVO> listAll() {
@@ -48,24 +54,16 @@ public class TenantServiceImpl implements TenantService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public TenantVO create(TenantCreateDTO dto) {
-        Long count = tenantMapper.selectCount(
-                new LambdaQueryWrapper<TenantPO>().eq(TenantPO::getCode, dto.getCode())
-        );
-        if (count > 0) {
-            throw new BizException(ErrorCode.TENANT_CODE_EXISTS);
-        }
-
-        TenantPO po = new TenantPO();
-        po.setName(dto.getName());
-        po.setCode(dto.getCode());
-        po.setDescription(dto.getDescription());
-        po.setStatus(1);
-        po.setCreatedAt(LocalDateTime.now());
-        po.setUpdatedAt(LocalDateTime.now());
-        tenantMapper.insert(po);
-
-        log.info("租户创建成功 tenantId={} code={}", po.getId(), po.getCode());
-        return toVO(po);
+        TenantProvisionRequest request = TenantProvisionRequest.builder()
+                .name(dto.getName())
+                .code(dto.getCode())
+                .description(dto.getDescription())
+                .tenantType(TenantTypes.STANDARD)
+                .provisionSource(ProvisionSources.ADMIN)
+                .createdBy("admin")
+                .build();
+        TenantProvisionResult result = tenantProvisioner.provision(request);
+        return toVO(result.getTenant());
     }
 
     @Override
@@ -91,9 +89,11 @@ public class TenantServiceImpl implements TenantService {
         if (po == null) {
             throw new BizException(ErrorCode.TENANT_NOT_FOUND);
         }
-        // 不允许删除系统母版租户
         if (id == 1L) {
             throw new BizException(ErrorCode.TENANT_CANNOT_DELETE_SYSTEM);
+        }
+        if (TenantTypes.TRIAL.equals(po.getTenantType())) {
+            throw new BizException(ErrorCode.VALIDATION_ERROR, "试玩租户请由定时任务回收");
         }
         tenantMapper.deleteById(id);
         log.info("租户删除成功 tenantId={}", id);
@@ -163,6 +163,9 @@ public class TenantServiceImpl implements TenantService {
                 .code(po.getCode())
                 .description(po.getDescription())
                 .status(po.getStatus())
+                .tenantType(po.getTenantType())
+                .provisionSource(po.getProvisionSource())
+                .expiresAt(po.getExpiresAt())
                 .lastActiveAt(po.getLastActiveAt())
                 .createdBy(po.getCreatedBy())
                 .updatedBy(po.getUpdatedBy())

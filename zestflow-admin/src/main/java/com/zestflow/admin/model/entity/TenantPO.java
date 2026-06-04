@@ -20,6 +20,14 @@ public class TenantPO {
 
     private Integer status;
 
+    /** standard / trial */
+    private String tenantType;
+
+    /** admin / api / ip */
+    private String provisionSource;
+
+    private LocalDateTime expiresAt;
+
     private LocalDateTime lastActiveAt;
 
     private String createdBy;

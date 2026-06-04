@@ -32,8 +32,12 @@ INSERT IGNORE INTO `tenant_ip_mapping` (`ip_address`, `tenant_id`)
 VALUES ('10.0.0.101', 2),
        ('10.0.0.102', 1);
 
--- ==================== 角色（role） ====================
--- role 表的 INSERT 已内嵌在 DDL 中，此处无额外数据
+-- ==================== 角色（role） — 母版租户默认三角色 ====================
+
+INSERT IGNORE INTO `role` (`code`, `name`, `description`, `tenant_id`, `created_by`)
+VALUES ('APP_ADMIN', '应用管理员', '应用最高权限', 1, 'system'),
+       ('APP_EDITOR', '应用编辑', '可编辑链路与配置', 1, 'system'),
+       ('APP_VIEWER', '应用查看', '只读访问', 1, 'system');
 
 -- ==================== 演示场景（playground_scene） ====================
 -- demo-app playground scenes (28 full-chain)

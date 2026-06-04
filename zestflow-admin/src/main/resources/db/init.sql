@@ -16,13 +16,17 @@ CREATE TABLE IF NOT EXISTS `tenant` (
     `code`           VARCHAR(64)  NOT NULL                 COMMENT '租户编码',
     `description`    VARCHAR(500) DEFAULT NULL             COMMENT '租户描述',
     `status`         TINYINT      DEFAULT 1                COMMENT '状态：1-正常 0-禁用',
+    `tenant_type`    VARCHAR(16)  NOT NULL DEFAULT 'standard' COMMENT '租户类型：standard / trial',
+    `provision_source` VARCHAR(16) DEFAULT NULL           COMMENT '开户来源：admin / api / ip',
+    `expires_at`     DATETIME     DEFAULT NULL             COMMENT '到期时间（试玩）',
     `last_active_at` DATETIME     DEFAULT NULL             COMMENT '最后活跃时间',
     `created_by`     VARCHAR(64)  DEFAULT NULL             COMMENT '创建人',
     `updated_by`     VARCHAR(64)  DEFAULT NULL             COMMENT '最后修改人',
     `created_at`     DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at`     DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_code` (`code`)
+    UNIQUE KEY `uk_code` (`code`),
+    KEY `idx_trial_last_active` (`tenant_type`, `last_active_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='租户表';
 
 -- 2026-06-01：用户-租户关联表
@@ -86,7 +90,7 @@ CREATE TABLE IF NOT EXISTS `role` (
     `created_at`  DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at`  DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_code` (`code`)
+    UNIQUE KEY `uk_tenant_role` (`tenant_id`, `code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色表';
 
 CREATE TABLE IF NOT EXISTS `user_app_role` (
@@ -100,7 +104,7 @@ CREATE TABLE IF NOT EXISTS `user_app_role` (
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_user_app` (`user_id`, `app_code`),
+    UNIQUE KEY `uk_tenant_user_app` (`tenant_id`, `user_id`, `app_code`),
     KEY `idx_user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户应用角色关联表';
 
@@ -119,7 +123,7 @@ CREATE TABLE IF NOT EXISTS `executor_registry` (
     `created_at`     DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '注册时间',
     `updated_at`     DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_executor_id` (`executor_id`),
+    UNIQUE KEY `uk_tenant_executor` (`tenant_id`, `executor_id`),
     KEY `idx_app_code` (`app_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='执行器注册表';
 
@@ -187,7 +191,7 @@ CREATE TABLE IF NOT EXISTS `component` (
     `created_at`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '首次发现时间',
     `updated_at`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_executor_component` (`executor_id`, `component_id`),
+    UNIQUE KEY `uk_tenant_executor_component` (`tenant_id`, `executor_id`, `component_id`),
     KEY `idx_executor_id` (`executor_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='执行元件注册表';
 
@@ -206,7 +210,7 @@ CREATE TABLE IF NOT EXISTS `collector_registry` (
     `created_at`     DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '注册时间',
     `updated_at`     DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_collector_id` (`collector_id`),
+    UNIQUE KEY `uk_tenant_collector` (`tenant_id`, `collector_id`),
     KEY `idx_app_code` (`app_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='采集器注册表';
 
@@ -224,7 +228,7 @@ CREATE TABLE IF NOT EXISTS `sys_dict_type` (
     `created_at`  DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at`  DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_code` (`code`)
+    UNIQUE KEY `uk_tenant_dict_type` (`tenant_id`, `code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='字典类型表';
 
 CREATE TABLE IF NOT EXISTS `sys_dict_data` (
@@ -244,6 +248,7 @@ CREATE TABLE IF NOT EXISTS `sys_dict_data` (
     `created_at`   DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at`   DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_tenant_dict_data` (`tenant_id`, `type_code`, `value`),
     KEY `idx_type_code` (`type_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='字典数据表';
 

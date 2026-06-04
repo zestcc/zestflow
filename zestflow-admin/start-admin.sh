@@ -4,8 +4,8 @@
 # 可调参数见 config/start-admin.env
 #
 #   ./start-admin.sh
-#   ./config/application.yml
-#   ./config/start-admin.env
+#   ./config/application.yml  或 ./application-demo.yml（平铺亦可，自动识别 profile）
+#   ./config/start-admin.env  或 ./start-admin.env
 #   ./zestflow-admin-0.1.0.jar   （多版本时取版本号最大）
 #   ./log/
 # ==================================
@@ -19,9 +19,9 @@ fi
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_DIR="$SCRIPT_DIR/config"
-CONFIG_FILE="$CONFIG_DIR/application.yml"
-ENV_FILE="$CONFIG_DIR/start-admin.env"
+CONFIG_DIR=""
+CONFIG_FILE=""
+ENV_FILE=""
 LOG_DIR="$SCRIPT_DIR/log"
 
 APP_NAME="zestflow-admin"
@@ -45,6 +45,8 @@ _load_config() {
   HEALTH_CHECK_INTERVAL_SEC=2
   APP_TIMEZONE=Asia/Shanghai
 
+  _resolve_paths
+
   if [ -f "$ENV_FILE" ]; then
     set -a
     # 兼容 Windows 编辑产生的 CRLF 换行
@@ -59,6 +61,91 @@ _load_config() {
   fi
 
   _resolve_java
+}
+
+# 配置目录：优先 config/，否则脚本同目录（平铺）；env 同理
+_resolve_paths() {
+  local dir
+  for dir in "$SCRIPT_DIR/config" "$SCRIPT_DIR"; do
+    [ -d "$dir" ] || continue
+    if compgen -G "${dir}/application*.yml" > /dev/null 2>&1 \
+        || [ -f "${dir}/start-admin.env" ]; then
+      [ -z "$ENV_FILE" ] && [ -f "${dir}/start-admin.env" ] && ENV_FILE="${dir}/start-admin.env"
+      if compgen -G "${dir}/application*.yml" > /dev/null 2>&1; then
+        CONFIG_DIR="$dir"
+      fi
+    fi
+  done
+  [ -z "$CONFIG_DIR" ] && CONFIG_DIR="$SCRIPT_DIR/config"
+  [ -z "$ENV_FILE" ] && ENV_FILE="$SCRIPT_DIR/config/start-admin.env"
+  [ ! -f "$ENV_FILE" ] && [ -f "$SCRIPT_DIR/start-admin.env" ] && ENV_FILE="$SCRIPT_DIR/start-admin.env"
+}
+
+# 根据已有 yml 推断主配置与 Spring profile（SPRING_PROFILE 未设时）
+_resolve_spring_config() {
+  CONFIG_FILE=""
+  local pf base profiles=()
+
+  if [ -f "$CONFIG_DIR/application.yml" ]; then
+    CONFIG_FILE="$CONFIG_DIR/application.yml"
+  fi
+
+  for pf in "$CONFIG_DIR"/application-*.yml; do
+    [ -f "$pf" ] || continue
+    base=$(basename "$pf" .yml)
+    base=${base#application-}
+    profiles+=("$base")
+  done
+
+  if [ -z "${SPRING_PROFILE:-}" ]; then
+    if [ -n "$CONFIG_FILE" ]; then
+      : # 完整 application.yml，无需 profile
+    elif [ "${#profiles[@]}" -eq 1 ]; then
+      SPRING_PROFILE="${profiles[0]}"
+      CONFIG_FILE="$CONFIG_DIR/application-${SPRING_PROFILE}.yml"
+    elif [ "${#profiles[@]}" -gt 1 ]; then
+      local p
+      for p in demo trial; do
+        if [ -f "$CONFIG_DIR/application-${p}.yml" ]; then
+          SPRING_PROFILE="$p"
+          CONFIG_FILE="$CONFIG_DIR/application-${SPRING_PROFILE}.yml"
+          break
+        fi
+      done
+      if [ -z "${SPRING_PROFILE:-}" ]; then
+        _log "  [FAIL] 存在多个 application-<profile>.yml: ${profiles[*]}"
+        _log "         请在 start-admin.env 中设置 SPRING_PROFILE=demo|prod|..."
+        return 1
+      fi
+      _log "  [WARN] 未设 SPRING_PROFILE，自动选用: $SPRING_PROFILE"
+    fi
+  else
+    if [ -f "$CONFIG_DIR/application-${SPRING_PROFILE}.yml" ]; then
+      [ -z "$CONFIG_FILE" ] && CONFIG_FILE="$CONFIG_DIR/application-${SPRING_PROFILE}.yml"
+    elif [ -z "$CONFIG_FILE" ]; then
+      _log "  [WARN] 未找到 application-${SPRING_PROFILE}.yml，仅依赖 application.yml（若存在）"
+    fi
+  fi
+
+  if [ -z "$CONFIG_FILE" ] && [ -f "$CONFIG_DIR/application.yml" ]; then
+    CONFIG_FILE="$CONFIG_DIR/application.yml"
+  fi
+
+  if [ -n "${SPRING_PROFILE:-}" ] && [ "$SPRING_PROFILE" = "prod" ]; then
+    local check="$CONFIG_DIR/application-prod.yml"
+    [ ! -f "$check" ] && [ -n "$CONFIG_FILE" ] && check="$CONFIG_FILE"
+    if [ -f "$check" ] && grep -qE 'ip-demo-mode:[[:space:]]*enabled' "$check" 2>/dev/null; then
+      _log "  [FAIL] prod profile 禁止 ip-demo-mode=enabled（AdminProductionGuard 会拒绝启动）"
+      _log "         试玩请用 SPRING_PROFILE=demo，或勿使用 prod"
+      return 1
+    fi
+  fi
+
+  return 0
+}
+
+_has_app_config() {
+  compgen -G "${CONFIG_DIR}/application*.yml" > /dev/null 2>&1
 }
 
 _resolve_java() {
@@ -210,22 +297,28 @@ _find_jar() {
   echo "$jar"
 }
 
+_read_port_from_yml() {
+  local f=$1
+  [ -f "$f" ] || return 1
+  awk '
+    /^server:/ { in_server=1; next }
+    in_server && /^[^[:space:]]/ { in_server=0 }
+    in_server && /^[[:space:]]+port:[[:space:]]*/ {
+      gsub(/[^0-9]/, "", $2); print $2; exit
+    }
+  ' "$f"
+}
+
 _read_server_port() {
   if [ -n "${SERVER_PORT:-}" ]; then
     echo "$SERVER_PORT"
     return 0
   fi
-  if [ -f "$CONFIG_FILE" ]; then
-    local port
-    port=$(awk '
-      /^server:/ { in_server=1; next }
-      in_server && /^[^[:space:]]/ { in_server=0 }
-      in_server && /^[[:space:]]+port:[[:space:]]*/ {
-        gsub(/[^0-9]/, "", $2); print $2; exit
-      }
-    ' "$CONFIG_FILE")
+  local f port
+  for f in "$CONFIG_FILE" "$CONFIG_DIR/application.yml" "$CONFIG_DIR"/application-*.yml; do
+    port=$(_read_port_from_yml "$f" 2>/dev/null || true)
     [ -n "$port" ] && echo "$port" && return 0
-  fi
+  done
   echo "8080"
 }
 
@@ -254,9 +347,24 @@ _preflight() {
     && _log "  [OK] 启动配置: $ENV_FILE" \
     || _log "  [WARN] 未找到 $ENV_FILE，使用内置默认值"
 
-  [ -f "$CONFIG_FILE" ] \
-    && _log "  [OK] 应用配置: $CONFIG_FILE" \
-    || { _log "  [FAIL] 缺少: $CONFIG_FILE"; err=1; }
+  _log "  [OK] 配置目录: $CONFIG_DIR"
+  if _has_app_config; then
+    _resolve_spring_config || err=1
+    if [ -n "$CONFIG_FILE" ] && [ -f "$CONFIG_FILE" ]; then
+      _log "  [OK] 应用配置: $CONFIG_FILE"
+    else
+      _log "  [OK] 应用配置: ${CONFIG_DIR}/application*.yml"
+    fi
+    if [ -n "${SPRING_PROFILE:-}" ]; then
+      _log "  [OK] Spring profile: $SPRING_PROFILE"
+    else
+      _log "  [OK] Spring profile: <default>（完整 application.yml 或未使用 profile 文件）"
+    fi
+  else
+    _log "  [FAIL] 未找到 application.yml 或 application-<profile>.yml"
+    _log "         目录: $CONFIG_DIR 或 $SCRIPT_DIR（平铺）"
+    err=1
+  fi
 
   local jar=$(_find_jar)
   _log "  [OK] jar: $(basename "$jar") (v$(_jar_version "$jar"))"
@@ -307,7 +415,7 @@ start() {
   [ -n "${SPRING_PROFILE:-}" ] && app_args+=(--spring.profiles.active="$SPRING_PROFILE")
   [ -n "${SERVER_PORT:-}" ] && app_args+=(--server.port="$SERVER_PORT")
 
-  _log ">>> 启动 v${version}  port=${port}  jar=$(basename "$jar") <<<"
+  _log ">>> 启动 v${version}  port=${port}  profile=${SPRING_PROFILE:-default}  jar=$(basename "$jar") <<<"
   echo ""
 
   touch "$LOG_DIR/stdout.log"
@@ -362,6 +470,7 @@ stop() {
 # ==================================
 status() {
   _load_config
+  _resolve_spring_config 2>/dev/null || true
   local pid=$(_get_pid)
   [ -z "$pid" ] && { _log "已停止"; return 1; }
 
@@ -429,17 +538,19 @@ version() {
 
 show_config() {
   _load_config
+  _resolve_spring_config 2>/dev/null || true
   _build_jvm_opts
   echo "ENV_FILE=$ENV_FILE"
-  echo "CONFIG_FILE=$CONFIG_FILE"
+  echo "CONFIG_DIR=$CONFIG_DIR"
+  echo "CONFIG_FILE=${CONFIG_FILE:-<未解析>}"
   echo "JAVA_BIN=$JAVA_BIN"
   echo "JAVA_HOME=${JAVA_HOME:-<未设置>}"
   echo "JVM_XMS=$JVM_XMS JVM_XMX=$JVM_XMX JVM_GC=$JVM_GC"
   echo "JVM_METASPACE=$JVM_METASPACE JVM_DIRECT_MEMORY=$JVM_DIRECT_MEMORY"
   echo "STOP_TIMEOUT_SEC=$STOP_TIMEOUT_SEC"
   echo "HEALTH_CHECK_RETRIES=$HEALTH_CHECK_RETRIES HEALTH_CHECK_INTERVAL_SEC=$HEALTH_CHECK_INTERVAL_SEC"
-  echo "SPRING_PROFILE=${SPRING_PROFILE:-<未设置>}"
-  echo "SERVER_PORT=${SERVER_PORT:-<读 application.yml>}"
+  echo "SPRING_PROFILE=${SPRING_PROFILE:-<default>}"
+  echo "SERVER_PORT=${SERVER_PORT:-<读 yml>}"
   echo "JVM_OPTS=${_JVM_OPTS[*]}"
 }
 
@@ -462,8 +573,8 @@ ${APP_NAME} {start|stop|restart|status|version|config|-l}
 
 目录（相对脚本位置）:
   ./start-admin.sh
-  ./config/application.yml       应用配置
-  ./config/start-admin.env       启动/JVM 配置（改这里）
+  ./config/application.yml       或 application-<profile>.yml（平铺亦可）
+  ./config/start-admin.env       启动/JVM；可选 SPRING_PROFILE=demo|prod
   ./${APP_NAME}-<version>.jar    多版本时自动取最大版本号
   ./log/
 
