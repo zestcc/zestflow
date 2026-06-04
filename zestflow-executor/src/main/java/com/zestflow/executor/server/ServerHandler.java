@@ -1200,6 +1200,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
         node.put("status", c.getStatus() != null ? c.getStatus() : 0);
         node.put("designCode", c.getDesignCode() != null ? c.getDesignCode() : "");
         node.put("version", c.getVersion() != null ? c.getVersion() : 1);
+        node.put("appCode", c.getAppCode() != null ? c.getAppCode() : "");
         node.put("createdBy", c.getCreatedBy() != null ? c.getCreatedBy() : "");
         node.put("updatedBy", c.getUpdatedBy() != null ? c.getUpdatedBy() : "");
         node.put("createdAt", c.getCreatedAt() != null ? c.getCreatedAt() : "");
@@ -1214,6 +1215,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
         node.put("description", d.getDescription() != null ? d.getDescription() : "");
         node.put("designer", d.getDesigner() != null ? d.getDesigner() : "");
         node.put("status", d.getStatus() != null ? d.getStatus() : 0);
+        node.put("appCode", d.getAppCode() != null ? d.getAppCode() : "");
         node.put("graphData", d.getGraphData() != null ? d.getGraphData() : "");
         node.put("chainData", d.getChainData() != null ? d.getChainData() : "");
         node.put("createdBy", d.getCreatedBy() != null ? d.getCreatedBy() : "");

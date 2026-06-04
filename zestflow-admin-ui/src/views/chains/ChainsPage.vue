@@ -163,7 +163,7 @@
     <CreateDesignDialog
       v-model:visible="createDesignDialogVisible"
       :app-options="modules"
-      :default-app-code="currentChainForDesign?.appCode"
+      :default-app-code="currentChainForDesign?.appCode || currentAppCode"
       :default-name="currentChainForDesign ? currentChainForDesign.name + t('design.design') : ''"
       :disable-app-select="true"
       append-to-body
@@ -380,7 +380,10 @@ async function fetchList() {
       page: page.value,
       size: pageSize.value,
     })
-    chainList.value = res.records
+    chainList.value = (res.records || []).map((row: any) => ({
+      ...row,
+      appCode: row.appCode || currentAppCode.value,
+    }))
     total.value = res.total
   } finally {
     loading.value = false
@@ -482,13 +485,14 @@ const bindingDesign = ref(false)
 const currentChainForDesign = ref<any>(null)
 
 async function openDesignDialog(row: any) {
-  currentChainForDesign.value = row
+  const appCode = row.appCode || currentAppCode.value
+  currentChainForDesign.value = { ...row, appCode }
   designList.value = []
   selectedDesignCode.value = row.designCode || null
   designListDialogVisible.value = true
   designLoading.value = true
   try {
-    const res = await designApi.list({ appCode: row.appCode, page: 1, size: 999 })
+    const res = await designApi.list({ appCode, page: 1, size: 999 })
     designList.value = res.records || []
   } finally {
     designLoading.value = false
@@ -555,11 +559,12 @@ async function handleSaveThenDesign(handleSave: () => Promise<any>) {
 
 function goToDesign(design: DesignVO) {
   if (!currentChainForDesign.value) return
-  designApi.bind(design.code, currentChainForDesign.value.code, currentChainForDesign.value.appCode).then(() => {
+  const appCode = design.appCode || currentChainForDesign.value.appCode || currentAppCode.value
+  designApi.bind(design.code, currentChainForDesign.value.code, appCode).then(() => {
     ElMessage.success(t('chains.createAndBindSuccess'))
     createDesignDialogVisible.value = false
     designListDialogVisible.value = false
-    router.push({ name: 'DesignEditor', params: { id: design.code }, query: { appCode: design.appCode } })
+    router.push({ name: 'DesignEditor', params: { id: design.code }, query: { appCode } })
   }).catch(() => ElMessage.error(t('chains.operationFailed')))
 }
 

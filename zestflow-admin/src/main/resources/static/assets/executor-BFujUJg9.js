@@ -1,0 +1,1 @@
+import{ab as e}from"./index-CYktiYI_.js";const a={list(){return e.get("/executors")},updateStatus(t,s){return e.put(`/executors/${t}/status`,{status:s})},listApps(t){return e.get("/executors/apps",{params:{online:t||!1}})}};export{a as e};
