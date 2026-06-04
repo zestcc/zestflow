@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS `tenant_ip_mapping` (
     `last_active_at`  DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '最后活跃时间',
     `created_at`      DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     PRIMARY KEY (`id`),
-    KEY `idx_ip` (`ip_address`),
+    UNIQUE KEY `uk_ip_address` (`ip_address`),
     KEY `idx_tenant_id` (`tenant_id`),
     KEY `idx_last_active` (`last_active_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='IP-租户映射表（演示环境）';
@@ -268,7 +268,7 @@ CREATE TABLE IF NOT EXISTS `playground_scene` (
     `created_at`       DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at`       DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_scene_code` (`scene_code`),
+    UNIQUE KEY `uk_tenant_scene` (`tenant_id`, `scene_code`),
     KEY `idx_chain_code` (`chain_code`),
     KEY `idx_app_code` (`app_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='试验场场景定义表';

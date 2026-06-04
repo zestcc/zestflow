@@ -81,6 +81,12 @@ Add-Check "ip-101-sees-tenant-b-scene" ($codesIpB -contains 'SCN20260602000002')
 Add-Check "ip-101-no-tenant1-only-bulk" ($codesIpB.Count -lt 35) "count=$($codesIpB.Count)"
 Add-Check "ip-102-no-tenant-b-scene" (-not ($codesIpA -contains 'SCN20260602000002')) "count=$($codesIpA.Count)"
 
+# 未预埋 IP — 首次访问应自动建租户并克隆母版场景（V1 provisioner）
+$randomIp = "10.99." + (Get-Random -Minimum 1 -Maximum 250) + "." + (Get-Random -Minimum 1 -Maximum 250)
+$hdrNew = @{ "X-Forwarded-For" = $randomIp }
+$codesNew = Get-SceneCodes $hdrNew
+Add-Check "random-ip-auto-provision" ($codesNew.Count -ge 28) "ip=$randomIp count=$($codesNew.Count)"
+
 $fail = @($checks | Where-Object { -not $_.ok }).Count
 Write-Host "Checks: $($checks.Count - $fail)/$($checks.Count) passed" -ForegroundColor $(if ($fail -eq 0) { 'Green' } else { 'Red' })
 Save-Report

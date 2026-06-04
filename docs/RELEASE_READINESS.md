@@ -77,9 +77,12 @@ powershell -File .\scripts\blackbox\run-enterprise-gate.ps1 -RequireEnterprisePr
 
 ## 4. 可选 E2E Profile
 
-### 4.1 enterprise-e2e（多租户 + IP 演示）
+### 4.1 enterprise-e2e / demo（多租户 + IP 试玩）
 
-文件：`zestflow-admin/src/main/resources/application-enterprise-e2e.yml`
+文件：
+
+- `zestflow-admin/src/main/resources/application-enterprise-e2e.yml`（E2E 门禁）
+- `zestflow-admin/src/main/resources/application-demo.example.yml`（公网试玩示例，复制为 `application-demo.yml`）
 
 ```yaml
 zestflow:
@@ -88,7 +91,11 @@ zestflow:
     ip-demo-mode: enabled
 ```
 
-启动 Admin：`profiles=local,enterprise-e2e` → `run-enterprise-gate.ps1 -RequireEnterpriseProfile`
+启动 Admin E2E：`profiles=local,enterprise-e2e` → `run-enterprise-gate.ps1 -RequireEnterpriseProfile`
+
+公网试玩：`profiles=local,demo`（**勿与 prod 同开**）。首次访问 IP 自动创建租户并从 `tenant_id=1` 克隆 `demo-app` 的 `playground_scene`。
+
+已有库升级试玩 V1：执行 `db/migration/V3__ip_demo_tenant_constraints.sql`。
 
 ### 4.2 security-e2e（机器鉴权成对）
 
@@ -130,15 +137,15 @@ mvn spring-boot:run -pl zestflow-collector/collector-jdbc -Dspring-boot.run.prof
 
 ---
 
-## 5. enterprise-e2e 种子说明
+## 5. enterprise-e2e / IP 试玩种子说明
 
 种子数据（`initData.sql`）：
 
 - 租户 B `id=2`，admin 绑定 `user_tenant`
-- `tenant_ip_mapping`: `10.0.0.101→2`, `10.0.0.102→1`
+- `tenant_ip_mapping`: `10.0.0.101→2`, `10.0.0.102→1`（E2E 预埋；新 IP 由 `DemoTenantProvisioner` 自动创建）
 - 场景 `SCN20260602000002` 仅 `tenant_id=2`
 
-**注意**：IP 隔离依赖 `mode=multi`（MyBatis-Plus 租户行插件）；仅开 ip-demo 而 single 无效。
+**注意**：IP 隔离依赖 `mode=multi`（MyBatis-Plus 租户行插件）；仅开 ip-demo 而 single 无效。`scene_code` 唯一约束为 `(tenant_id, scene_code)`，见 V3 迁移。
 
 ---
 

@@ -1,6 +1,7 @@
 package com.zestflow.admin.config;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.zestflow.admin.demo.ip.DemoTenantProvisioner;
 import com.zestflow.admin.model.entity.TenantIpMappingPO;
 import com.zestflow.admin.repository.TenantIpMappingMapper;
 import com.zestflow.admin.util.SecurityUtils;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -24,13 +26,14 @@ class TenantIpFilterTest {
 
     @Mock private TenantIpMappingMapper tenantIpMappingMapper;
     @Mock private TenantModeConfig tenantModeConfig;
+    @Mock private ObjectProvider<DemoTenantProvisioner> demoTenantProvisioner;
     @Mock private FilterChain filterChain;
 
     private TenantIpFilter filter;
 
     @BeforeEach
     void setUp() {
-        filter = new TenantIpFilter(tenantIpMappingMapper, tenantModeConfig);
+        filter = new TenantIpFilter(tenantIpMappingMapper, tenantModeConfig, demoTenantProvisioner);
     }
 
     @AfterEach
@@ -88,6 +91,46 @@ class TenantIpFilterTest {
         filter.doFilter(request, new MockHttpServletResponse(), filterChain);
 
         verify(tenantIpMappingMapper, never()).selectOne(any());
+    }
+
+    @Test
+    void enabled_skipsAuthPath() throws Exception {
+        when(tenantModeConfig.getIpDemoMode()).thenReturn("enabled");
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/api/auth/login");
+        request.setRemoteAddr("127.0.0.1");
+
+        filter.doFilter(request, new MockHttpServletResponse(), filterChain);
+
+        verify(tenantIpMappingMapper, never()).selectOne(any());
+        verify(demoTenantProvisioner, never()).getIfAvailable();
+    }
+
+    @Test
+    void enabled_provisionsWhenNoMappingAndMultiMode() throws Exception {
+        when(tenantModeConfig.getIpDemoMode()).thenReturn("enabled");
+        when(tenantModeConfig.getMode()).thenReturn("multi");
+        DemoTenantProvisioner provisionerBean = mock(DemoTenantProvisioner.class);
+        when(demoTenantProvisioner.getIfAvailable()).thenReturn(provisionerBean);
+
+        TenantIpMappingPO created = new TenantIpMappingPO();
+        created.setTenantId(77L);
+        created.setIpAddress("10.0.0.200");
+        when(tenantIpMappingMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
+        when(provisionerBean.resolveOrProvision("10.0.0.200")).thenReturn(created);
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-Forwarded-For", "10.0.0.200");
+
+        doAnswer(inv -> {
+            assertThat(TenantContextHolder.getTenantId()).isEqualTo(77L);
+            return null;
+        }).when(filterChain).doFilter(any(), any());
+
+        filter.doFilter(request, new MockHttpServletResponse(), filterChain);
+
+        verify(provisionerBean).resolveOrProvision("10.0.0.200");
+        verify(tenantIpMappingMapper).updateById(created);
     }
 
 }
