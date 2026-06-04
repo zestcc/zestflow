@@ -2,6 +2,8 @@ package com.zestflow.admin.service.impl;
 
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
+import com.zestflow.admin.registry.InMemoryRegistryLiveStore;
+import com.zestflow.admin.registry.RegistryLiveStore;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import com.zestflow.admin.service.DictTypeService;
 import com.zestflow.common.constant.RegistryConstants;
@@ -31,13 +33,15 @@ class RegistryServiceImplTest {
 
     @Mock private ExecutorRegistryMapper executorRegistryMapper;
     @Mock private DictTypeService dictTypeService;
-    @Captor private ArgumentCaptor<ExecutorRegistryPO> registryCaptor;
 
+    private RegistryLiveStore liveStore;
     private RegistryServiceImpl registryService;
+    @Captor private ArgumentCaptor<ExecutorRegistryPO> registryCaptor;
 
     @BeforeEach
     void setUp() {
-        registryService = new RegistryServiceImpl(executorRegistryMapper, dictTypeService);
+        liveStore = new InMemoryRegistryLiveStore();
+        registryService = new RegistryServiceImpl(executorRegistryMapper, dictTypeService, liveStore);
     }
 
     @Test
@@ -191,19 +195,39 @@ class RegistryServiceImplTest {
     }
 
     @Test
-    void heartbeat() {
+    void register_sameMetadata_isIdempotent() {
         ExecutorRegistryPO existing = new ExecutorRegistryPO();
         existing.setId(1L);
         existing.setExecutorId("executor-1");
+        existing.setExecutorHost("192.168.1.1");
+        existing.setExecutorPort(9999);
+        existing.setAppCode("test-app");
         existing.setStatus(RegistryConstants.STATUS_ONLINE);
         when(executorRegistryMapper.selectOne(any())).thenReturn(existing);
+
+        RegisterDTO dto = new RegisterDTO();
+        dto.setExecutorId("executor-1");
+        dto.setHost("192.168.1.1");
+        dto.setPort(9999);
+        dto.setAppCode("test-app");
+
+        registryService.register(dto, null);
+
+        verify(executorRegistryMapper, never()).updateById(any(ExecutorRegistryPO.class));
+        assertThat(liveStore.isExecutorAlive("executor-1")).isTrue();
+    }
+
+    @Test
+    void heartbeat() {
+        liveStore.seedExecutor("executor-1", System.currentTimeMillis());
 
         HeartbeatDTO dto = new HeartbeatDTO();
         dto.setExecutorId("executor-1");
 
         registryService.heartbeat(dto);
 
-        verify(executorRegistryMapper).updateById(existing);
+        verify(executorRegistryMapper, never()).updateById(any(ExecutorRegistryPO.class));
+        assertThat(liveStore.isExecutorAlive("executor-1")).isTrue();
     }
 
     @Test
@@ -216,6 +240,23 @@ class RegistryServiceImplTest {
         assertThatThrownBy(() -> registryService.heartbeat(dto))
                 .isInstanceOf(BizException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EXECUTOR_NOT_FOUND);
+    }
+
+    @Test
+    void heartbeat_legacyRecordSeedsLiveStore() {
+        ExecutorRegistryPO existing = new ExecutorRegistryPO();
+        existing.setId(1L);
+        existing.setExecutorId("executor-1");
+        existing.setStatus(RegistryConstants.STATUS_ONLINE);
+        when(executorRegistryMapper.selectOne(any())).thenReturn(existing);
+
+        HeartbeatDTO dto = new HeartbeatDTO();
+        dto.setExecutorId("executor-1");
+
+        registryService.heartbeat(dto);
+
+        assertThat(liveStore.isExecutorAlive("executor-1")).isTrue();
+        verify(executorRegistryMapper, never()).updateById(any(ExecutorRegistryPO.class));
     }
 
     @Test

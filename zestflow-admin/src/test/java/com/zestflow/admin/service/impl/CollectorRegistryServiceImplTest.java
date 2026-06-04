@@ -3,6 +3,8 @@ package com.zestflow.admin.service.impl;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.model.entity.CollectorRegistryPO;
 import com.zestflow.admin.model.vo.CollectorRegistryVO;
+import com.zestflow.admin.registry.InMemoryRegistryLiveStore;
+import com.zestflow.admin.registry.RegistryLiveStore;
 import com.zestflow.admin.repository.CollectorRegistryMapper;
 import com.zestflow.admin.service.TenantAppContext;
 import com.zestflow.common.constant.RegistryConstants;
@@ -34,14 +36,18 @@ class CollectorRegistryServiceImplTest {
 
     @Mock private CollectorRegistryMapper collectorRegistryMapper;
     @Mock private TenantAppContext tenantAppContext;
-    @Captor private ArgumentCaptor<CollectorRegistryPO> poCaptor;
 
+    private RegistryLiveStore liveStore;
     private CollectorRegistryServiceImpl collectorRegistryService;
 
     @BeforeEach
     void setUp() {
-        collectorRegistryService = new CollectorRegistryServiceImpl(collectorRegistryMapper, tenantAppContext);
+        liveStore = new InMemoryRegistryLiveStore();
+        collectorRegistryService = new CollectorRegistryServiceImpl(
+                collectorRegistryMapper, tenantAppContext, liveStore);
     }
+
+    @Captor private ArgumentCaptor<CollectorRegistryPO> poCaptor;
 
     // ==================== 注册 ====================
 
@@ -152,21 +158,16 @@ class CollectorRegistryServiceImplTest {
     // ==================== 心跳 ====================
 
     @Test
-    void heartbeat_existingCollector_updatesStatus() {
-        CollectorRegistryPO existing = new CollectorRegistryPO();
-        existing.setId(1L);
-        existing.setCollectorId("collector-1");
-        existing.setStatus(RegistryConstants.STATUS_ONLINE);
-        when(collectorRegistryMapper.selectOne(any())).thenReturn(existing);
+    void heartbeat_existingCollector_updatesLiveStoreOnly() {
+        liveStore.seedCollector("collector-1", System.currentTimeMillis());
 
         HeartbeatDTO dto = new HeartbeatDTO();
         dto.setExecutorId("collector-1");
 
         collectorRegistryService.heartbeat(dto);
 
-        verify(collectorRegistryMapper).updateById(existing);
-        assertThat(existing.getStatus()).isEqualTo(RegistryConstants.STATUS_ONLINE);
-        assertThat(existing.getLastHeartbeat()).isNotNull();
+        verify(collectorRegistryMapper, never()).updateById(any(CollectorRegistryPO.class));
+        assertThat(liveStore.isCollectorAlive("collector-1")).isTrue();
     }
 
     @Test
@@ -284,6 +285,7 @@ class CollectorRegistryServiceImplTest {
     void updateStatus_validStatus_updates() {
         CollectorRegistryPO po = new CollectorRegistryPO();
         po.setId(1L);
+        po.setCollectorId("collector-1");
         po.setStatus(RegistryConstants.STATUS_ONLINE);
         when(collectorRegistryMapper.selectById(1L)).thenReturn(po);
 
@@ -335,6 +337,7 @@ class CollectorRegistryServiceImplTest {
         po.setCollectorHost("192.168.1.1");
         po.setCollectorPort(9998);
         po.setLastHeartbeat(LocalDateTime.now());
+        liveStore.touchCollector("c1");
         when(collectorRegistryMapper.selectList(any())).thenReturn(List.of(po));
 
         List<CollectorRegistryVO> list = collectorRegistryService.listAllOnline();

@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
 import com.zestflow.admin.model.vo.ExecutorRegistryVO;
+import com.zestflow.admin.registry.InMemoryRegistryLiveStore;
+import com.zestflow.admin.registry.RegistryLiveStore;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import com.zestflow.admin.service.TenantAppContext;
 import com.zestflow.common.exception.BizException;
@@ -29,11 +31,14 @@ class ExecutorRegistryServiceImplTest {
     @Mock private ExecutorRegistryMapper executorRegistryMapper;
     @Mock private TenantAppContext tenantAppContext;
 
+    private RegistryLiveStore liveStore;
     private ExecutorRegistryServiceImpl executorRegistryService;
 
     @BeforeEach
     void setUp() {
-        executorRegistryService = new ExecutorRegistryServiceImpl(executorRegistryMapper, tenantAppContext);
+        liveStore = new InMemoryRegistryLiveStore();
+        executorRegistryService = new ExecutorRegistryServiceImpl(
+                executorRegistryMapper, tenantAppContext, liveStore);
     }
 
     @Test

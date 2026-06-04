@@ -12,6 +12,8 @@ import com.zestflow.admin.model.entity.ScheduleLogPO;
 import com.zestflow.admin.model.entity.SchedulePO;
 import com.zestflow.admin.model.vo.ScheduleLogVO;
 import com.zestflow.admin.model.vo.ScheduleVO;
+import com.zestflow.admin.registry.RegistryLiveStore;
+import com.zestflow.admin.registry.RegistryOnlineQuerySupport;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import com.zestflow.admin.repository.ScheduleLogMapper;
 import com.zestflow.admin.repository.ScheduleMapper;
@@ -44,6 +46,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     private final ScheduleMapper scheduleMapper;
     private final ScheduleLogMapper scheduleLogMapper;
     private final ExecutorRegistryMapper executorRegistryMapper;
+    private final RegistryLiveStore liveStore;
     private final ExecutorClient executorClient;
     private final TenantAppContext tenantAppContext;
     private final List<RouteStrategy> routeStrategies;
@@ -251,12 +254,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     List<ExecutorRegistryPO> findOnlineExecutors(String appCode) {
-        LambdaQueryWrapper<ExecutorRegistryPO> wrapper = new LambdaQueryWrapper<ExecutorRegistryPO>()
-                .eq(ExecutorRegistryPO::getStatus, RegistryConstants.STATUS_ONLINE);
-        if (appCode != null && !appCode.isBlank()) {
-            wrapper.eq(ExecutorRegistryPO::getAppCode, appCode);
-        }
-        return executorRegistryMapper.selectList(wrapper);
+        return RegistryOnlineQuerySupport.listLiveOnlineExecutors(executorRegistryMapper, liveStore, appCode);
     }
 
     private RouteStrategy findStrategy(String name) {

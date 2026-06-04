@@ -3,6 +3,7 @@ package com.zestflow.admin.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
+import com.zestflow.admin.registry.RegistryLiveStore;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import com.zestflow.admin.service.DictTypeService;
 import com.zestflow.admin.service.RegistryService;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 @Slf4j
 @Service
@@ -26,10 +28,13 @@ public class RegistryServiceImpl implements RegistryService {
 
     private final ExecutorRegistryMapper executorRegistryMapper;
     private final DictTypeService dictTypeService;
+    private final RegistryLiveStore liveStore;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void register(RegisterDTO dto, Long tenantId) {
+        liveStore.touchExecutor(dto.getExecutorId());
+
         ExecutorRegistryPO existing = findById(dto.getExecutorId());
         if (existing != null) {
             updateExisting(existing, dto);
@@ -43,9 +48,10 @@ public class RegistryServiceImpl implements RegistryService {
                 executorRegistryMapper.deleteById(byAddress.get(i).getId());
             }
             primary.setExecutorId(dto.getExecutorId());
-            updateExisting(primary, dto);
-            log.info("执行器重新注册（按地址合并）executorId={} host={}:{}",
-                    dto.getExecutorId(), dto.getHost(), dto.getPort());
+            if (updateExisting(primary, dto)) {
+                log.info("执行器重新注册（按地址合并）executorId={} host={}:{}",
+                        dto.getExecutorId(), dto.getHost(), dto.getPort());
+            }
             return;
         }
 
@@ -70,16 +76,41 @@ public class RegistryServiceImpl implements RegistryService {
         syncComponentDict(dto);
     }
 
-    private void updateExisting(ExecutorRegistryPO po, RegisterDTO dto) {
+    /** @return {@code true} 表示写入了 DB */
+    private boolean updateExisting(ExecutorRegistryPO po, RegisterDTO dto) {
+        boolean metadataChanged = !Objects.equals(po.getExecutorId(), dto.getExecutorId())
+                || !Objects.equals(po.getExecutorHost(), dto.getHost())
+                || !Objects.equals(po.getExecutorPort(), dto.getPort())
+                || (hasText(dto.getAppName()) && !Objects.equals(po.getAppName(), dto.getAppName()))
+                || (hasText(dto.getAppCode()) && !Objects.equals(po.getAppCode(), dto.getAppCode()));
+        boolean needRevive = !Objects.equals(po.getStatus(), RegistryConstants.STATUS_ONLINE);
+
+        if (!metadataChanged && !needRevive) {
+            log.debug("执行器 register 幂等刷新 executorId={}", dto.getExecutorId());
+            return false;
+        }
+
+        po.setExecutorId(dto.getExecutorId());
         po.setExecutorHost(dto.getHost());
         po.setExecutorPort(dto.getPort());
         po.setStatus(RegistryConstants.STATUS_ONLINE);
         po.setLastHeartbeat(LocalDateTime.now());
-        if (dto.getAppName() != null) po.setAppName(dto.getAppName());
-        if (dto.getAppCode() != null) po.setAppCode(dto.getAppCode());
-        syncComponentDict(dto);
+        if (dto.getAppName() != null) {
+            po.setAppName(dto.getAppName());
+        }
+        if (dto.getAppCode() != null) {
+            po.setAppCode(dto.getAppCode());
+        }
+        if (metadataChanged) {
+            syncComponentDict(dto);
+        }
         executorRegistryMapper.updateById(po);
-        log.info("执行器重新注册 executorId={} host={}:{}", dto.getExecutorId(), dto.getHost(), dto.getPort());
+        if (needRevive) {
+            log.info("执行器恢复在线 executorId={} host={}:{}", dto.getExecutorId(), dto.getHost(), dto.getPort());
+        } else {
+            log.info("执行器元数据更新 executorId={} host={}:{}", dto.getExecutorId(), dto.getHost(), dto.getPort());
+        }
+        return true;
     }
 
     private List<ExecutorRegistryPO> findByAddress(String host, int port, String appCode) {
@@ -101,24 +132,31 @@ public class RegistryServiceImpl implements RegistryService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public void heartbeat(HeartbeatDTO dto) {
-        ExecutorRegistryPO po = findById(dto.getExecutorId());
-        if (po == null) {
-            log.warn("心跳来自未注册执行器 executorId={}", dto.getExecutorId());
-            throw new BizException(ErrorCode.EXECUTOR_NOT_FOUND);
+        String executorId = dto.getExecutorId();
+        if (!liveStore.tracksExecutor(executorId)) {
+            ExecutorRegistryPO po = findById(executorId);
+            if (po == null) {
+                log.warn("心跳来自未注册执行器 executorId={}", executorId);
+                throw new BizException(ErrorCode.EXECUTOR_NOT_FOUND);
+            }
+            if (po.getStatus() == RegistryConstants.STATUS_OFFLINE) {
+                log.warn("心跳来自已下线执行器 executorId={}", executorId);
+                throw new BizException(ErrorCode.EXECUTOR_NOT_FOUND);
+            }
         }
-        po.setStatus(RegistryConstants.STATUS_ONLINE);
-        po.setLastHeartbeat(LocalDateTime.now());
-        executorRegistryMapper.updateById(po);
-        log.debug("执行器心跳 executorId={}", dto.getExecutorId());
+        liveStore.touchExecutor(executorId);
+        log.trace("执行器心跳 executorId={}", executorId);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deregister(String executorId) {
+        liveStore.removeExecutor(executorId);
         ExecutorRegistryPO po = findById(executorId);
-        if (po == null) return;
+        if (po == null) {
+            return;
+        }
         po.setStatus(RegistryConstants.STATUS_OFFLINE);
         po.setLastHeartbeat(LocalDateTime.now());
         executorRegistryMapper.updateById(po);
@@ -135,9 +173,13 @@ public class RegistryServiceImpl implements RegistryService {
         if (status == null || (status != 0 && status != 1 && status != 2)) {
             throw new BizException(ErrorCode.VALIDATION_ERROR);
         }
+        if (status == RegistryConstants.STATUS_ONLINE) {
+            liveStore.touchExecutor(executorId);
+        } else {
+            liveStore.removeExecutor(executorId);
+        }
         po.setStatus(status);
         po.setLastHeartbeat(LocalDateTime.now());
-
         executorRegistryMapper.updateById(po);
         log.info("执行器状态手动变更为 status={} executorId={}", status, executorId);
     }
@@ -148,5 +190,9 @@ public class RegistryServiceImpl implements RegistryService {
                         .eq(ExecutorRegistryPO::getExecutorId, executorId)
                         .last("LIMIT 1")
         );
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isEmpty();
     }
 }

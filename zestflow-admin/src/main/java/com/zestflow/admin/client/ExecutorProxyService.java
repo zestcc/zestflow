@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
+import com.zestflow.admin.registry.RegistryLiveStore;
+import com.zestflow.admin.registry.RegistryOnlineQuerySupport;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -48,6 +50,7 @@ public class ExecutorProxyService {
 
     private final RestTemplate restTemplate;
     private final ExecutorRegistryMapper executorRegistryMapper;
+    private final RegistryLiveStore liveStore;
 
     /** 服务间通信协议（http/https） */
     @Value("${zestflow.admin.protocol:http}")
@@ -396,13 +399,7 @@ public class ExecutorProxyService {
     }
 
     private List<ExecutorRegistryPO> findOnlineExecutors(String appCode) {
-        if (appCode == null || appCode.isBlank()) {
-            return List.of();
-        }
-        return executorRegistryMapper.selectList(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ExecutorRegistryPO>()
-                        .eq(ExecutorRegistryPO::getAppCode, appCode)
-                        .eq(ExecutorRegistryPO::getStatus, 1));
+        return RegistryOnlineQuerySupport.listLiveOnlineExecutors(executorRegistryMapper, liveStore, appCode);
     }
 
     private ExecutorRegistryPO selectPrimary(List<ExecutorRegistryPO> executors) {

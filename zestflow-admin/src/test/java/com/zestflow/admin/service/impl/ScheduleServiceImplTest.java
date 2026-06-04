@@ -12,6 +12,8 @@ import com.zestflow.admin.model.entity.ScheduleLogPO;
 import com.zestflow.admin.model.entity.SchedulePO;
 import com.zestflow.admin.model.vo.ScheduleLogVO;
 import com.zestflow.admin.model.vo.ScheduleVO;
+import com.zestflow.admin.registry.InMemoryRegistryLiveStore;
+import com.zestflow.admin.registry.RegistryLiveStore;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import com.zestflow.admin.repository.ScheduleLogMapper;
 import com.zestflow.admin.repository.ScheduleMapper;
@@ -50,14 +52,16 @@ class ScheduleServiceImplTest {
     @Mock private RouteStrategy routeStrategy;
     @Mock private TenantAppContext tenantAppContext;
 
+    private RegistryLiveStore liveStore;
     private ScheduleServiceImpl scheduleService;
 
     @BeforeEach
     void setUp() {
+        liveStore = new InMemoryRegistryLiveStore();
         when(routeStrategy.name()).thenReturn("round_robin");
         scheduleService = new ScheduleServiceImpl(
                 scheduleMapper, scheduleLogMapper,
-                executorRegistryMapper, executorClient,
+                executorRegistryMapper, liveStore, executorClient,
                 tenantAppContext, List.of(routeStrategy)
         );
     }
@@ -224,6 +228,8 @@ class ScheduleServiceImplTest {
         executor.setExecutorId("e1");
         executor.setExecutorHost("192.168.1.1");
         executor.setExecutorPort(9999);
+        executor.setStatus(RegistryConstants.STATUS_ONLINE);
+        liveStore.touchExecutor("e1");
         when(executorRegistryMapper.selectList(any())).thenReturn(List.of(executor));
         when(routeStrategy.select(anyList(), anyString())).thenReturn(executor);
 
@@ -269,6 +275,8 @@ class ScheduleServiceImplTest {
         executor.setExecutorId("e1");
         executor.setExecutorHost("192.168.1.1");
         executor.setExecutorPort(9999);
+        executor.setStatus(RegistryConstants.STATUS_ONLINE);
+        liveStore.touchExecutor("e1");
         when(executorRegistryMapper.selectList(any())).thenReturn(List.of(executor));
         when(routeStrategy.select(anyList(), anyString())).thenReturn(null);
 

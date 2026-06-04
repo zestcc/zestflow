@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
 import com.zestflow.admin.model.vo.ExecutorRegistryVO;
+import com.zestflow.admin.registry.RegistryLiveStore;
+import com.zestflow.admin.registry.RegistryLiveTimeSupport;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import com.zestflow.admin.service.ExecutorRegistryService;
 import com.zestflow.admin.service.TenantAppContext;
@@ -27,6 +29,7 @@ public class ExecutorRegistryServiceImpl implements ExecutorRegistryService {
 
     private final ExecutorRegistryMapper executorRegistryMapper;
     private final TenantAppContext tenantAppContext;
+    private final RegistryLiveStore liveStore;
 
     @Override
     public List<ExecutorRegistryVO> listAll() {
@@ -63,6 +66,11 @@ public class ExecutorRegistryServiceImpl implements ExecutorRegistryService {
         if (status == null || (status != 0 && status != 1 && status != 2)) {
             throw new BizException(ErrorCode.VALIDATION_ERROR);
         }
+        if (status == RegistryConstants.STATUS_ONLINE) {
+            liveStore.touchExecutor(executorId);
+        } else {
+            liveStore.removeExecutor(executorId);
+        }
         po.setStatus(status);
         po.setLastHeartbeat(java.time.LocalDateTime.now());
         executorRegistryMapper.updateById(po);
@@ -70,11 +78,16 @@ public class ExecutorRegistryServiceImpl implements ExecutorRegistryService {
 
     @Override
     public List<Map<String, String>> listDistinctOnlineApps() {
+        Set<String> aliveIds = liveStore.aliveExecutorIds();
+        if (aliveIds.isEmpty()) {
+            return List.of();
+        }
         List<ExecutorRegistryPO> list = executorRegistryMapper.selectList(
                 new QueryWrapper<ExecutorRegistryPO>()
                         .select("DISTINCT app_code, app_name")
                         .isNotNull("app_code")
                         .eq("status", RegistryConstants.STATUS_ONLINE)
+                        .in("executor_id", aliveIds)
                         .orderByAsc("app_code")
         );
         return list.stream().map(po -> {
@@ -109,10 +122,19 @@ public class ExecutorRegistryServiceImpl implements ExecutorRegistryService {
                 .appName(po.getAppName() != null ? po.getAppName() : po.getAppCode())
                 .executorHost(po.getExecutorHost())
                 .executorPort(po.getExecutorPort())
-                .status(po.getStatus())
-                .lastHeartbeat(po.getLastHeartbeat())
+                .status(resolveDisplayStatus(po))
+                .lastHeartbeat(RegistryLiveTimeSupport.resolveLastHeartbeat(
+                        liveStore, po.getExecutorId(), po.getLastHeartbeat(), true))
                 .updatedBy(po.getUpdatedBy())
                 .createdAt(po.getCreatedAt())
                 .build();
+    }
+
+    private int resolveDisplayStatus(ExecutorRegistryPO po) {
+        if (po.getStatus() == RegistryConstants.STATUS_ONLINE
+                && !liveStore.isExecutorAlive(po.getExecutorId())) {
+            return RegistryConstants.STATUS_ABNORMAL;
+        }
+        return po.getStatus();
     }
 }

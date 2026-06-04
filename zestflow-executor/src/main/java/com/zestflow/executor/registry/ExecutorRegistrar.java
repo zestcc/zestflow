@@ -1,8 +1,10 @@
 package com.zestflow.executor.registry;
 
+import com.zestflow.common.constant.RegistryConstants;
 import com.zestflow.common.model.dto.ComponentDTO;
 import com.zestflow.common.model.dto.HeartbeatDTO;
 import com.zestflow.common.model.dto.RegisterDTO;
+import com.zestflow.common.registry.HeartbeatFailureTracker;
 import com.zestflow.executor.scanner.ComponentScanner;
 import com.zestflow.executor.server.ExecutorServer;
 import jakarta.annotation.PreDestroy;
@@ -32,6 +34,7 @@ public class ExecutorRegistrar implements ApplicationRunner {
 
     private final AtomicBoolean registered = new AtomicBoolean(false);
     private final AtomicInteger retryCount = new AtomicInteger(0);
+    private final HeartbeatFailureTracker heartbeatFailures = new HeartbeatFailureTracker();
     private final ScheduledExecutorService heartbeatScheduler =
             Executors.newSingleThreadScheduledExecutor(r -> {
                 Thread t = new Thread(r, "zestflow-heartbeat");
@@ -61,6 +64,7 @@ public class ExecutorRegistrar implements ApplicationRunner {
         RegisterDTO registerDTO = buildRegisterDTO();
         if (adminClient.register(registerDTO)) {
             registered.set(true);
+            heartbeatFailures.reset();
             log.info("执行器首次注册成功 executorId={}", executorId);
         } else {
             log.warn("执行器首次注册失败，进入退避重试模式 executorId={}", executorId);
@@ -98,8 +102,10 @@ public class ExecutorRegistrar implements ApplicationRunner {
                 sendHeartbeat();
             }
         } catch (Exception e) {
-            log.error("心跳线程异常 executorId={}", executorId, e);
-            registered.set(false);
+            log.warn("心跳线程异常 executorId={} error={}", executorId, e.getMessage());
+            if (markUnregisteredIfHeartbeatExhausted()) {
+                log.warn("心跳连续异常达到阈值，降级为重新注册 executorId={}", executorId);
+            }
         }
         scheduleNext();
     }
@@ -112,6 +118,7 @@ public class ExecutorRegistrar implements ApplicationRunner {
         if (adminClient.register(buildRegisterDTO())) {
             registered.set(true);
             retryCount.set(0);
+            heartbeatFailures.reset();
             log.info("执行器重试注册成功 executorId={}", executorId);
         } else {
             retryCount.incrementAndGet();
@@ -125,17 +132,34 @@ public class ExecutorRegistrar implements ApplicationRunner {
     }
 
     /**
-     * 发送心跳，失败时标记未注册以触发重试
+     * 发送心跳；连续失败达到阈值后才降级为 register（对标 Nacos/xxl-job 瞬时容错）。
      */
     private void sendHeartbeat() {
         HeartbeatDTO dto = HeartbeatDTO.builder()
                 .executorId(executorId)
                 .build();
 
-        if (!adminClient.heartbeat(dto)) {
-            log.warn("心跳发送失败 executorId={}", executorId);
-            registered.set(false);
+        if (adminClient.heartbeat(dto)) {
+            heartbeatFailures.onSuccess();
+            return;
         }
+        if (markUnregisteredIfHeartbeatExhausted()) {
+            log.warn("心跳连续失败达到阈值({})，降级为重新注册 executorId={}",
+                    RegistryConstants.HEARTBEAT_FAILURE_THRESHOLD_BEFORE_REREGISTER, executorId);
+        } else {
+            log.debug("心跳失败({}/{})，下次重试 executorId={}",
+                    heartbeatFailures.consecutiveFailures(),
+                    RegistryConstants.HEARTBEAT_FAILURE_THRESHOLD_BEFORE_REREGISTER, executorId);
+        }
+    }
+
+    private boolean markUnregisteredIfHeartbeatExhausted() {
+        if (!heartbeatFailures.onFailure()) {
+            return false;
+        }
+        registered.set(false);
+        heartbeatFailures.reset();
+        return true;
     }
 
     /**

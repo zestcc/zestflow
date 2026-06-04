@@ -1,6 +1,8 @@
 package com.zestflow.admin.client;
 
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
+import com.zestflow.admin.registry.InMemoryRegistryLiveStore;
+import com.zestflow.admin.registry.RegistryLiveStore;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import com.zestflow.common.constant.RegistryConstants;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,16 +43,29 @@ class RoundRobinDistributionGateTest {
     private ExecutorRegistryMapper executorRegistryMapper;
 
     private ExecutorProxyService proxyService;
+    private RegistryLiveStore liveStore;
 
     @BeforeEach
     void setUp() {
-        proxyService = new ExecutorProxyService(restTemplate, executorRegistryMapper);
+        liveStore = new InMemoryRegistryLiveStore();
+        proxyService = new ExecutorProxyService(restTemplate, executorRegistryMapper, liveStore);
         ReflectionTestUtils.setField(proxyService, "protocol", "http");
 
         List<ExecutorRegistryPO> executors = IntStream.range(0, EXECUTOR_COUNT)
                 .mapToObj(i -> executor("host-" + i, 20550 + i))
                 .toList();
+        executors.forEach(e -> liveStore.touchExecutor(e.getExecutorId()));
         when(executorRegistryMapper.selectList(any())).thenReturn(executors);
+    }
+
+    private static ExecutorRegistryPO executor(String host, int port) {
+        ExecutorRegistryPO po = new ExecutorRegistryPO();
+        po.setExecutorId(host + ":" + port);
+        po.setExecutorHost(host);
+        po.setExecutorPort(port);
+        po.setAppCode("demo-app");
+        po.setStatus(RegistryConstants.STATUS_ONLINE);
+        return po;
     }
 
     @Test
@@ -67,14 +82,5 @@ class RoundRobinDistributionGateTest {
         hits.values().forEach(count -> assertThat(count)
                 .as("each executor should receive ~%d of %d requests", SAMPLES / EXECUTOR_COUNT, SAMPLES)
                 .isBetween(MIN_HITS, MAX_HITS));
-    }
-
-    private static ExecutorRegistryPO executor(String host, int port) {
-        ExecutorRegistryPO po = new ExecutorRegistryPO();
-        po.setExecutorHost(host);
-        po.setExecutorPort(port);
-        po.setAppCode("demo-app");
-        po.setStatus(RegistryConstants.STATUS_ONLINE);
-        return po;
     }
 }

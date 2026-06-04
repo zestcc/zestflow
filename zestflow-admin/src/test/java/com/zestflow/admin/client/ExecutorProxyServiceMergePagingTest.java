@@ -3,6 +3,8 @@ package com.zestflow.admin.client;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
+import com.zestflow.admin.registry.InMemoryRegistryLiveStore;
+import com.zestflow.admin.registry.RegistryLiveStore;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import com.zestflow.common.constant.RegistryConstants;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,10 +37,12 @@ class ExecutorProxyServiceMergePagingTest {
     private ExecutorRegistryMapper executorRegistryMapper;
 
     private ExecutorProxyService proxyService;
+    private RegistryLiveStore liveStore;
 
     @BeforeEach
     void setUp() {
-        proxyService = new ExecutorProxyService(restTemplate, executorRegistryMapper);
+        liveStore = new InMemoryRegistryLiveStore();
+        proxyService = new ExecutorProxyService(restTemplate, executorRegistryMapper, liveStore);
         ReflectionTestUtils.setField(proxyService, "protocol", "http");
     }
 
@@ -46,6 +50,8 @@ class ExecutorProxyServiceMergePagingTest {
     void getFromExecutor_mergesAndSlicesByClientPage() throws Exception {
         ExecutorRegistryPO e1 = executor("exec-a", "host-a", 20550);
         ExecutorRegistryPO e2 = executor("exec-b", "host-b", 20550);
+        liveStore.touchExecutor("exec-a");
+        liveStore.touchExecutor("exec-b");
         when(executorRegistryMapper.selectList(any())).thenReturn(List.of(e1, e2));
 
         when(restTemplate.exchange(eq("http://host-a:20550/api/chains?page=1&size=500"), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
@@ -67,6 +73,8 @@ class ExecutorProxyServiceMergePagingTest {
     void getFromExecutor_mergesSecondPageSlice() throws Exception {
         ExecutorRegistryPO e1 = executor("exec-a", "host-a", 20550);
         ExecutorRegistryPO e2 = executor("exec-b", "host-b", 20550);
+        liveStore.touchExecutor("exec-a");
+        liveStore.touchExecutor("exec-b");
         when(executorRegistryMapper.selectList(any())).thenReturn(List.of(e1, e2));
 
         when(restTemplate.exchange(eq("http://host-a:20550/api/chains?page=1&size=500"), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
@@ -85,6 +93,8 @@ class ExecutorProxyServiceMergePagingTest {
     void getFromExecutor_mergesComponentsByComponentId() throws Exception {
         ExecutorRegistryPO e1 = executor("exec-a", "host-a", 20550);
         ExecutorRegistryPO e2 = executor("exec-b", "host-b", 20550);
+        liveStore.touchExecutor("exec-a");
+        liveStore.touchExecutor("exec-b");
         when(executorRegistryMapper.selectList(any())).thenReturn(List.of(e1, e2));
 
         when(restTemplate.exchange(eq("http://host-a:20550/api/components?page=1&size=500"), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))

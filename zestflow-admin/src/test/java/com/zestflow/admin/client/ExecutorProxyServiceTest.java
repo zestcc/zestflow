@@ -1,6 +1,8 @@
 package com.zestflow.admin.client;
 
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
+import com.zestflow.admin.registry.InMemoryRegistryLiveStore;
+import com.zestflow.admin.registry.RegistryLiveStore;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import com.zestflow.common.constant.RegistryConstants;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,10 +35,12 @@ class ExecutorProxyServiceTest {
     private ExecutorRegistryMapper executorRegistryMapper;
 
     private ExecutorProxyService proxyService;
+    private RegistryLiveStore liveStore;
 
     @BeforeEach
     void setUp() {
-        proxyService = new ExecutorProxyService(restTemplate, executorRegistryMapper);
+        liveStore = new InMemoryRegistryLiveStore();
+        proxyService = new ExecutorProxyService(restTemplate, executorRegistryMapper, liveStore);
         ReflectionTestUtils.setField(proxyService, "protocol", "http");
     }
 
@@ -45,6 +49,9 @@ class ExecutorProxyServiceTest {
         ExecutorRegistryPO e1 = executor("exec-b", "host-b", 20550);
         ExecutorRegistryPO e2 = executor("exec-a", "host-a", 20550);
         ExecutorRegistryPO e3 = executor("exec-c", "host-c", 20550);
+        liveStore.touchExecutor("exec-a");
+        liveStore.touchExecutor("exec-b");
+        liveStore.touchExecutor("exec-c");
         when(executorRegistryMapper.selectList(any())).thenReturn(List.of(e1, e2, e3));
 
         String u1 = proxyService.resolveExecutorBaseUrl("app");
@@ -57,6 +64,7 @@ class ExecutorProxyServiceTest {
     @Test
     void resolveExecutorBaseUrl_singleExecutor_alwaysReturnsSame() {
         ExecutorRegistryPO e1 = executor("exec-a", "host-a", 20550);
+        liveStore.touchExecutor("exec-a");
         when(executorRegistryMapper.selectList(any())).thenReturn(List.of(e1));
 
         String u1 = proxyService.resolveExecutorBaseUrl("app");
@@ -70,8 +78,6 @@ class ExecutorProxyServiceTest {
 
     @Test
     void resolveExecutorBaseUrl_noOnlineExecutors_returnsNull() {
-        when(executorRegistryMapper.selectList(any())).thenReturn(List.of());
-
         String url = proxyService.resolveExecutorBaseUrl("app");
 
         assertThat(url).isNull();
@@ -94,6 +100,7 @@ class ExecutorProxyServiceTest {
     @Test
     void executeOnExecutor_post_shouldAttachAccessTokenHeader() {
         ReflectionTestUtils.setField(proxyService, "executorAccessToken", "exec-secret");
+        liveStore.touchExecutor("exec-a");
         when(executorRegistryMapper.selectList(any())).thenReturn(List.of(executor("exec-a", "host-a", 20550)));
         when(restTemplate.postForObject(any(String.class), any(HttpEntity.class), eq(String.class)))
                 .thenReturn("{\"code\":200}");
@@ -110,6 +117,7 @@ class ExecutorProxyServiceTest {
     @Test
     void executeOnExecutor_get_shouldAttachAccessTokenHeader() throws Exception {
         ReflectionTestUtils.setField(proxyService, "executorAccessToken", "exec-secret");
+        liveStore.touchExecutor("exec-a");
         when(executorRegistryMapper.selectList(any())).thenReturn(List.of(executor("exec-a", "host-a", 20550)));
         when(restTemplate.exchange(any(RequestEntity.class), eq(String.class)))
                 .thenReturn(org.springframework.http.ResponseEntity.ok("{}"));
@@ -128,6 +136,8 @@ class ExecutorProxyServiceTest {
     void executeOnExecutor_post_multiExecutor_callsSingleInstanceOnly() {
         ExecutorRegistryPO e1 = executor("exec-a", "host-a", 20550);
         ExecutorRegistryPO e2 = executor("exec-b", "host-b", 20551);
+        liveStore.touchExecutor("exec-a");
+        liveStore.touchExecutor("exec-b");
         when(executorRegistryMapper.selectList(any())).thenReturn(List.of(e1, e2));
         when(restTemplate.postForObject(any(String.class), any(HttpEntity.class), eq(String.class)))
                 .thenReturn("{\"code\":200}");
@@ -155,6 +165,7 @@ class ExecutorProxyServiceTest {
     @Test
     void executeOnExecutor_returnsXmlBodyUnchanged() {
         ExecutorRegistryPO e1 = executor("exec-a", "host-a", 20550);
+        liveStore.touchExecutor("exec-a");
         when(executorRegistryMapper.selectList(any())).thenReturn(List.of(e1));
         String xml = "<Response><hotel id=\"1\"/></Response>";
         when(restTemplate.postForObject(any(String.class), any(HttpEntity.class), eq(String.class)))

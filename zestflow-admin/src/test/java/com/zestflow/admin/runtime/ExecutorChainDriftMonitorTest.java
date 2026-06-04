@@ -2,6 +2,8 @@ package com.zestflow.admin.runtime;
 
 import com.zestflow.admin.client.ExecutorProxyService;
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
+import com.zestflow.admin.registry.InMemoryRegistryLiveStore;
+import com.zestflow.admin.registry.RegistryLiveStore;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,12 +40,15 @@ class ExecutorChainDriftMonitorTest {
     @Mock
     private RestTemplate restTemplate;
 
+    private RegistryLiveStore liveStore;
+
     private ExecutorChainDriftMonitor monitor;
 
     @BeforeEach
     void setUp() {
+        liveStore = new InMemoryRegistryLiveStore();
         monitor = new ExecutorChainDriftMonitor(
-                executorRegistryMapper, executorProxyService, runtimeStateStore, restTemplate);
+                executorRegistryMapper, liveStore, executorProxyService, runtimeStateStore, restTemplate);
         ReflectionTestUtils.setField(monitor, "protocol", "http");
         when(executorProxyService.executorHeaders()).thenReturn(new HttpHeaders());
         when(runtimeStateStore.getAllChainSync()).thenReturn(Map.of());
@@ -53,6 +58,8 @@ class ExecutorChainDriftMonitorTest {
     void reconcileActiveChains_detectsDriftBetweenExecutors() {
         ExecutorRegistryPO e1 = executor("e1", "127.0.0.1", 20550);
         ExecutorRegistryPO e2 = executor("e2", "127.0.0.1", 20551);
+        liveStore.touchExecutor("e1");
+        liveStore.touchExecutor("e2");
         when(executorRegistryMapper.selectList(any())).thenReturn(List.of(e1, e2));
 
         when(restTemplate.exchange(
@@ -75,6 +82,8 @@ class ExecutorChainDriftMonitorTest {
     void reconcileActiveChains_noDriftWhenSetsMatch() {
         ExecutorRegistryPO e1 = executor("e1", "127.0.0.1", 20550);
         ExecutorRegistryPO e2 = executor("e2", "127.0.0.1", 20551);
+        liveStore.touchExecutor("e1");
+        liveStore.touchExecutor("e2");
         when(executorRegistryMapper.selectList(any())).thenReturn(List.of(e1, e2));
 
         when(restTemplate.exchange(any(String.class), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
@@ -87,6 +96,7 @@ class ExecutorChainDriftMonitorTest {
 
     @Test
     void reconcileActiveChains_skipsWhenOnlyOneExecutorOnline() {
+        liveStore.touchExecutor("e1");
         when(executorRegistryMapper.selectList(any()))
                 .thenReturn(List.of(executor("e1", "127.0.0.1", 20550)));
 
@@ -99,6 +109,8 @@ class ExecutorChainDriftMonitorTest {
     void reconcileActiveChains_treatsFetchFailureAsEmptySet() {
         ExecutorRegistryPO e1 = executor("e1", "127.0.0.1", 20550);
         ExecutorRegistryPO e2 = executor("e2", "127.0.0.1", 20551);
+        liveStore.touchExecutor("e1");
+        liveStore.touchExecutor("e2");
         when(executorRegistryMapper.selectList(any())).thenReturn(List.of(e1, e2));
 
         when(restTemplate.exchange(
@@ -121,6 +133,7 @@ class ExecutorChainDriftMonitorTest {
         po.setExecutorHost(host);
         po.setExecutorPort(port);
         po.setAppCode("demo-app");
+        po.setStatus(com.zestflow.common.constant.RegistryConstants.STATUS_ONLINE);
         return po;
     }
 }

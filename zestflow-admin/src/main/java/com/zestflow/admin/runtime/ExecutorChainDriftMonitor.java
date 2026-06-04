@@ -5,9 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zestflow.admin.client.ExecutorProxyService;
 import com.zestflow.common.model.dto.ChainSyncDTO;
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
+import com.zestflow.admin.registry.RegistryLiveStore;
+import com.zestflow.admin.registry.RegistryOnlineQuerySupport;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
-import com.zestflow.common.constant.RegistryConstants;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,6 +38,7 @@ public class ExecutorChainDriftMonitor {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final ExecutorRegistryMapper executorRegistryMapper;
+    private final RegistryLiveStore liveStore;
     private final ExecutorProxyService executorProxyService;
     private final AdminRuntimeStateStore runtimeStateStore;
     private final RestTemplate restTemplate;
@@ -49,9 +50,8 @@ public class ExecutorChainDriftMonitor {
 
     @Scheduled(fixedDelayString = "${zestflow.admin.reconcile.interval-ms:120000}")
     public void reconcileActiveChains() {
-        List<ExecutorRegistryPO> online = executorRegistryMapper.selectList(
-                new LambdaQueryWrapper<ExecutorRegistryPO>()
-                        .eq(ExecutorRegistryPO::getStatus, RegistryConstants.STATUS_ONLINE));
+        List<ExecutorRegistryPO> online = RegistryOnlineQuerySupport.listLiveOnlineExecutors(
+                executorRegistryMapper, liveStore, null);
         if (online.size() < 2) {
             lastSnapshot = DriftSnapshot.clean();
             return;
