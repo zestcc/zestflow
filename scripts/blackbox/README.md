@@ -25,7 +25,7 @@
 ## 运行前提
 
 1. `JAVA_HOME=D:\IT\JDK17\jdk-17.0.19+10`（需指向含 `bin\java.exe` 的 JDK 根目录）
-2. 已启动 `zestflow-admin`（8080）与 `zestflow-executor-test`（Netty 20550、Collector 20650）
+2. 已启动 `zestflow-admin`（8080）与 `zestflow-demo`（Netty 20550、Collector 20650）
 3. MySQL 与 `application-local.yml` 已配置；种子已灌：`scripts/seed/Apply-DemoSeed.ps1`
 
 ```powershell

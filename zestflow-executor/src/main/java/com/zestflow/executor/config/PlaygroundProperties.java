@@ -13,7 +13,7 @@ import java.util.List;
 @ConfigurationProperties(prefix = "zestflow.playground")
 public class PlaygroundProperties {
 
-    /** 控制器扫描包范围（空则不限制），如 ["com.zestflow.test.controller"] */
+    /** 控制器扫描包范围（空则不限制），如 ["com.zestflow.demo.controller"] */
     private List<String> scanPackages = Collections.emptyList();
 
     /**

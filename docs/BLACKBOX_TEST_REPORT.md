@@ -21,7 +21,7 @@
                       ├──▶ Executor Netty :20550 (链/设计/业务 API 转发)
                       └──▶ Collector Netty :20650 (日志查询)
 
-executor-test 进程内：
+zestflow-demo 进程内：
   Tomcat 127.0.0.1:8081（仅本机，演示 Controller）
   Netty 0.0.0.0:20550（对外通道）
 ```
@@ -31,7 +31,7 @@ executor-test 进程内：
 | 组件 | 启动方式 | 状态（测试时） |
 |------|----------|----------------|
 | `zestflow-admin` | `mvn spring-boot:run -pl zestflow-admin` | 已启动 |
-| `zestflow-executor-test` | `mvn spring-boot:run -pl zestflow-executor-test` | 已启动 |
+| `zestflow-demo` | `mvn spring-boot:run -pl zestflow-demo` | 已启动 |
 | MySQL | `application-local.yml` | 依赖本地库 |
 | `JAVA_HOME` | `D:\IT\JAVA\JAVA17`（勿使用 `...\JDK` 错误路径） | 必须正确 |
 
@@ -43,7 +43,7 @@ executor-test 进程内：
 | `zestflow.admin.registry-token` | 空（开发放行） | **必须设置** |
 | `zestflow.admin.executor-access-token` | 空 | 与 Executor 一致 |
 | `zestflow.executor.access-token` | 空 | **必须设置** |
-| `server.address`（executor-test） | `127.0.0.1:8081` | 保持不对外 |
+| `server.address`（zestflow-demo） | `127.0.0.1:8081` | 保持不对外 |
 
 ---
 
@@ -345,10 +345,10 @@ sequenceDiagram
 # 1. 安装依赖
 cd d:\WORK\Project\zestflow
 $env:JAVA_HOME = "D:\IT\JAVA\JAVA17"
-mvn install -pl zestflow-executor-test -am -DskipTests
+mvn install -pl zestflow-demo -am -DskipTests
 
 # 2. 启动服务（两个终端）
-mvn spring-boot:run -pl zestflow-executor-test -DskipTests
+mvn spring-boot:run -pl zestflow-demo -DskipTests
 mvn spring-boot:run -pl zestflow-admin -DskipTests
 
 # 3. 黑盒探测

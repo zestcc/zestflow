@@ -84,7 +84,7 @@ if ((Get-Content $settings -Raw) -notmatch '<id>central</id>') {
 Write-Host "JAVA_HOME=$env:JAVA_HOME" -ForegroundColor Cyan
 Write-Host "GPG=$gpg" -ForegroundColor Cyan
 Write-Host "`n>>> mvn clean deploy -Prelease -DskipTests" -ForegroundColor Green
-Write-Host "发布 9 个 artifact（admin / executor-test 已 skip deploy）`n" -ForegroundColor Gray
+Write-Host "发布 9 个 artifact（admin / zestflow-demo 已 skip deploy）`n" -ForegroundColor Gray
 
 mvn clean deploy -Prelease -DskipTests
 

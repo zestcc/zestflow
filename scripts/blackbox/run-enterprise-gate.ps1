@@ -51,7 +51,7 @@ if (-not $SkipMavenTest) {
     $env:JAVA_HOME = $JavaHome
     $env:Path = "$JavaHome\bin;" + $env:Path
     Push-Location $Root
-    $modules = @("zestflow-common", "zestflow-executor", "zestflow-executor-test", "zestflow-collector/collector-jdbc", "zestflow-admin")
+    $modules = @("zestflow-common", "zestflow-executor", "zestflow-demo", "zestflow-collector/collector-jdbc", "zestflow-admin")
     foreach ($m in $modules) {
         Write-Host "mvn test -pl $m -am ..." -ForegroundColor DarkGray
         & mvn -q test -pl $m -am 2>&1 | Out-Host

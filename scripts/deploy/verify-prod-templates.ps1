@@ -38,7 +38,7 @@ if (-not (Test-ProdFile "zestflow-admin\src\main\resources\application-prod.exam
         'enabled: true'
     ))) { $failed = $true }
 
-if (-not (Test-ProdFile "zestflow-executor-test\src\main\resources\application-prod.example.yml" @(
+if (-not (Test-ProdFile "zestflow-demo\src\main\resources\application-prod.example.yml" @(
         'admin123',
         'execute-endpoint-enabled: true'
     ) @(

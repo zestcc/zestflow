@@ -76,7 +76,7 @@ class NettyMvcDispatcherTest {
                 .thenReturn(new HandlerExecutionChain(handlerMethod));
 
         NettyMvcDispatcher dispatcher = new NettyMvcDispatcher(
-                mapping, adapter, List.of("com.zestflow.test.controller"));
+                mapping, adapter, List.of("com.zestflow.demo.controller"));
 
         NettyMvcDispatcher.DispatchResult result =
                 dispatcher.dispatch("POST", "/api/orders/demo", "{}");

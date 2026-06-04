@@ -74,12 +74,12 @@ java -jar zestflow-admin\target\zestflow-admin-0.1.0.jar --spring.profiles.activ
 ### 2.4 业务应用（Executor + Collector 嵌入式）
 
 ```powershell
-copy zestflow-executor-test\src\main\resources\application-prod.example.yml `
-     zestflow-executor-test\src\main\resources\application-prod.yml
+copy zestflow-demo\src\main\resources\application-prod.example.yml `
+     zestflow-demo\src\main\resources\application-prod.yml
 # registry-token / access-token 与 Admin 成对一致
 
-mvn package -pl zestflow-executor-test -DskipTests
-java -jar zestflow-executor-test\target\zestflow-executor-test-0.1.0.jar --spring.profiles.active=prod
+mvn package -pl zestflow-demo -DskipTests
+java -jar zestflow-demo\target\zestflow-demo-0.1.0.jar --spring.profiles.active=prod
 ```
 
 ### 2.5 反向代理（Nginx 示例）

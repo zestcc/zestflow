@@ -10,7 +10,7 @@
 | 承诺 | 可达成 | 说明 |
 |------|--------|------|
 | 主链路 demo 全场景 E2E 全绿 | ✅ | `run-full-e2e.ps1 -E2eProfile fullGreen`，38 场景含 75 步 |
-| 单元测试全模块通过 | ✅ | `run-enterprise-gate.ps1` 跑 common / executor / executor-test / collector-jdbc / admin |
+| 单元测试全模块通过 | ✅ | `run-enterprise-gate.ps1` 跑 common / executor / zestflow-demo / collector-jdbc / admin |
 | 多租户 JWT 切换隔离 | ✅ | 需 `enterprise-e2e` profile + `run-tenant-multi-e2e.ps1` |
 | IP 演示租户隔离 | ✅ | 同上 profile + `run-ip-demo-e2e.ps1`（已修复 IP 匿名无法看场景） |
 | 绝对 0 bug | ❌ | 任何系统都无法数学证明；用门禁 + 分层 E2E 逼近 |
@@ -22,7 +22,7 @@
 
 ```text
 Layer A  单元测试（CI 必过）
-         mvn test -pl zestflow-admin,zestflow-executor,zestflow-executor-test,collector-jdbc -am
+         mvn test -pl zestflow-admin,zestflow-executor,zestflow-demo,collector-jdbc -am
 
 Layer B  默认运行时黑盒（单租户 single + demo 全场景）
          run-full-e2e.ps1 -E2eProfile fullGreen
@@ -95,7 +95,7 @@ zestflow:
 文件：
 
 - `zestflow-admin/src/main/resources/application-security-e2e.yml`
-- `zestflow-executor-test/src/main/resources/application-security-e2e.yml`
+- `zestflow-demo/src/main/resources/application-security-e2e.yml`
 
 ```yaml
 # Admin
@@ -118,7 +118,7 @@ zestflow.collector.access-token: e2e-security-collector-token
 mvn spring-boot:run -pl zestflow-admin -Dspring-boot.run.profiles=local,security-e2e
 
 # Executor
-mvn spring-boot:run -pl zestflow-executor-test -Dspring-boot.run.profiles=local,security-e2e
+mvn spring-boot:run -pl zestflow-demo -Dspring-boot.run.profiles=local,security-e2e
 
 # Collector JDBC
 mvn spring-boot:run -pl zestflow-collector/collector-jdbc -Dspring-boot.run.profiles=local,security-e2e
@@ -181,7 +181,7 @@ mvn spring-boot:run -pl zestflow-collector/collector-jdbc -Dspring-boot.run.prof
 
 **发布 artifact（9 个）：** `zestflow`、`zestflow-common`、`zestflow-executor`、`zestflow-starter`、`zestflow-collector`、`collector-core`、`collector-jdbc`、`collector-kafka`、`collector-rabbitmq`
 
-**不发布：** `zestflow-admin`、`zestflow-executor-test`（`maven-deploy-plugin skip=true`）
+**不发布：** `zestflow-admin`、`zestflow-demo`（`maven-deploy-plugin skip=true`）
 
 ### 已完成（代码侧）
 

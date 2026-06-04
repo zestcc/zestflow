@@ -31,7 +31,7 @@ function Write-PerfReport {
         exitCode = $script:exitCode
         policyFile = $PolicyFile
         phases = $phases
-        hint = "mvn test -pl zestflow-executor,zestflow-executor-test -am -Pperf"
+        hint = "mvn test -pl zestflow-executor,zestflow-demo -am -Pperf"
     }
     Set-Content -Path $ReportJson -Value ($report | ConvertTo-Json -Depth 8) -Encoding UTF8
     Write-Host "Perf gate report: $ReportJson" -ForegroundColor Cyan
@@ -61,8 +61,8 @@ if ($engineExit -ne 0) {
 }
 
 if (-not $SkipHttpPerf) {
-    Write-Host "mvn test -pl zestflow-executor-test -am -Pperf (ConcurrentStressTest) ..." -ForegroundColor DarkGray
-    & mvn -q test -pl zestflow-executor-test -am -Pperf
+    Write-Host "mvn test -pl zestflow-demo -am -Pperf (ConcurrentStressTest) ..." -ForegroundColor DarkGray
+    & mvn -q test -pl zestflow-demo -am -Pperf
     $httpExit = $LASTEXITCODE
     Add-Phase "http-concurrent-perf" ($httpExit -eq 0) "exit=$httpExit" $null
     if ($httpExit -ne 0) {

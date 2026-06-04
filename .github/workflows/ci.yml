@@ -39,8 +39,8 @@ jobs:
       - name: Test zestflow-executor
         run: mvn -B test -pl zestflow-executor -am
 
-      - name: Test zestflow-executor-test
-        run: mvn -B test -pl zestflow-executor-test -am
+      - name: Test zestflow-demo
+        run: mvn -B test -pl zestflow-demo -am
 
       - name: Test collector-jdbc
         run: mvn -B test -pl zestflow-collector/collector-jdbc -am

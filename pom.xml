@@ -47,7 +47,7 @@
         <module>zestflow-collector</module>
         <module>zestflow-starter</module>
         <module>zestflow-admin</module>
-        <module>zestflow-executor-test</module>
+        <module>zestflow-demo</module>
     </modules>
 
     <properties>

@@ -1,0 +1,52 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: demo-app
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+  # 主数据源 — 业务数据库（H2 内存模式）
+  datasource:
+    url: jdbc:h2:mem:test_business;DB_CLOSE_DELAY=-1;MODE=MySQL
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+  # 禁用 Flyway
+  flyway:
+    enabled: false
+  # H2 web console
+  h2:
+    console:
+      enabled: true
+
+# 数据源配置
+zestflow:
+  executor:
+    datasource:
+      url: jdbc:h2:mem:test_business;DB_CLOSE_DELAY=-1;MODE=MySQL
+      username: sa
+      password:
+      driver-class-name: org.h2.Driver
+    admin-addresses:
+    module-code: demo-app
+    host: localhost
+    port: 0
+    execute-endpoint-enabled: false
+    execute-pool-queue-capacity: 64
+    event:
+      queue-capacity: 8192
+      batch-size: 200
+      batch-max-wait-ms: 200
+  collector:
+    netty-enabled: false
+    datasource:
+      url: jdbc:h2:mem:test_log;DB_CLOSE_DELAY=-1;MODE=MySQL
+      username: sa
+      password:
+      driver-class-name: org.h2.Driver

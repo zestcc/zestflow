@@ -18,7 +18,7 @@
   - [5.4 zestflow-starter](#54-zestflow-starter)
   - [5.5 zestflow-admin](#55-zestflow-admin)
   - [5.6 zestflow-admin-ui](#56-zestflow-admin-ui)
-  - [5.7 zestflow-executor-test](#57-zestflow-executor-test)
+  - [5.7 zestflow-demo](#57-zestflow-demo)
 - [6. 核心业务流程](#6-核心业务流程)
 - [7. 数据架构](#7-数据架构)
 - [8. 通信协议与 API 矩阵](#8-通信协议与-api-矩阵)
@@ -202,7 +202,7 @@ graph TB
         COLL["zestflow-collector<br/>采集器聚合"]
         START["zestflow-starter<br/>一键引入"]
         ADMIN["zestflow-admin<br/>管理 Hub"]
-        TEST["zestflow-executor-test<br/>演示/集成测试"]
+        TEST["zestflow-demo<br/>演示/集成测试"]
     end
 
     subgraph CollectorModules["collector 子模块"]
@@ -246,7 +246,7 @@ graph TB
 | RabbitMQ 采集 | `collector-rabbitmq` | 可选 | RabbitMQ 事件投递 |
 | 启动器 | `zestflow-starter` | jar | executor + collector-jdbc 聚合 |
 | 管理端 | `zestflow-admin` | 独立 jar | Hub + SPA + 调度 + 注册 |
-| 演示应用 | `zestflow-executor-test` | 独立 jar | 端到端演示与测试 |
+| 演示应用 | `zestflow-demo` | 独立 jar | 端到端演示与测试 |
 
 ### 4.2 依赖约束（强制）
 
@@ -1100,13 +1100,13 @@ flowchart LR
 
 ---
 
-### 5.7 zestflow-executor-test
+### 5.7 zestflow-demo
 
 > **定位**：端到端演示应用，模拟业务方集成。
 
 ```mermaid
 graph TB
-    TA[TestApplication :8081]
+    TA[DemoApplication :8081]
     TA --> STARTER[zestflow-starter]
     TA --> DEMO["@ZestComponent 演示<br/>OrderHandler / PaymentHandler ..."]
     TA --> CTRL["Demo Controllers<br/>OrderController / WorkflowController"]
@@ -1549,9 +1549,9 @@ flowchart TD
 修改 `zestflow.executor.*` 须同步：
 
 - `zestflow-executor/src/main/resources/application.yml`
-- `zestflow-executor-test/src/main/resources/application.yml`
-- `zestflow-executor-test/src/main/resources/application-prod.example.yml`
-- `zestflow-executor-test/src/test/resources/application-test.yml`
+- `zestflow-demo/src/main/resources/application.yml`
+- `zestflow-demo/src/main/resources/application-prod.example.yml`
+- `zestflow-demo/src/test/resources/application-test.yml`
 
 修改 `zestflow.admin.*` 须同步：
 
@@ -1653,7 +1653,7 @@ graph LR
 | executor | ~15 | Engine、DAG、NodeRunner、Retry |
 | collector-jdbc | 4 | Netty 路由 32 用例、查询 20 用例 |
 | admin | ~20 | Registry、Proxy、Schedule |
-| executor-test | 3 | E2E 10 场景、并发压测 |
+| zestflow-demo | 3 | E2E 10 场景、并发压测 |
 
 ---
 
@@ -1748,9 +1748,9 @@ collector.jdbc.collector / collector.jdbc.server / collector.spi
 
 # 2. 编译
 mvn install -pl zestflow-executor -am -DskipTests
-mvn package -pl zestflow-executor-test -am -DskipTests
+mvn package -pl zestflow-demo -am -DskipTests
 
-# 3. 启动 Admin (:8080) + TestApplication (:8081)
+# 3. 启动 Admin (:8080) + DemoApplication (:8081)
 
 # 4. 前端开发
 cd zestflow-admin-ui && pnpm dev    # :8001

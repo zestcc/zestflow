@@ -13,7 +13,7 @@
 
 ## 1. 测试目标
 
-在**真实运行进程**（Admin + executor-test + Collector）上验证：
+在**真实运行进程**（Admin + zestflow-demo + Collector）上验证：
 
 1. **主链路**：登录 → 各管理模块 API → Executor Netty 健康/业务 API → Collector 健康 → 日志查询  
 2. **试验场**：38 个场景批量 `execute`（Admin → Executor Netty → 链或 MVC 转发，**禁止直连 Tomcat 8081**）  
@@ -30,7 +30,7 @@
                     ├──▶ Executor Netty :20550（链 /api/* 转发）
                     └──▶ Collector :20650（日志）
 
-executor-test：
+zestflow-demo：
   Tomcat 127.0.0.1:8081（仅本机，不对 Admin 暴露）
   Netty 0.0.0.0:20550（对外唯一执行通道）
 ```
@@ -39,7 +39,7 @@ executor-test：
 |----|------|
 | `JAVA_HOME` | `D:\IT\JAVA\JAVA17`（勿指向 `...\JDK` 子目录） |
 | Admin | `mvn spring-boot:run -pl zestflow-admin` |
-| Executor 测试应用 | `mvn spring-boot:run -pl zestflow-executor-test` |
+| Executor 测试应用 | `mvn spring-boot:run -pl zestflow-demo` |
 | MySQL | `application-local.yml`（勿提交密码） |
 
 ### 一键执行全流程
@@ -153,7 +153,7 @@ zestflow:
     executor-access-token: "e2e-exec-secret"
 ```
 
-executor-test：
+zestflow-demo：
 
 ```yaml
 zestflow:

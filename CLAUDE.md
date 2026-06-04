@@ -77,6 +77,7 @@ zestflow/
 │   └── collector-rabbitmq              采集器默认实现 — RabbitMQ
 ├── zestflow-starter                    一键引入包（executor + collector-jdbc，无代码只聚合）
 ├── zestflow-admin                      Admin 管理端（Spring Boot，独立部署）
+├── zestflow-demo                       演示应用（独立 jar，E2E/试验场/集成测试）
 └── zestflow-admin-ui                   前端管理界面（无 pom.xml，独立 npm 构建）
 ```
 
@@ -568,9 +569,9 @@ log.error("链执行失败 chainId={} nodeId={}", chainId, nodeId, e);
 新增或修改 `zestflow.executor.*` 配置属性时，必须同步到以下所有配置文件，保持属性名、注释风格一致：
 
 - **`zestflow-executor/src/main/resources/application.yml`** — executor 模块默认配置（含所有属性的完整注释）
-- **`zestflow-executor-test/src/main/resources/application.yml`** — test 模块主配置
-- **`zestflow-executor-test/src/main/resources/application-prod.example.yml`** — 生产部署模板（显式设值，不依赖默认值）
-- **`zestflow-executor-test/src/test/resources/application-test.yml`** — 单元测试配置
+- **`zestflow-demo/src/main/resources/application.yml`** — demo 模块主配置
+- **`zestflow-demo/src/main/resources/application-prod.example.yml`** — 生产部署模板（显式设值，不依赖默认值）
+- **`zestflow-demo/src/test/resources/application-test.yml`** — 单元测试配置
 
 新增或修改 `zestflow.admin.*` 配置属性时，必须同步到以下配置文件：
 
@@ -718,9 +719,9 @@ log.error("链执行失败 chainId={} nodeId={}", chainId, nodeId, e);
   - IdleStateHandler 超时自动关闭空闲连接
   - `@Bean(initMethod = "start", destroyMethod = "stop")` 生命周期管理
 
-**测试模块（`zestflow-executor-test`）：**
+**演示模块（`zestflow-demo`）：**
 - 独立 Spring Boot 应用，模拟业务方引入 executor
-- 端口 8081，自动注册到 Admin（`spring.application.name=test-executor` 作为 moduleCode）
+- 端口 8081，自动注册到 Admin（`spring.application.name=demo-app` 作为 moduleCode）
 - `application.yml` 极简配置：仅 `admin-addresses` + `heartbeat-interval`
 
 **变更文件：**
@@ -735,7 +736,7 @@ log.error("链执行失败 chainId={} nodeId={}", chainId, nodeId, e);
   - `registry/AdminClient.java`、`ExecutorAutoConfig.java`、`ExecutorProperties.java`、`ExecutorRegistrar.java`
   - `server/ExecutorServer.java`（Netty）、`ServerHandler.java`
   - `META-INF/spring/...AutoConfiguration.imports`
-- 新增：`zestflow-executor-test/**`（测试项目）
+- 新增：`zestflow-demo/**`（演示项目）
 - 修改：`init.sql`（三态注释，去 `retry_count`）、`AdminApplication`（@EnableScheduling）、`SecurityConfig`（放行 registry）
 - 修改：`ExecutorRegistryPO/VO`（去 `retryCount`）、`ModulePO/VO/DTO`（去 `retryCount/retryInterval`）
 - 修改：各 Service 层、前端类型定义和 UI
@@ -975,7 +976,7 @@ zestflow:
 | 2026-06 | 连线标签文字样式修复：使用 `defaultLabel` + `text` 选择器，`#303133` 深色 + 白色描边抗锯齿 |
 | 2026-06 | Collector Netty 独立服务器搭建（CollectorServer + CollectorServerHandler），采集器注册到 Admin 独立表 collector_registry，端口 20650 |
 | 2026-06 | 修复 CollectorServerHandler 路由匹配 bug：`String.split("/")` 数组首元素为空串，6 个路由的 `parts.length` 判断偏小 1，导致所有 Collector API 返回 404，Admin 日志页无数据 |
-| 2026-06 | 修复 executor-test `application.yml` collector.registry.port 缩进错误（`registry:` 被缩在 `zestflow` 下而非 `zestflow.collector` 下），导致注册端口取 server.port(8081) 而非 20650 |
+| 2026-06 | 修复 zestflow-demo `application.yml` collector.registry.port 缩进错误（`registry:` 被缩在 `zestflow` 下而非 `zestflow.collector` 下），导致注册端口取 server.port(8081) 而非 20650 |
 | 2026-06 | Admin `application.yml` 新增 `zestflow.collector.api-url: http://localhost:20650` 兜底配置，采集器未注册时可用 |
 | 2026-06 | 编写 CollectorServerHandlerTest（32 用例覆盖 8 路由 + Token 校验 + 错误处理）和 JdbcEventQueryServiceTest（20 用例覆盖 7 查询方法 + 边界条件）|
 
@@ -1022,7 +1023,7 @@ OfflineMonitor 新增 `cleanupStaleAbnormal()`，每 30min 扫描并删除 ABNOR
 
 **代码已全部提交，新机器 clone/pull 后需要做的：**
 1. 数据库迁移：`ALTER TABLE zestflow_app_log.chain_event ADD COLUMN app_code VARCHAR(64) DEFAULT NULL COMMENT '应用编码' AFTER executor_id;`
-2. 编译安装：`mvn install -pl zestflow-executor -am -DskipTests && mvn package -pl zestflow-executor-test -am -DskipTests`
+2. 编译安装：`mvn install -pl zestflow-executor -am -DskipTests && mvn package -pl zestflow-demo -am -DskipTests`
 3. 启动 Admin + 测试应用（端口 8081）
 4. 验证：POST `/api/orders/handleApplyAfterSale` → 检查 chain_event 表数据（app_code 非空、params/result 有值、cost_ms > 0、executor_id 为编码非 null@null）
 

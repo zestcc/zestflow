@@ -12,7 +12,7 @@
 | GPG 公钥 | keyserver 已上传；Key ID `5B28B71AF1128C97`；UID `zestflow <zestcc@126.com>` |
 | 版本 | 全模块 `0.1.0` |
 | 发布插件 | `central-publishing-maven-plugin` 0.10.0（OSSRH 已下线，不用 nexus-staging） |
-| 不发布模块 | `zestflow-admin`、`zestflow-executor-test`（deploy skip） |
+| 不发布模块 | `zestflow-admin`、`zestflow-demo`（deploy skip） |
 | developer | `zestflow` / `zestcc@126.com` |
 | release 验证 | `scripts/maven/verify-release.ps1` 已通过（JDK 17） |
 | 脚本 | `scripts/maven/verify-release.ps1`、`scripts/maven/publish-central.ps1` |

@@ -2,7 +2,7 @@
 """Generate *Results.java holder classes for demo components."""
 from pathlib import Path
 
-BASE = Path(__file__).resolve().parents[1] / "zestflow-executor-test/src/main/java/com/zestflow/test/component/model"
+BASE = Path(__file__).resolve().parents[1] / "zestflow-demo/src/main/java/com/zestflow/test/component/model"
 
 DOMAINS = {
     "audit": [
@@ -124,7 +124,7 @@ def write_results(domain: str, records: list) -> None:
     elif domain == "logistics":
         cls = "LogisticsResults"
     lines = [
-        f"package com.zestflow.test.component.model.{domain};",
+        f"package com.zestflow.demo.component.model.{domain};",
         "",
         f"/** {domain} 域元件返回值。 */",
         f"public final class {cls} {{",
