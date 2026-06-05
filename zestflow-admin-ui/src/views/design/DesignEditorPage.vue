@@ -1359,37 +1359,29 @@ function updateNodeVisual(node: Node) {
   node.attr('label/text', data.label || typeLabel(nt))
 }
 
-/** 加载后修正连线：同列/同行短距用直线，避免 manhattan 在近距离绕圈 */
+/** 加载后仅做旧数据兼容：orth→manhattan；尊重已保存的折线/曲线/直线样式 */
 function normalizeLoadedEdges() {
   if (!graph) return
-  const COL_THRESHOLD = 48
-  const ROW_THRESHOLD = 36
   graph.getEdges().forEach(e => {
-    const src = e.getSourceNode()
-    const tgt = e.getTargetNode()
-    if (!src || !tgt) return
-    const sb = src.getBBox()
-    const tb = tgt.getBBox()
-    const srcCx = sb.x + sb.width / 2
-    const tgtCx = tb.x + tb.width / 2
-    const srcCy = sb.y + sb.height / 2
-    const tgtCy = tb.y + tb.height / 2
-    const dx = Math.abs(srcCx - tgtCx)
-    const dy = tgtCy - srcCy
-    if (dx <= COL_THRESHOLD && dy > 0 && dy < 400) {
-      e.setRouter({ name: 'normal' })
-      e.setConnector({ name: 'normal' })
-      return
-    }
-    if (Math.abs(dy) <= ROW_THRESHOLD && tb.x > sb.x + sb.width * 0.3) {
-      e.setRouter({ name: 'normal' })
-      e.setConnector({ name: 'normal' })
+    const savedStyle = e.getData()?.edgeStyle as 'straight' | 'polyline' | 'curve' | undefined
+    if (savedStyle) {
+      applyEdgeStyleToEdge(e, savedStyle)
       return
     }
     const r = e.getRouter()
+    const c = e.getConnector()
+    if (r?.name === 'manhattan' || (r?.name === 'normal' && (c?.name === 'rounded' || c?.name === 'smooth' || c?.name === 'normal'))) {
+      if (r?.name === 'orth') {
+        e.setRouter({ name: 'manhattan', args: { padding: { top: 15, bottom: 15, left: 15, right: 15 }, step: 10 } })
+        e.setConnector('rounded')
+        e.setData({ ...(e.getData() || {}), edgeStyle: 'polyline' })
+      }
+      return
+    }
     if (r?.name === 'orth') {
       e.setRouter({ name: 'manhattan', args: { padding: { top: 15, bottom: 15, left: 15, right: 15 }, step: 10 } })
       e.setConnector('rounded')
+      e.setData({ ...(e.getData() || {}), edgeStyle: 'polyline' })
     }
   })
 }
@@ -1680,9 +1672,30 @@ function onEdgeLabelChange(val: string) {
 function onEdgeStyleChange(style: 'straight' | 'polyline' | 'curve') {
   if (!selectedCell || !selectedCell.isEdge()) return
   const edge = selectedCell as Edge
+  applyEdgeStyleToEdge(edge, style)
+}
+
+function applyEdgeStyleToEdge(edge: Edge, style: 'straight' | 'polyline' | 'curve') {
   const isPolyline = style === 'polyline'
   edge.setRouter(isPolyline ? { name: 'manhattan', args: { padding: { top: 15, bottom: 15, left: 15, right: 15 }, step: 10 } } : { name: 'normal' })
   edge.setConnector(style === 'straight' ? 'normal' : isPolyline ? 'rounded' : 'smooth')
+  edge.setData({ ...(edge.getData() || {}), edgeStyle: style })
+}
+
+function inferEdgeStyle(edge: Edge): 'straight' | 'polyline' | 'curve' {
+  const saved = edge.getData()?.edgeStyle
+  if (saved === 'straight' || saved === 'polyline' || saved === 'curve') return saved
+  const r = edge.getRouter()
+  const c = edge.getConnector()
+  if (r?.name === 'manhattan' || r?.name === 'orth') return 'polyline'
+  if (r?.name === 'normal' && c?.name === 'smooth') return 'curve'
+  return 'straight'
+}
+
+function ensureEdgeStylesPersisted() {
+  graph?.getEdges().forEach(e => {
+    applyEdgeStyleToEdge(e, inferEdgeStyle(e))
+  })
 }
 
 function onDefaultEdgeStyleChange(style: 'straight' | 'polyline' | 'curve') {
@@ -2375,6 +2388,7 @@ async function handleSave() {
 
   saving.value = true
   try {
+    ensureEdgeStylesPersisted()
     const json = graph.toJSON()
     const chain = translateGraphToChain()
     await designApi.saveGraph(designCode, appCode, JSON.stringify(json), JSON.stringify(chain))
