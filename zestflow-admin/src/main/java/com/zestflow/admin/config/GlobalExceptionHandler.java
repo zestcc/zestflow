@@ -27,7 +27,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BizException.class)
     public Result<Void> handleBizException(BizException e, HttpServletRequest request) {
         String resolvedMessage = resolveMessage(e.getErrorCode(), e.getArgs(), e.getMessage());
-        log.warn("业务异常 errorCode={} uri={}", e.getErrorCode(), request.getRequestURI());
+        log.warn("业务异常 errorCode={} uri={}", e.getErrorCode(), request.getRequestURI(), e);
         return Result.fail(e.getCode(), e.getErrorCode(), resolvedMessage);
     }
 

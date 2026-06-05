@@ -181,7 +181,7 @@ public class NodeRunner {
 
         } catch (Exception e) {
             long costMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
-            log.error("节点执行失败 nodeId={} cost={}ms error={}", nodeId, costMs, e.getMessage());
+            log.error("节点执行失败 nodeId={} cost={}ms error={}", nodeId, costMs, e.getMessage(), e);
 
             // 触发重试
             if (nodeDef.getRetryCount() > 0) {
@@ -257,7 +257,7 @@ public class NodeRunner {
                     .build();
         } catch (Exception e) {
             long costMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
-            log.error("节点补偿失败 nodeId={} error={}", nodeId, e.getMessage());
+            log.error("节点补偿失败 nodeId={} error={}", nodeId, e.getMessage(), e);
             publishNodeEvent(ChainEvent.EventType.NODE_FAILED, nodeDef, context, costMs, 0,
                     e.getMessage(), null, null);
             return NodeResultDTO.builder()

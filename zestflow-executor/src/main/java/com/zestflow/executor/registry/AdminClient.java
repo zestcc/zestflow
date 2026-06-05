@@ -59,7 +59,7 @@ public class AdminClient {
             } catch (Throwable e) {
                 String reason = RegistryRegisterDiagnostics.describeException(e, tokenConfigured);
                 failures.add(adminUrl + " -> " + reason);
-                log.warn("注册失败 adminUrl={} reason={}", adminUrl, reason);
+                log.warn("注册失败 adminUrl={} reason={}", adminUrl, reason, e);
             }
         }
         log.error(RegistryRegisterDiagnostics.summarizeFailures(
@@ -79,7 +79,7 @@ public class AdminClient {
                     return true;
                 }
             } catch (Throwable e) {
-                log.debug("心跳失败 adminUrl={} error={}", adminUrl, e.getMessage());
+                log.debug("心跳失败 adminUrl={} error={}", adminUrl, e.getMessage(), e);
             }
         }
         return false;
@@ -96,7 +96,7 @@ public class AdminClient {
                     allSuccess = false;
                 }
             } catch (Throwable e) {
-                log.warn("注销失败 adminUrl={} error={}", adminUrl, e.getMessage());
+                log.warn("注销失败 adminUrl={} error={}", adminUrl, e.getMessage(), e);
                 allSuccess = false;
             }
         }
@@ -113,7 +113,7 @@ public class AdminClient {
                     return result.getData();
                 }
             } catch (Throwable e) {
-                log.warn("获取活跃链列表失败 adminUrl={} error={}", adminUrl, e.getMessage());
+                log.warn("获取活跃链列表失败 adminUrl={} error={}", adminUrl, e.getMessage(), e);
             }
         }
         return Collections.emptyList();
@@ -129,7 +129,7 @@ public class AdminClient {
                     return result.getData();
                 }
             } catch (Throwable e) {
-                log.warn("获取链定义失败 code={} adminUrl={} error={}", code, adminUrl, e.getMessage());
+                log.warn("获取链定义失败 code={} adminUrl={} error={}", code, adminUrl, e.getMessage(), e);
             }
         }
         return null;
@@ -143,7 +143,7 @@ public class AdminClient {
                 httpClient.post(url, sync, buildHeaders(), RESULT_VOID_TYPE);
                 return;
             } catch (Throwable e) {
-                log.warn("通知链同步失败 adminUrl={} error={}", adminUrl, e.getMessage());
+                log.warn("通知链同步失败 adminUrl={} error={}", adminUrl, e.getMessage(), e);
             }
         }
     }

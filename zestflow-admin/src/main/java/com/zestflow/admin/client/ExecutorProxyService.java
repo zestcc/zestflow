@@ -583,7 +583,7 @@ public class ExecutorProxyService {
             }
             return json;
         } catch (Exception e) {
-            log.debug("JSON 补充 appCode 跳过 appCode={} reason={}", appCode, e.getMessage());
+            log.debug("JSON 补充 appCode 跳过 appCode={} reason={}", appCode, e.getMessage(), e);
             return json;
         }
     }
@@ -728,7 +728,7 @@ public class ExecutorProxyService {
                 }
             }, broadcastExecutor).orTimeout(30, TimeUnit.SECONDS)
               .exceptionally(e -> {
-                  log.warn("广播执行器超时或异常 url={} err={}", baseUrl, e.getMessage());
+                  log.warn("广播执行器超时或异常 url={} err={}", baseUrl, e.getMessage(), e);
                   return new ExecutorResult(baseUrl, false, "超时或异常: " + e.getMessage(), null);
               });
             futures.add(future);

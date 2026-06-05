@@ -59,7 +59,7 @@ public class RetryExecutor {
                 lastError = e;
                 attempt++;
                 log.warn("节点重试失败 nodeId={} attempt={}/{} error={}",
-                        nodeDef.getId(), attempt, nodeDef.getRetryCount(), e.getMessage());
+                        nodeDef.getId(), attempt, nodeDef.getRetryCount(), e.getMessage(), e);
 
                 if (!retryPolicy.shouldRetry(nodeDef, context, attempt, lastError)) {
                     log.warn("重试耗尽 nodeId={} attempts={}", nodeDef.getId(), attempt);

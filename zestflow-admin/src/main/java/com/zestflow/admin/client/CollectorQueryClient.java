@@ -64,7 +64,7 @@ public class CollectorQueryClient {
                 return resp.getBody().getData();
             }
         } catch (Exception e) {
-            log.warn("查询事件失败 baseUrl={} error={}", baseUrl, e.getMessage());
+            log.warn("查询事件失败 baseUrl={} error={}", baseUrl, e.getMessage(), e);
         }
         return new PageResult<>(List.of(), 0L, query.getPage(), query.getPageSize());
     }
@@ -81,7 +81,7 @@ public class CollectorQueryClient {
                 return resp.getBody().getData();
             }
         } catch (Exception e) {
-            log.warn("查询执行轨迹失败 baseUrl={} error={}", baseUrl, e.getMessage());
+            log.warn("查询执行轨迹失败 baseUrl={} error={}", baseUrl, e.getMessage(), e);
         }
         return new PageResult<>(List.of(), 0L, query.getPage(), query.getPageSize());
     }
@@ -98,7 +98,7 @@ public class CollectorQueryClient {
                 return resp.getBody().getData();
             }
         } catch (Exception e) {
-            log.warn("查询执行轨迹详情失败 baseUrl={} executionId={} error={}", baseUrl, executionId, e.getMessage());
+            log.warn("查询执行轨迹详情失败 baseUrl={} executionId={} error={}", baseUrl, executionId, e.getMessage(), e);
         }
         return null;
     }
@@ -118,7 +118,7 @@ public class CollectorQueryClient {
                 return resp.getBody().getData();
             }
         } catch (Exception e) {
-            log.warn("查询统计失败 baseUrl={} error={}", baseUrl, e.getMessage());
+            log.warn("查询统计失败 baseUrl={} error={}", baseUrl, e.getMessage(), e);
         }
         return null;
     }
@@ -153,7 +153,7 @@ public class CollectorQueryClient {
                 return resp.getBody().getData();
             }
         } catch (Exception e) {
-            log.warn("查询节点详情失败 executionId={} nodeId={} error={}", executionId, nodeId, e.getMessage());
+            log.warn("查询节点详情失败 executionId={} nodeId={} error={}", executionId, nodeId, e.getMessage(), e);
         }
         return null;
     }
@@ -168,7 +168,7 @@ public class CollectorQueryClient {
             var resp = restTemplate.exchange(url, HttpMethod.POST, entity, RESULT_VOID_TYPE);
             return resp.getBody() != null && resp.getBody().getCode() == 200;
         } catch (Exception e) {
-            log.warn("保存调用载荷失败 invocationId={} error={}", dto.getInvocationId(), e.getMessage());
+            log.warn("保存调用载荷失败 invocationId={} error={}", dto.getInvocationId(), e.getMessage(), e);
             return false;
         }
     }
@@ -185,7 +185,7 @@ public class CollectorQueryClient {
                 return resp.getBody().getData();
             }
         } catch (Exception e) {
-            log.warn("查询调用载荷失败 invocationId={} error={}", invocationId, e.getMessage());
+            log.warn("查询调用载荷失败 invocationId={} error={}", invocationId, e.getMessage(), e);
         }
         return null;
     }
@@ -203,7 +203,7 @@ public class CollectorQueryClient {
                 return resp.getBody().getData();
             }
         } catch (Exception e) {
-            log.warn("查询图数据快照失败 chainCode={} timestamp={} error={}", chainCode, timestamp, e.getMessage());
+            log.warn("查询图数据快照失败 chainCode={} timestamp={} error={}", chainCode, timestamp, e.getMessage(), e);
         }
         return null;
     }

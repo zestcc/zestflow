@@ -53,7 +53,7 @@ public class CollectorAdminClient {
             } catch (Throwable e) {
                 String reason = RegistryRegisterDiagnostics.describeException(e, tokenConfigured);
                 failures.add(adminUrl + " -> " + reason);
-                log.warn("采集器注册失败 adminUrl={} reason={}", adminUrl, reason);
+                log.warn("采集器注册失败 adminUrl={} reason={}", adminUrl, reason, e);
             }
         }
         log.error(RegistryRegisterDiagnostics.summarizeFailures(
@@ -73,7 +73,7 @@ public class CollectorAdminClient {
                     return true;
                 }
             } catch (Throwable e) {
-                log.debug("采集器心跳失败 adminUrl={} error={}", adminUrl, e.getMessage());
+                log.debug("采集器心跳失败 adminUrl={} error={}", adminUrl, e.getMessage(), e);
             }
         }
         return false;
@@ -90,7 +90,7 @@ public class CollectorAdminClient {
                     allSuccess = false;
                 }
             } catch (Throwable e) {
-                log.warn("采集器注销失败 adminUrl={} error={}", adminUrl, e.getMessage());
+                log.warn("采集器注销失败 adminUrl={} error={}", adminUrl, e.getMessage(), e);
                 allSuccess = false;
             }
         }

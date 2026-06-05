@@ -104,7 +104,7 @@ public class ExecutorRegistrar implements ApplicationRunner {
                 sendHeartbeat();
             }
         } catch (Exception e) {
-            log.warn("心跳线程异常 executorId={} error={}", executorId, e.getMessage());
+            log.warn("心跳线程异常 executorId={} error={}", executorId, e.getMessage(), e);
             if (markUnregisteredIfHeartbeatExhausted()) {
                 log.warn("心跳连续异常达到阈值，降级为重新注册 executorId={}", executorId);
             }

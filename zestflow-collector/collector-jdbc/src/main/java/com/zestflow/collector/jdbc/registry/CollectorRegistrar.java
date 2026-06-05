@@ -62,7 +62,7 @@ public class CollectorRegistrar implements ApplicationRunner {
                 log.warn("采集器首次注册失败，进入退避重试模式 collectorId={}", collectorId);
             }
         } catch (Throwable e) {
-            log.warn("采集器首次注册异常，进入退避重试模式 collectorId={} error={}", collectorId, e.getMessage());
+            log.warn("采集器首次注册异常，进入退避重试模式 collectorId={} error={}", collectorId, e.getMessage(), e);
         }
         heartbeatScheduler.schedule(this::tick, 0, TimeUnit.MILLISECONDS);
     }

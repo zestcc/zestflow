@@ -287,7 +287,7 @@ public class ChainLoader implements ApplicationRunner, Ordered {
                     .build();
             adminClient.notifyChainSync(sync);
         } catch (Exception e) {
-            log.debug("通知 Admin 链同步失败（忽略）: {}", e.getMessage());
+            log.debug("通知 Admin 链同步失败（忽略）: {}", e.getMessage(), e);
         }
     }
 

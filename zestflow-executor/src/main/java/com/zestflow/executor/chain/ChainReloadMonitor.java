@@ -61,7 +61,7 @@ public class ChainReloadMonitor {
                 }
             }
         } catch (Exception e) {
-            log.debug("链轮询热加载跳过: {}", e.getMessage());
+            log.debug("链轮询热加载跳过: {}", e.getMessage(), e);
         }
     }
 

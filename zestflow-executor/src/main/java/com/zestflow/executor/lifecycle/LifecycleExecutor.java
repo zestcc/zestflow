@@ -199,7 +199,7 @@ public class LifecycleExecutor {
             meta.getExecuteMethod().invoke(meta.getTargetBean(), args, params);
         } catch (Exception e) {
             Throwable cause = e.getCause() != null ? e.getCause() : e;
-            log.warn("参数校验失败: {} msg={}", validatorRef, cause.getMessage());
+            log.warn("参数校验失败: {} msg={}", validatorRef, cause.getMessage(), cause);
             if (cause instanceof RuntimeException) {
                 throw (RuntimeException) cause;
             }
