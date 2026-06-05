@@ -85,7 +85,7 @@ function Invoke-Registry($token) {
 $noReg = Invoke-Registry ""
 $badReg = Invoke-Registry "wrong-registry-token"
 $okReg = Invoke-Registry $RegistryToken
-Write-Host "registry no-token=$noReg wrong=$badReg valid=$okReg (expect 401/401/2xx)"
+Write-Host ("registry no-token={0} wrong={1} valid={2} - expect 401/401/2xx" -f $noReg, $badReg, $okReg)
 $registryOk = ($noReg -eq 401) -and ($badReg -eq 401) -and ($okReg -ge 200 -and $okReg -lt 300)
 
 # --- Executor access token ---
@@ -105,8 +105,8 @@ if (-not $SkipExecutorTests) {
         $noExec = Invoke-Netty "/api/chains" $null
         $badExec = Invoke-Netty "/api/chains" "wrong-executor-token"
         $okExec = Invoke-Netty "/api/chains" $ExecutorAccessToken
-        Write-Host "netty health=$health (expect 200)"
-        Write-Host "netty no-token=$noExec wrong=$badExec valid=$okExec (expect 401/401/200)"
+        Write-Host ("netty health={0} - expect 200" -f $health)
+        Write-Host ("netty no-token={0} wrong={1} valid={2} - expect 401/401/200" -f $noExec, $badExec, $okExec)
         $executorOk = ($health -eq 200) -and ($noExec -eq 401) -and ($badExec -eq 401) -and ($okExec -eq 200)
     }
 }

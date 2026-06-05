@@ -8,9 +8,17 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $Root = Split-Path $PSScriptRoot -Parent
-. (Join-Path $PSScriptRoot '_mysql-common.ps1')
 
-$pwd = Get-ZestFlowMysqlPassword -Root $Root
+$localYml = Join-Path $Root 'zestflow-admin\src\main\resources\application-local.yml'
+if (-not (Test-Path $localYml)) { Write-Error "Missing $localYml — copy application-local.example.yml first." }
+$pwd = $null
+foreach ($line in Get-Content $localYml) {
+    if ($line -match '^\s*password:\s*(.+)$' -and $line -notmatch 'admin123|your-') {
+        $pwd = $Matches[1].Trim().Trim("'").Trim('"')
+        break
+    }
+}
+if (-not $pwd) { Write-Error 'Could not parse spring.datasource.password from application-local.yml' }
 $env:MYSQL_PWD = $pwd
 
 $dataFiles = @(
