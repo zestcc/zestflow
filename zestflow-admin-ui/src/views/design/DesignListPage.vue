@@ -251,13 +251,14 @@ import { designApi, type DesignVO } from '@/api/design'
 import type { ChainVO } from '@/api/chain'
 import { executorApi, type AppOption } from '@/api/executor'
 import CreateDesignDialog from '@/components/CreateDesignDialog.vue'
+import { useCurrentApp } from '@/composables/useCurrentApp'
 
 const { t } = useI18n()
 const router = useRouter()
+const { currentAppCode, syncFromApps } = useCurrentApp()
 
 const loading = ref(false)
 const apps = ref<AppOption[]>([])
-const currentAppCode = ref<string>('')
 const designList = ref<DesignVO[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -292,9 +293,7 @@ const stats = computed(() => {
 async function fetchApps() {
   try {
     apps.value = await executorApi.listApps()
-    if (apps.value.length > 0 && !currentAppCode.value) {
-      currentAppCode.value = apps.value[0].appCode
-    }
+    syncFromApps(apps.value)
   } catch { /* ignore */ }
 }
 

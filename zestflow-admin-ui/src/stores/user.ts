@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import type { LoginDTO, RegisterDTO, UpdateProfileDTO, UserVO } from '@/api/auth'
 import { authApi } from '@/api/auth'
 import { useTenantStore } from '@/stores/tenant'
+import { useAppStore } from '@/stores/app'
 import router from '@/router'
 
 export const useUserStore = defineStore('user', () => {
@@ -60,6 +61,7 @@ export const useUserStore = defineStore('user', () => {
     user.value = null
     mustChangePassword.value = false
     localStorage.removeItem('token')
+    useAppStore().clearCurrentAppCode()
     const tenantStore = useTenantStore()
     tenantStore.clear()
     router.push({ name: 'Login' })
