@@ -1,6 +1,10 @@
 package com.zestflow.executor.config;
 
+import com.zestflow.executor.chain.ChainDeclarationRegistry;
+import com.zestflow.executor.chain.ExecutorChainProperties;
 import com.zestflow.executor.http.ChainExecuteFacade;
+import com.zestflow.executor.route.ChainRouteRegistry;
+import org.springframework.beans.factory.ObjectProvider;
 import com.zestflow.executor.server.ExecutorServer;
 import jakarta.annotation.PostConstruct;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -26,17 +30,26 @@ public class ExecutorEndpointConfig {
     private final RequestMappingHandlerAdapter requestMappingHandlerAdapter;
     private final PlaygroundProperties playgroundProperties;
     private final ChainExecuteFacade chainExecuteFacade;
+    private final ObjectProvider<ChainRouteRegistry> chainRouteRegistryProvider;
+    private final ChainDeclarationRegistry chainDeclarationRegistry;
+    private final ExecutorChainProperties chainProperties;
 
     public ExecutorEndpointConfig(ExecutorServer executorServer,
                                    RequestMappingHandlerMapping requestMappingHandlerMapping,
                                    RequestMappingHandlerAdapter requestMappingHandlerAdapter,
                                    PlaygroundProperties playgroundProperties,
-                                   ChainExecuteFacade chainExecuteFacade) {
+                                   ChainExecuteFacade chainExecuteFacade,
+                                   ObjectProvider<ChainRouteRegistry> chainRouteRegistryProvider,
+                                   ChainDeclarationRegistry chainDeclarationRegistry,
+                                   ExecutorChainProperties chainProperties) {
         this.executorServer = executorServer;
         this.requestMappingHandlerMapping = requestMappingHandlerMapping;
         this.requestMappingHandlerAdapter = requestMappingHandlerAdapter;
         this.playgroundProperties = playgroundProperties;
         this.chainExecuteFacade = chainExecuteFacade;
+        this.chainRouteRegistryProvider = chainRouteRegistryProvider;
+        this.chainDeclarationRegistry = chainDeclarationRegistry;
+        this.chainProperties = chainProperties;
     }
 
     @PostConstruct
@@ -47,8 +60,11 @@ public class ExecutorEndpointConfig {
         NettyMvcDispatcher dispatcher = new NettyMvcDispatcher(
                 requestMappingHandlerMapping,
                 requestMappingHandlerAdapter,
-                playgroundProperties.getScanPackages());
+                playgroundProperties.getScanPackages(),
+                chainRouteRegistryProvider.getIfAvailable(),
+                chainExecuteFacade);
         executorServer.setNettyMvcDispatcher(dispatcher);
         executorServer.setChainExecuteFacade(chainExecuteFacade);
+        executorServer.setChainDeclarationGuard(chainDeclarationRegistry, chainProperties);
     }
 }

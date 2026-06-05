@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
 import com.zestflow.admin.model.vo.ExecutorRegistryVO;
+import com.zestflow.admin.registry.DeclaredChainKeysSupport;
 import com.zestflow.admin.registry.RegistryLiveStore;
 import com.zestflow.admin.registry.RegistryLiveTimeSupport;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
@@ -17,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -114,6 +116,35 @@ public class ExecutorRegistryServiceImpl implements ExecutorRegistryService {
         }).collect(Collectors.toList());
     }
 
+    @Override
+    public Set<String> listDeclaredChainKeysByApp(String appCode) {
+        if (appCode == null || appCode.isBlank()) {
+            return Set.of();
+        }
+        Set<String> aliveIds = liveStore.aliveExecutorIds();
+        if (aliveIds.isEmpty()) {
+            return Set.of();
+        }
+        List<ExecutorRegistryPO> online = executorRegistryMapper.selectList(
+                new LambdaQueryWrapper<ExecutorRegistryPO>()
+                        .eq(ExecutorRegistryPO::getAppCode, appCode.trim())
+                        .eq(ExecutorRegistryPO::getStatus, RegistryConstants.STATUS_ONLINE)
+                        .in(ExecutorRegistryPO::getExecutorId, aliveIds));
+        Set<String> merged = new HashSet<>();
+        for (ExecutorRegistryPO po : online) {
+            merged.addAll(DeclaredChainKeysSupport.fromJson(po.getDeclaredChainKeys()));
+        }
+        return merged;
+    }
+
+    @Override
+    public boolean isChainKeyDeclared(String appCode, String chainKey) {
+        if (chainKey == null || chainKey.isBlank()) {
+            return false;
+        }
+        return listDeclaredChainKeysByApp(appCode).contains(chainKey.trim());
+    }
+
     private ExecutorRegistryVO toVO(ExecutorRegistryPO po) {
         return ExecutorRegistryVO.builder()
                 .id(po.getId())
@@ -125,6 +156,7 @@ public class ExecutorRegistryServiceImpl implements ExecutorRegistryService {
                 .status(resolveDisplayStatus(po))
                 .lastHeartbeat(RegistryLiveTimeSupport.resolveLastHeartbeat(
                         liveStore, po.getExecutorId(), po.getLastHeartbeat(), true))
+                .declaredChainKeys(DeclaredChainKeysSupport.fromJson(po.getDeclaredChainKeys()))
                 .updatedBy(po.getUpdatedBy())
                 .createdAt(po.getCreatedAt())
                 .build();

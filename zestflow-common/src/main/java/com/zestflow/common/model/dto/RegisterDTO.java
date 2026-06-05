@@ -37,4 +37,7 @@ public class RegisterDTO implements Serializable {
 
     /** 该执行器提供的所有 @ZestExecute 元件清单 */
     private java.util.List<ComponentDTO> components;
+
+    /** 应用声明的 chain_key 列表（@ZestChain 扫描） */
+    private java.util.List<String> declaredChainKeys;
 }

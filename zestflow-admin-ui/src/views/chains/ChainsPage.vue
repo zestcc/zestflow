@@ -43,6 +43,18 @@
           <span class="code-link" @click="openChainDetail(row)">{{ row.code }}</span>
         </template>
       </el-table-column>
+      <el-table-column prop="chainKey" :label="$t('chains.chainKey')" width="180" show-overflow-tooltip>
+        <template #default="{ row }">
+          <span v-if="!row.chainKey" style="color:#c0c4cc">-</span>
+          <span v-else>{{ row.chainKey }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column :label="$t('chains.appDeclared')" width="100" align="center">
+        <template #default="{ row }">
+          <el-tag v-if="row.appDeclared" type="warning" size="small">{{ $t('chains.appDeclaredTag') }}</el-tag>
+          <span v-else style="color:#c0c4cc">-</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="name" :label="$t('chains.name')" show-overflow-tooltip min-width="140" />
       <el-table-column :label="$t('common.status')" width="80" align="center">
         <template #default="{ row }">
@@ -466,12 +478,22 @@ async function handleToggleStatus(row: any) {
 
 // 删除
 function handleDelete(row: any) {
-  ElMessageBox.confirm(t('chains.deleteConfirm', { name: row.name }), t('common.delete'),
+  const confirmMsg = row.appDeclared
+    ? t('chains.deleteDeclaredConfirm', { name: row.name })
+    : t('chains.deleteConfirm', { name: row.name })
+  ElMessageBox.confirm(confirmMsg, t('common.delete'),
     { confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel'), type: 'warning' }
   ).then(async () => {
-    await chainApi.delete(row.code, row.appCode)
-    ElMessage.success(t('chains.deleteSuccess'))
-    await fetchList()
+    try {
+      await chainApi.delete(row.code, row.appCode)
+      ElMessage.success(t('chains.deleteSuccess'))
+      await fetchList()
+    } catch (e: any) {
+      const msg = e?.message || ''
+      if (msg.includes('chain_key') || msg.includes('@ZestChain')) {
+        ElMessage.error(t('chains.deleteDeclaredBlocked'))
+      }
+    }
   }).catch(() => {})
 }
 

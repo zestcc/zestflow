@@ -92,12 +92,13 @@ public class CollectorAutoConfig {
     public CollectorServer collectorServer(EventQueryService eventQueryService,
                                             InvocationPayloadService invocationPayloadService,
                                             ChainGraphSnapshotService snapshotService,
+                                            EventCollector eventCollector,
                                             CollectorRegistryProperties registryProperties,
                                             CollectorProperties collectorProperties,
                                             CollectorMetricsProvider metricsProvider) {
         int port = registryProperties.getPort() > 0 ? registryProperties.getPort() : 20650;
         return new CollectorServer(port, eventQueryService, invocationPayloadService, snapshotService,
-                collectorProperties.getAccessToken(), metricsProvider);
+                eventCollector, collectorProperties.getAccessToken(), metricsProvider);
     }
 
     // ==================== REST 控制器（Netty 禁用时降级）====================

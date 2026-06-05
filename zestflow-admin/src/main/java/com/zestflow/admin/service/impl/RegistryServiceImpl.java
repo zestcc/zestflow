@@ -3,6 +3,7 @@ package com.zestflow.admin.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
+import com.zestflow.admin.registry.DeclaredChainKeysSupport;
 import com.zestflow.admin.registry.RegistryLiveStore;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import com.zestflow.admin.service.DictTypeService;
@@ -64,6 +65,8 @@ public class RegistryServiceImpl implements RegistryService {
         po.setStatus(RegistryConstants.STATUS_ONLINE);
         po.setLastHeartbeat(LocalDateTime.now());
         po.setTenantId(tenantId != null ? tenantId : 1L);
+        po.setDeclaredChainKeys(DeclaredChainKeysSupport.toJson(
+                DeclaredChainKeysSupport.normalize(dto.getDeclaredChainKeys())));
         executorRegistryMapper.insert(po);
         log.info("执行器首次注册 executorId={} appCode={} appName={} host={}:{}",
                 dto.getExecutorId(), dto.getAppCode(), dto.getAppName(), dto.getHost(), dto.getPort());
@@ -83,9 +86,12 @@ public class RegistryServiceImpl implements RegistryService {
                 || !Objects.equals(po.getExecutorPort(), dto.getPort())
                 || (hasText(dto.getAppName()) && !Objects.equals(po.getAppName(), dto.getAppName()))
                 || (hasText(dto.getAppCode()) && !Objects.equals(po.getAppCode(), dto.getAppCode()));
+        String newDeclaredJson = DeclaredChainKeysSupport.toJson(
+                DeclaredChainKeysSupport.normalize(dto.getDeclaredChainKeys()));
+        boolean declaredChanged = !Objects.equals(po.getDeclaredChainKeys(), newDeclaredJson);
         boolean needRevive = !Objects.equals(po.getStatus(), RegistryConstants.STATUS_ONLINE);
 
-        if (!metadataChanged && !needRevive) {
+        if (!metadataChanged && !needRevive && !declaredChanged) {
             log.debug("执行器 register 幂等刷新 executorId={}", dto.getExecutorId());
             return false;
         }
@@ -101,6 +107,7 @@ public class RegistryServiceImpl implements RegistryService {
         if (dto.getAppCode() != null) {
             po.setAppCode(dto.getAppCode());
         }
+        po.setDeclaredChainKeys(newDeclaredJson);
         if (metadataChanged) {
             syncComponentDict(dto);
         }
@@ -146,7 +153,24 @@ public class RegistryServiceImpl implements RegistryService {
             }
         }
         liveStore.touchExecutor(executorId);
+        if (dto.getDeclaredChainKeys() != null) {
+            persistDeclaredChainKeys(executorId, dto.getDeclaredChainKeys());
+        }
         log.trace("执行器心跳 executorId={}", executorId);
+    }
+
+    private void persistDeclaredChainKeys(String executorId, List<String> declaredChainKeys) {
+        ExecutorRegistryPO po = findById(executorId);
+        if (po == null) {
+            return;
+        }
+        String json = DeclaredChainKeysSupport.toJson(DeclaredChainKeysSupport.normalize(declaredChainKeys));
+        if (Objects.equals(po.getDeclaredChainKeys(), json)) {
+            return;
+        }
+        po.setDeclaredChainKeys(json);
+        executorRegistryMapper.updateById(po);
+        log.debug("执行器声明链更新 executorId={} keys={}", executorId, declaredChainKeys.size());
     }
 
     @Override

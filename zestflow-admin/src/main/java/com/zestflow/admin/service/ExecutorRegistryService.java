@@ -17,4 +17,10 @@ public interface ExecutorRegistryService {
 
     /** 查询有在线执行器的 appCode 列表 */
     List<Map<String, String>> listDistinctOnlineApps();
+
+    /** 合并应用下在线执行器声明的 chain_key */
+    java.util.Set<String> listDeclaredChainKeysByApp(String appCode);
+
+    /** 应用是否仍声明指定 chain_key */
+    boolean isChainKeyDeclared(String appCode, String chainKey);
 }

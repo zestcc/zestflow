@@ -21,4 +21,7 @@ public class HeartbeatDTO implements Serializable {
     /** 执行器状态：1-正常 0-过载 */
     @Builder.Default
     private int status = 1;
+
+    /** 应用声明的 chain_key 列表 */
+    private java.util.List<String> declaredChainKeys;
 }

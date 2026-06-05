@@ -5,6 +5,7 @@ import com.zestflow.common.model.dto.ComponentDTO;
 import com.zestflow.common.model.dto.HeartbeatDTO;
 import com.zestflow.common.model.dto.RegisterDTO;
 import com.zestflow.common.registry.HeartbeatFailureTracker;
+import com.zestflow.executor.chain.ChainDeclarationRegistry;
 import com.zestflow.executor.scanner.ComponentScanner;
 import com.zestflow.executor.server.ExecutorServer;
 import jakarta.annotation.PreDestroy;
@@ -31,6 +32,7 @@ public class ExecutorRegistrar implements ApplicationRunner {
     private final ExecutorServer executorServer;
     private final Environment environment;
     private final ComponentScanner componentScanner;
+    private final ChainDeclarationRegistry chainDeclarationRegistry;
 
     private final AtomicBoolean registered = new AtomicBoolean(false);
     private final AtomicInteger retryCount = new AtomicInteger(0);
@@ -137,6 +139,7 @@ public class ExecutorRegistrar implements ApplicationRunner {
     private void sendHeartbeat() {
         HeartbeatDTO dto = HeartbeatDTO.builder()
                 .executorId(executorId)
+                .declaredChainKeys(new ArrayList<>(chainDeclarationRegistry.getDeclaredKeys()))
                 .build();
 
         if (adminClient.heartbeat(dto)) {
@@ -192,6 +195,7 @@ public class ExecutorRegistrar implements ApplicationRunner {
                 .appCode(appCode)
                 .appName(appName)
                 .components(buildComponentDTOs())
+                .declaredChainKeys(new ArrayList<>(chainDeclarationRegistry.getDeclaredKeys()))
                 .build();
     }
 

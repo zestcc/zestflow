@@ -112,6 +112,7 @@ CREATE TABLE `executor_registry` (
     `executor_port`  INT          NOT NULL                 COMMENT '执行器Port',
     `status`         TINYINT      DEFAULT 1                COMMENT '状态：1-在线 0-离线 2-异常离线',
     `last_heartbeat` DATETIME     DEFAULT NULL             COMMENT '最后心跳时间',
+    `declared_chain_keys` TEXT     DEFAULT NULL             COMMENT '@ZestChain 声明的 chain_key 列表 JSON',
     `tenant_id`      BIGINT       DEFAULT 1                COMMENT '租户ID',
     `created_by`     VARCHAR(64)  DEFAULT NULL             COMMENT '创建人',
     `updated_by`     VARCHAR(64)  DEFAULT NULL             COMMENT '最后修改人',

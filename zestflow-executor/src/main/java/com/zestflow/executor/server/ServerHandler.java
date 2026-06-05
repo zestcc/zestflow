@@ -10,6 +10,8 @@ import com.zestflow.common.model.event.PublishEventDTO;
 import com.zestflow.common.model.ComponentType;
 import com.zestflow.executor.scanner.ComponentScanner.ComponentMeta;
 import com.zestflow.executor.chain.ChainLoader;
+import com.zestflow.executor.chain.ChainDeclarationRegistry;
+import com.zestflow.executor.chain.ExecutorChainProperties;
 import com.zestflow.executor.chain.ChainPO;
 import com.zestflow.executor.chain.ChainRepository;
 import com.zestflow.executor.design.DesignPO;
@@ -76,6 +78,9 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
     private ExecutionIdempotencyGuard idempotencyGuard;
     private ExecutorProperties executorProperties;
     private ChainExecuteFacade chainExecuteFacade;
+    private ChainDeclarationRegistry chainDeclarationRegistry;
+    private ExecutorChainProperties chainProperties;
+
     private final AtomicBoolean acceptingExecuteRequests = new AtomicBoolean(true);
 
     public ServerHandler(ChainExecutionEngine chainExecutionEngine, ChainRepository chainRepo, DesignRepository designRepo) {
@@ -411,6 +416,23 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
     }
 
     private boolean handleDeleteChain(ChannelHandlerContext ctx, String code, String uri, String body) throws Exception {
+        ChainPO existing = chainRepo.get(code);
+        if (existing == null) {
+            log.warn("删除链不存在 code={}", code);
+            writeResponse(ctx, HttpResponseStatus.NOT_FOUND,
+                    "{\"code\":404,\"message\":\"链不存在: " + code + "\"}");
+            return true;
+        }
+        if (chainProperties != null && chainProperties.isDeclarationDeleteGuardEnabled()
+                && chainDeclarationRegistry != null
+                && existing.getChainKey() != null && !existing.getChainKey().isBlank()
+                && chainDeclarationRegistry.isDeclared(existing.getChainKey())) {
+            log.warn("删除链被拒绝，应用仍声明 chainKey={} code={}", existing.getChainKey(), code);
+            writeResponse(ctx, HttpResponseStatus.CONFLICT,
+                    "{\"code\":409,\"message\":\"应用仍声明该链 chain_key=" + existing.getChainKey()
+                            + "，请先从代码移除 @ZestChain 后重启\"}");
+            return true;
+        }
         String updatedBy = extractUpdatedBy(body);
         if (updatedBy == null) {
             Map<String, String> params = parseQueryParams(uri);
@@ -1204,6 +1226,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
     private ObjectNode chainToJson(ChainPO c) {
         ObjectNode node = MAPPER.createObjectNode();
         node.put("code", c.getCode() != null ? c.getCode() : "");
+        node.put("chainKey", c.getChainKey() != null ? c.getChainKey() : "");
         node.put("name", c.getName() != null ? c.getName() : "");
         node.put("description", c.getDescription() != null ? c.getDescription() : "");
         node.put("status", c.getStatus() != null ? c.getStatus() : 0);

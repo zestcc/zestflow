@@ -19,6 +19,9 @@ public class ChainExecuteRequestDTO {
     /** 链编码 */
     private String chainCode;
 
+    /** 稳定链标识 — 与 chainCode 二选一，优先 chainKey */
+    private String chainKey;
+
     /** 执行参数 */
     private Map<String, Object> params;
 

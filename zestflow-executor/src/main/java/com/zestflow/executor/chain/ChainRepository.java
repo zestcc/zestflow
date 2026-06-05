@@ -18,6 +18,7 @@ public class ChainRepository {
     private static final RowMapper<ChainPO> ROW_MAPPER = (rs, rowNum) -> {
         ChainPO po = new ChainPO();
         po.setCode(rs.getString("code"));
+        try { po.setChainKey(rs.getString("chain_key")); } catch (Exception ignored) {}
         po.setName(rs.getString("name"));
         po.setDescription(rs.getString("description"));
         po.setStatus(rs.getInt("status"));
@@ -57,8 +58,9 @@ public class ChainRepository {
         List<Object> args = new ArrayList<>();
         args.add(tenantId);
         if (keyword != null && !keyword.isBlank()) {
-            sql.append(" AND (c.name LIKE ? OR c.code LIKE ?)");
+            sql.append(" AND (c.name LIKE ? OR c.code LIKE ? OR c.chain_key LIKE ?)");
             String kw = "%" + keyword + "%";
+            args.add(kw);
             args.add(kw);
             args.add(kw);
         }
@@ -69,6 +71,51 @@ public class ChainRepository {
         sql.append(" ORDER BY c.updated_at DESC");
         return jdbc.query(sql.toString(), ROW_MAPPER, args.toArray());
     }
+
+    public ChainPO getByChainKey(String appCode, String chainKey) {
+        if (chainKey == null || chainKey.isBlank()) {
+            return null;
+        }
+        List<ChainPO> list = jdbc.query(
+                "SELECT c.*, b.design_code FROM zf_chain c LEFT JOIN zf_design_binding b ON c.code = b.chain_code"
+                        + " WHERE c.chain_key = ? AND c.app_code = ? AND c.is_deleted = 0 AND c.tenant_id = ?",
+                ROW_MAPPER, chainKey.trim(), appCode, tenantId);
+        return list.isEmpty() ? null : list.get(0);
+    }
+
+    /**
+     * 声明占位：不存在则创建 status=未设计；已存在则仅补全空 name/description。
+     *
+     * @return created=true 表示新建占位链
+     */
+    public UpsertDeclarationResult upsertDeclaration(String appCode, String chainKey, String name,
+                                                      String description, String updatedBy) {
+        ChainPO existing = getByChainKey(appCode, chainKey);
+        String now = LocalDateTime.now().format(DTF);
+        if (existing != null) {
+            boolean needUpdate = (existing.getName() == null || existing.getName().isBlank())
+                    && name != null && !name.isBlank();
+            if (needUpdate || (description != null && !description.isBlank()
+                    && (existing.getDescription() == null || existing.getDescription().isBlank()))) {
+                jdbc.update("UPDATE zf_chain SET name=?, description=?, updated_by=?, updated_at=? WHERE code=? AND tenant_id=?",
+                        needUpdate ? name : existing.getName(),
+                        description != null ? description : existing.getDescription(),
+                        updatedBy != null ? updatedBy : existing.getUpdatedBy(),
+                        now, existing.getCode(), tenantId);
+            }
+            return new UpsertDeclarationResult(get(existing.getCode()), false);
+        }
+        String code = CodeGenerator.generate("CHN");
+        String creator = updatedBy != null ? updatedBy : appCode;
+        jdbc.update("INSERT INTO zf_chain(code, chain_key, name, description, status, version, app_code, tenant_id, created_by, updated_by, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                code, chainKey.trim(), name != null ? name : chainKey,
+                description, ChainLifecycleStatus.DESIGNING, 1,
+                appCode, tenantId, creator, creator, now, now);
+        log.info("链声明占位创建 code={} chainKey={} appCode={}", code, chainKey, appCode);
+        return new UpsertDeclarationResult(get(code), true);
+    }
+
+    public record UpsertDeclarationResult(ChainPO chain, boolean created) {}
 
     public ChainPO get(String code) {
         List<ChainPO> list = jdbc.query(

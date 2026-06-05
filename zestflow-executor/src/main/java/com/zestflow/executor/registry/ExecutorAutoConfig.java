@@ -5,6 +5,10 @@ import com.zestflow.executor.event.AsyncEventPublisher;
 import com.zestflow.executor.event.EventPublisher;
 import com.zestflow.executor.event.ExecutorEventProperties;
 import com.zestflow.executor.event.SyncEventPublisher;
+import com.zestflow.executor.chain.ChainDeclarationRegistry;
+import com.zestflow.executor.chain.ChainDeclarationScanner;
+import com.zestflow.executor.chain.ChainDeclarationSyncService;
+import com.zestflow.executor.chain.ChainKeyResolver;
 import com.zestflow.executor.chain.ChainDefinitionBuilder;
 import com.zestflow.executor.chain.ChainLoader;
 import com.zestflow.executor.chain.ChainManager;
@@ -52,10 +56,14 @@ import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Profile;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.env.Environment;
-import com.zestflow.collector.http.ZestFlowHttpClient;
-
 import java.util.List;
 
+import com.zestflow.collector.http.ZestFlowHttpClient;
+import com.zestflow.collector.remote.HttpRemoteEventCollector;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @AutoConfiguration
 @EnableConfigurationProperties({ExecutorProperties.class, ExecutorChainProperties.class, ExecutorEventProperties.class})
 @Import({ExecutorSchedulingConfig.class, ChainRouteWebConfig.class})
@@ -97,9 +105,10 @@ public class ExecutorAutoConfig {
                                                   ChainManager chainManager,
                                                   ExecutionIdempotencyGuard idempotencyGuard,
                                                   ExecutorProperties properties,
-                                                  ChainErrorHandlerInvoker errorHandlerInvoker) {
+                                                  ChainErrorHandlerInvoker errorHandlerInvoker,
+                                                  ChainKeyResolver chainKeyResolver) {
         return new ChainExecuteFacade(chainExecutionEngine, chainManager, idempotencyGuard,
-                properties, errorHandlerInvoker);
+                properties, errorHandlerInvoker, chainKeyResolver);
     }
 
     @Bean
@@ -129,8 +138,10 @@ public class ExecutorAutoConfig {
                                                ExecutorProperties properties,
                                                ExecutorServer executorServer,
                                                Environment environment,
-                                               ComponentScanner componentScanner) {
-        return new ExecutorRegistrar(adminClient, properties, executorServer, environment, componentScanner);
+                                               ComponentScanner componentScanner,
+                                               ChainDeclarationRegistry chainDeclarationRegistry) {
+        return new ExecutorRegistrar(adminClient, properties, executorServer, environment,
+                componentScanner, chainDeclarationRegistry);
     }
 
     @Bean
@@ -162,6 +173,32 @@ public class ExecutorAutoConfig {
     @Bean
     public ChainManager chainManager() {
         return new ChainManager();
+    }
+
+    @Bean
+    public ChainDeclarationRegistry chainDeclarationRegistry() {
+        return new ChainDeclarationRegistry();
+    }
+
+    @Bean
+    public ChainDeclarationScanner chainDeclarationScanner() {
+        return new ChainDeclarationScanner();
+    }
+
+    @Bean
+    public ChainKeyResolver chainKeyResolver(ChainRepository chainRepo, ExecutorProperties executorProperties) {
+        return new ChainKeyResolver(chainRepo, executorProperties);
+    }
+
+    @Bean
+    public ChainDeclarationSyncService chainDeclarationSyncService(
+            ChainDeclarationScanner declarationScanner,
+            ChainDeclarationRegistry declarationRegistry,
+            ChainRepository chainRepository,
+            ExecutorChainProperties chainProperties,
+            ExecutorProperties executorProperties) {
+        return new ChainDeclarationSyncService(declarationScanner, declarationRegistry,
+                chainRepository, chainProperties, executorProperties);
     }
 
     @Bean
@@ -267,8 +304,21 @@ public class ExecutorAutoConfig {
     }
 
     @Bean
+    @ConditionalOnMissingBean(EventCollector.class)
+    @ConditionalOnProperty(prefix = "zestflow.executor.event", name = "remote-collector-url")
+    public EventCollector remoteHttpEventCollector(ZestFlowHttpClient zestflowAdminHttpClient,
+                                                    ExecutorEventProperties eventProperties) {
+        return new HttpRemoteEventCollector(
+                zestflowAdminHttpClient,
+                eventProperties.getRemoteCollectorUrl(),
+                eventProperties.getRemoteCollectorToken());
+    }
+
+    @Bean
     @ConditionalOnMissingBean(EventPublisher.class)
     public EventPublisher noopEventPublisher() {
+        log.warn("未检测到 EventCollector：链执行事件不会写入 chain_event。"
+                + "请引入 zestflow-starter/collector-jdbc，或配置 zestflow.executor.event.remote-collector-url");
         return EventPublisher.noop();
     }
 
@@ -302,11 +352,12 @@ public class ExecutorAutoConfig {
                                                              InterceptorChain interceptorChain,
                                                              ExecutorProperties properties,
                                                              ChainLoader chainLoader,
-                                                             ChainTransactionExecutor chainTransactionExecutor) {
+                                                             ChainTransactionExecutor chainTransactionExecutor,
+                                                             ChainKeyResolver chainKeyResolver) {
         DefaultChainExecutionEngine engine = new DefaultChainExecutionEngine(chainManager, dagSorter, nodeRunner,
                 instanceManager, eventPublisher, interceptorChain, properties, chainTransactionExecutor);
-        // setter 注入打破循环依赖：NodeRunner → ChainExecutionEngine, ChainExecutionEngine → ChainLoader
         engine.setChainLoader(chainLoader);
+        engine.setChainKeyResolver(chainKeyResolver);
         nodeRunner.setChainExecutionEngine(engine);
         return engine;
     }

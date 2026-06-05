@@ -1,6 +1,8 @@
 package com.zestflow.executor.server;
 
 import com.zestflow.executor.chain.ChainLoader;
+import com.zestflow.executor.chain.ChainDeclarationRegistry;
+import com.zestflow.executor.chain.ExecutorChainProperties;
 import com.zestflow.executor.chain.ChainRepository;
 import com.zestflow.executor.design.DesignRepository;
 import com.zestflow.executor.engine.ChainExecutionEngine;
@@ -17,7 +19,6 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.timeout.IdleStateHandler;
-import com.zestflow.executor.registry.ExecutorProperties;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetSocketAddress;
@@ -74,6 +75,12 @@ public class ExecutorServer {
 
     public void setChainExecuteFacade(com.zestflow.executor.http.ChainExecuteFacade chainExecuteFacade) {
         this.serverHandler.setChainExecuteFacade(chainExecuteFacade);
+    }
+
+    public void setChainDeclarationGuard(ChainDeclarationRegistry chainDeclarationRegistry,
+                                          ExecutorChainProperties chainProperties) {
+        this.serverHandler.setChainDeclarationRegistry(chainDeclarationRegistry);
+        this.serverHandler.setChainProperties(chainProperties);
     }
 
     public void start() throws InterruptedException {

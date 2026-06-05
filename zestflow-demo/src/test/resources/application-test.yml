@@ -41,6 +41,9 @@ zestflow:
     chain-route-enabled: false
     execute-response-mode: BODY
     execute-failure-policy: PROPAGATE
+    chain:
+      declaration-sync-enabled: true
+      declaration-delete-guard-enabled: true
     execute-pool-queue-capacity: 64
     event:
       queue-capacity: 8192

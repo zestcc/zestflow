@@ -23,6 +23,15 @@ public class ExecutorEventProperties {
     /** 异步 drain 工作线程数（与 Collector 侧 pool-size 语义一致） */
     private int drainWorkerCount = 1;
 
+    /**
+     * 远程 Collector 基址（如 http://localhost:20650）。
+     * 未引入 collector-jdbc 时配置此项，事件将 POST 到 {@code /collector/events/ingest}。
+     */
+    private String remoteCollectorUrl;
+
+    /** 远程 Collector 鉴权 Token，对应 {@code X-Collector-Token} */
+    private String remoteCollectorToken;
+
     public AsyncCollectorSettings toSettings() {
         return new AsyncCollectorSettings(
                 batchSize, batchMaxWaitMs, queueCapacity,
@@ -125,5 +134,21 @@ public class ExecutorEventProperties {
 
     public void setDrainWorkerCount(int drainWorkerCount) {
         this.drainWorkerCount = drainWorkerCount;
+    }
+
+    public String getRemoteCollectorUrl() {
+        return remoteCollectorUrl;
+    }
+
+    public void setRemoteCollectorUrl(String remoteCollectorUrl) {
+        this.remoteCollectorUrl = remoteCollectorUrl;
+    }
+
+    public String getRemoteCollectorToken() {
+        return remoteCollectorToken;
+    }
+
+    public void setRemoteCollectorToken(String remoteCollectorToken) {
+        this.remoteCollectorToken = remoteCollectorToken;
     }
 }

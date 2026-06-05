@@ -5,6 +5,8 @@ export interface ChainVO {
   code: string
   name: string
   appCode?: string
+  chainKey?: string
+  appDeclared?: boolean
   status: number
   description?: string
   designCode?: string

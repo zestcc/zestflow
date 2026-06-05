@@ -147,7 +147,7 @@ class DefaultChainExecutionEngineIntegrationTest {
     @Test
     void chainNotFoundReturnsFailed() {
         when(chainManager.get("non-existent")).thenReturn(null);
-        when(chainLoader.reloadChainLocal(any(), any(), any()))
+        when(chainLoader.reloadFromDatabase(any()))
                 .thenReturn(new ChainLoader.ChainReloadResult(false, "链定义不存在", 0));
 
         ChainExecuteResultDTO result = engine.execute("non-existent", Map.of());

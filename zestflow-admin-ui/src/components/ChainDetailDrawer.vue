@@ -10,6 +10,14 @@
           <el-descriptions-item :label="$t('chains.code')">
             <el-tag size="small" style="font-family:monospace">{{ detail.code }}</el-tag>
           </el-descriptions-item>
+          <el-descriptions-item :label="$t('chains.chainKey')">
+            <span v-if="detail.chainKey">{{ detail.chainKey }}</span>
+            <span v-else style="color:#c0c4cc">-</span>
+          </el-descriptions-item>
+          <el-descriptions-item :label="$t('chains.appDeclared')">
+            <el-tag v-if="detail.appDeclared" type="warning" size="small">{{ $t('chains.appDeclaredTag') }}</el-tag>
+            <span v-else style="color:#c0c4cc">-</span>
+          </el-descriptions-item>
           <el-descriptions-item :label="$t('chains.status')">
             <el-tag :type="statusTagType(detail.status)" size="small">
               {{ statusLabel(detail.status) }}

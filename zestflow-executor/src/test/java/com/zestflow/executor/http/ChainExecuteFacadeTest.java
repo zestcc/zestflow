@@ -6,6 +6,7 @@ import com.zestflow.common.model.dto.ChainExecuteRequestDTO;
 import com.zestflow.common.model.dto.ChainExecuteResultDTO;
 import com.zestflow.common.protocol.ChainHttpResponseMode;
 import com.zestflow.executor.chain.ChainManager;
+import com.zestflow.executor.chain.ChainKeyResolver;
 import com.zestflow.executor.engine.ChainExecutionEngine;
 import com.zestflow.executor.engine.ChainInstance;
 import com.zestflow.executor.engine.ExecutionIdempotencyGuard;
@@ -31,6 +32,8 @@ class ChainExecuteFacadeTest {
     private ChainManager chainManager;
     @Mock
     private ChainErrorHandlerInvoker errorHandlerInvoker;
+    @Mock
+    private ChainKeyResolver chainKeyResolver;
 
     private ChainExecuteFacade facade;
     private StubEngine stubEngine;
@@ -42,7 +45,7 @@ class ChainExecuteFacadeTest {
         properties.setExecuteResponseMode(ChainHttpResponseMode.BODY);
         properties.setIdempotencyEnabled(false);
         facade = new ChainExecuteFacade(stubEngine, chainManager, new ExecutionIdempotencyGuard(),
-                properties, errorHandlerInvoker);
+                properties, errorHandlerInvoker, chainKeyResolver);
     }
 
     @Test

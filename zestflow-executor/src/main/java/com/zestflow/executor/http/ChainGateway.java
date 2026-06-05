@@ -23,6 +23,14 @@ public class ChainGateway {
         return executeOrThrow(request);
     }
 
+    public ChainExecuteResultDTO executeByKey(String chainKey, Map<String, Object> params) {
+        ChainExecuteRequestDTO request = ChainExecuteRequestDTO.builder()
+                .chainKey(chainKey)
+                .params(params)
+                .build();
+        return executeOrThrow(request);
+    }
+
     public ChainExecuteResultDTO executeOrThrow(ChainExecuteRequestDTO request) {
         return executeOrThrow(request, new Object[0]);
     }
@@ -44,6 +52,13 @@ public class ChainGateway {
                 .chainCode(chainCode)
                 .params(params)
                 .build(), typedArgs);
+    }
+
+    public ChainExecuteResultDTO executeByKeyOrThrow(String chainKey, Map<String, Object> params) {
+        return executeOrThrow(ChainExecuteRequestDTO.builder()
+                .chainKey(chainKey)
+                .params(params)
+                .build());
     }
 
     public Object getReturnValue(String chainCode, Map<String, Object> params) {

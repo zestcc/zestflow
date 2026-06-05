@@ -23,4 +23,6 @@ public class ChainPO {
     private String createdAt;
     private String updatedAt;
     private Integer isDeleted;
+    /** 应用侧稳定链标识，如 heytrip.ota.getHotels */
+    private String chainKey;
 }

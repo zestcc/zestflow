@@ -6,14 +6,15 @@ import com.zestflow.common.model.dto.ChainExecuteResultDTO;
 import com.zestflow.common.protocol.ChainHttpResponseMode;
 import com.zestflow.common.protocol.ChainHttpRouteConfig;
 import com.zestflow.executor.chain.ChainDefinition;
+import com.zestflow.executor.chain.ChainKeyResolver;
 import com.zestflow.executor.chain.ChainManager;
 import com.zestflow.executor.engine.ChainExecutionEngine;
 import com.zestflow.executor.engine.ExecutionIdempotencyGuard;
 import com.zestflow.executor.registry.ExecutorProperties;
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.util.Map;
@@ -22,7 +23,6 @@ import java.util.Map;
  * HTTP 链执行门面 — Mode 1/2 统一入口：幂等 → 引擎 → 响应包装 / 失败策略。
  */
 @Slf4j
-@RequiredArgsConstructor
 public class ChainExecuteFacade {
 
     private final ChainExecutionEngine executionEngine;
@@ -30,10 +30,26 @@ public class ChainExecuteFacade {
     private final ExecutionIdempotencyGuard idempotencyGuard;
     private final ExecutorProperties executorProperties;
     private final ChainErrorHandlerInvoker errorHandlerInvoker;
+    private final ChainKeyResolver chainKeyResolver;
+
+    public ChainExecuteFacade(ChainExecutionEngine executionEngine,
+                              ChainManager chainManager,
+                              ExecutionIdempotencyGuard idempotencyGuard,
+                              ExecutorProperties executorProperties,
+                              ChainErrorHandlerInvoker errorHandlerInvoker,
+                              ChainKeyResolver chainKeyResolver) {
+        this.executionEngine = executionEngine;
+        this.chainManager = chainManager;
+        this.idempotencyGuard = idempotencyGuard;
+        this.executorProperties = executorProperties;
+        this.errorHandlerInvoker = errorHandlerInvoker;
+        this.chainKeyResolver = chainKeyResolver;
+    }
 
     public ResponseEntity<?> executeHttp(ChainExecuteRequestDTO request) {
         ChainExecuteResultDTO result = executeCore(request);
-        ChainDefinition definition = chainManager.get(result.getChainCode());
+        ChainDefinition definition = result.getChainCode() != null
+                ? chainManager.get(result.getChainCode()) : null;
         ChainHttpRouteConfig routeConfig = definition != null
                 ? ChainHttpRouteConfig.fromExtraConfig(definition.getExtraConfig()) : null;
         ChainHttpResponseMode mode = resolveResponseMode(request);
@@ -58,11 +74,9 @@ public class ChainExecuteFacade {
     }
 
     public ChainExecuteResultDTO executeCore(ChainExecuteRequestDTO request, Object... typedArgs) {
-        if (request == null || request.getChainCode() == null || request.getChainCode().isBlank()) {
-            return ChainExecuteResultDTO.builder()
-                    .status(ChainConstants.CHAIN_FAILED)
-                    .errorMessage("chainCode 不能为空")
-                    .build();
+        ChainExecuteResultDTO resolved = resolveRequest(request);
+        if (resolved != null) {
+            return resolved;
         }
         String chainCode = request.getChainCode().trim();
         if (!executorProperties.isIdempotencyEnabled()) {
@@ -73,6 +87,34 @@ public class ChainExecuteFacade {
                 executorProperties.getIdempotencyTtlMs(),
                 executorProperties.getIdempotencyWaitMs(),
                 () -> runEngine(chainCode, request, typedArgs));
+    }
+
+    /**
+     * 解析 chainKey / chainCode，失败时返回 infrastructure 结果。
+     */
+    private ChainExecuteResultDTO resolveRequest(ChainExecuteRequestDTO request) {
+        if (request == null) {
+            return ChainExecuteResultDTO.builder()
+                    .status(ChainConstants.CHAIN_FAILED)
+                    .errorMessage("请求不能为空")
+                    .build();
+        }
+        if (StringUtils.hasText(request.getChainKey())) {
+            ChainKeyResolver.ResolvedChainKey resolved = chainKeyResolver.resolveKey(request.getChainKey().trim());
+            if (!resolved.isOk()) {
+                return resolved.failure();
+            }
+            request.setChainCode(resolved.chainCode());
+            return null;
+        }
+        if (!StringUtils.hasText(request.getChainCode())) {
+            return ChainExecuteResultDTO.builder()
+                    .status(ChainConstants.CHAIN_FAILED)
+                    .errorMessage("chainCode 或 chainKey 不能为空")
+                    .build();
+        }
+        request.setChainCode(request.getChainCode().trim());
+        return null;
     }
 
     private ChainExecuteResultDTO runEngine(String chainCode, ChainExecuteRequestDTO request, Object... typedArgs) {

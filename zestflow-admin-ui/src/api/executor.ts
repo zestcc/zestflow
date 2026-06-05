@@ -9,6 +9,7 @@ export interface ExecutorRegistryVO {
   executorPort: number
   status: number
   lastHeartbeat: string | null
+  declaredChainKeys?: string[]
   updatedBy?: string
   createdAt?: string
   updatedAt?: string
@@ -28,5 +29,8 @@ export const executorApi = {
   },
   listApps(online?: boolean) {
     return http.get<AppOption[]>('/executors/apps', { params: { online: online || false } })
+  },
+  listDeclaredChainKeys(appCode: string) {
+    return http.get<string[]>('/executors/declared-chain-keys', { params: { appCode } })
   },
 }

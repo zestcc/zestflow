@@ -71,6 +71,10 @@ zestflow:
       node-default-retry-count: 0
       # 节点默认重试间隔（毫秒）
       node-default-retry-interval-ms: 1000
+      # @ZestChain 启动占位同步（status=未设计）
+      declaration-sync-enabled: true
+      # 应用仍声明 chain_key 时禁止删除链
+      declaration-delete-guard-enabled: true
 
     # ---- Netty /execute 业务线程池（避免阻塞 EventLoop，对标 xxl-job 业务线程池） ----
     # 核心线程数（0 表示 CPU 核数）

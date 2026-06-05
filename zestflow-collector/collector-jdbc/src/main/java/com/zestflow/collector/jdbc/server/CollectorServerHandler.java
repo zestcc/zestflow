@@ -1,11 +1,14 @@
 package com.zestflow.collector.jdbc.server;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zestflow.collector.jdbc.metrics.CollectorMetricsProvider;
 import com.zestflow.collector.jdbc.service.ChainGraphSnapshotService;
 import com.zestflow.collector.spi.EventQueryService;
 import com.zestflow.collector.spi.InvocationPayloadService;
 import com.zestflow.common.model.Result;
+import com.zestflow.common.model.dto.ChainEvent;
+import com.zestflow.common.spi.EventCollector;
 import com.zestflow.common.protocol.InvocationPayloadDTO;
 import com.zestflow.common.protocol.NodeExecutionDetail;
 import com.zestflow.common.model.dto.ChainSnapshotDTO;
@@ -46,6 +49,7 @@ public class CollectorServerHandler extends SimpleChannelInboundHandler<FullHttp
     private final EventQueryService eventQueryService;
     private final InvocationPayloadService invocationPayloadService;
     private final ChainGraphSnapshotService snapshotService;
+    private final EventCollector eventCollector;
     private final String accessToken;
     private final ExecutorService queryExecutor;
     private final CollectorMetricsProvider metricsProvider;
@@ -53,12 +57,14 @@ public class CollectorServerHandler extends SimpleChannelInboundHandler<FullHttp
     public CollectorServerHandler(EventQueryService eventQueryService,
                                   InvocationPayloadService invocationPayloadService,
                                   ChainGraphSnapshotService snapshotService,
+                                  EventCollector eventCollector,
                                   String accessToken,
                                   ExecutorService queryExecutor,
                                   CollectorMetricsProvider metricsProvider) {
         this.eventQueryService = eventQueryService;
         this.invocationPayloadService = invocationPayloadService;
         this.snapshotService = snapshotService;
+        this.eventCollector = eventCollector;
         this.accessToken = accessToken;
         this.queryExecutor = queryExecutor;
         this.metricsProvider = metricsProvider != null ? metricsProvider : noopMetricsProvider();
@@ -173,6 +179,21 @@ public class CollectorServerHandler extends SimpleChannelInboundHandler<FullHttp
                     return toJson(Result.fail(404, "NOT_FOUND", "Node execution detail not found"));
                 }
                 return toJson(Result.success(detail));
+            });
+            return true;
+        }
+
+        // POST /collector/events/ingest — 远程 Executor 批量写入链事件
+        if (parts.length == 4 && "events".equals(parts[2]) && "ingest".equals(parts[3]) && method == HttpMethod.POST) {
+            List<ChainEvent> events = MAPPER.readValue(body, new TypeReference<List<ChainEvent>>() { });
+            if (events == null || events.isEmpty()) {
+                writeResponse(ctx, HttpResponseStatus.BAD_REQUEST,
+                        toJson(Result.fail(400, "BAD_REQUEST", "events must not be empty")));
+                return true;
+            }
+            runBlockingQuery(ctx, () -> {
+                eventCollector.collectBatch(events);
+                return toJson(Result.success(Map.of("accepted", events.size())));
             });
             return true;
         }

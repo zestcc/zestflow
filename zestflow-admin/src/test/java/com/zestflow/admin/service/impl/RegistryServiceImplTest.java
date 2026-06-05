@@ -260,6 +260,25 @@ class RegistryServiceImplTest {
     }
 
     @Test
+    void heartbeat_updatesDeclaredChainKeys() {
+        ExecutorRegistryPO existing = new ExecutorRegistryPO();
+        existing.setId(1L);
+        existing.setExecutorId("executor-1");
+        existing.setStatus(RegistryConstants.STATUS_ONLINE);
+        when(executorRegistryMapper.selectOne(any())).thenReturn(existing);
+        liveStore.touchExecutor("executor-1");
+
+        HeartbeatDTO dto = new HeartbeatDTO();
+        dto.setExecutorId("executor-1");
+        dto.setDeclaredChainKeys(List.of("demo.orders.afterSale"));
+
+        registryService.heartbeat(dto);
+
+        verify(executorRegistryMapper).updateById(registryCaptor.capture());
+        assertThat(registryCaptor.getValue().getDeclaredChainKeys()).contains("demo.orders.afterSale");
+    }
+
+    @Test
     void deregister() {
         ExecutorRegistryPO existing = new ExecutorRegistryPO();
         existing.setId(1L);

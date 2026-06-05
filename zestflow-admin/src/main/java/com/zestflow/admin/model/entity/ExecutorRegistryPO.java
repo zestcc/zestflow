@@ -29,6 +29,10 @@ public class ExecutorRegistryPO {
 
     private LocalDateTime lastHeartbeat;
 
+    /** @ZestChain 声明的 chain_key 列表（JSON 数组） */
+    @TableField("declared_chain_keys")
+    private String declaredChainKeys;
+
     private Long tenantId;
 
     private String createdBy;

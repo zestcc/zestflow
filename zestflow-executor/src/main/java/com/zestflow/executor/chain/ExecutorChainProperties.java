@@ -19,4 +19,10 @@ public class ExecutorChainProperties {
     private long defaultTimeoutMs = 60000;
     private int nodeDefaultRetryCount = 0;
     private long nodeDefaultRetryIntervalMs = 1000;
+
+    /** 启动时同步 @ZestChain 声明为 DB 占位链（status=未设计） */
+    private boolean declarationSyncEnabled = true;
+
+    /** 应用仍声明 chain_key 时禁止删除对应链 */
+    private boolean declarationDeleteGuardEnabled = true;
 }

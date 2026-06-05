@@ -21,6 +21,8 @@ public class ExecutorRegistryVO {
     private Integer executorPort;
     private Integer status;
     private LocalDateTime lastHeartbeat;
+    /** 当前实例 @ZestChain 声明的 chain_key 列表 */
+    private java.util.List<String> declaredChainKeys;
     private String updatedBy;
     private LocalDateTime createdAt;
 }

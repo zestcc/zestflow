@@ -1,5 +1,6 @@
 package com.zestflow.executor.http;
 
+import com.zestflow.common.constant.ChainExecutionErrorCodes;
 import com.zestflow.common.exception.ChainExecutionException;
 import com.zestflow.common.model.dto.ChainExecuteResultDTO;
 import com.zestflow.common.protocol.ChainFailurePolicy;
@@ -32,6 +33,9 @@ public final class ChainHttpResponseWriter {
     public static ResponseEntity<?> handleFailure(ChainExecuteResultDTO result, ChainHttpRouteConfig routeConfig,
                                                   ChainFailurePolicy policy, ChainErrorHandlerInvoker errorHandlerInvoker,
                                                   ChainExecuteRequestContext requestContext) {
+        if (ChainExecutionErrorCodes.isInfrastructureError(result.getErrorCode())) {
+            throw new ChainExecutionException(result);
+        }
         ChainFailurePolicy effective = resolveFailurePolicy(policy, routeConfig);
         return switch (effective) {
             case PROPAGATE -> throw new ChainExecutionException(result);

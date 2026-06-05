@@ -46,6 +46,7 @@ class CollectorServerHandlerTest {
     @Mock private EventQueryService eventQueryService;
     @Mock private InvocationPayloadService invocationPayloadService;
     @Mock private ChainGraphSnapshotService snapshotService;
+    @Mock private com.zestflow.common.spi.EventCollector eventCollector;
     @Mock private ChannelHandlerContext ctx;
 
     @Captor private ArgumentCaptor<FullHttpResponse> responseCaptor;
@@ -56,7 +57,7 @@ class CollectorServerHandlerTest {
     void setUp() {
         // accessToken=null 跳过 Token 校验
         handler = new CollectorServerHandler(eventQueryService, invocationPayloadService,
-                snapshotService, null, null, null);
+                snapshotService, eventCollector, null, null, null);
     }
 
     // ==================== 工具方法 ====================
@@ -108,7 +109,7 @@ class CollectorServerHandlerTest {
         @Test
         void health_noAuthRequired() {
             handler = new CollectorServerHandler(eventQueryService, invocationPayloadService,
-                    snapshotService, "secret", null, null);
+                    snapshotService, eventCollector, "secret", null, null);
             invokeHandler(buildRequest(HttpMethod.GET, "/collector/health"));
             FullHttpResponse resp = captureResponse();
             assertThat(resp.status()).isEqualTo(HttpResponseStatus.OK);
@@ -123,7 +124,7 @@ class CollectorServerHandlerTest {
         @BeforeEach
         void setUp() {
             handler = new CollectorServerHandler(eventQueryService, invocationPayloadService,
-                    snapshotService, "my-secret", null, null);
+                    snapshotService, eventCollector, "my-secret", null, null);
         }
 
         @Test
@@ -159,7 +160,7 @@ class CollectorServerHandlerTest {
         @Test
         void emptyTokenBypasses() {
             handler = new CollectorServerHandler(eventQueryService, invocationPayloadService,
-                    snapshotService, "", null, null);
+                    snapshotService, eventCollector, "", null, null);
             when(eventQueryService.queryEvents(any())).thenReturn(List.of());
             when(eventQueryService.countEvents(any())).thenReturn(0L);
 

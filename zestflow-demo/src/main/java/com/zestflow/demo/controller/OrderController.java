@@ -2,6 +2,7 @@ package com.zestflow.demo.controller;
 
 import com.zestflow.common.model.Result;
 import com.zestflow.common.model.dto.ChainExecuteResultDTO;
+import com.zestflow.executor.annotation.ZestChain;
 import com.zestflow.executor.http.ChainGateway;
 import com.zestflow.demo.dto.ApplyAfterSaleRequest;
 import com.zestflow.demo.dto.OrderRequest;
@@ -266,10 +267,12 @@ public class OrderController {
                 .orderId(result.getInstanceId()).status(statusText(result.getStatus())).costMs(result.getCostMs()).build());
     }
 
+    @ZestChain(value = "demo.orders.afterSale", name = "售后申请")
     @PostMapping("/handleApplyAfterSale")
     public Result<OrderResponse> handleApplyAfterSale(@RequestBody ApplyAfterSaleRequest afterSaleRequest) {
-        String chainCode = "CHN_DEMO_AFTER_SALE";
-        ChainExecuteResultDTO result = chainGateway.executeOrThrow(chainCode, afterSaleRequest);
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("applyId", afterSaleRequest.getApplyId());
+        ChainExecuteResultDTO result = chainGateway.executeByKey("demo.orders.afterSale", params);
         OrderResponse resp = OrderResponse.builder()
                 .orderId(result.getInstanceId())
                 .status(statusText(result.getStatus()))

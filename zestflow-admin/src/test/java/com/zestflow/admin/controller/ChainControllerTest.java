@@ -5,6 +5,7 @@ import com.zestflow.admin.client.CollectorClient;
 import com.zestflow.admin.client.ExecutorProxyService;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.runtime.AdminRuntimeStateStore;
+import com.zestflow.admin.service.ExecutorRegistryService;
 import com.zestflow.admin.service.PermissionService;
 import com.zestflow.admin.util.SecurityUtils;
 import com.zestflow.common.exception.BizException;
@@ -30,13 +31,16 @@ class ChainControllerTest {
     @Mock private PermissionService permissionService;
     @Mock private CollectorClient collectorClient;
     @Mock private AdminRuntimeStateStore runtimeStateStore;
+    @Mock private ExecutorRegistryService executorRegistryService;
     @Mock private Authentication authentication;
 
     private ChainController chainController;
 
     @BeforeEach
     void setUp() {
-        chainController = new ChainController(proxyService, permissionService, collectorClient, runtimeStateStore);
+        chainController = new ChainController(proxyService, permissionService, collectorClient,
+                runtimeStateStore, executorRegistryService);
+        when(executorRegistryService.listDeclaredChainKeysByApp(anyString())).thenReturn(java.util.Set.of());
     }
 
     @AfterEach

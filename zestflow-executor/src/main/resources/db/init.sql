@@ -10,8 +10,10 @@
 -- ==================== 业务表 ====================
 
 -- 2026-05-31：移除 design_code 列，改由 zf_design_binding 表维护设计↔链关系
+-- 2026-06-05：新增 chain_key — 应用侧稳定链标识
 CREATE TABLE IF NOT EXISTS `zf_chain` (
     `code`        VARCHAR(64)  NOT NULL PRIMARY KEY,
+    `chain_key`   VARCHAR(128) DEFAULT NULL         COMMENT '应用侧稳定链标识',
     `name`        VARCHAR(128) NOT NULL DEFAULT '',
     `description` VARCHAR(500) DEFAULT NULL,
     `status`      TINYINT      NOT NULL DEFAULT 1   COMMENT '0-停用 1-未设计 2-未发布 3-发布中 4-已发布',
@@ -22,7 +24,8 @@ CREATE TABLE IF NOT EXISTS `zf_chain` (
     `app_code`    VARCHAR(50)  DEFAULT NULL         COMMENT '应用编码',
     `is_deleted`  TINYINT      DEFAULT 0            COMMENT '删除标记（0-未删 1-已删）',
     `created_at`  VARCHAR(32)  DEFAULT NULL         COMMENT '创建时间',
-    `updated_at`  VARCHAR(32)  DEFAULT NULL         COMMENT '更新时间'
+    `updated_at`  VARCHAR(32)  DEFAULT NULL         COMMENT '更新时间',
+    UNIQUE KEY `uk_app_chain_key` (`tenant_id`, `app_code`, `chain_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Executor 链定义';
 
 CREATE TABLE IF NOT EXISTS `zf_design` (

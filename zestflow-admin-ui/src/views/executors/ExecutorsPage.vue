@@ -63,6 +63,12 @@
           {{ formatTime(row.lastHeartbeat) }}
         </template>
       </el-table-column>
+      <el-table-column :label="$t('settings.declaredChainKeys')" min-width="160" show-overflow-tooltip>
+        <template #default="{ row }">
+          <span v-if="!row.declaredChainKeys?.length" style="color:#c0c4cc">{{ $t('settings.declaredChainKeysEmpty') }}</span>
+          <span v-else>{{ row.declaredChainKeys.join(', ') }}</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="updatedBy" :label="$t('common.updatedBy')" width="120" show-overflow-tooltip />
       <el-table-column :label="$t('common.actions')" width="170" fixed="right" align="center">
         <template #default="{ row }">

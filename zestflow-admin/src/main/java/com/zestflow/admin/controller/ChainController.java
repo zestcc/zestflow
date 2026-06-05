@@ -10,6 +10,7 @@ import com.zestflow.admin.client.ExecutorProxyService.BroadcastResult;
 import com.zestflow.admin.client.ExecutorProxyService.ExecutorResult;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.runtime.AdminRuntimeStateStore;
+import com.zestflow.admin.service.ExecutorRegistryService;
 import com.zestflow.admin.service.PermissionService;
 import com.zestflow.admin.util.SecurityUtils;
 import com.zestflow.common.exception.BizException;
@@ -22,6 +23,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Set;
 import java.util.Map;
 import java.util.UUID;
 
@@ -40,6 +42,7 @@ public class ChainController {
     private final PermissionService permissionService;
     private final CollectorClient collectorClient;
     private final AdminRuntimeStateStore runtimeStateStore;
+    private final ExecutorRegistryService executorRegistryService;
 
     @GetMapping
     public String listByAppCode(
@@ -61,15 +64,16 @@ public class ChainController {
         if (json == null) return json;
         try {
             int totalExecutors = proxyService.resolveAllExecutorUrls(appCode).size();
+            Set<String> declaredKeys = executorRegistryService.listDeclaredChainKeysByApp(appCode);
             JsonNode root = MAPPER.readTree(json);
             if (root.has("records")) {
                 for (JsonNode record : root.get("records")) {
                     if (record.isObject()) {
-                        injectProgress((ObjectNode) record, appCode, totalExecutors);
+                        injectProgress((ObjectNode) record, appCode, totalExecutors, declaredKeys);
                     }
                 }
             } else if (root.isObject() && root.has("code")) {
-                injectProgress((ObjectNode) root, appCode, totalExecutors);
+                injectProgress((ObjectNode) root, appCode, totalExecutors, declaredKeys);
             }
             return MAPPER.writeValueAsString(root);
         } catch (Exception e) {
@@ -78,7 +82,7 @@ public class ChainController {
         }
     }
 
-    private void injectProgress(ObjectNode node, String appCode, int totalExecutors) {
+    private void injectProgress(ObjectNode node, String appCode, int totalExecutors, Set<String> declaredKeys) {
         String code = node.has("code") ? node.get("code").asText() : "";
         int status = node.has("status") ? node.get("status").asInt() : 0;
         // 优先从发布缓存读取
@@ -94,6 +98,9 @@ public class ChainController {
         // status=3（发布中）无缓存时保持 publishedCount=0，展示 0/total
         node.put("publishedCount", publishedCount);
         node.put("totalExecutors", totalExecutors);
+        String chainKey = node.has("chainKey") ? node.get("chainKey").asText("") : "";
+        boolean appDeclared = chainKey != null && !chainKey.isBlank() && declaredKeys.contains(chainKey.trim());
+        node.put("appDeclared", appDeclared);
     }
 
     @GetMapping("/active-codes")
@@ -180,7 +187,8 @@ public class ChainController {
     @GetMapping("/{code}")
     public String getByCode(@PathVariable String code, @RequestParam String appCode) {
         requireAppPermission(appCode, "APP_VIEWER");
-        return proxyService.getFromExecutor(appCode, "/api/chains/" + code, null);
+        String json = proxyService.getFromExecutor(appCode, "/api/chains/" + code, null);
+        return enrichProgress(json, appCode);
     }
 
     @PostMapping
@@ -202,9 +210,27 @@ public class ChainController {
     @DeleteMapping("/{code}")
     public String delete(@PathVariable String code, @RequestParam String appCode) {
         requireAppPermission(appCode, "APP_ADMIN");
+        try {
+            String chainJson = proxyService.getFromExecutor(appCode, "/api/chains/" + code, null);
+            JsonNode chainNode = MAPPER.readTree(chainJson);
+            String chainKey = chainNode.has("chainKey") ? chainNode.get("chainKey").asText("") : "";
+            if (!chainKey.isBlank() && executorRegistryService.isChainKeyDeclared(appCode, chainKey)) {
+                return "{\"code\":409,\"message\":\"应用仍声明该链 chain_key="
+                        + escapeJson(chainKey) + "，请先从代码移除 @ZestChain 后重启\"}";
+            }
+        } catch (Exception e) {
+            log.warn("删除前 chain_key 校验失败 code={} appCode={}", code, appCode, e);
+        }
         String username = com.zestflow.admin.util.SecurityUtils.getCurrentUsername();
         String query = username != null ? "?updatedBy=" + username : "";
         return proxyService.executeOnExecutor(appCode, "DELETE", "/api/chains/" + code + query, null);
+    }
+
+    private static String escapeJson(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     @PutMapping("/{code}/status")

@@ -11,7 +11,9 @@ import com.zestflow.common.protocol.ChainTransactionConfig;
 import com.zestflow.executor.event.EventPublisher;
 import com.zestflow.executor.chain.ChainDefinition;
 import com.zestflow.executor.chain.ChainDefinition.ChainEdge;
+import com.zestflow.executor.chain.ChainKeyResolver;
 import com.zestflow.executor.chain.ChainLoader;
+import com.zestflow.executor.chain.ChainRepository;
 import com.zestflow.executor.chain.ChainManager;
 import com.zestflow.executor.chain.NodeDefinition;
 import com.zestflow.executor.context.ChainContext;
@@ -53,6 +55,7 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
 
     private final ChainManager chainManager;
     private ChainLoader chainLoader;
+    private ChainKeyResolver chainKeyResolver;
     private final DagSorter dagSorter;
     private final NodeRunner nodeRunner;
     private final ChainInstanceManager instanceManager;
@@ -68,6 +71,10 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
     /** Setter 注入 ChainLoader（setter 打破循环依赖：engine → loader → nodeRunner → engine） */
     public void setChainLoader(ChainLoader chainLoader) {
         this.chainLoader = chainLoader;
+    }
+
+    public void setChainKeyResolver(ChainKeyResolver chainKeyResolver) {
+        this.chainKeyResolver = chainKeyResolver;
     }
 
     /** 并行执行线程池 */
@@ -165,16 +172,32 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
         long startTime = System.currentTimeMillis();
         log.info("链执行开始 chainCode={}", chainCode);
 
-        // 1. 获取链定义（自动从 DB 加载未注册的链）
+        if (chainKeyResolver != null) {
+            ChainExecuteResultDTO readiness = chainKeyResolver.readinessFailure(chainCode);
+            if (readiness != null) {
+                return readiness;
+            }
+        }
+
+        // 1. 获取链定义（内存未命中时从 DB 兜底，不递增版本）
         ChainDefinition definition = chainManager.get(chainCode);
         if (definition == null) {
-            log.info("链定义未在内存中找到，尝试从 DB 加载 chainCode={}", chainCode);
-            var loadResult = chainLoader.reloadChainLocal(chainCode, null, null);
+            log.debug("链定义未在内存中，尝试从 DB 加载 chainCode={}", chainCode);
+            var loadResult = chainLoader.reloadFromDatabase(chainCode);
             if (loadResult.isSuccess()) {
                 definition = chainManager.get(chainCode);
+                if (definition != null) {
+                    log.warn("链已发布但内存未命中，已从 DB 兜底加载 chainCode={}（请确认发布 reload 已到达本执行器）",
+                            chainCode);
+                }
+            } else {
+                log.warn("链定义 DB 加载失败 chainCode={} reason={}", chainCode, loadResult.getErrorMessage());
             }
         }
         if (definition == null) {
+            if (chainKeyResolver != null) {
+                return ChainKeyResolver.definitionNotLoaded(chainCode);
+            }
             return ChainExecuteResultDTO.builder()
                     .chainCode(chainCode)
                     .status(ChainConstants.CHAIN_FAILED)

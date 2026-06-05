@@ -60,4 +60,9 @@ public class ExecutorController {
         }
         return Result.success(executorRegistryService.listDistinctApps());
     }
+
+    @GetMapping("/declared-chain-keys")
+    public Result<java.util.Set<String>> listDeclaredChainKeys(@RequestParam String appCode) {
+        return Result.success(executorRegistryService.listDeclaredChainKeysByApp(appCode));
+    }
 }
