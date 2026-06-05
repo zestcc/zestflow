@@ -243,9 +243,11 @@ import { queryExecutionTraces, getExecutionTrace, getSnapshot, getNodeExecutionD
 import { executorApi, type AppOption } from '@/api/executor'
 import { chainApi, type ChainVO } from '@/api/chain'
 import ChainDetailDrawer from '@/components/ChainDetailDrawer.vue'
+import { useCurrentApp } from '@/composables/useCurrentApp'
 
 const { t } = useI18n()
 const route = useRoute()
+const { currentAppCode, syncFromApps } = useCurrentApp()
 
 const query = reactive<EventQueryParams>({
   executionId: undefined,
@@ -265,7 +267,6 @@ const loaded = ref(false)
 const loading = ref(false)
 
 const apps = ref<AppOption[]>([])
-const currentAppCode = ref<string>('')
 
 const stats = computed(() => {
   const success = list.value.filter(r => r.status === 1).length
@@ -396,9 +397,10 @@ function formatTime(ts: number | string | undefined): string {
 async function fetchApps() {
   try {
     apps.value = await executorApi.listApps()
-    if (apps.value.length > 0 && !currentAppCode.value) {
-      currentAppCode.value = apps.value[0].appCode
-      query.appCode = currentAppCode.value
+    const prefer = typeof route.query.appCode === 'string' ? route.query.appCode.trim() : undefined
+    const code = syncFromApps(apps.value, prefer)
+    if (code) {
+      query.appCode = code
     }
   } catch { /* ignore */ }
 }
@@ -432,13 +434,12 @@ function search() {
 
 function resetSearch() {
   query.executionId = undefined
-  query.appCode = undefined
   query.keyword = undefined
   query.status = undefined
   query.eventTypes = undefined
   query.startTime = undefined
   query.endTime = undefined
-  currentAppCode.value = ''
+  query.appCode = currentAppCode.value || undefined
   query.page = 1
   fetchList()
 }
@@ -489,18 +490,13 @@ async function showDetail(row: ExecutionTrace) {
 onMounted(async () => {
   await fetchApps()
   const executionId = typeof route.query.executionId === 'string' ? route.query.executionId.trim() : ''
-  const appCode = typeof route.query.appCode === 'string' ? route.query.appCode.trim() : ''
-  if (appCode) {
-    currentAppCode.value = appCode
-    query.appCode = appCode
-  }
   if (executionId) {
     query.executionId = executionId
   }
   await fetchList()
   if (executionId) {
     const row = list.value.find(r => r.executionId === executionId)
-    await showDetail(row ?? { executionId, appCode: currentAppCode.value || appCode } as ExecutionTrace)
+    await showDetail(row ?? { executionId, appCode: currentAppCode.value } as ExecutionTrace)
   }
 })
 

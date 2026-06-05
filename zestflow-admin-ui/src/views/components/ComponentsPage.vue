@@ -157,10 +157,12 @@ import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { componentApi } from '@/api/component'
 import { useDict } from '@/composables/useDict'
+import { useCurrentApp } from '@/composables/useCurrentApp'
 
 const { t } = useI18n()
 
 const { options: componentTypeOptions } = useDict('component_type')
+const { currentAppCode, syncFromApps } = useCurrentApp()
 
 function typeLabel(type: string): string {
   const map: Record<string, string> = {
@@ -200,7 +202,6 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
 const modules = ref<AppOption[]>([])
-const currentAppCode = ref<string>('')
 
 const drawerVisible = ref(false)
 const selectedComp = ref<ComponentVO | null>(null)
@@ -268,8 +269,8 @@ async function handleModuleChange() {
 
 onMounted(async () => {
   modules.value = await executorApi.listApps()
-  if (modules.value.length > 0) {
-    currentAppCode.value = modules.value[0].appCode
+  syncFromApps(modules.value)
+  if (currentAppCode.value) {
     await handleModuleChange()
   }
   await fetchStats()

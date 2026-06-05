@@ -288,9 +288,11 @@ import {
 } from '@/api/playground'
 import { executorApi, type AppOption } from '@/api/executor'
 import { goToLogDetail } from '@/utils/zestflow-nav'
+import { useCurrentApp } from '@/composables/useCurrentApp'
 
 const { t } = useI18n()
 const router = useRouter()
+const { currentAppCode, syncFromApps } = useCurrentApp()
 
 // === 场景 ===
 const scenes = ref<PlaygroundSceneVO[]>([])
@@ -308,16 +310,13 @@ const methodTagType = computed(() => {
 
 // === 应用 ===
 const apps = ref<AppOption[]>([])
-const currentAppCode = ref('')
 
 async function loadApps() {
   try {
     const res: any = await executorApi.listApps()
     const data = res.data || res
     apps.value = Array.isArray(data) ? data : []
-    if (apps.value.length > 0 && !currentAppCode.value) {
-      currentAppCode.value = apps.value[0].appCode
-    }
+    syncFromApps(apps.value)
   } catch { /* ignore */ }
 }
 

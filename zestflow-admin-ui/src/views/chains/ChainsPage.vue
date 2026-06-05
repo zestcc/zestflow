@@ -296,9 +296,11 @@ import { chainApi, type ChainCreateDTO } from '@/api/chain'
 import { executorApi, type AppOption } from '@/api/executor'
 import { designApi, type DesignVO } from '@/api/design'
 import CreateDesignDialog from '@/components/CreateDesignDialog.vue'
+import { useCurrentApp } from '@/composables/useCurrentApp'
 
 const { t } = useI18n()
 const router = useRouter()
+const { currentAppCode, syncFromApps } = useCurrentApp()
 
 function statusTagType(status: number): string {
   return ['danger', 'info', 'warning', 'primary', 'success'][status] || 'info'
@@ -312,7 +314,6 @@ function statusLabel(status: number): string {
 
 const loading = ref(false)
 const modules = ref<AppOption[]>([])
-const currentAppCode = ref<string>('')
 const chainList = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -363,9 +364,7 @@ async function openDesignDetail(designCode: string, appCode: string) {
 async function fetchModules() {
   try {
     modules.value = await executorApi.listApps()
-    if (modules.value.length > 0 && !currentAppCode.value) {
-      currentAppCode.value = modules.value[0].appCode
-    }
+    syncFromApps(modules.value)
   } catch { /* ignore */ }
 }
 

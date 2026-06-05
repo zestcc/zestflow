@@ -189,9 +189,11 @@ import { useI18n } from 'vue-i18n'
 import ChainDetailDrawer from '@/components/ChainDetailDrawer.vue'
 import { executorApi, type AppOption } from '@/api/executor'
 import { queryRecordPage, getRecordById, type PlaygroundRecordVO, type PlaygroundRecordQueryDTO } from '@/api/playground-record'
+import { useCurrentApp } from '@/composables/useCurrentApp'
 
 const { t } = useI18n()
 const router = useRouter()
+const { currentAppCode, syncFromApps } = useCurrentApp()
 
 const chainDetailDrawerRef = ref<InstanceType<typeof ChainDetailDrawer> | null>(null)
 
@@ -202,7 +204,6 @@ const page = ref(1)
 const size = ref(10)
 const timeRange = ref<string[] | null>(null)
 const apps = ref<AppOption[]>([])
-const currentAppCode = ref('')
 
 const filter = reactive<PlaygroundRecordQueryDTO>({
   keyword: '',
@@ -245,9 +246,7 @@ async function loadApps() {
     const res: any = await executorApi.listApps()
     const data = res.data || res
     apps.value = Array.isArray(data) ? data : []
-    if (apps.value.length > 0 && !currentAppCode.value) {
-      currentAppCode.value = apps.value[0].appCode
-    }
+    syncFromApps(apps.value)
   } catch { /* ignore */ }
 }
 

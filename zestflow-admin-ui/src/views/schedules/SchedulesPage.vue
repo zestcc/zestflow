@@ -9,7 +9,7 @@
     <el-card shadow="never" class="filter-card">
       <el-form :inline="true" :model="query" size="default">
         <el-form-item :label="$t('schedules.app')">
-          <el-select v-model="query.appCode" :placeholder="$t('schedules.app')" clearable style="width:200px">
+          <el-select v-model="query.appCode" :placeholder="$t('schedules.app')" clearable style="width:200px" @change="onAppFilterChange">
             <el-option v-for="m in modules" :key="m.appCode" :label="m.appName || m.appCode" :value="m.appCode" />
           </el-select>
         </el-form-item>
@@ -176,8 +176,10 @@ import { scheduleApi, type ScheduleVO, type ScheduleCreateDTO, type ScheduleUpda
 import { chainApi, type ChainVO } from '@/api/chain'
 import { executorApi, type AppOption } from '@/api/executor'
 import { useDict } from '@/composables/useDict'
+import { useCurrentApp } from '@/composables/useCurrentApp'
 
 const { t } = useI18n()
+const { syncFromApps, setCurrentAppCode } = useCurrentApp()
 
 const { options: routeStrategyOptions } = useDict('route_strategy')
 
@@ -233,7 +235,17 @@ function resetSearch() { query.appCode = undefined; query.keyword = undefined; q
 async function fetchModules() {
   try {
     modules.value = await executorApi.listApps()
+    const code = syncFromApps(modules.value)
+    if (code) {
+      query.appCode = code
+    }
   } catch { modules.value = [] }
+}
+
+function onAppFilterChange(code: string | undefined) {
+  if (code) {
+    setCurrentAppCode(code)
+  }
 }
 
 async function fetchChains(appCode: string) {
@@ -337,7 +349,7 @@ async function fetchLogs() {
 
 onMounted(async () => {
   await fetchModules()
-  fetchList()
+  await fetchList()
 })
 </script>
 

@@ -1,4 +1,4 @@
-import { computed, onMounted, watch } from 'vue'
+import { computed, onActivated, onMounted, watch } from 'vue'
 import { useDictStore } from '@/stores/dict'
 
 /** 加载字典并在全局失效后自动刷新（供下拉选项等场景使用） */
@@ -11,9 +11,13 @@ export function useDict(typeCode: string) {
     await store.loadDict(typeCode, force)
   }
 
-  onMounted(() => {
-    void refresh()
-  })
+  function reloadOnEnter() {
+    void refresh(true)
+  }
+
+  onMounted(reloadOnEnter)
+
+  onActivated(reloadOnEnter)
 
   watch(
     () => store.versions[typeCode],

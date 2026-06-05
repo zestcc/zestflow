@@ -318,9 +318,11 @@ import {
   type PlaygroundSceneVO, type PlaygroundSceneCreateDTO, type PlaygroundSceneUpdateDTO,
   type AvailableEndpoint,
 } from '@/api/playground-scene'
+import { useCurrentApp } from '@/composables/useCurrentApp'
 
 const { t } = useI18n()
 const route = useRoute()
+const { currentAppCode, syncFromApps } = useCurrentApp()
 
 const chainDetailDrawerRef = ref<InstanceType<typeof ChainDetailDrawer> | null>(null)
 
@@ -331,7 +333,6 @@ const page = ref(1)
 const size = ref(10)
 const keyword = ref('')
 const apps = ref<AppOption[]>([])
-const currentAppCode = ref('')
 const chainOptions = ref<ChainVO[]>([])
 
 // Dialog
@@ -460,14 +461,12 @@ function handleImport() {
 const detailVisible = ref(false)
 const detailData = ref<PlaygroundSceneVO | null>(null)
 
-async function loadApps() {
+async function loadApps(prefer?: string) {
   try {
     const res: any = await executorApi.listApps()
     const data = res.data || res
     apps.value = Array.isArray(data) ? data : []
-    if (apps.value.length > 0 && !currentAppCode.value) {
-      currentAppCode.value = apps.value[0].appCode
-    }
+    syncFromApps(apps.value, prefer)
   } catch { /* ignore */ }
 }
 
@@ -616,11 +615,8 @@ function extractFieldsFromBody(body: string | null | undefined): string {
 }
 
 onMounted(async () => {
-  await loadApps()
   const appCodeFromQuery = route.query.appCode as string | undefined
-  if (appCodeFromQuery) {
-    currentAppCode.value = appCodeFromQuery
-  }
+  await loadApps(appCodeFromQuery)
   await loadData()
   const sceneCodeFromQuery = route.query.sceneCode as string | undefined
   if (sceneCodeFromQuery) {
