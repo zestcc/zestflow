@@ -484,6 +484,12 @@ class NodeRunnerTest {
         assertThat(result.getErrorMessage()).contains("脚本内容为空");
     }
 
+    @Test
+    void normalizeScriptContent_decodesUnicodeApostropheLiterals() {
+        assertThat(NodeRunner.normalizeScriptContent("ctx.put(\\u0027scriptGate\\u0027, true)"))
+                .isEqualTo("ctx.put('scriptGate', true)");
+    }
+
     // ==================== 子链节点 ====================
 
     @Test

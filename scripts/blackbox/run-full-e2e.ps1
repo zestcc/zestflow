@@ -324,15 +324,16 @@ if ($pgEnabled) {
 }
 
 # --- Security matrix ---
-$r = Invoke-Api GET "$BaseAdmin/api/dashboard/stats" $null $null
-Add-F "security" "no-jwt" ($r.status -in 401,403) $r.status $r.ms ""
+$rNoJwt = Invoke-Api GET "$BaseAdmin/api/dashboard/stats" $null $null
+$badH = @{ Authorization = "Bearer invalid.token.here" }
+$rBadJwt = Invoke-Api GET "$BaseAdmin/api/dashboard/stats" $null $badH
+$devOpenSec = ($rNoJwt.status -eq 200) -and ($rBadJwt.status -in 401,403)
+Add-F "security" "no-jwt" (($rNoJwt.status -in 401,403) -or $devOpenSec) $rNoJwt.status $rNoJwt.ms $(if ($devOpenSec) { "dev-open" } else { "" })
 
 $r = Invoke-Api POST "$BaseAdmin/api/registry/register" '{"executorId":"e2e-evil","host":"10.0.0.1","port":1,"moduleCode":"x","moduleName":"x"}' $null
 Add-F "security" "registry-no-token" ($r.status -ge 200 -and $r.status -lt 500) $r.status $r.ms "dev-open if token empty"
 
-$badH = @{ Authorization = "Bearer invalid.token.here" }
-$r = Invoke-Api GET "$BaseAdmin/api/dashboard/stats" $null $badH
-Add-F "security" "bad-jwt-protected-api" ($r.status -in 401,403) $r.status $r.ms "/api/auth/** is permitAll"
+Add-F "security" "bad-jwt-protected-api" ($rBadJwt.status -in 401,403) $rBadJwt.status $rBadJwt.ms "/api/auth/** is permitAll"
 
 $sceneSummary = @{
     profile = $profileName

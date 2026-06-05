@@ -3,9 +3,9 @@
 
 -- ==================== 创建数据库 ====================
 
-CREATE DATABASE IF NOT EXISTS `zestflow_app_log` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+-- CREATE DATABASE IF NOT EXISTS `zestflow_app_log` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-USE `zestflow_app_log`;
+-- USE `zestflow_app_log`;
 
 -- ==================== 链事件索引表（轻量，便于清理与聚合） ====================
 

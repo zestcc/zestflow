@@ -21,6 +21,14 @@ foreach ($line in Get-Content $localYml) {
 if (-not $pwd) { Write-Error 'Could not parse spring.datasource.password from application-local.yml' }
 $env:MYSQL_PWD = $pwd
 
+Write-Host 'Dropping databases for clean DDL ...'
+$dropDatabases = @(
+    'DROP DATABASE IF EXISTS `zestflow_admin`;',
+    'DROP DATABASE IF EXISTS `zestflow_app_bussiness`;',
+    'DROP DATABASE IF EXISTS `zestflow_app_log`;'
+) -join ' '
+& $MysqlBin -h $MysqlHost -u $MysqlUser --default-character-set=utf8mb4 -e $dropDatabases 2>&1 | Out-Host
+
 $initFiles = @(
     (Join-Path $Root 'zestflow-executor\src\main\resources\db\init.sql'),
     (Join-Path $Root 'zestflow-collector\collector-jdbc\src\main\resources\db\init.sql')

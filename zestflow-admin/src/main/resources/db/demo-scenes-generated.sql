@@ -39,4 +39,5 @@ INSERT IGNORE INTO `playground_scene` (`scene_code`, `name`, `description`, `req
 ('SCN20260531060001', '短信发送', '短信发送', '/execute', 'POST', 'JSON', '{"userId":"U10086","phone":"13800008888"}', '{"code":200}', 'CHN_DEMO_SMS_SEND', 30, 1, 'demo-app', 'system', 'system', NOW(), NOW()),
 ('SCN20260531060002', '邮件通知', '邮件通知', '/execute', 'POST', 'JSON', '{"userId":"U10086","to":"user@example.com"}', '{"code":200}', 'CHN_DEMO_EMAIL_SEND', 30, 1, 'demo-app', 'system', 'system', NOW(), NOW()),
 ('SCN20260601000229', '售后单处理', '售后单处理', '/api/orders/handleApplyAfterSale', 'POST', 'JSON', '{"applyId":"BB-PG-001"}', '{"code":200}', 'CHN_DEMO_AFTER_SALE', 30, 1, 'demo-app', 'system', 'system', NOW(), NOW()),
-('SCN20260602000001', '失败继续', '失败继续', '/execute', 'POST', 'JSON', '{"userId":"U10086"}', '{"code":200}', 'CHN_DEMO_CONTINUE_ON_ERROR', 30, 1, 'demo-app', 'system', 'system', NOW(), NOW());
+('SCN20260602000001', '失败继续', '失败继续', '/execute', 'POST', 'JSON', '{"userId":"U10086"}', '{"code":200}', 'CHN_DEMO_CONTINUE_ON_ERROR', 30, 1, 'demo-app', 'system', 'system', NOW(), NOW()),
+('SCN20260602000002', '租户B专属', '租户B专属', '/execute', 'POST', 'JSON', '{"userId":"U10086"}', '{"code":200}', 'CHN_DEMO_NODE_1', 30, 2, 'demo-app', 'system', 'system', NOW(), NOW());

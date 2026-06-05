@@ -47,6 +47,7 @@ class DictTypeServiceImplTest {
     @BeforeEach
     void setUp() {
         dictTypeService = new DictTypeServiceImpl(dictTypeMapper, dictDataMapper, tenantAppContext);
+        lenient().when(tenantAppContext.getCurrentTenantId()).thenReturn(1L);
     }
 
     // ==================== list（含 app_code 过滤） ====================
@@ -218,6 +219,18 @@ class DictTypeServiceImplTest {
 
         assertThat(vo.getCode()).isEqualTo("new-dict");
         verify(dictTypeMapper).insert(any(DictTypePO.class));
+    }
+
+    @Test
+    void getByCode_usesCurrentTenant() {
+        DictTypePO typePo = createTypePo(1L, "route_strategy", "路由策略");
+        when(dictTypeMapper.selectOne(any())).thenReturn(typePo);
+        when(dictDataMapper.selectList(any())).thenReturn(Collections.emptyList());
+
+        dictTypeService.getByCode("route_strategy");
+
+        verify(dictTypeMapper).selectOne(any());
+        verify(tenantAppContext, atLeastOnce()).getCurrentTenantId();
     }
 
     @Test

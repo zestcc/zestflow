@@ -302,6 +302,7 @@ class ZestFlowE2ETest {
 
         // 重试耗尽后触发降级，降级成功则整个链成功
         assertThat(result.getStatus()).isEqualTo(ChainConstants.CHAIN_SUCCESS);
+        awaitEventType(ChainEvent.EventType.NODE_FALLBACK_START, 3_000);
         assertThat(eventCollector.getEventsByType(ChainEvent.EventType.NODE_FALLBACK_START)).isNotEmpty();
     }
 

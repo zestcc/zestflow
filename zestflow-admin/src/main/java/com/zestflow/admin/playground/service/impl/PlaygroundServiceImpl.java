@@ -379,7 +379,7 @@ public class PlaygroundServiceImpl implements PlaygroundService {
     /**
      * 试验场成功判定 — 优先链/节点执行结果，不以业务 Result.code 作为唯一依据。
      * <p>
-     * 1. 含链运行 status（0–8）→ 仅 {@link ChainConstants#CHAIN_SUCCESS} 为成功<br>
+     * 1. 链级 status 为 {@link ChainConstants#CHAIN_SUCCESS} 时视为成功（含 CONTINUE 策略下节点失败但链成功）<br>
      * 2. 含 nodeResults → 无失败节点即为成功<br>
      * 3. 非 JSON（XML/纯文本）或非标准 JSON → 有响应体即成功（代理 HTTP 已成功）
      */
@@ -389,6 +389,19 @@ public class PlaygroundServiceImpl implements PlaygroundService {
         }
         try {
             JsonNode node = MAPPER.readTree(resultJson);
+            ExecutionStatus fromChain = resolveChainExecutionStatus(node);
+            if (fromChain != null && fromChain.status() == 1) {
+                return fromChain;
+            }
+            if (node.has("data") && node.get("data").isObject()) {
+                ExecutionStatus nestedChain = resolveChainExecutionStatus(node.get("data"));
+                if (nestedChain != null && nestedChain.status() == 1) {
+                    return nestedChain;
+                }
+                if (fromChain == null) {
+                    fromChain = nestedChain;
+                }
+            }
             ExecutionStatus fromNodes = resolveNodeResultsStatus(node);
             if (fromNodes != null) {
                 return fromNodes;
@@ -399,15 +412,8 @@ public class PlaygroundServiceImpl implements PlaygroundService {
                     return fromNodes;
                 }
             }
-            ExecutionStatus fromChain = resolveChainExecutionStatus(node);
             if (fromChain != null) {
                 return fromChain;
-            }
-            if (node.has("data") && node.get("data").isObject()) {
-                fromChain = resolveChainExecutionStatus(node.get("data"));
-                if (fromChain != null) {
-                    return fromChain;
-                }
             }
             return ExecutionStatus.success();
         } catch (Exception e) {
