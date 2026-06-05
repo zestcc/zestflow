@@ -675,9 +675,7 @@ function destroyExecGraph() {
   }
 }
 
-/** 着色：根据事件状态给节点和连线着色 */
-function applyExecutionColors(g: Graph, events: any[]) {
-  // 构建节点执行状态映射：componentId → status
+function buildNodeStatusMap(events: any[]): Map<string, string> {
   const nodeStatusMap = new Map<string, string>()
   for (const e of events) {
     const id = e.nodeId
@@ -694,23 +692,88 @@ function applyExecutionColors(g: Graph, events: any[]) {
       }
     }
   }
+  return nodeStatusMap
+}
 
+function buildExecutedComponentIds(events: any[]): Set<string> {
+  const executedIds = new Set<string>()
+  for (const e of events) {
+    if (
+      (e.eventType === 'NODE_COMPLETED' || e.eventType === 'NODE_FALLBACK_SUCCESS')
+      && e.nodeId
+    ) {
+      executedIds.add(e.nodeId)
+    }
+  }
+  return executedIds
+}
+
+/** 开始/结束为结构节点，无 componentId，需单独推断执行状态 */
+function resolveNodeExecStatus(
+  node: any,
+  nodeStatusMap: Map<string, string>,
+  events: any[],
+  hasChainCompleted: boolean,
+): string | undefined {
+  const data = node.getData() || {}
+  const componentId = data.componentId
+  const shape = node.shape || ''
+  let status = componentId ? nodeStatusMap.get(componentId) : undefined
+  if (!status) {
+    if (shape === 'flow-start' && events.length > 0) {
+      status = 'success'
+    } else if (shape === 'flow-end' && hasChainCompleted) {
+      status = 'success'
+    }
+  }
+  return status
+}
+
+/** 判断连线是否在实际执行路径上（含连到「结束」节点的出边） */
+function isEdgeOnExecutedPath(
+  g: Graph,
+  edge: any,
+  nodeStatusMap: Map<string, string>,
+  executedIds: Set<string>,
+  events: any[],
+  hasChainCompleted: boolean,
+): boolean {
+  const source = edge.getSourceNode()
+  const target = edge.getTargetNode()
+  if (!source || !target) return false
+
+  const sourceStatus = resolveNodeExecStatus(source, nodeStatusMap, events, hasChainCompleted)
+  if (sourceStatus !== 'success') return false
+
+  const sourceShape = source.shape || ''
+  if (sourceShape === 'flow-condition' || sourceShape === 'flow-multicondition') {
+    const siblings = g.getOutgoingEdges(source) || []
+    const taken = siblings.find((e: any) => {
+      const t = e.getTargetNode()
+      if (!t) return false
+      const tid = t.getData()?.componentId
+      return !!(tid && executedIds.has(tid))
+    })
+    if (taken) return edge.id === taken.id
+    if (target.shape === 'flow-end' && hasChainCompleted) return true
+    return false
+  }
+
+  const targetId = target.getData()?.componentId
+  const targetShape = target.shape || ''
+  if (targetId) return executedIds.has(targetId)
+  if (targetShape === 'flow-end') return hasChainCompleted
+  return false
+}
+
+/** 着色：根据事件状态给节点和连线着色 */
+function applyExecutionColors(g: Graph, events: any[]) {
+  const nodeStatusMap = buildNodeStatusMap(events)
   const hasChainCompleted = events.some(e => e.eventType === 'CHAIN_COMPLETED')
+  const executedIds = buildExecutedComponentIds(events)
 
   g.getNodes().forEach(node => {
-    const data = node.getData() || {}
-    const componentId = data.componentId
-    const shape = node.shape || ''
-
-    // 开始/结束节点：结构节点无 componentId，按链执行状态着色
-    let status = componentId ? nodeStatusMap.get(componentId) : undefined
-    if (!status) {
-      if (shape === 'flow-start' && events.length > 0) {
-        status = 'success'
-      } else if (shape === 'flow-end' && hasChainCompleted) {
-        status = 'success'
-      }
-    }
+    const status = resolveNodeExecStatus(node, nodeStatusMap, events, hasChainCompleted)
 
     if (status === 'success') {
       node.attr('body/fill', '#4caf50')
@@ -729,28 +792,21 @@ function applyExecutionColors(g: Graph, events: any[]) {
       node.attr('body/strokeDasharray', '4,2')
       node.attr('label/fill', '#fff')
     } else {
-      // 未执行：中性灰
       node.attr('body/fill', '#d4d4d4')
       node.attr('body/stroke', '#a0a4a8')
       node.attr('body/strokeWidth', 1)
     }
   })
 
-  // 连线着色：目标节点已执行的连线高亮
   g.getEdges().forEach(edge => {
-    const target = edge.getTargetNode()
-    if (target) {
-      const data = target.getData() || {}
-      const id = data.componentId
-      const status = id ? nodeStatusMap.get(id) : undefined
-      if (status) {
-        edge.attr('line/stroke', '#3b82f6')
-        edge.attr('line/strokeWidth', 2.5)
-      } else {
-        edge.attr('line/stroke', '#d9d9d9')
-        edge.attr('line/strokeWidth', 1.5)
-        edge.attr('line/strokeDasharray', '4,3')
-      }
+    if (isEdgeOnExecutedPath(g, edge, nodeStatusMap, executedIds, events, hasChainCompleted)) {
+      edge.attr('line/stroke', '#3b82f6')
+      edge.attr('line/strokeWidth', 2.5)
+      edge.attr('line/strokeDasharray', null)
+    } else {
+      edge.attr('line/stroke', '#d9d9d9')
+      edge.attr('line/strokeWidth', 1.5)
+      edge.attr('line/strokeDasharray', '4,3')
     }
   })
 }

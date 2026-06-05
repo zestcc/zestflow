@@ -593,7 +593,7 @@ const canPaste = ref(false)
 const nodeCount = ref(0)
 const edgeCount = ref(0)
 const selectedEdgeStyle = ref<'straight' | 'polyline' | 'curve'>('straight')
-const defaultEdgeStyle = ref<'straight' | 'polyline' | 'curve'>('polyline')
+const defaultEdgeStyle = ref<'straight' | 'polyline' | 'curve'>('straight')
 const gridSnapEnabled = ref(false)
 const panModeEnabled = ref(false)
 const endpointHandles = ref<{ side: 'source' | 'target'; x: number; y: number }[]>([])
@@ -1359,9 +1359,31 @@ function updateNodeVisual(node: Node) {
   node.attr('label/text', data.label || typeLabel(nt))
 }
 
+function edgeStyleGraphOptions(style: 'straight' | 'polyline' | 'curve') {
+  const isPolyline = style === 'polyline'
+  return {
+    router: isPolyline
+      ? { name: 'manhattan', args: { padding: { top: 15, bottom: 15, left: 15, right: 15 }, step: 10 } }
+      : { name: 'normal' },
+    connector: { name: style === 'straight' ? 'normal' : isPolyline ? 'rounded' : 'smooth' },
+  }
+}
+
+function applyDefaultEdgeStyleToGraph(style: 'straight' | 'polyline' | 'curve') {
+  if (!graph) return
+  const { router, connector } = edgeStyleGraphOptions(style)
+  graph.options.connecting.router = router
+  graph.options.connecting.connector = connector
+  ;(graph.options as any).defaultEdge.router = router as any
+  ;(graph.options as any).defaultEdge.connector = connector as any
+  ;(graph.options.connecting as any).sourceAnchor = undefined
+}
+
 /** 加载后仅做旧数据兼容：orth→manhattan；尊重已保存的折线/曲线/直线样式 */
 function normalizeLoadedEdges() {
   if (!graph) return
+  const COL_THRESHOLD = 48
+  const ROW_THRESHOLD = 36
   graph.getEdges().forEach(e => {
     const savedStyle = e.getData()?.edgeStyle as 'straight' | 'polyline' | 'curve' | undefined
     if (savedStyle) {
@@ -1375,6 +1397,23 @@ function normalizeLoadedEdges() {
       e.setConnector('rounded')
       e.setData({ ...(e.getData() || {}), edgeStyle: 'polyline' })
       return
+    }
+    // 无 edgeStyle 的旧数据：同列/同行短距仍用直线，避免 manhattan 近距离绕圈（不影响已持久化 edgeStyle）
+    const src = e.getSourceNode()
+    const tgt = e.getTargetNode()
+    if (src && tgt && (r?.name === 'manhattan' || r?.name === 'normal')) {
+      const sb = src.getBBox()
+      const tb = tgt.getBBox()
+      const dx = Math.abs(sb.x + sb.width / 2 - (tb.x + tb.width / 2))
+      const dy = tb.y - (sb.y + sb.height / 2)
+      const sameColVertical = dx <= COL_THRESHOLD && dy > 0 && dy < 400
+      const sameRowHorizontal = Math.abs(dy) <= ROW_THRESHOLD && tb.x > sb.x + sb.width * 0.3
+      if (sameColVertical || sameRowHorizontal) {
+        e.setRouter({ name: 'normal' })
+        e.setConnector({ name: 'normal' })
+        e.setData({ ...(e.getData() || {}), edgeStyle: 'straight' })
+        return
+      }
     }
     if (r?.name === 'manhattan' || (r?.name === 'normal' && (c?.name === 'rounded' || c?.name === 'smooth' || c?.name === 'normal'))) {
       return
@@ -1403,8 +1442,7 @@ function initGraph() {
     mousewheel: { enabled: true, zoomAtMousePosition: true },
     interacting: { edgeLabelMovable: true },
     connecting: {
-      router: { name: 'manhattan', args: { padding: { top: 15, bottom: 15, left: 15, right: 15 }, step: 10 } },
-      connector: { name: 'rounded' },
+      ...edgeStyleGraphOptions(defaultEdgeStyle.value),
       snap: { radius: 40 },
       allowBlank: false,
       allowNode: true,
@@ -1418,8 +1456,7 @@ function initGraph() {
       },
     },
     defaultEdge: {
-      router: { name: 'manhattan', args: { padding: { top: 15, bottom: 15, left: 15, right: 15 }, step: 10 } },
-      connector: { name: 'rounded' },
+      ...edgeStyleGraphOptions(defaultEdgeStyle.value),
       attrs: {
         line: { stroke: '#94a3b8', strokeWidth: 2, targetMarker: { name: 'classic', size: 8 } },
       },
@@ -1690,22 +1727,15 @@ function inferEdgeStyle(edge: Edge): 'straight' | 'polyline' | 'curve' {
 
 function ensureEdgeStylesPersisted() {
   graph?.getEdges().forEach(e => {
-    applyEdgeStyleToEdge(e, inferEdgeStyle(e))
+    const data = e.getData() || {}
+    if (!data.edgeStyle) {
+      e.setData({ ...data, edgeStyle: inferEdgeStyle(e) })
+    }
   })
 }
 
 function onDefaultEdgeStyleChange(style: 'straight' | 'polyline' | 'curve') {
-  if (!graph) return
-  const isPolyline = style === 'polyline'
-  const router = isPolyline ? { name: 'manhattan', args: { padding: { top: 15, bottom: 15, left: 15, right: 15 }, step: 10 } } : { name: 'normal' }
-  const connector = { name: style === 'straight' ? 'normal' : isPolyline ? 'rounded' : 'smooth' }
-  graph.options.connecting.router = router
-  graph.options.connecting.connector = connector
-  ;(graph.options as any).defaultEdge.router = router as any
-  ;(graph.options as any).defaultEdge.connector = connector as any
-  // manhattan 路由器自带方向计算，无需额外 sourceAnchor
-  // 曲线/直线从端口位置出发，也不需要 sourceAnchor
-  ;(graph.options.connecting as any).sourceAnchor = undefined
+  applyDefaultEdgeStyleToGraph(style)
   if (selectedCell?.isEdge()) {
     onEdgeStyleChange(style)
     selectedEdgeStyle.value = style
