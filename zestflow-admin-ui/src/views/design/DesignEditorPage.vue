@@ -1370,18 +1370,14 @@ function normalizeLoadedEdges() {
     }
     const r = e.getRouter()
     const c = e.getConnector()
-    if (r?.name === 'manhattan' || (r?.name === 'normal' && (c?.name === 'rounded' || c?.name === 'smooth' || c?.name === 'normal'))) {
-      if (r?.name === 'orth') {
-        e.setRouter({ name: 'manhattan', args: { padding: { top: 15, bottom: 15, left: 15, right: 15 }, step: 10 } })
-        e.setConnector('rounded')
-        e.setData({ ...(e.getData() || {}), edgeStyle: 'polyline' })
-      }
-      return
-    }
     if (r?.name === 'orth') {
       e.setRouter({ name: 'manhattan', args: { padding: { top: 15, bottom: 15, left: 15, right: 15 }, step: 10 } })
       e.setConnector('rounded')
       e.setData({ ...(e.getData() || {}), edgeStyle: 'polyline' })
+      return
+    }
+    if (r?.name === 'manhattan' || (r?.name === 'normal' && (c?.name === 'rounded' || c?.name === 'smooth' || c?.name === 'normal'))) {
+      return
     }
   })
 }
