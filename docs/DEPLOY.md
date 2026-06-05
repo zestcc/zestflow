@@ -37,9 +37,34 @@
 
 - JDK 17+、MySQL 8+
 - 三个库：`zestflow_admin`、`zestflow_app_bussiness`、`zestflow_app_log`
-- 首次建库：执行 `zestflow-admin/src/main/resources/db/init.sql` + `initData.sql`（按需）
+- **Admin 部署包**不含 init-db / init.sql；自行 `CREATE DATABASE zestflow_admin`
+- 修改 `config/application-prod.yml` 中 `spring.datasource` 口令后 `./start-admin.sh start`（Flyway 自动 migrate）
+- **Flyway prod 开启**：`baseline-on-migrate` 兼容存量库；增量 DDL 只加新 `V{n}__*.sql`
 
 ### 2.2 生成密钥
+
+**方式 A — 一键部署包（推荐）**
+
+```powershell
+mvn package -pl zestflow-admin -Pdist -DskipTests
+# 或
+powershell -File scripts/deploy/package-admin.ps1
+```
+
+产物位于 `deploy/`：
+
+| 路径 | 说明 |
+|------|------|
+| `zestflow_admin_{version}_linux/` | Linux 目录（含 start-admin.sh） |
+| `zestflow_admin_{version}_linux.zip` | Linux 压缩包 |
+| `zestflow_admin_{version}_win/` | Windows 目录（含 start-admin.bat） |
+| `zestflow_admin_{version}_win.zip` | Windows 压缩包 |
+
+`config/` 内自动生成：`secret`、`registry-token`、`executor-access-token`、`collector.access-token`、`application-secrets.yml`、`bootstrap-admin.password`。
+
+默认数据库：`127.0.0.1` / `root` / `root`；邮件关闭；`SPRING_PROFILE=prod`。
+
+**方式 B — 手动**
 
 ```powershell
 # 示例：PowerShell 生成 32 字节 Base64

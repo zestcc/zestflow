@@ -561,7 +561,7 @@ import { Keyboard } from '@antv/x6-plugin-keyboard'
 import { Clipboard } from '@antv/x6-plugin-clipboard'
 import { Export } from '@antv/x6-plugin-export'
 import { designApi } from '@/api/design'
-import { dictApi, type DictDataVO } from '@/api/dict'
+import { useDict } from '@/composables/useDict'
 import { componentApi } from '@/api/component'
 import { executorApi } from '@/api/executor'
 import {
@@ -611,7 +611,7 @@ const chainSettings = reactive({
   transactionPropagation: 'REQUIRED',
 })
 
-const transactionPropagationDict = ref<DictDataVO[]>([])
+const { options: transactionPropagationDict } = useDict('transaction_propagation')
 
 const fallbackTransactionPropagationOptions = computed(() => [
   { value: 'INHERIT', label: t('design.txInherit') },
@@ -631,12 +631,6 @@ const transactionPropagationOptions = computed(() => {
 const chainTransactionPropagationOptions = computed(() =>
   transactionPropagationOptions.value.filter(o => o.value !== 'INHERIT')
 )
-
-function loadTransactionPropagationDict() {
-  dictApi.getDictData('transaction_propagation').then(data => {
-    if (data?.length) transactionPropagationDict.value = data
-  }).catch(() => { /* 字典未就绪时使用 i18n 兜底 */ })
-}
 
 // 绑定元件弹窗状态
 const bindDialog = reactive({
@@ -2394,7 +2388,6 @@ function goBack() { router.push('/design') }
 // ====== 生命周期 ======
 onMounted(async () => {
   registerShapes()
-  loadTransactionPropagationDict()
   await nextTick()
   initGraph()
   await loadDesign()

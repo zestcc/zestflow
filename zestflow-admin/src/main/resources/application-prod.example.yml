@@ -1,12 +1,18 @@
 # ============================================================
-# 生产环境配置（模板）
-# 复制本文件为 application-prod.yml 并按实际环境修改
-# 启动方式：--spring.profiles.active=prod
+# 生产环境配置（模板 — 复制为 application-prod.yml 后修改）
+# 启动：--spring.profiles.active=prod
 #
-# prod profile 启动时会执行 AdminProductionGuard 硬性校验：
-#   - registry / executor / collector 令牌（≥16 字符，非 your-* 占位符）
+# 一键部署包（含自动生成密钥）：
+#   mvn package -pl zestflow-admin -Pdist -DskipTests
+#   或 powershell -File scripts/deploy/package-admin.ps1
+#   产物：deploy/zestflow_admin_{version}_linux|win/
+#
+# 数据库：自行 CREATE DATABASE zestflow_admin → 改 spring.datasource → 启动时 Flyway migrate。
+# 表结构单轨维护于 classpath:db/migration/V*.sql；勿改已发布 V* 脚本。
+#
+# prod profile 启动时 AdminProductionGuard 硬性校验：
 #   - JWT secret（≥32 字符，非 dev 默认值）
-#   - default-user.password（禁止 admin123）
+#   - default-user.password（禁止 admin123 / change-me）
 #   - playground.enabled=false、tenant.ip-demo-mode=disabled
 # ============================================================
 
@@ -23,10 +29,11 @@ spring:
   mvc:
     locale-resolver: accept-header
   datasource:
-    # 生产推荐 useSSL=true 并配置 truststore；内网专线可按实际调整
-    url: jdbc:mysql://localhost:3306/zestflow_admin?useUnicode=true&characterEncoding=utf-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=true
-    username: your-db-username
-    password: your-db-password
+    # 单机本地：127.0.0.1 + useSSL=false；公网专线可改 useSSL=true
+    url: jdbc:mysql://127.0.0.1:3306/zestflow_admin?useUnicode=true&characterEncoding=utf-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    username: root
+    # 口令含 ! @ # 等 YAML 特殊字符时必须加引号，例如 password: "!Fy@xxx"
+    password: "root"
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 20
@@ -49,25 +56,28 @@ spring:
       max-request-size: 10MB
   flyway:
     enabled: true
-    baseline-on-migrate: true
     locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 1
+    validate-on-migrate: true
+    clean-disabled: true
   thymeleaf:
     enabled: false
 
 zestflow:
   jwt:
-    # 至少 32 字符随机串；勿使用 application.yml 中的 dev 默认值
+    # 至少 32 字符；部署包由 application-secrets.yml / config/secret 自动生成
     secret: change-me-use-openssl-rand-base64-32-or-longer-secret
     expiration: 86400000
   upload:
     avatar-dir: uploads/avatars
   admin:
-    # 反向代理终止 TLS 时可设为 https
-    protocol: https
-    # 前端 module script 带 Origin 头；公网域名须加入 CORS 白名单（未升级 jar 前必配）
+    # 内网 http；公网经 Nginx 终止 TLS 后改为 https
+    protocol: http
     cors:
-      allowed-origins: https://www.zestflow.cn,https://zestflow.cn
-    # 三台机器令牌须成对一致（Admin / Executor / Collector），各生成独立强随机串
+      allowed-origins: http://127.0.0.1:8080,http://localhost:8080,https://www.zestflow.cn,https://zestflow.cn
+    http-timeout-ms: 5000
+    # 三台机器令牌须成对一致（Admin / Executor / Collector）
     registry-token: change-me-registry-token-min-16-chars
     executor-access-token: change-me-executor-access-token-min-16
     deploy-mode: standalone
@@ -75,9 +85,8 @@ zestflow:
     system-user: sys
     default-user:
       username: admin
-      # 首次建库 bootstrap 口令；禁止使用 admin123（prod 启动会拒绝）
       password: change-me-strong-admin-password
-      email: admin@your-domain.com
+      email: admin@localhost
     cache:
       type: caffeine
       maximum-size: 10000
@@ -86,7 +95,12 @@ zestflow:
       ttl-seconds: 300
     health-probe:
       enabled: true
+      executor-path: /health
+      collector-path: /collector/health
       timeout-ms: 1500
+    reconcile:
+      enabled: true
+      interval-ms: 120000
   tenant:
     mode: single
     ip-demo-mode: disabled
@@ -97,8 +111,9 @@ zestflow:
     api-url: http://127.0.0.1:20650
     access-token: change-me-collector-access-token-min-16
   mail:
-    enabled: true
-    base-url: https://your-domain.com
+    # 无 SMTP 时保持 false；有邮件服务再开启
+    enabled: false
+    base-url: http://127.0.0.1:8080
     from-name: "ZestFlow"
     reset-password:
       subject: "ZestFlow - 密码重置"
@@ -106,7 +121,7 @@ zestflow:
       subject: "ZestFlow - 邮箱验证"
 
 management:
-  endpoints.web.exposure.include: health,info,metrics
+  endpoints.web.exposure.include: health,info,metrics,prometheus
   endpoint.health.show-details: when-authorized
   endpoint.health.show-components: when-authorized
   endpoint.health.probes.enabled: true
@@ -128,7 +143,7 @@ logging:
   level:
     com.zestflow: info
 
-# Redis（按需 — 多 Admin 副本 deploy-mode=cluster 时启用，须 mvn -Pcluster 构建）：
+# Redis（多 Admin 副本 deploy-mode=cluster 时启用，须 mvn -Pcluster 构建）：
 # spring.data.redis.host / port / password
 # zestflow.admin.deploy-mode: cluster
 # zestflow.admin.cache.type: redis

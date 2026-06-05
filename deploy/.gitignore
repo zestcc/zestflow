@@ -1,0 +1,3 @@
+# Maven package -Pdist 自动生成的 Admin 部署包（含密钥，勿提交）
+*
+!.gitignore

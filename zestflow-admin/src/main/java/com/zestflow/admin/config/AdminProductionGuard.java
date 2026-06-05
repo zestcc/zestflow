@@ -63,6 +63,11 @@ public class AdminProductionGuard {
             failed = true;
         }
 
+        if (!Boolean.TRUE.equals(environment.getProperty("spring.flyway.enabled", Boolean.class))) {
+            log.error("[prod] spring.flyway.enabled 必须为 true（表结构由 Flyway db/migration 维护）");
+            failed = true;
+        }
+
         if (deployProperties.isCluster()) {
             if (!ProductionSecretGuard.hasText(environment.getProperty("spring.data.redis.host"))) {
                 log.error("[prod] deploy-mode=cluster 必须配置 spring.data.redis.host");

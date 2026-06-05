@@ -156,12 +156,11 @@
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { componentApi } from '@/api/component'
-import { dictApi } from '@/api/dict'
-import type { DictDataVO } from '@/api/dict'
+import { useDict } from '@/composables/useDict'
 
 const { t } = useI18n()
 
-const componentTypeOptions = ref<DictDataVO[]>([])
+const { options: componentTypeOptions } = useDict('component_type')
 
 function typeLabel(type: string): string {
   const map: Record<string, string> = {
@@ -274,7 +273,6 @@ onMounted(async () => {
     await handleModuleChange()
   }
   await fetchStats()
-  dictApi.getDictData('component_type').then(data => { componentTypeOptions.value = data })
 })
 </script>
 

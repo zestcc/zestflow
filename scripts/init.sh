@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ZestFlow 数据库初始化 — DDL
+# ZestFlow 数据库初始化 — executor/collector DDL（Admin 库自行 CREATE DATABASE + Flyway）
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MYSQL_HOST="${MYSQL_HOST:-127.0.0.1}"
@@ -19,7 +19,6 @@ export MYSQL_PWD
 MYSQL_PWD="$(read_password)"
 
 for f in \
-  "$ROOT/zestflow-admin/src/main/resources/db/init.sql" \
   "$ROOT/zestflow-executor/src/main/resources/db/init.sql" \
   "$ROOT/zestflow-collector/collector-jdbc/src/main/resources/db/init.sql"
 do
@@ -28,4 +27,4 @@ do
 done
 
 unset MYSQL_PWD
-echo 'Done: init (admin + executor + collector DDL)'
+echo 'Done: executor/collector DDL (Admin: create DB yourself, then start Admin for Flyway)'

@@ -26,7 +26,13 @@ spring:
       max-file-size: 5MB
       max-request-size: 10MB
   flyway:
+    # 本地默认关闭（application-local.yml 建议 enabled: true）；prod 必须 true
     enabled: false
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 1
+    validate-on-migrate: true
+    clean-disabled: true
   thymeleaf:
     enabled: false
 

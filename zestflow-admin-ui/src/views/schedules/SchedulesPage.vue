@@ -175,12 +175,11 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { scheduleApi, type ScheduleVO, type ScheduleCreateDTO, type ScheduleUpdateDTO, type ScheduleLogVO } from '@/api/schedule'
 import { chainApi, type ChainVO } from '@/api/chain'
 import { executorApi, type AppOption } from '@/api/executor'
-import { dictApi } from '@/api/dict'
-import type { DictDataVO } from '@/api/dict'
+import { useDict } from '@/composables/useDict'
 
 const { t } = useI18n()
 
-const routeStrategyOptions = ref<DictDataVO[]>([])
+const { options: routeStrategyOptions } = useDict('route_strategy')
 
 const list = ref<ScheduleVO[]>([])
 const total = ref(0)
@@ -339,7 +338,6 @@ async function fetchLogs() {
 onMounted(async () => {
   await fetchModules()
   fetchList()
-  dictApi.getDictData('route_strategy').then(data => { routeStrategyOptions.value = data })
 })
 </script>
 

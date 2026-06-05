@@ -13,13 +13,23 @@ function Test-ProdFile($relPath, $forbiddenPatterns, $requiredPatterns) {
     $ok = $true
     Write-Host "Check $relPath" -ForegroundColor Cyan
     foreach ($f in $forbiddenPatterns) {
-        if ($content -match $f) {
+        $matched = if ($f -match '^\(\?') {
+            $content -match $f
+        } else {
+            $content -match [regex]::Escape($f)
+        }
+        if ($matched) {
             Write-Host "  FORBIDDEN: $f" -ForegroundColor Red
             $ok = $false
         }
     }
     foreach ($r in $requiredPatterns) {
-        if ($content -notmatch [regex]::Escape($r)) {
+        $matched = if ($r -match '^\(\?') {
+            $content -match $r
+        } else {
+            $content -match [regex]::Escape($r)
+        }
+        if (-not $matched) {
             Write-Host "  REQUIRED missing: $r" -ForegroundColor Red
             $ok = $false
         }
@@ -30,12 +40,16 @@ function Test-ProdFile($relPath, $forbiddenPatterns, $requiredPatterns) {
 
 if (-not (Test-ProdFile "zestflow-admin\src\main\resources\application-prod.example.yml" @(
         'password: admin123',
-        '(?ms)playground:\s*\r?\n\s*enabled:\s*true'
+        '(?ms)playground:\s*\r?\n\s*enabled:\s*true',
+        '(?ms)flyway:\s*\r?\n\s*enabled:\s*false'
     ) @(
-        'enabled: false',
         'ip-demo-mode: disabled',
         'flyway:',
-        'enabled: true'
+        '(?ms)flyway:\s*\r?\n\s*enabled:\s*true',
+        'baseline-on-migrate:',
+        'http-timeout-ms:',
+        'reconcile:',
+        'health-probe:'
     ))) { $failed = $true }
 
 if (-not (Test-ProdFile "zestflow-demo\src\main\resources\application-prod.example.yml" @(
@@ -47,5 +61,9 @@ if (-not (Test-ProdFile "zestflow-demo\src\main\resources\application-prod.examp
     ))) { $failed = $true }
 
 if ($failed) { exit 1 }
+
+& (Join-Path $Root "scripts/db/validate-admin-flyway.ps1")
+if ($LASTEXITCODE -ne 0) { exit 1 }
+
 Write-Host "All prod template checks passed." -ForegroundColor Green
 exit 0

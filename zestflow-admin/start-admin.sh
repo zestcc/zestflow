@@ -238,10 +238,35 @@ _build_jvm_opts() {
   _JVM_OPTS=("${opts[@]}")
 }
 
-# ==================================
-# 工具
-# ==================================
-_get_time() { date '+%Y-%m-%d %H:%M:%S'; }
+# 加载 config/ 下独立密钥文件（与 application-secrets.yml 双保险，便于脚本注入）
+_load_secrets() {
+  local f val
+  _read_secret_file() {
+    local path=$1
+    [ -f "$path" ] || return 1
+    tr -d '\r\n' < "$path"
+  }
+  f="$CONFIG_DIR/secret"
+  val=$(_read_secret_file "$f")
+  [ -n "$val" ] && export ZESTFLOW_JWT_SECRET="$val"
+
+  f="$CONFIG_DIR/registry-token"
+  val=$(_read_secret_file "$f")
+  [ -n "$val" ] && export ZESTFLOW_ADMIN_REGISTRY_TOKEN="$val"
+
+  f="$CONFIG_DIR/executor-access-token"
+  val=$(_read_secret_file "$f")
+  [ -n "$val" ] && export ZESTFLOW_ADMIN_EXECUTOR_ACCESS_TOKEN="$val"
+
+  f="$CONFIG_DIR/collector.access-token"
+  val=$(_read_secret_file "$f")
+  [ -n "$val" ] && export ZESTFLOW_COLLECTOR_ACCESS_TOKEN="$val"
+
+  f="$CONFIG_DIR/bootstrap-admin.password"
+  val=$(_read_secret_file "$f")
+  [ -n "$val" ] && export ZESTFLOW_ADMIN_DEFAULT_USER_PASSWORD="$val"
+}
+
 _log()      { echo "[$(_get_time)] $*"; }
 
 _get_pid() {
@@ -402,6 +427,8 @@ start() {
   [ -n "$old_pid" ] && { _log "停旧进程 PID=$old_pid"; _graceful_stop "$old_pid"; }
 
   _preflight || exit 1
+
+  _load_secrets
 
   local jar
   jar=$(_find_jar)
@@ -573,8 +600,14 @@ ${APP_NAME} {start|stop|restart|status|version|config|-l}
 
 目录（相对脚本位置）:
   ./start-admin.sh
-  ./config/application.yml       或 application-<profile>.yml（平铺亦可）
-  ./config/start-admin.env       启动/JVM；可选 SPRING_PROFILE=demo|prod
+  ./config/application-prod.yml   含 spring.datasource（数据库口令在此配置）
+  ./config/application-secrets.yml   自动生成密钥（JWT / 令牌 / bootstrap 口令）
+  ./config/secret                    JWT 单行备份
+  ./config/registry-token
+  ./config/executor-access-token
+  ./config/collector.access-token
+  ./config/bootstrap-admin.password
+  ./config/start-admin.env       启动/JVM；SPRING_PROFILE=prod
   ./${APP_NAME}-<version>.jar    多版本时自动取最大版本号
   ./log/
 

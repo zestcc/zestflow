@@ -1,0 +1,121 @@
+# ============================================================
+# ZestFlow Admin 单机生产包内置配置（由 package-admin 生成）
+# 敏感项见同目录 application-secrets.yml 与独立 token 文件
+# 启动：./start-admin.sh start  或  start-admin.bat start
+# ============================================================
+
+server:
+  port: 8080
+
+spring:
+  application:
+    name: zestflow-admin
+  config:
+    import: optional:application-secrets.yml
+  messages:
+    basename: messages
+    encoding: UTF-8
+    fallback-to-system-locale: false
+  mvc:
+    locale-resolver: accept-header
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/zestflow_admin?useUnicode=true&characterEncoding=utf-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    username: root
+    # 口令含 ! @ # 等 YAML 特殊字符时必须加引号，例如 password: "!Fy@xxx"
+    password: "root"
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 30000
+      connection-timeout: 10000
+  mail:
+    host: 127.0.0.1
+    port: 465
+    username: ""
+    password: ""
+    properties:
+      mail.smtp.auth: false
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 10MB
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 1
+    validate-on-migrate: true
+    clean-disabled: true
+  thymeleaf:
+    enabled: false
+
+zestflow:
+  jwt:
+    expiration: 86400000
+  upload:
+    avatar-dir: uploads/avatars
+  admin:
+    protocol: http
+    cors:
+      allowed-origins: http://127.0.0.1:8080,http://localhost:8080
+    http-timeout-ms: 5000
+    deploy-mode: standalone
+    tenant-id: 1
+    system-user: sys
+    default-user:
+      username: admin
+      email: admin@localhost
+    cache:
+      type: caffeine
+      maximum-size: 10000
+      ttl-seconds: 60
+    runtime-state:
+      ttl-seconds: 300
+    health-probe:
+      enabled: true
+      executor-path: /health
+      collector-path: /collector/health
+      timeout-ms: 1500
+    reconcile:
+      enabled: true
+      interval-ms: 120000
+  tenant:
+    mode: single
+    ip-demo-mode: disabled
+    ip-tenant-timeout-minutes: 60
+  playground:
+    enabled: false
+  collector:
+    api-url: http://127.0.0.1:20650
+  mail:
+    enabled: false
+    base-url: http://127.0.0.1:8080
+    from-name: "ZestFlow"
+    reset-password:
+      subject: "ZestFlow - 密码重置"
+    verify-email:
+      subject: "ZestFlow - 邮箱验证"
+
+management:
+  endpoints.web.exposure.include: health,info,metrics,prometheus
+  endpoint.health.show-details: when-authorized
+  endpoint.health.show-components: when-authorized
+  endpoint.health.probes.enabled: true
+  health.mail.enabled: false
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.zestflow.admin.model.entity
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+logging:
+  level:
+    com.zestflow: info

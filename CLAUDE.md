@@ -593,11 +593,12 @@ log.error("链执行失败 chainId={} nodeId={}", chainId, nodeId, e);
 2. **注释带时间戳** — 所有 DDL 修改的注释上方必须加上当前日期标记，格式为 `-- YYYY-MM-DD：修改内容说明`，方便追溯变更历史。
 3. **DDL 脚本 + 实时库同步** — 新建迁移脚本后，重启应用由 Flyway 自动执行。如果迁移脚本包含存量数据迁移，需手动在数据库上执行确认。
 4. **默认值双重保障** — 新增字段的默认值同时在 DDL（`DEFAULT xxx`）和 Service 层代码中设置，避免空指针。
-5. **未正式发布前可删表重建** — 当前无正式用户（没有 v1 版本），所有数据库可随时 `DROP TABLE` 后由 Flyway 重新创建。需要表结构变更时，直接修改 `init.sql` 或最新迁移脚本 <code>V{n}__xxx.sql</code>，通知后执行 Flyway clean + migrate 即可。
-6. **种子数据放 initData.sql，禁止 Java 代码播种（强制，2026-05-31 立规）** — 所有演示/测试用种子数据必须放在 `db/initData.sql` 中，严禁在 `ApplicationRunner`、`@PostConstruct` 或任何 Java 代码路径中执行 INSERT 播种。`init.sql` 只包含 DDL（建表、索引），`initData.sql` 只包含 DML（INSERT）。两条规则必须遵守：
+5. **未正式发布前可删表重建** — **Admin 库**：手工建库 + Flyway `db/migration/V*.sql`；**Executor/Collector 库**仍用各自 `init.sql` DDL + `initData.sql`。
+6. **种子数据放 initData.sql，禁止 Java 代码播种（强制，2026-05-31 立规）** — Admin 部署包不含 initData；Executor/Collector 的 `init.sql` 含 DDL，`initData.sql` 只含 DML。规则：
    - **所有表引用必须携带数据库前缀**：`zestflow_admin.xxx`、`zestflow_app_bussiness.xxx`，禁止无前缀裸表名
    - **幂等性**：所有 INSERT 使用 `INSERT IGNORE INTO`，确保重复执行不产生重复数据
-   - **初始化流程**：先执行 `init.sql` 建表，再执行 `initData.sql` 灌数据
+   - **Admin**：手工 `CREATE DATABASE` → 启动 Admin（Flyway）；种子走 `initData.sql`（非部署包）
+   - **Executor/Collector**：先 `init.sql` 建表，再 `initData.sql` 灌数据
 
 ### 数据审计规范（强制，2026-05 立规）
 

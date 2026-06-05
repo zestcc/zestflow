@@ -18,6 +18,7 @@ class AdminProductionGuardTest {
         env.setProperty("zestflow.admin.default-user.password", "Str0ng-P@ssw0rd-2026");
         env.setProperty("zestflow.playground.enabled", "false");
         env.setProperty("zestflow.tenant.ip-demo-mode", "disabled");
+        env.setProperty("spring.flyway.enabled", "true");
         return env;
     }
 
@@ -74,6 +75,19 @@ class AdminProductionGuardTest {
     void validateProductionConfig_defaultAdminPassword_fails() {
         MockEnvironment env = validProdEnv();
         env.setProperty("zestflow.admin.default-user.password", "admin123");
+
+        AdminDeployProperties deploy = new AdminDeployProperties();
+        deploy.setDeployMode("standalone");
+
+        AdminProductionGuard guard = new AdminProductionGuard(env, deploy);
+        assertThatThrownBy(guard::validateProductionConfig)
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void validateProductionConfig_flywayDisabled_fails() {
+        MockEnvironment env = validProdEnv();
+        env.setProperty("spring.flyway.enabled", "false");
 
         AdminDeployProperties deploy = new AdminDeployProperties();
         deploy.setDeployMode("standalone");

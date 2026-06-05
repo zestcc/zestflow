@@ -216,8 +216,11 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { dictApi, type DictTypeVO, type DictDataVO } from '@/api/dict'
+import { useDict } from '@/composables/useDict'
+import { useDictStore } from '@/stores/dict'
 
 const { t } = useI18n()
+const dictStore = useDictStore()
 
 const loading = ref(false)
 const list = ref<DictTypeVO[]>([])
@@ -225,7 +228,7 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
 const filter = reactive({ keyword: '', status: '' as number | string })
-const tagTypeOptions = ref<DictDataVO[]>([])
+const { options: tagTypeOptions } = useDict('tag_type')
 
 const typeDialogVisible = ref(false)
 const isEditingType = ref(false)
@@ -313,6 +316,9 @@ async function saveType() {
     }
     typeDialogVisible.value = false
     ElMessage.success(t('common.save'))
+    if (isEditingType.value) {
+      dictStore.invalidate(typeForm.code)
+    }
     fetchList()
   } finally {
     submitting.value = false
@@ -321,6 +327,7 @@ async function saveType() {
 
 async function toggleTypeStatus(row: DictTypeVO) {
   await dictApi.toggleStatus(row.id)
+  dictStore.invalidate(row.code)
   ElMessage.success(t('common.save'))
   fetchList()
 }
@@ -328,6 +335,7 @@ async function toggleTypeStatus(row: DictTypeVO) {
 async function handleDeleteType(row: DictTypeVO) {
   await ElMessageBox.confirm(t('dict.deleteTypeConfirm', { name: row.name }), t('common.confirm'), { type: 'warning' })
   await dictApi.delete(row.id)
+  dictStore.invalidate(row.code)
   ElMessage.success(t('common.save'))
   fetchList()
 }
@@ -404,6 +412,9 @@ async function saveData() {
     }
     dataDialogVisible.value = false
     ElMessage.success(t('common.save'))
+    if (currentType.value) {
+      dictStore.invalidate(currentType.value.code)
+    }
     refreshDataList()
   } finally {
     dataSubmitting.value = false
@@ -413,13 +424,13 @@ async function saveData() {
 async function handleDeleteData(row: DictDataVO) {
   await ElMessageBox.confirm(t('dict.deleteDataConfirm', { label: row.label }), t('common.confirm'), { type: 'warning' })
   await dictApi.deleteData(row.id)
+  dictStore.invalidate(row.typeCode)
   ElMessage.success(t('common.save'))
   refreshDataList()
 }
 
 onMounted(() => {
   fetchList()
-  dictApi.getDictData('tag_type').then(data => { tagTypeOptions.value = data })
 })
 </script>
 
