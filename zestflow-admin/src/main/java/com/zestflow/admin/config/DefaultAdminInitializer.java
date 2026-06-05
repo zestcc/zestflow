@@ -2,13 +2,16 @@ package com.zestflow.admin.config;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zestflow.admin.model.entity.UserPO;
+import com.zestflow.admin.model.entity.UserTenantPO;
 import com.zestflow.admin.repository.UserMapper;
+import com.zestflow.admin.repository.UserTenantMapper;
 import com.zestflow.common.util.ProductionSecretGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.env.Environment;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -20,8 +23,12 @@ import java.util.Arrays;
 @RequiredArgsConstructor
 public class DefaultAdminInitializer implements ApplicationRunner {
 
+    private static final long[] DEFAULT_TENANT_IDS = {1L, 2L};
+
     private final DefaultAdminProperties defaultAdminProperties;
     private final UserMapper userMapper;
+    private final UserTenantMapper userTenantMapper;
+    private final JdbcTemplate jdbcTemplate;
     private final PasswordEncoder passwordEncoder;
     private final Environment environment;
 
@@ -48,6 +55,7 @@ public class DefaultAdminInitializer implements ApplicationRunner {
                         .last("LIMIT 1")
         );
         if (existing != null) {
+            ensureDefaultTenantBindings(existing.getId());
             log.debug("默认管理员用户已存在 username={}", username);
             return;
         }
@@ -62,8 +70,36 @@ public class DefaultAdminInitializer implements ApplicationRunner {
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.insert(user);
+        ensureDefaultTenantBindings(user.getId());
 
         log.info("默认管理员用户创建成功 username={} id={} mustChangePassword={}",
                 username, user.getId(), user.getMustChangePassword());
+    }
+
+    private void ensureDefaultTenantBindings(Long userId) {
+        if (userId == null) {
+            return;
+        }
+        for (long tenantId : DEFAULT_TENANT_IDS) {
+            UserTenantPO existing = userTenantMapper.selectOne(
+                    new LambdaQueryWrapper<UserTenantPO>()
+                            .eq(UserTenantPO::getUserId, userId)
+                            .eq(UserTenantPO::getTenantId, tenantId)
+                            .last("LIMIT 1")
+            );
+            if (existing != null) {
+                continue;
+            }
+            int inserted = jdbcTemplate.update(
+                    """
+                            INSERT IGNORE INTO user_tenant (user_id, tenant_id, is_tenant_admin, created_by, created_at)
+                            VALUES (?, ?, 1, 'system', NOW())
+                            """,
+                    userId, tenantId
+            );
+            if (inserted > 0) {
+                log.info("默认管理员绑定租户 userId={} tenantId={}", userId, tenantId);
+            }
+        }
     }
 }

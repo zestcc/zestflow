@@ -12,6 +12,12 @@ function Escape-Sql([string]$s) {
     return ($s -replace "'", "''")
 }
 
+function ConvertTo-JsonForSql($obj) {
+    $json = ($obj | ConvertTo-Json -Compress -Depth 12)
+    # PowerShell ConvertTo-Json 会把单引号转成 \u0027，Aviator 无法解析
+    return ($json -replace '\\u0027', "'")
+}
+
 function Expand-SerialChain($chain, $stressList) {
     $stepPrefix = -join ([char]0x6B65, [char]0x9AA4)
     $stressList = @($stressList)[0..74]
@@ -367,7 +373,7 @@ function Build-GraphData($chain) {
         }
     }
 
-    return (@{ cells = $cells } | ConvertTo-Json -Compress -Depth 12)
+    return (ConvertTo-JsonForSql @{ cells = $cells })
 }
 
 function Build-ChainData($chain) {
@@ -381,7 +387,7 @@ function Build-ChainData($chain) {
     if ($chain.errorStrategy) {
         $root.config = @{ errorStrategy = $chain.errorStrategy }
     }
-    return ($root | ConvertTo-Json -Compress -Depth 12)
+    return (ConvertTo-JsonForSql $root)
 }
 
 $chains = @($data.chains)
@@ -419,7 +425,8 @@ $admin = [System.Text.StringBuilder]::new()
 $rows = @()
 foreach ($s in $data.scenes) {
     $path = if ($s.PSObject.Properties.Name -contains 'path') { $s.path } else { '/execute' }
-    $rows += "('$($s.scene)', '$(Escape-Sql $s.name)', '$(Escape-Sql $s.name)', '$path', 'POST', 'JSON', '$(Escape-Sql $s.body)', '{""code"":200}', '$($s.chain)', 30, 1, 'demo-app', 'system', 'system', NOW(), NOW())"
+    $tenantId = if ($s.PSObject.Properties.Name -contains 'tenantId') { [int]$s.tenantId } else { 1 }
+    $rows += "('$($s.scene)', '$(Escape-Sql $s.name)', '$(Escape-Sql $s.name)', '$path', 'POST', 'JSON', '$(Escape-Sql $s.body)', '{""code"":200}', '$($s.chain)', 30, $tenantId, 'demo-app', 'system', 'system', NOW(), NOW())"
 }
 [void]$admin.AppendLine(($rows -join ",`n") + ';')
 

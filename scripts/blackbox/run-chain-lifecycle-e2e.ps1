@@ -56,12 +56,12 @@ $suffix = Get-Date -Format "HHmmss"
 $graphObj = @{
     nodes = @(@{
         id = "n1"; label = "E2E"; type = "SCRIPT"
-        script = "return [ ok: true, e2e: 'lifecycle-$suffix' ]"
+        script = "seq.map('ok', true, 'e2e', 'lifecycle-$suffix')"
     })
     edges = @()
 }
 $graphJson = ($graphObj | ConvertTo-Json -Compress -Depth 8)
-$chainDataJson = '{"version":1,"nodes":[{"id":"n1","label":"E2E","type":"SCRIPT","script":"return [ok:true]"}],"edges":[]}'
+$chainDataJson = '{"version":1,"nodes":[{"id":"n1","label":"E2E","type":"SCRIPT","script":"true"}],"edges":[]}'
 
 $designBody = @{
     name = "E2E-Lifecycle-$suffix"

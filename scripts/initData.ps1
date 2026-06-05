@@ -33,5 +33,15 @@ foreach ($file in $dataFiles) {
     & $MysqlBin -h $MysqlHost -u $MysqlUser --default-character-set=utf8mb4 -e "source $($file -replace '\\','/')" 2>&1 | Out-Host
 }
 
+Write-Host 'Repair admin user_tenant bindings (if admin user already exists)...'
+$repairSql = @"
+USE zestflow_admin;
+INSERT IGNORE INTO user_tenant (user_id, tenant_id, is_tenant_admin, created_by, created_at)
+SELECT u.id, 1, 1, 'system', NOW() FROM user u WHERE u.username='admin';
+INSERT IGNORE INTO user_tenant (user_id, tenant_id, is_tenant_admin, created_by, created_at)
+SELECT u.id, 2, 1, 'system', NOW() FROM user u WHERE u.username='admin';
+"@
+& $MysqlBin -h $MysqlHost -u $MysqlUser --default-character-set=utf8mb4 -e $repairSql 2>&1 | Out-Host
+
 Remove-Item Env:MYSQL_PWD -ErrorAction SilentlyContinue
 Write-Host 'Done: initData (executor + admin + collector seed)'

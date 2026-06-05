@@ -6,9 +6,12 @@ import com.zestflow.common.constant.RegistryAuthConstants;
 import com.zestflow.common.model.Result;
 import com.zestflow.common.model.dto.HeartbeatDTO;
 import com.zestflow.common.model.dto.RegisterDTO;
+import com.zestflow.common.registry.RegistryRegisterDiagnostics;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +31,14 @@ public class CollectorAdminClient {
 
     public boolean register(RegisterDTO dto) {
         List<String> adminList = parseAddresses();
+        if (adminList.isEmpty()) {
+            log.error("{} collectorId={}",
+                    RegistryRegisterDiagnostics.hintForEmptyAddresses("zestflow.collector.registry.admin-addresses"),
+                    dto.getExecutorId());
+            return false;
+        }
+        boolean tokenConfigured = hasText(properties.getRegistryToken());
+        List<String> failures = new ArrayList<>();
         for (String adminUrl : adminList) {
             try {
                 String url = adminUrl + "/api/registry/collector/register";
@@ -36,11 +47,19 @@ public class CollectorAdminClient {
                     log.info("采集器注册成功 adminUrl={} collectorId={}", adminUrl, dto.getExecutorId());
                     return true;
                 }
+                String reason = RegistryRegisterDiagnostics.describeResultFailure(result);
+                failures.add(adminUrl + " -> " + reason);
+                log.warn("采集器注册失败 adminUrl={} reason={}", adminUrl, reason);
             } catch (Throwable e) {
-                log.warn("采集器注册失败 adminUrl={} error={}", adminUrl, e.getMessage());
+                String reason = RegistryRegisterDiagnostics.describeException(e, tokenConfigured);
+                failures.add(adminUrl + " -> " + reason);
+                log.warn("采集器注册失败 adminUrl={} reason={}", adminUrl, reason);
             }
         }
-        log.error("所有 Admin 地址注册均失败 collectorId={}", dto.getExecutorId());
+        log.error(RegistryRegisterDiagnostics.summarizeFailures(
+                "采集器", dto.getExecutorId(), properties.getAdminAddresses(),
+                "zestflow.collector.registry.admin-addresses", "zestflow.collector.registry-token",
+                "/api/registry/collector/register", String.join("; ", failures)));
         return false;
     }
 
@@ -91,6 +110,16 @@ public class CollectorAdminClient {
     }
 
     private List<String> parseAddresses() {
-        return List.of(properties.getAdminAddresses().split(","));
+        if (properties.getAdminAddresses() == null) {
+            return List.of();
+        }
+        return Arrays.stream(properties.getAdminAddresses().split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }

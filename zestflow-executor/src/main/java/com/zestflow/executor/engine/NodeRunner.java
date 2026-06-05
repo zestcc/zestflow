@@ -404,7 +404,7 @@ public class NodeRunner {
     }
 
     private Object executeScript(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
-        String script = nodeDef.getScript();
+        String script = normalizeScriptContent(nodeDef.getScript());
         if (script == null || script.isEmpty()) {
             throw new IllegalArgumentException("脚本内容为空 nodeId=" + nodeDef.getId());
         }
@@ -416,6 +416,14 @@ public class NodeRunner {
         } catch (Exception e) {
             throw new RuntimeException("脚本执行失败 nodeId=" + nodeDef.getId() + " error=" + e.getMessage(), e);
         }
+    }
+
+    /** 兼容设计器/种子数据中未解码的 \\u0027 字面量 */
+    static String normalizeScriptContent(String script) {
+        if (script == null || script.isEmpty()) {
+            return script;
+        }
+        return script.replace("\\u0027", "'");
     }
 
     private Object executeSubChain(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {

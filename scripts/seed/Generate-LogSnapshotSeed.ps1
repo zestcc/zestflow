@@ -31,12 +31,12 @@ if ($rows.Count -eq 0) {
 $sb = New-Object System.Text.StringBuilder
 [void]$sb.AppendLine('-- ZestFlow Collector log DB seed: chain_graph_snapshot for demo chains')
 [void]$sb.AppendLine('-- 2026-06-02: synced from executor initData zf_chain_version')
-[void]$sb.AppendLine('-- 用法：先 init.sql，再 initData.sql（或 scripts/initData.ps1）')
+[void]$sb.AppendLine('-- Run init.sql then initData.sql (scripts/initData.ps1)')
 [void]$sb.AppendLine('')
-[void]$sb.AppendLine('USE `zestflow_app_log`;')
+[void]$sb.AppendLine("USE zestflow_app_log;")
 [void]$sb.AppendLine('')
-[void]$sb.AppendLine('INSERT IGNORE INTO `chain_graph_snapshot` (`chain_code`, `version`, `graph_data`, `status`, `tenant_id`, `app_code`, `created_by`, `created_at`, `updated_at`) VALUES')
-[void]$sb.AppendLine(($rows -join ",`n") + ';')
+[void]$sb.AppendLine("INSERT IGNORE INTO chain_graph_snapshot (chain_code, version, graph_data, status, tenant_id, app_code, created_by, created_at, updated_at) VALUES")
+[void]$sb.AppendLine(($rows -join ",`n") + ";")
 
 $utf8Bom = New-Object System.Text.UTF8Encoding $true
 [System.IO.File]::WriteAllText($OutFile, $sb.ToString(), $utf8Bom)

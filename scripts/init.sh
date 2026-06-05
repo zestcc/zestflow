@@ -18,6 +18,10 @@ read_password() {
 export MYSQL_PWD
 MYSQL_PWD="$(read_password)"
 
+echo 'Dropping databases for clean DDL ...'
+"$MYSQL_BIN" -h "$MYSQL_HOST" -u "$MYSQL_USER" --default-character-set=utf8mb4 -e \
+  "DROP DATABASE IF EXISTS \`zestflow_admin\`; DROP DATABASE IF EXISTS \`zestflow_app_bussiness\`; DROP DATABASE IF EXISTS \`zestflow_app_log\`;"
+
 for f in \
   "$ROOT/zestflow-executor/src/main/resources/db/init.sql" \
   "$ROOT/zestflow-collector/collector-jdbc/src/main/resources/db/init.sql"

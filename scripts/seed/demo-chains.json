@@ -467,7 +467,7 @@
           "id": "n2",
           "label": "脚本门禁",
           "type": "SCRIPT",
-          "script": "ctx.put('scriptGate', true); return true"
+          "script": "ctx.put('scriptGate', true); true"
         },
         {
           "id": "n3",
@@ -1754,6 +1754,14 @@
       "chain": "CHN_DEMO_CONTINUE_ON_ERROR",
       "body": "{\"userId\":\"U10086\"}",
       "e2eExpect": "partialGreen"
+    },
+    {
+      "scene": "SCN20260602000002",
+      "name": "租户B专属",
+      "chain": "CHN_DEMO_NODE_1",
+      "body": "{\"userId\":\"U10086\"}",
+      "tenantId": 2,
+      "e2eExpect": "enterpriseOnly"
     }
   ]
 }

@@ -8,9 +8,11 @@ import com.zestflow.common.model.dto.ChainDefinitionDTO;
 import com.zestflow.common.model.dto.ChainSyncDTO;
 import com.zestflow.common.model.dto.HeartbeatDTO;
 import com.zestflow.common.model.dto.RegisterDTO;
+import com.zestflow.common.registry.RegistryRegisterDiagnostics;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -35,6 +37,14 @@ public class AdminClient {
 
     public boolean register(RegisterDTO dto) {
         List<String> adminList = parseAddresses();
+        if (adminList.isEmpty()) {
+            log.error("{} executorId={}",
+                    RegistryRegisterDiagnostics.hintForEmptyAddresses("zestflow.executor.admin-addresses"),
+                    dto.getExecutorId());
+            return false;
+        }
+        boolean tokenConfigured = hasText(properties.getRegistryToken());
+        List<String> failures = new ArrayList<>();
         for (String adminUrl : adminList) {
             try {
                 String url = adminUrl + "/api/registry/register";
@@ -43,11 +53,19 @@ public class AdminClient {
                     log.info("注册成功 adminUrl={} executorId={}", adminUrl, dto.getExecutorId());
                     return true;
                 }
+                String reason = RegistryRegisterDiagnostics.describeResultFailure(result);
+                failures.add(adminUrl + " -> " + reason);
+                log.warn("注册失败 adminUrl={} reason={}", adminUrl, reason);
             } catch (Throwable e) {
-                log.warn("注册失败 adminUrl={} error={}", adminUrl, e.getMessage());
+                String reason = RegistryRegisterDiagnostics.describeException(e, tokenConfigured);
+                failures.add(adminUrl + " -> " + reason);
+                log.warn("注册失败 adminUrl={} reason={}", adminUrl, reason);
             }
         }
-        log.error("所有 Admin 地址注册均失败 executorId={}", dto.getExecutorId());
+        log.error(RegistryRegisterDiagnostics.summarizeFailures(
+                "执行器", dto.getExecutorId(), properties.getAdminAddresses(),
+                "zestflow.executor.admin-addresses", "zestflow.executor.registry-token",
+                "/api/registry/register", String.join("; ", failures)));
         return false;
     }
 
@@ -144,9 +162,16 @@ public class AdminClient {
     }
 
     private List<String> parseAddresses() {
+        if (properties.getAdminAddresses() == null) {
+            return List.of();
+        }
         return Arrays.stream(properties.getAdminAddresses().split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .toList();
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }

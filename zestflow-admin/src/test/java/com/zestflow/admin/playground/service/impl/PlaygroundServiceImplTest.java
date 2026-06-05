@@ -246,7 +246,7 @@ class PlaygroundServiceImplTest {
         when(proxyService.executeOnExecutor(eq("playground-app"), eq("POST"),
                 eq("/api/orders/handleApplyAfterSale"), anyString()))
                 .thenReturn("""
-                        {"code":200,"data":{"status":4,"nodeResults":[
+                        {"code":200,"data":{"status":5,"nodeResults":[
                           {"nodeId":"A","status":3},
                           {"nodeId":"B","status":4,"errorMessage":"库存不足"}
                         ]}}""");
@@ -257,6 +257,40 @@ class PlaygroundServiceImplTest {
 
         assertThat(result.get("status")).isEqualTo(0);
         assertThat(result.get("errorMsg")).toString().contains("库存不足");
+    }
+
+    @Test
+    void executeScene_shouldMarkSuccess_whenChainSuccessDespiteFailedNode() {
+        PlaygroundScenePO scene = createTestScene("SCN_CONTINUE");
+        when(sceneMapper.selectOne(any())).thenReturn(scene);
+        when(rateLimiter.tryAcquire("SCN_CONTINUE", 30)).thenReturn(true);
+        when(tenantAppContext.getCurrentTenantId()).thenReturn(1L);
+        when(proxyService.executeOnExecutor(anyString(), anyString(), anyString(), anyString()))
+                .thenReturn("""
+                        {"code":200,"data":{"status":4,"nodeResults":[
+                          {"nodeId":"failStep","status":4,"errorMessage":"step failed"}
+                        ]}}""");
+        doAnswer(invocation -> { ((PlaygroundRecordPO) invocation.getArgument(0)).setId(1L); return 1; })
+                .when(recordMapper).insert(any(PlaygroundRecordPO.class));
+
+        Map<String, Object> result = playgroundService.executeScene("SCN_CONTINUE", Map.of(), "10.0.0.1");
+
+        assertThat(result.get("status")).isEqualTo(1);
+    }
+
+    @Test
+    void resolveExecutionStatus_chainSuccessOverridesFailedNode() {
+        var status = PlaygroundServiceImpl.resolveExecutionStatus(
+                "{\"status\":4,\"nodeResults\":[{\"nodeId\":\"failStep\",\"status\":4,\"errorMessage\":\"step failed\"}]}");
+        assertThat(status.status()).isEqualTo(1);
+    }
+
+    @Test
+    void resolveExecutionStatus_failedNodeWithoutChainSuccess() {
+        var status = PlaygroundServiceImpl.resolveExecutionStatus(
+                "{\"status\":5,\"nodeResults\":[{\"nodeId\":\"n1\",\"status\":4,\"errorMessage\":\"boom\"}]}");
+        assertThat(status.status()).isEqualTo(0);
+        assertThat(status.errorMsg()).contains("boom");
     }
 
     private PlaygroundScenePO createTestScene(String code) {

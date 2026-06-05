@@ -31,24 +31,26 @@ zestflow:
     execute-response-mode: BODY
     execute-failure-policy: PROPAGATE
     datasource:
-      url: jdbc:mysql://localhost:3306/zestflow_app_bussiness?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=true
-      username: your-db-username
-      password: your-db-password
+      url: jdbc:mysql://pc-j6ckqye1k9j22oj9p.rwlb.rds.aliyuncs.com:3306/room_cloud_ota?useSSL=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8
+      username: xwd_zest_0894631
+      password: d7w0g%nxg!3EW%@aw10gRFd7w*i0
       driver-class-name: com.mysql.cj.jdbc.Driver
     admin-addresses: http://127.0.0.1:8080
-    registry-token: change-me-registry-token-min-16-chars
-    access-token: change-me-executor-access-token-min-16
+    registry-token: NU8POE4PkE90pwaTfZ7WUSu94c0lPe
+    access-token: hYwax6ntmMY0KGCBhx6qvDPjJ85ywI9z
     timeout-ms: 5000
     execute-pool-core-size: 8
     execute-pool-max-size: 16
     execute-pool-queue-capacity: 256
   collector:
     datasource:
-      url: jdbc:mysql://localhost:3306/zestflow_app_log?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=true
-      username: your-db-username
-      password: your-db-password
+      url: jdbc:mysql://pc-j6ckqye1k9j22oj9p.rwlb.rds.aliyuncs.com:3306/room_cloud_ota?useSSL=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8
+      username: xwd_zest_0894631
+      password: d7w0g%nxg!3EW%@aw10gRFd7w*i0
       driver-class-name: com.mysql.cj.jdbc.Driver
     registry:
       port: 20650
-    access-token: change-me-collector-access-token-min-16
+      admin-addresses: http://127.0.0.1:8080
+      registry-token: NU8POE4PkE90pwaTfZ7WUSu94c0lPe
+    access-token: Llg2V23WS6bBeultNDF3A5MSH1FVLF7W
     disk-fallback-enabled: true
