@@ -40,7 +40,8 @@ public final class AviatorExpressionEvaluator {
     /** 脚本执行超时（毫秒） */
     private static final long SCRIPT_TIMEOUT_MS = 5_000L;
 
-    /** 将 Groovy 风格 {@code ctx.put('k', v)} 转为 Aviator {@code ctx.put(ctx, 'k', v)} */
+    /** Groovy 风格 {@code ctx.put/get} 转为 Aviator 实例方法：{@code chainCtx.put/get(ctx, ...)} */
+    private static final String CTX_FN_NAMESPACE = "chainCtx";
     private static final Pattern CTX_PUT_CALL = Pattern.compile("ctx\\.put\\((?!ctx,)");
     private static final Pattern CTX_GET_CALL = Pattern.compile("ctx\\.get\\((?!ctx,)");
 
@@ -48,7 +49,8 @@ public final class AviatorExpressionEvaluator {
         try {
             // 禁用危险函数
             ENGINE.addStaticFunctions("StringUtils", StringUtils.class);
-            ENGINE.addInstanceFunctions("ctx", ChainContext.class);
+            // 命名空间须与 env 中的 ctx 变量区分，避免 Aviator 将 ctx.get 解析为属性访问
+            ENGINE.addInstanceFunctions(CTX_FN_NAMESPACE, ChainContext.class);
 
             // 移除可能危险的默认函数
             ENGINE.removeFunction("sys");
@@ -105,14 +107,14 @@ public final class AviatorExpressionEvaluator {
     }
 
     /**
-     * Groovy 风格 ctx 方法调用兼容：Aviator 需 {@code ctx.put(ctx, key, val)} 形式。
+     * Groovy 风格 ctx 方法调用兼容：Aviator 需 {@code chainCtx.put/get(ctx, ...)} 形式。
      */
     static String normalizeCtxMethodCalls(String expr) {
         if (expr == null || expr.isEmpty()) {
             return expr;
         }
-        String normalized = CTX_PUT_CALL.matcher(expr).replaceAll("ctx.put(ctx, ");
-        return CTX_GET_CALL.matcher(normalized).replaceAll("ctx.get(ctx, ");
+        String normalized = CTX_PUT_CALL.matcher(expr).replaceAll(CTX_FN_NAMESPACE + ".put(ctx, ");
+        return CTX_GET_CALL.matcher(normalized).replaceAll(CTX_FN_NAMESPACE + ".get(ctx, ");
     }
 
     /**
@@ -170,7 +172,7 @@ public final class AviatorExpressionEvaluator {
             log.warn("表达式缓存已满，将清理部分缓存 currentSize={}", EXPRESSION_CACHE.size());
             EXPRESSION_CACHE.clear();
         }
-        Expression compiled = AviatorEvaluator.compile(expr, true);
+        Expression compiled = ENGINE.compile(expr, true);
         EXPRESSION_CACHE.put(expr, compiled);
         return compiled;
     }

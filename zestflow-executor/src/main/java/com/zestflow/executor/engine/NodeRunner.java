@@ -469,8 +469,8 @@ public class NodeRunner {
                 nodeDef.getId(), subChainCode, currentDepth, readDeadlineMs(context));
         long parentDeadline = readDeadlineMs(context);
 
-        // 传递深度信息到子链上下文
-        Map<String, Object> snapshot = context.snapshot();
+        // 传递深度信息到子链上下文（snapshot 为只读视图，须拷贝后再写入）
+        Map<String, Object> snapshot = new HashMap<>(context.snapshot());
         snapshot.put("_sub_chain_depth", currentDepth + 1);
 
         ChainExecuteResultDTO result = chainExecutionEngine.executeWithDeadline(

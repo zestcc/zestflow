@@ -30,6 +30,14 @@ class AviatorExpressionEvaluatorTest {
     }
 
     @Test
+    void normalizeCtxMethodCallsUsesChainCtxNamespace() {
+        assertThat(AviatorExpressionEvaluator.normalizeCtxMethodCalls("ctx.get('price')"))
+                .isEqualTo("chainCtx.get(ctx, 'price')");
+        assertThat(AviatorExpressionEvaluator.normalizeCtxMethodCalls("ctx.put('k', 1)"))
+                .isEqualTo("chainCtx.put(ctx, 'k', 1)");
+    }
+
+    @Test
     void executeScriptWithCtx() {
         Map<String, Object> env = AviatorExpressionEvaluator.buildEnv(Map.of("price", 100));
         Object result = AviatorExpressionEvaluator.execute(
