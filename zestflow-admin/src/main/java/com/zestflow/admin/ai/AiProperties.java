@@ -36,4 +36,10 @@ public class AiProperties {
 
     /** 预设 ID → 环境变量 API Key（租户未配置 Key 时的兜底） */
     private java.util.Map<String, String> envKeys = new java.util.HashMap<>();
+
+    /** 是否启用轻量 RAG（classpath ai-rag 文档检索） */
+    private boolean ragEnabled = true;
+
+    /** RAG 注入 Prompt 的最大片段数 */
+    private int ragMaxChunks = 3;
 }

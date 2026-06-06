@@ -127,6 +127,15 @@ if ($diag.ok) {
 }
 Add-Check "ai-logs-diagnose" ($diag.ok -and $hasDiagnosis) "status=$($diag.status)"
 
+$rag = Invoke-Api GET "$BaseAdmin/api/zestflow/ai/rag/search?q=Aviator+chainCtx&limit=2" $null $h
+$ragOk = $false
+if ($rag.ok) {
+    try {
+        $ragOk = @((ConvertFrom-Json $rag.body).data).Count -gt 0
+    } catch {}
+}
+Add-Check "ai-rag-search" ($rag.ok -and $ragOk) "status=$($rag.status)"
+
 $fail = @($checks | Where-Object { -not $_.ok }).Count
 Write-Host "Checks: $($checks.Count - $fail)/$($checks.Count) passed" -ForegroundColor $(if ($fail -eq 0) { 'Green' } else { 'Red' })
 Save-Report

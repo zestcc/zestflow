@@ -36,6 +36,7 @@ class AiCopilotServiceTest {
     @Mock private AiChatClient aiChatClient;
     @Mock private ExecutorValidateClient executorValidateClient;
     @Mock private CollectorQueryAggregator collectorQueryAggregator;
+    @Mock private AiRagService aiRagService;
     @Mock private AiCopilotSessionMapper sessionMapper;
     @Mock private AiCopilotMessageMapper messageMapper;
 
@@ -48,6 +49,8 @@ class AiCopilotServiceTest {
         aiProperties.setEnabled(true);
         aiProperties.setRepairMaxRounds(2);
 
+        lenient().when(aiRagService.retrieve(anyString(), anyInt())).thenReturn(List.of());
+
         service = new AiCopilotService(
                 aiProperties,
                 tenantAiConfigService,
@@ -56,6 +59,7 @@ class AiCopilotServiceTest {
                 executorValidateClient,
                 new AiComponentScaffoldBuilder(),
                 collectorQueryAggregator,
+                aiRagService,
                 sessionMapper,
                 messageMapper
         );

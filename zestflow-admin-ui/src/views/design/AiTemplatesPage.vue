@@ -43,6 +43,9 @@
         <el-button text type="primary" size="small" class="action-btn" @click="copyChainData(row)">
           {{ $t('ai.templates.copyJson') }}
         </el-button>
+        <el-button text type="primary" size="small" class="action-btn" @click="openApplyDialog(row)">
+          {{ $t('ai.templates.applyCopilot') }}
+        </el-button>
         <el-button text type="danger" size="small" class="action-btn" @click="handleDelete(row)">
           {{ $t('common.delete') }}
         </el-button>
@@ -62,6 +65,7 @@
       <pre class="json-block">{{ detail?.chainData }}</pre>
       <template #footer>
         <el-button @click="detailVisible = false">{{ $t('common.close') }}</el-button>
+        <el-button type="primary" @click="openApplyDialog(detail!)">{{ $t('ai.templates.applyCopilot') }}</el-button>
         <el-button type="primary" @click="goDesign">{{ $t('ai.templates.openDesign') }}</el-button>
       </template>
     </el-dialog>
@@ -91,6 +95,23 @@
         <el-button type="primary" :loading="saving" @click="handleCreate">{{ $t('common.save') }}</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="applyVisible" :title="$t('ai.templates.applyCopilot')" width="480px" destroy-on-close>
+      <el-form label-width="100px">
+        <el-form-item :label="$t('design.name')" required>
+          <el-input v-model="applyDesignCode" :placeholder="$t('ai.templates.designCodePlaceholder')" />
+        </el-form-item>
+        <el-form-item :label="$t('design.selectApp')">
+          <el-input :model-value="applyTarget?.appCode || currentAppCode" disabled />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="applyVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" :disabled="!applyDesignCode.trim()" @click="confirmApplyToDesign">
+          {{ $t('ai.templates.openInCopilot') }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -114,6 +135,9 @@ const loading = ref(false)
 const saving = ref(false)
 const detailVisible = ref(false)
 const createVisible = ref(false)
+const applyVisible = ref(false)
+const applyDesignCode = ref('')
+const applyTarget = ref<AiChainTemplate | null>(null)
 const detail = ref<AiChainTemplate | null>(null)
 
 const createForm = reactive<AiChainTemplateSaveDTO>({
@@ -216,6 +240,28 @@ function goDesign() {
     return
   }
   router.push({ path: '/design', query: { appCode: detail.value.appCode } })
+}
+
+function openApplyDialog(row: AiChainTemplate) {
+  applyTarget.value = row
+  applyDesignCode.value = ''
+  applyVisible.value = true
+}
+
+function confirmApplyToDesign() {
+  const code = applyDesignCode.value.trim()
+  const row = applyTarget.value
+  if (!code || !row) return
+  applyVisible.value = false
+  detailVisible.value = false
+  router.push({
+    name: 'DesignEditor',
+    params: { id: code },
+    query: {
+      appCode: row.appCode || currentAppCode.value || undefined,
+      aiTemplateId: String(row.id),
+    },
+  })
 }
 
 onMounted(async () => {

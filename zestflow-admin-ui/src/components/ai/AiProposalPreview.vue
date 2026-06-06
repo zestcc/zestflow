@@ -7,6 +7,31 @@
       </el-button>
     </div>
     <p v-if="summary" class="ai-proposal-summary">{{ summary }}</p>
+
+    <div v-if="diff && hasDiff" class="ai-proposal-diff">
+      <div class="diff-title">{{ $t('ai.diffTitle') }}</div>
+      <div v-if="diff.nodesAdded.length" class="diff-row">
+        <el-tag type="success" size="small">{{ $t('ai.diffNodesAdded') }}</el-tag>
+        <span>{{ diff.nodesAdded.join(', ') }}</span>
+      </div>
+      <div v-if="diff.nodesRemoved.length" class="diff-row">
+        <el-tag type="danger" size="small">{{ $t('ai.diffNodesRemoved') }}</el-tag>
+        <span>{{ diff.nodesRemoved.join(', ') }}</span>
+      </div>
+      <div v-if="diff.nodesChanged.length" class="diff-row">
+        <el-tag type="warning" size="small">{{ $t('ai.diffNodesChanged') }}</el-tag>
+        <span>{{ diff.nodesChanged.join(', ') }}</span>
+      </div>
+      <div v-if="diff.edgesAdded > 0" class="diff-row">
+        <el-tag type="success" size="small">{{ $t('ai.diffEdgesAdded') }}</el-tag>
+        <span>+{{ diff.edgesAdded }}</span>
+      </div>
+      <div v-if="diff.edgesRemoved > 0" class="diff-row">
+        <el-tag type="danger" size="small">{{ $t('ai.diffEdgesRemoved') }}</el-tag>
+        <span>-{{ diff.edgesRemoved }}</span>
+      </div>
+    </div>
+
     <el-input
       v-if="chainJson && expanded"
       :model-value="formattedJson"
@@ -20,10 +45,12 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { computeChainDiff, hasChainDiff as checkHasDiff } from '@/utils/chainDiff'
 
 const props = defineProps<{
   summary?: string | null
   chainJson?: string | null
+  currentChainJson?: string | null
 }>()
 
 const expanded = ref(false)
@@ -37,6 +64,9 @@ const formattedJson = computed(() => {
     return props.chainJson
   }
 })
+
+const diff = computed(() => computeChainDiff(props.currentChainJson, props.chainJson))
+const hasDiff = computed(() => checkHasDiff(diff.value))
 </script>
 
 <style scoped>
@@ -62,6 +92,31 @@ const formattedJson = computed(() => {
 .ai-proposal-summary {
   margin: 0 0 8px;
   font-size: 13px;
+  color: #606266;
+  line-height: 1.5;
+}
+
+.ai-proposal-diff {
+  margin-bottom: 8px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+}
+
+.diff-title {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #303133;
+}
+
+.diff-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 12px;
   color: #606266;
   line-height: 1.5;
 }

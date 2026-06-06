@@ -273,6 +273,10 @@ export const aiApi = {
     return http.delete<void>(`/ai/templates/${id}`)
   },
 
+  ragSearch(q: string, limit = 3) {
+    return http.get<string[]>('/ai/rag/search', { params: { q, limit } })
+  },
+
   submitFeedback(sessionId: string, data: AiFeedbackRequest) {
     return http.post<void>(`/ai/sessions/${sessionId}/feedback`, data)
   },

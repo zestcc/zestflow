@@ -636,7 +636,7 @@ CREATE TABLE zf_ai_copilot_message (
 | **P0** | 2～3 周 | `ai-providers.yaml`（Tier A 8 + Tier B 12 + custom）、租户配置表、OpenAiCompatibleClient、validate API、审计表、设置页、测试连接 |
 | **P1** | 4～6 周 | 设计器 Copilot（explain / suggest / expression / diff / repair） |
 | **P2** | 3～4 周 | Playground 联动、日志诊断、chain_key 提示 |
-| **P3** | 按需 | 元件脚手架、AI 模板库、RAG |
+| **P3** | 按需 | 元件脚手架、AI 模板库、RAG（轻量 classpath 检索） |
 
 **人力建议：** 1 后端（Admin + Executor validate）+ 1 前端（设计器）+ 0.5 Prompt/测试
 

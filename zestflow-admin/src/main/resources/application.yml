@@ -96,6 +96,8 @@ zestflow:
     temperature: 0.2
     pii-mask: true
     repair-max-rounds: 2
+    rag-enabled: true
+    rag-max-chunks: 3
     # 环境变量中的免费/试用 API Key（租户未单独配置时使用）
     env-keys:
       siliconflow: ${SILICONFLOW_API_KEY:}

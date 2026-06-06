@@ -46,6 +46,7 @@ public class AiCopilotService {
     private final ExecutorValidateClient executorValidateClient;
     private final AiComponentScaffoldBuilder scaffoldBuilder;
     private final CollectorQueryAggregator collectorQueryAggregator;
+    private final AiRagService aiRagService;
     private final AiCopilotSessionMapper sessionMapper;
     private final AiCopilotMessageMapper messageMapper;
 
@@ -265,9 +266,25 @@ public class AiCopilotService {
 
     private String chat(EffectiveAiConfig config, String system, String user, boolean jsonMode) {
         List<AiChatClient.ChatMessage> messages = new ArrayList<>();
-        messages.add(new AiChatClient.ChatMessage("system", system));
+        messages.add(new AiChatClient.ChatMessage("system", enrichSystemWithRag(system, user)));
         messages.add(new AiChatClient.ChatMessage("user", user));
         return aiChatClient.chat(messages, buildOptions(config, jsonMode));
+    }
+
+    private String enrichSystemWithRag(String system, String userQuery) {
+        if (!aiProperties.isRagEnabled()) {
+            return system;
+        }
+        List<String> snippets = aiRagService.retrieve(userQuery, aiProperties.getRagMaxChunks());
+        if (snippets.isEmpty()) {
+            return system;
+        }
+        StringBuilder sb = new StringBuilder(system);
+        sb.append("\n\n参考知识库片段（请优先遵循）：\n");
+        for (String snippet : snippets) {
+            sb.append("---\n").append(snippet).append('\n');
+        }
+        return sb.toString();
     }
 
     private AiChatClient.AiChatOptions buildOptions(EffectiveAiConfig config) {

@@ -29,6 +29,7 @@ public class AiCopilotController {
     private final TenantAiConfigService tenantAiConfigService;
     private final AiChainKeyHintService chainKeyHintService;
     private final AiChainTemplateService chainTemplateService;
+    private final AiRagService aiRagService;
     private final TenantAppContext tenantAppContext;
     private final PermissionService permissionService;
     private final ExecutorProxyService executorProxyService;
@@ -103,6 +104,12 @@ public class AiCopilotController {
     public Result<Void> deleteTemplate(@PathVariable Long id) {
         chainTemplateService.delete(id);
         return Result.success();
+    }
+
+    @GetMapping("/rag/search")
+    public Result<List<String>> ragSearch(@RequestParam String q,
+                                         @RequestParam(required = false, defaultValue = "3") int limit) {
+        return Result.success(aiRagService.retrieve(q, limit));
     }
 
     @PostMapping("/design/explain")

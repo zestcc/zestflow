@@ -89,6 +89,12 @@ export const useAiCopilotStore = defineStore('aiCopilot', () => {
     sessionId.value = res.sessionId ?? null
   }
 
+  function setPendingProposal(chainData: string, summary?: string | null) {
+    pendingProposal.value = chainData
+    pendingSummary.value = summary ?? null
+    validation.value = null
+  }
+
   async function sendExplain(context: AiCopilotContext, userMessage?: string) {
     lastContext.value = context
     const prompt = userMessage?.trim() || ''
@@ -219,5 +225,6 @@ export const useAiCopilotStore = defineStore('aiCopilot', () => {
     submitFeedback,
     clearProposal,
     applySuggestResponse,
+    setPendingProposal,
   }
 })

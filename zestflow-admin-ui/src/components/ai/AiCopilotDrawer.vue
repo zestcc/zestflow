@@ -51,6 +51,7 @@
       <AiProposalPreview
         :summary="store.pendingSummary"
         :chain-json="store.pendingProposal"
+        :current-chain-json="currentChainJson"
       />
 
       <AiValidationPanel :validation="store.validation" />
@@ -143,6 +144,14 @@ const hasChainKeyMismatch = computed(() => {
   if (!chainKeyHints.value) return false
   return chainKeyHints.value.declaredNotInAdmin.length > 0
       || chainKeyHints.value.adminNotDeclared.length > 0
+})
+
+const currentChainJson = computed(() => {
+  try {
+    return getCtx()?.currentChainData ?? null
+  } catch {
+    return null
+  }
 })
 
 const visible = computed({
