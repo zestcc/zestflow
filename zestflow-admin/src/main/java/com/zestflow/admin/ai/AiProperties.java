@@ -54,4 +54,16 @@ public class AiProperties {
 
     /** RAG 注入 Prompt 的最大片段数 */
     private int ragMaxChunks = 3;
+
+    /** 租户 RAG 文件目录（{dir}/{tenantId}/*.md） */
+    private String ragTenantDataDir = "./data/ai-rag";
+
+    /** 是否扫描租户 RAG 目录 */
+    private boolean ragTenantFilesystemEnabled = true;
+
+    /** 每租户 DB 文档上限 */
+    private int ragTenantMaxDocuments = 200;
+
+    /** 单文档最大字节 */
+    private int ragTenantMaxContentBytes = 524_288;
 }

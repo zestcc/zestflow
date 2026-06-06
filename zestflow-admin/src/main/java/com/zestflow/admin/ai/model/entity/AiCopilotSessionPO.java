@@ -35,6 +35,15 @@ public class AiCopilotSessionPO {
     /** 1采纳 0拒绝 */
     private Integer adopted;
 
+    /** LLM 调用耗时 ms */
+    private Integer latencyMs;
+
+    /** 1成功 0失败 */
+    private Integer success;
+
+    /** 失败摘要 */
+    private String errorMessage;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 }

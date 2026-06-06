@@ -143,6 +143,40 @@ if ($ragStatus.ok) {
 }
 Add-Check "ai-rag-vector-mode" ($ragStatus.ok -and ($ragMode -like "hybrid*" -or $ragMode -eq "vector")) "mode=$ragMode"
 
+$ragDocSave = Invoke-Api POST "$BaseAdmin/api/zestflow/ai/rag/documents" '{"title":"E2E-RAG","appCode":"demo-app","content":"## Aviator\n\nchainCtx.get(\"key\") 示例","enabled":true}' $h
+$ragDocId = $null
+if ($ragDocSave.ok) {
+    try { $ragDocId = (ConvertFrom-Json $ragDocSave.body).data.id } catch {}
+}
+Add-Check "ai-rag-documents-save" ($ragDocSave.ok -and $ragDocId) "status=$($ragDocSave.status) id=$ragDocId"
+
+$ragDocList = Invoke-Api GET "$BaseAdmin/api/zestflow/ai/rag/documents?appCode=demo-app" $null $h
+$ragDocCount = 0
+if ($ragDocList.ok) {
+    try { $ragDocCount = @((ConvertFrom-Json $ragDocList.body).data).Count } catch {}
+}
+Add-Check "ai-rag-documents-list" ($ragDocList.ok -and $ragDocCount -gt 0) "count=$ragDocCount"
+
+$ragRebuild = Invoke-Api POST "$BaseAdmin/api/zestflow/ai/rag/documents/rebuild-index" $null $h
+Add-Check "ai-rag-rebuild-index" ($ragRebuild.ok -and $ragRebuild.status -eq 200) "status=$($ragRebuild.status)"
+
+if ($ragDocId) {
+    $ragDocDel = Invoke-Api DELETE "$BaseAdmin/api/zestflow/ai/rag/documents/$ragDocId" $null $h
+    Add-Check "ai-rag-documents-delete" ($ragDocDel.ok -and $ragDocDel.status -eq 200) "status=$($ragDocDel.status)"
+} else {
+    Add-Check "ai-rag-documents-delete" $false "no document id"
+}
+
+$usage = Invoke-Api GET "$BaseAdmin/api/zestflow/ai/usage/overview?days=30" $null $h
+$usageOk = $false
+if ($usage.ok) {
+    try {
+        $u = (ConvertFrom-Json $usage.body).data
+        $usageOk = ($null -ne $u.totalSessions) -and ($null -ne $u.sessionsByMode)
+    } catch {}
+}
+Add-Check "ai-usage-overview" ($usage.ok -and $usageOk) "status=$($usage.status)"
+
 $fail = @($checks | Where-Object { -not $_.ok }).Count
 Write-Host "Checks: $($checks.Count - $fail)/$($checks.Count) passed" -ForegroundColor $(if ($fail -eq 0) { 'Green' } else { 'Red' })
 Save-Report

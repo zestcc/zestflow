@@ -197,6 +197,56 @@ export interface AiChainTemplateSaveDTO {
   chainData: string
 }
 
+export interface AiRagDocument {
+  id: number
+  title: string
+  appCode?: string
+  content: string
+  enabled?: boolean
+  sortOrder?: number
+  sourceType?: string
+  createdBy?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface AiRagDocumentSaveDTO {
+  title: string
+  appCode?: string
+  content: string
+  enabled?: boolean
+  sortOrder?: number
+}
+
+export interface AiRagStatus {
+  enabled?: boolean
+  mode?: string
+  platformChunks?: number
+  tenantChunks?: number
+  tenantDocuments?: number
+  filesystemPath?: string
+}
+
+export interface AiUsageDaily {
+  date: string
+  sessions: number
+  successSessions: number
+}
+
+export interface AiUsageOverview {
+  days: number
+  totalSessions: number
+  successSessions: number
+  successRate: number
+  avgLatencyMs: number
+  totalTokenEstimate: number
+  adoptedCount: number
+  feedbackCount: number
+  adoptedRate: number
+  sessionsByMode?: Record<string, number>
+  dailyTrend?: AiUsageDaily[]
+}
+
 export interface AiComponentContextItem {
   componentId: string
   componentName?: string
@@ -273,8 +323,40 @@ export const aiApi = {
     return http.delete<void>(`/ai/templates/${id}`)
   },
 
-  ragSearch(q: string, limit = 3) {
-    return http.get<string[]>('/ai/rag/search', { params: { q, limit } })
+  ragSearch(q: string, limit = 3, appCode?: string) {
+    return http.get<string[]>('/ai/rag/search', { params: { q, limit, appCode } })
+  },
+
+  getRagStatus() {
+    return http.get<AiRagStatus>('/ai/rag/status')
+  },
+
+  listRagDocuments(appCode?: string) {
+    return http.get<AiRagDocument[]>('/ai/rag/documents', { params: appCode ? { appCode } : {} })
+  },
+
+  getRagDocument(id: number) {
+    return http.get<AiRagDocument>(`/ai/rag/documents/${id}`)
+  },
+
+  saveRagDocument(data: AiRagDocumentSaveDTO) {
+    return http.post<AiRagDocument>('/ai/rag/documents', data)
+  },
+
+  updateRagDocument(id: number, data: AiRagDocumentSaveDTO) {
+    return http.put<AiRagDocument>(`/ai/rag/documents/${id}`, data)
+  },
+
+  deleteRagDocument(id: number) {
+    return http.delete<void>(`/ai/rag/documents/${id}`)
+  },
+
+  rebuildRagIndex() {
+    return http.post<void>('/ai/rag/documents/rebuild-index')
+  },
+
+  getUsageOverview(days = 30) {
+    return http.get<AiUsageOverview>('/ai/usage/overview', { params: { days } })
   },
 
   submitFeedback(sessionId: string, data: AiFeedbackRequest) {

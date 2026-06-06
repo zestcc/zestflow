@@ -1,7 +1,8 @@
 # ZestFlow AI 集成方案（Copilot）
 
-> **版本** 1.1 · **更新** 2026-06-02 · **状态** 已实现（P0～P3 + Phase 4 增强）  
-> **定位** 面向开发人员的编排辅助（Copilot），非自动上线（Autopilot）
+> **版本** 1.2 · **更新** 2026-06-02 · **状态** 已实现（P0～P4 + P5 集成增强）  
+> **定位** 面向开发人员的编排辅助（Copilot），非自动上线（Autopilot）  
+> **运维** 见 [AI_COPILOT_OPS.md](./AI_COPILOT_OPS.md)
 
 ---
 
@@ -402,6 +403,11 @@ zestflow:
 | POST | `/api/ai/expression/suggest` | Aviator 助手 |
 | POST | `/api/ai/logs/diagnose` | 日志诊断（Phase 2） |
 | POST | `/api/ai/component/scaffold` | Java 脚手架（Phase 3） |
+| GET | `/api/ai/rag/search` | 混合 RAG 检索（platform + 租户） |
+| GET | `/api/ai/rag/status` | RAG 索引状态（含 tenantDocuments、filesystemPath） |
+| GET/POST/PUT/DELETE | `/api/ai/rag/documents` | 租户 RAG 文档 CRUD（租户管理员） |
+| POST | `/api/ai/rag/documents/rebuild-index` | 重建租户 RAG 索引 |
+| GET | `/api/ai/usage/overview?days=30` | Copilot 用量/审计看板（租户管理员） |
 | POST | `/api/ai/sessions/{id}/feedback` | 采纳/拒绝审计 |
 
 ### 8.4 AiCopilotService 核心逻辑
@@ -456,6 +462,8 @@ src/components/ai/
 src/api/ai.ts
 src/stores/aiCopilot.ts
 src/views/settings/SettingsAiPage.vue
+src/components/settings/SettingsAiRagPanel.vue   ← P5 租户知识库
+src/components/settings/SettingsAiUsagePanel.vue ← P5 用量看板
 src/i18n: layout.aiAssistant, ai.*
 ```
 
@@ -627,6 +635,30 @@ CREATE TABLE zf_ai_copilot_message (
 );
 ```
 
+### 14.3 租户 RAG 文档（P5）
+
+```sql
+CREATE TABLE zf_ai_rag_document (
+  id            BIGINT PRIMARY KEY AUTO_INCREMENT,
+  tenant_id     BIGINT       NOT NULL,
+  title         VARCHAR(200) NOT NULL,
+  app_code      VARCHAR(50)  DEFAULT NULL COMMENT '空=租户全局',
+  content       MEDIUMTEXT   NOT NULL,
+  enabled       TINYINT      DEFAULT 1,
+  sort_order    INT          DEFAULT 0,
+  source_type   VARCHAR(16)  DEFAULT 'upload' COMMENT 'upload|filesystem',
+  created_by    VARCHAR(64),
+  updated_by    VARCHAR(64),
+  created_at    DATETIME,
+  updated_at    DATETIME,
+  is_deleted    TINYINT DEFAULT 0,
+  KEY idx_ai_rag_doc_tenant (tenant_id, enabled, is_deleted),
+  KEY idx_ai_rag_doc_app (tenant_id, app_code)
+);
+```
+
+`zf_ai_copilot_session` 在 P5 增加 `latency_ms`、`success`、`error_message` 字段，供用量看板聚合。
+
 ---
 
 ## 15. 实施计划
@@ -638,6 +670,13 @@ CREATE TABLE zf_ai_copilot_message (
 | **P2** | 3～4 周 | Playground 联动、日志诊断、chain_key 提示 |
 | **P3** | 按需 | 元件脚手架、AI 模板库、RAG（轻量 classpath 检索） |
 | **P4** | 按需 | 向量 RAG（TF-IDF + 可选 LLM Embedding）、模板一键落画布、画布 diff 高亮、Copilot 内嵌试跑、CI E2E |
+| **P5** | 按需 | 租户 RAG 文档管理（DB + 可选文件目录）、混合检索注入、Copilot 用量/审计看板、运维文档 |
+
+**P5 详情：**
+
+- **P5-A 租户 RAG**：设置 → AI 配置 →「知识库」Tab；支持 Markdown CRUD、按 `appCode` 作用域、平台 classpath 文档与租户文档合并检索。
+- **P5-B 用量看板**：同页「用量统计」Tab；按会话聚合成功率、延迟、Token 估算、采纳率、按 mode/日趋势。
+- **P5-C 运维**：`AI_COPILOT_OPS.md` 说明预设维护、目录挂载、环境变量与索引重建。
 
 **人力建议：** 1 后端（Admin + Executor validate）+ 1 前端（设计器）+ 0.5 Prompt/测试
 

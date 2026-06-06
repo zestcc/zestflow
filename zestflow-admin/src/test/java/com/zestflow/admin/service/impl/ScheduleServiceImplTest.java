@@ -19,6 +19,7 @@ import com.zestflow.admin.repository.ScheduleLogMapper;
 import com.zestflow.admin.repository.ScheduleMapper;
 import com.zestflow.admin.schedule.ExecutorClient;
 import com.zestflow.admin.schedule.RouteStrategy;
+import com.zestflow.admin.schedule.platform.PlatformJobRunner;
 import com.zestflow.admin.service.TenantAppContext;
 import com.zestflow.common.constant.RegistryConstants;
 import com.zestflow.common.exception.BizException;
@@ -50,6 +51,7 @@ class ScheduleServiceImplTest {
     @Mock private ExecutorRegistryMapper executorRegistryMapper;
     @Mock private ExecutorClient executorClient;
     @Mock private RouteStrategy routeStrategy;
+    @Mock private PlatformJobRunner platformJobRunner;
     @Mock private TenantAppContext tenantAppContext;
 
     private RegistryLiveStore liveStore;
@@ -62,7 +64,7 @@ class ScheduleServiceImplTest {
         scheduleService = new ScheduleServiceImpl(
                 scheduleMapper, scheduleLogMapper,
                 executorRegistryMapper, liveStore, executorClient,
-                tenantAppContext, List.of(routeStrategy)
+                tenantAppContext, List.of(routeStrategy), platformJobRunner
         );
     }
 
@@ -189,7 +191,7 @@ class ScheduleServiceImplTest {
         when(scheduleMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class)))
                 .thenAnswer(invocation -> page);
 
-        IPage<ScheduleVO> result = scheduleService.list(null, null, 1, 20);
+        IPage<ScheduleVO> result = scheduleService.list(null, null, null, 1, 20);
 
         assertThat(result).isNotNull();
         // 验证不过滤 app_code
@@ -208,7 +210,7 @@ class ScheduleServiceImplTest {
         when(scheduleMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class)))
                 .thenAnswer(invocation -> page);
 
-        IPage<ScheduleVO> result = scheduleService.list(null, null, 1, 20);
+        IPage<ScheduleVO> result = scheduleService.list(null, null, null, 1, 20);
 
         assertThat(result).isNotNull();
         verify(scheduleMapper).selectPage(any(), any(LambdaQueryWrapper.class));
@@ -297,7 +299,7 @@ class ScheduleServiceImplTest {
                     return page;
                 });
 
-        IPage<ScheduleLogVO> result = scheduleService.listLogs(1L, null, 1, 20);
+        IPage<ScheduleLogVO> result = scheduleService.listLogs(1L, null, null, null, 1, 20);
 
         assertThat(result).isNotNull();
     }
@@ -307,7 +309,7 @@ class ScheduleServiceImplTest {
         when(scheduleLogMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class)))
                 .thenAnswer(invocation -> new Page<>(1, 20));
 
-        IPage<ScheduleLogVO> result = scheduleService.listLogs(null, 2, 1, 20);
+        IPage<ScheduleLogVO> result = scheduleService.listLogs(null, null, null, 2, 1, 20);
 
         assertThat(result).isNotNull();
     }

@@ -5,19 +5,22 @@
       <p class="page-desc">{{ $t('settings.ai.description') }}</p>
     </div>
 
-    <el-alert
-      type="info"
-      :closable="false"
-      show-icon
-      class="free-tier-alert"
-      :title="$t('settings.ai.freeTierHint')"
-    >
-      <template #default>
-        <p class="free-tier-desc">{{ $t('settings.ai.envKeyHint') }}</p>
-      </template>
-    </el-alert>
+    <el-tabs v-model="activeTab" class="settings-ai-tabs">
+      <el-tab-pane :label="$t('settings.ai.tabConfig')" name="config">
+        <el-alert
+          type="info"
+          :closable="false"
+          show-icon
+          class="free-tier-alert"
+          :title="$t('settings.ai.freeTierHint')"
+        >
+          <template #default>
+            <p class="free-tier-desc">{{ $t('settings.ai.envKeyHint') }}</p>
+            <p class="free-tier-desc">{{ $t('settings.ai.presetDocHint') }}</p>
+          </template>
+        </el-alert>
 
-    <el-card v-loading="loading" shadow="never">
+        <el-card v-loading="loading" shadow="never">
       <el-form ref="formRef" :model="form" label-width="140px" class="ai-form">
         <el-form-item :label="$t('settings.ai.enabled')">
           <el-switch v-model="form.enabled" />
@@ -113,11 +116,23 @@
         @close="testResult = null"
       />
     </el-card>
+      </el-tab-pane>
+
+      <el-tab-pane :label="$t('settings.ai.tabRag')" name="rag">
+        <SettingsAiRagPanel />
+      </el-tab-pane>
+
+      <el-tab-pane :label="$t('settings.ai.tabUsage')" name="usage">
+        <SettingsAiUsagePanel />
+      </el-tab-pane>
+    </el-tabs>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
+import SettingsAiRagPanel from '@/components/settings/SettingsAiRagPanel.vue'
+import SettingsAiUsagePanel from '@/components/settings/SettingsAiUsagePanel.vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import {
@@ -129,6 +144,7 @@ import {
 
 const { t, locale } = useI18n()
 
+const activeTab = ref('config')
 const loading = ref(false)
 const saving = ref(false)
 const testing = ref(false)
@@ -291,6 +307,10 @@ onMounted(() => {
   font-size: 13px;
   color: #909399;
   line-height: 1.5;
+}
+
+.settings-ai-tabs {
+  margin-top: 8px;
 }
 
 .free-tier-alert {

@@ -59,16 +59,22 @@ public class AiCopilotService {
         String system = promptBuilder.buildSystemPrompt("explain", request.getAllowedComponents());
         String user = promptBuilder.buildUserPrompt("explain", "解释当前链", chainData, null);
 
-        String reply = chat(config, system, user, false);
         Long sessionId = recordSession(tenantId, request.getAppCode(), request.getDesignId(),
                 request.getChainCode(), "explain");
-        recordMessage(sessionId, tenantId, "user", "解释当前链");
-        recordMessage(sessionId, tenantId, "assistant", truncate(reply));
-
-        return AiExplainResponse.builder()
-                .explanation(reply)
-                .sessionId(sessionId)
-                .build();
+        long startMs = System.currentTimeMillis();
+        try {
+            String reply = chat(config, system, user, false, tenantId, request.getAppCode());
+            recordMessage(sessionId, tenantId, "user", "解释当前链");
+            recordMessage(sessionId, tenantId, "assistant", truncate(reply));
+            finalizeSession(sessionId, startMs, true, null);
+            return AiExplainResponse.builder()
+                    .explanation(reply)
+                    .sessionId(sessionId)
+                    .build();
+        } catch (RuntimeException e) {
+            finalizeSession(sessionId, startMs, false, e.getMessage());
+            throw e;
+        }
     }
 
     public AiSuggestResponse suggest(AiSuggestRequest request) {
@@ -84,33 +90,39 @@ public class AiCopilotService {
         Long sessionId = recordSession(tenantId, request.getAppCode(), request.getDesignId(),
                 request.getChainCode(), "suggest");
         recordMessage(sessionId, tenantId, "user", truncate(request.getUserMessage()));
+        long startMs = System.currentTimeMillis();
+        try {
+            String llmReply = chat(config, system, user, true, tenantId, request.getAppCode());
+            ParsedChainProposal proposal = parseChainProposal(llmReply);
 
-        String llmReply = chat(config, system, user, true);
-        ParsedChainProposal proposal = parseChainProposal(llmReply);
+            AiValidationVO validation = executorValidateClient.validate(
+                    request.getAppCode(), proposal.chainData());
+            int repairRounds = 0;
 
-        AiValidationVO validation = executorValidateClient.validate(
-                request.getAppCode(), proposal.chainData());
-        int repairRounds = 0;
+            while (!validation.isValid() && repairRounds < aiProperties.getRepairMaxRounds()) {
+                repairRounds++;
+                String fixSystem = promptBuilder.buildSystemPrompt("fix-errors", request.getAllowedComponents());
+                String fixUser = promptBuilder.buildUserPrompt("fix-errors", request.getUserMessage(),
+                        proposal.chainData(), validation.getErrors());
+                llmReply = chat(config, fixSystem, fixUser, true, tenantId, request.getAppCode());
+                proposal = parseChainProposal(llmReply);
+                validation = executorValidateClient.validate(request.getAppCode(), proposal.chainData());
+            }
 
-        while (!validation.isValid() && repairRounds < aiProperties.getRepairMaxRounds()) {
-            repairRounds++;
-            String fixSystem = promptBuilder.buildSystemPrompt("fix-errors", request.getAllowedComponents());
-            String fixUser = promptBuilder.buildUserPrompt("fix-errors", request.getUserMessage(),
-                    proposal.chainData(), validation.getErrors());
-            llmReply = chat(config, fixSystem, fixUser, true);
-            proposal = parseChainProposal(llmReply);
-            validation = executorValidateClient.validate(request.getAppCode(), proposal.chainData());
+            recordMessage(sessionId, tenantId, "assistant", truncate(proposal.summary()));
+            finalizeSession(sessionId, startMs, true, null);
+
+            return AiSuggestResponse.builder()
+                    .proposedChainData(proposal.chainData())
+                    .summary(proposal.summary())
+                    .validation(validation)
+                    .sessionId(sessionId)
+                    .repairRounds(repairRounds)
+                    .build();
+        } catch (RuntimeException e) {
+            finalizeSession(sessionId, startMs, false, e.getMessage());
+            throw e;
         }
-
-        recordMessage(sessionId, tenantId, "assistant", truncate(proposal.summary()));
-
-        return AiSuggestResponse.builder()
-                .proposedChainData(proposal.chainData())
-                .summary(proposal.summary())
-                .validation(validation)
-                .sessionId(sessionId)
-                .repairRounds(repairRounds)
-                .build();
     }
 
     public AiValidationVO validate(AiValidateRequest request) {
@@ -126,19 +138,24 @@ public class AiCopilotService {
         String user = promptBuilder.buildExpressionUserPrompt(
                 request.getUserMessage(), request.getCurrentExpression(), request.getContextHint());
 
-        String reply = chat(config, system, user, true);
-        ParsedExpression parsed = parseExpression(reply);
-
         Long sessionId = recordSession(tenantId, request.getAppCode(), request.getDesignId(),
                 request.getChainCode(), "expression");
         recordMessage(sessionId, tenantId, "user", truncate(request.getUserMessage()));
-        recordMessage(sessionId, tenantId, "assistant", truncate(parsed.expression()));
-
-        return AiExpressionSuggestResponse.builder()
-                .expression(parsed.expression())
-                .explanation(parsed.explanation())
-                .sessionId(sessionId)
-                .build();
+        long startMs = System.currentTimeMillis();
+        try {
+            String reply = chat(config, system, user, true, tenantId, request.getAppCode());
+            ParsedExpression parsed = parseExpression(reply);
+            recordMessage(sessionId, tenantId, "assistant", truncate(parsed.expression()));
+            finalizeSession(sessionId, startMs, true, null);
+            return AiExpressionSuggestResponse.builder()
+                    .expression(parsed.expression())
+                    .explanation(parsed.explanation())
+                    .sessionId(sessionId)
+                    .build();
+        } catch (RuntimeException e) {
+            finalizeSession(sessionId, startMs, false, e.getMessage());
+            throw e;
+        }
     }
 
     public AiComponentScaffoldResponse componentScaffold(AiComponentScaffoldRequest request) {
@@ -173,13 +190,15 @@ public class AiCopilotService {
         Long sessionId = recordSession(tenantId, request.getAppCode(), request.getDesignId(),
                 request.getChainCode(), "diagnose");
         recordMessage(sessionId, tenantId, "user", truncate(errorSummary));
+        long startMs = System.currentTimeMillis();
 
         try {
             String system = promptBuilder.buildSystemPrompt("diagnose", null);
             String user = promptBuilder.buildDiagnoseUserPrompt(errorSummary, traceSummary);
-            String reply = chat(config, system, user, true);
+            String reply = chat(config, system, user, true, tenantId, request.getAppCode());
             ParsedDiagnosis parsed = parseDiagnosis(reply);
             recordMessage(sessionId, tenantId, "assistant", truncate(parsed.diagnosis()));
+            finalizeSession(sessionId, startMs, true, null);
 
             return AiDiagnoseResponse.builder()
                     .diagnosis(parsed.diagnosis())
@@ -190,6 +209,7 @@ public class AiCopilotService {
                     .build();
         } catch (Exception e) {
             log.warn("AI 日志诊断失败 executionId={}", executionId, e);
+            finalizeSession(sessionId, startMs, false, e.getMessage());
             String fallbackDiagnosis = StringUtils.hasText(trace != null ? trace.getErrorMessage() : null)
                     ? trace.getErrorMessage()
                     : errorSummary;
@@ -264,18 +284,19 @@ public class AiCopilotService {
         }
     }
 
-    private String chat(EffectiveAiConfig config, String system, String user, boolean jsonMode) {
+    private String chat(EffectiveAiConfig config, String system, String user, boolean jsonMode,
+                        Long tenantId, String appCode) {
         List<AiChatClient.ChatMessage> messages = new ArrayList<>();
-        messages.add(new AiChatClient.ChatMessage("system", enrichSystemWithRag(system, user)));
+        messages.add(new AiChatClient.ChatMessage("system", enrichSystemWithRag(system, user, tenantId, appCode)));
         messages.add(new AiChatClient.ChatMessage("user", user));
         return aiChatClient.chat(messages, buildOptions(config, jsonMode));
     }
 
-    private String enrichSystemWithRag(String system, String userQuery) {
+    private String enrichSystemWithRag(String system, String userQuery, Long tenantId, String appCode) {
         if (!aiProperties.isRagEnabled()) {
             return system;
         }
-        List<String> snippets = aiRagService.retrieve(userQuery, aiProperties.getRagMaxChunks());
+        List<String> snippets = aiRagService.retrieve(tenantId, appCode, userQuery, aiProperties.getRagMaxChunks());
         if (snippets.isEmpty()) {
             return system;
         }
@@ -285,6 +306,18 @@ public class AiCopilotService {
             sb.append("---\n").append(snippet).append('\n');
         }
         return sb.toString();
+    }
+
+    private void finalizeSession(Long sessionId, long startMs, boolean success, String errorMessage) {
+        if (sessionId == null) {
+            return;
+        }
+        AiCopilotSessionPO update = new AiCopilotSessionPO();
+        update.setId(sessionId);
+        update.setLatencyMs((int) Math.min(Integer.MAX_VALUE, System.currentTimeMillis() - startMs));
+        update.setSuccess(success ? 1 : 0);
+        update.setErrorMessage(truncate(errorMessage));
+        sessionMapper.updateById(update);
     }
 
     private AiChatClient.AiChatOptions buildOptions(EffectiveAiConfig config) {

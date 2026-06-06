@@ -30,6 +30,9 @@ public class AiCopilotController {
     private final AiChainKeyHintService chainKeyHintService;
     private final AiChainTemplateService chainTemplateService;
     private final AiRagService aiRagService;
+    private final AiRagDocumentService ragDocumentService;
+    private final AiUsageStatsService usageStatsService;
+    private final AiProperties aiProperties;
     private final TenantAppContext tenantAppContext;
     private final PermissionService permissionService;
     private final ExecutorProxyService executorProxyService;
@@ -108,16 +111,69 @@ public class AiCopilotController {
 
     @GetMapping("/rag/search")
     public Result<List<String>> ragSearch(@RequestParam String q,
+                                         @RequestParam(required = false) String appCode,
                                          @RequestParam(required = false, defaultValue = "3") int limit) {
-        return Result.success(aiRagService.retrieve(q, limit));
+        Long tenantId = tenantAppContext.getCurrentTenantId();
+        return Result.success(aiRagService.retrieve(tenantId, appCode, q, limit));
     }
 
     @GetMapping("/rag/status")
     public Result<java.util.Map<String, Object>> ragStatus() {
         java.util.Map<String, Object> status = new java.util.LinkedHashMap<>();
-        status.put("enabled", aiRagService.retrievalMode().equals("disabled") ? false : true);
+        Long tenantId = tenantAppContext.getCurrentTenantId();
+        status.put("enabled", aiProperties.isRagEnabled());
         status.put("mode", aiRagService.retrievalMode());
+        status.put("platformChunks", aiRagService.globalChunkCount());
+        status.put("tenantChunks", aiRagService.tenantChunkCount(tenantId));
+        status.put("tenantDocuments", ragDocumentService.countTenantDocuments(tenantId));
+        if (aiProperties.isRagTenantFilesystemEnabled()) {
+            String dir = aiProperties.getRagTenantDataDir();
+            status.put("filesystemPath", dir + "/{tenantId}/*.md");
+        }
         return Result.success(status);
+    }
+
+    @GetMapping("/rag/documents")
+    public Result<List<AiRagDocumentVO>> listRagDocuments(@RequestParam(required = false) String appCode) {
+        return Result.success(ragDocumentService.list(appCode));
+    }
+
+    @GetMapping("/rag/documents/{id}")
+    public Result<AiRagDocumentVO> getRagDocument(@PathVariable Long id) {
+        return Result.success(ragDocumentService.get(id));
+    }
+
+    @PostMapping("/rag/documents")
+    public Result<AiRagDocumentVO> saveRagDocument(@RequestBody AiRagDocumentSaveDTO dto) {
+        requireSuperAdminOrTenantAdmin();
+        return Result.success(ragDocumentService.save(dto));
+    }
+
+    @PutMapping("/rag/documents/{id}")
+    public Result<AiRagDocumentVO> updateRagDocument(@PathVariable Long id,
+                                                     @RequestBody AiRagDocumentSaveDTO dto) {
+        requireSuperAdminOrTenantAdmin();
+        return Result.success(ragDocumentService.update(id, dto));
+    }
+
+    @DeleteMapping("/rag/documents/{id}")
+    public Result<Void> deleteRagDocument(@PathVariable Long id) {
+        requireSuperAdminOrTenantAdmin();
+        ragDocumentService.delete(id);
+        return Result.success();
+    }
+
+    @PostMapping("/rag/documents/rebuild-index")
+    public Result<Void> rebuildRagIndex() {
+        requireSuperAdminOrTenantAdmin();
+        ragDocumentService.rebuildIndex();
+        return Result.success();
+    }
+
+    @GetMapping("/usage/overview")
+    public Result<AiUsageOverviewVO> usageOverview(@RequestParam(defaultValue = "30") int days) {
+        requireSuperAdminOrTenantAdmin();
+        return Result.success(usageStatsService.overview(days));
     }
 
     @PostMapping("/design/explain")
