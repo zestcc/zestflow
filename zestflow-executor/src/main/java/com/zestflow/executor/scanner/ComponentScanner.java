@@ -163,6 +163,16 @@ public class ComponentScanner implements ApplicationContextAware {
         if (method.getAnnotation(ZestSelector.class) != null) return ComponentType.SELECTOR;
         if (method.getAnnotation(ZestLoader.class) != null) return ComponentType.LOADER;
         if (method.getAnnotation(ZestParser.class) != null) return ComponentType.PARSER;
+        if (method.getAnnotation(ZestTransformer.class) != null) return ComponentType.TRANSFORMER;
+        if (method.getAnnotation(ZestFilter.class) != null) return ComponentType.FILTER;
+        if (method.getAnnotation(ZestAggregator.class) != null) return ComponentType.AGGREGATOR;
+        if (method.getAnnotation(ZestSplitter.class) != null) return ComponentType.SPLITTER;
+        if (method.getAnnotation(ZestHttpClient.class) != null) return ComponentType.HTTP_CLIENT;
+        if (method.getAnnotation(ZestMqProducer.class) != null) return ComponentType.MQ_PRODUCER;
+        if (method.getAnnotation(ZestCacheReader.class) != null) return ComponentType.CACHE_READER;
+        if (method.getAnnotation(ZestCacheWriter.class) != null) return ComponentType.CACHE_WRITER;
+        if (method.getAnnotation(ZestLogger.class) != null) return ComponentType.LOGGER;
+        if (method.getAnnotation(ZestDelay.class) != null) return ComponentType.DELAY;
         if (method.getAnnotation(ZestPreProcessor.class) != null) return ComponentType.PRE_PROCESSOR;
         if (method.getAnnotation(ZestPostProcessor.class) != null) return ComponentType.POST_PROCESSOR;
         if (method.getAnnotation(ZestParamBinder.class) != null) return ComponentType.PARAM_BINDER;
@@ -196,6 +206,46 @@ public class ComponentScanner implements ApplicationContextAware {
                 ZestParser a = method.getAnnotation(ZestParser.class);
                 yield a != null ? a.value() : "";
             }
+            case TRANSFORMER -> {
+                ZestTransformer a = method.getAnnotation(ZestTransformer.class);
+                yield a != null ? a.value() : "";
+            }
+            case FILTER -> {
+                ZestFilter a = method.getAnnotation(ZestFilter.class);
+                yield a != null ? a.value() : "";
+            }
+            case AGGREGATOR -> {
+                ZestAggregator a = method.getAnnotation(ZestAggregator.class);
+                yield a != null ? a.value() : "";
+            }
+            case SPLITTER -> {
+                ZestSplitter a = method.getAnnotation(ZestSplitter.class);
+                yield a != null ? a.value() : "";
+            }
+            case HTTP_CLIENT -> {
+                ZestHttpClient a = method.getAnnotation(ZestHttpClient.class);
+                yield a != null ? a.value() : "";
+            }
+            case MQ_PRODUCER -> {
+                ZestMqProducer a = method.getAnnotation(ZestMqProducer.class);
+                yield a != null ? a.value() : "";
+            }
+            case CACHE_READER -> {
+                ZestCacheReader a = method.getAnnotation(ZestCacheReader.class);
+                yield a != null ? a.value() : "";
+            }
+            case CACHE_WRITER -> {
+                ZestCacheWriter a = method.getAnnotation(ZestCacheWriter.class);
+                yield a != null ? a.value() : "";
+            }
+            case LOGGER -> {
+                ZestLogger a = method.getAnnotation(ZestLogger.class);
+                yield a != null ? a.value() : "";
+            }
+            case DELAY -> {
+                ZestDelay a = method.getAnnotation(ZestDelay.class);
+                yield a != null ? a.value() : "";
+            }
             case PRE_PROCESSOR -> {
                 ZestPreProcessor a = method.getAnnotation(ZestPreProcessor.class);
                 yield a != null ? a.value() : "";
@@ -216,6 +266,8 @@ public class ComponentScanner implements ApplicationContextAware {
                 ZestErrorHandler a = method.getAnnotation(ZestErrorHandler.class);
                 yield a != null ? a.value() : "";
             }
+            case APPROVAL, NOTIFICATION, MQ_CONSUMER,
+                 FORK, JOIN, TRY_CATCH, WHILE -> "";
         };
     }
 

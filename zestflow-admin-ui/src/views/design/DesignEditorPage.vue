@@ -835,6 +835,18 @@ const nodeColors: Record<string, string> = {
   script: '#8b5cf6',
   subchain: '#06b6d4',
   iterator: '#f97316',
+  transformer: '#10b981',
+  filter: '#6366f1',
+  aggregator: '#f43f5e',
+  splitter: '#14b8a6',
+  httpclient: '#0ea5e9',
+  cache: '#eab308',
+  fork: '#a855f7',
+  join: '#d946ef',
+  trycatch: '#ef4444',
+  while: '#fb923c',
+  logger: '#64748b',
+  delay: '#94a3b8',
   end: '#6b7280',
 }
 
@@ -848,6 +860,22 @@ const nodeTypes = [
   { type: 'script', label: '脚本元件', color: '#8b5cf6', icon: '<svg viewBox="0 0 14 14"><path d="M4,0 L14,0 L14,10 L10,14 L0,14 L0,4 Z M5,5 L9,9 M9,5 L5,9" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' },
   { type: 'subchain', label: '子链元件', color: '#06b6d4', icon: '<svg viewBox="0 0 14 14"><path d="M2,4 L8,4 L8,10 L2,10 Z M6,7 L12,7 L12,13 L6,13 Z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' },
   { type: 'iterator', label: '迭代器元件', color: '#f97316', icon: '<svg viewBox="0 0 14 14"><path d="M7,0 L14,7 L7,14 L0,7 Z M10,5 L10,9 M4,5 L4,9" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' },
+  // 新增：数据处理类
+  { type: 'transformer', label: '转换器', color: '#10b981', icon: '<svg viewBox="0 0 14 14"><path d="M2,4 L6,1 L10,4 L6,7 Z M4,10 L8,13 L12,10 L8,7 Z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' },
+  { type: 'filter', label: '过滤器', color: '#6366f1', icon: '<svg viewBox="0 0 14 14"><path d="M1,2 L13,2 L8,7 L8,13 L6,10 L6,7 Z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' },
+  { type: 'aggregator', label: '聚合器', color: '#f43f5e', icon: '<svg viewBox="0 0 14 14"><path d="M2,7 L5,2 L9,2 L12,7 L9,12 L5,12 Z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' },
+  { type: 'splitter', label: '拆分器', color: '#14b8a6', icon: '<svg viewBox="0 0 14 14"><path d="M7,1 L7,13 M3,4 L7,1 L11,4 M3,10 L7,13 L11,10" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' },
+  // 新增：集成连接类
+  { type: 'httpclient', label: 'HTTP调用', color: '#0ea5e9', icon: '<svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="7" y1="2" x2="7" y2="12" stroke="currentColor" stroke-width="1"/></svg>' },
+  { type: 'cache', label: '缓存读写', color: '#eab308', icon: '<svg viewBox="0 0 14 14"><rect x="2" y="3" width="10" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="5" y1="6" x2="9" y2="6" stroke="currentColor" stroke-width="1"/></svg>' },
+  // 新增：流程控制类
+  { type: 'fork', label: '并行分叉', color: '#a855f7', icon: '<svg viewBox="0 0 14 14"><path d="M7,1 L7,6 M3,6 L7,1 L11,6 M3,8 L7,13 L11,8" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' },
+  { type: 'join', label: '并行汇聚', color: '#d946ef', icon: '<svg viewBox="0 0 14 14"><path d="M3,1 L7,6 L11,1 M3,13 L7,8 L11,13" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' },
+  { type: 'trycatch', label: '异常捕获', color: '#ef4444', icon: '<svg viewBox="0 0 14 14"><rect x="2" y="2" width="10" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="5" y1="5" x2="9" y2="9" stroke="currentColor" stroke-width="1.5"/><line x1="9" y1="5" x2="5" y2="9" stroke="currentColor" stroke-width="1.5"/></svg>' },
+  { type: 'while', label: '条件循环', color: '#fb923c', icon: '<svg viewBox="0 0 14 14"><path d="M7,2 C10,2 12,4 12,7 C12,10 10,12 7,12 C4,12 2,10 2,7" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="7,0 9,3 5,3" fill="currentColor"/></svg>' },
+  // 新增：辅助增强类
+  { type: 'logger', label: '日志记录', color: '#64748b', icon: '<svg viewBox="0 0 14 14"><rect x="2" y="1" width="10" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="5" y1="4" x2="9" y2="4" stroke="currentColor" stroke-width="1"/><line x1="5" y1="7" x2="9" y2="7" stroke="currentColor" stroke-width="1"/><line x1="5" y1="10" x2="7" y2="10" stroke="currentColor" stroke-width="1"/></svg>' },
+  { type: 'delay', label: '延迟等待', color: '#94a3b8', icon: '<svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="7" y1="7" x2="10" y2="7" stroke="currentColor" stroke-width="1.5"/><line x1="7" y1="7" x2="7" y2="4" stroke="currentColor" stroke-width="1.5"/></svg>' },
   { type: 'end', label: '结束', color: '#6b7280', icon: '<svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="7" cy="7" r="2" fill="currentColor"/></svg>' },
 ]
 
@@ -859,7 +887,7 @@ function typeLabel(type: string) {
   return translated !== key ? translated : (nodeTypes.find(nt => nt.type === type)?.label || type)
 }
 
-function hasDescription(type: string) { return type === 'task' || type === 'condition' || type === 'multicondition' || type === 'loader' || type === 'parser' || type === 'script' || type === 'subchain' || type === 'iterator' }
+function hasDescription(type: string) { return type !== 'start' && type !== 'end' }
 
 function hasScriptField(type: string) {
   return type === 'loader' || type === 'parser' || type === 'script'
@@ -967,6 +995,18 @@ function typeToComponentType(nodeType: string): string {
     multicondition: 'SELECTOR',
     loader: 'LOADER',
     parser: 'PARSER',
+    transformer: 'TRANSFORMER',
+    filter: 'FILTER',
+    aggregator: 'AGGREGATOR',
+    splitter: 'SPLITTER',
+    httpclient: 'HTTP_CLIENT',
+    cache: 'CACHE_READER',
+    fork: 'FORK',
+    join: 'JOIN',
+    trycatch: 'TRY_CATCH',
+    while: 'WHILE',
+    logger: 'LOGGER',
+    delay: 'DELAY',
   }
   return map[nodeType] || ''
 }
@@ -1162,8 +1202,9 @@ const handleGroup = {
 }
 
 function getPorts(type: string) {
-  // 矩形类（开始/结束/任务/加载器/解析器）：每条边 2 个端口，共 8 个
-  if (type === 'start' || type === 'end' || type === 'task' || type === 'loader' || type === 'parser') {
+  // 矩形类（所有基本节点）：每条边 2 个端口，共 8 个
+  const rectTypes = ['start', 'end', 'task', 'loader', 'parser', 'transformer', 'filter', 'aggregator', 'splitter', 'httpclient', 'cache', 'fork', 'join', 'trycatch', 'while', 'logger', 'delay']
+  if (rectTypes.includes(type)) {
     return [
       { id: 't',  group: 'handle', args: { x: '50%', y: '0%' } },
       { id: 'tr', group: 'handle', args: { x: '100%', y: '15%' } },
@@ -1427,6 +1468,10 @@ function getShapeForType(nodeType: string): string {
     start: 'flow-start', task: 'flow-task', condition: 'flow-condition',
     multicondition: 'flow-multicondition', loader: 'flow-loader', parser: 'flow-parser',
     script: 'flow-script', subchain: 'flow-subchain', iterator: 'flow-iterator',
+    transformer: 'flow-task', filter: 'flow-task', aggregator: 'flow-task',
+    splitter: 'flow-task', httpclient: 'flow-task', cache: 'flow-task',
+    fork: 'flow-task', join: 'flow-task', trycatch: 'flow-task',
+    while: 'flow-task', logger: 'flow-task', delay: 'flow-task',
     end: 'flow-end',
   }[nodeType] || 'flow-task'
 }
@@ -1963,6 +2008,18 @@ function mapNodeType(nodeType: string): string {
     script: 'SCRIPT',
     subchain: 'SUB_CHAIN',
     iterator: 'ITERATOR',
+    transformer: 'TRANSFORMER',
+    filter: 'FILTER',
+    aggregator: 'AGGREGATOR',
+    splitter: 'SPLITTER',
+    httpclient: 'HTTP_CLIENT',
+    cache: 'CACHE_READER',
+    fork: 'FORK',
+    join: 'JOIN',
+    trycatch: 'TRY_CATCH',
+    while: 'WHILE',
+    logger: 'LOGGER',
+    delay: 'DELAY',
   }
   return map[nodeType] || 'NORMAL'
 }
@@ -2170,7 +2227,7 @@ function validateChain(): string[] {
   })
 
   // 4. 业务节点（除 start/end）未绑定元件
-  const bindableTypes = new Set(['task', 'condition', 'multicondition', 'loader', 'parser'])
+  const bindableTypes = new Set(['task', 'condition', 'multicondition', 'loader', 'parser', 'transformer', 'filter', 'aggregator', 'splitter', 'httpclient', 'cache', 'fork', 'join', 'trycatch', 'while', 'logger', 'delay'])
   nodes.forEach(n => {
     const data = ensureConditionDefaults({ ...(n.getData() || {}) })
     const nodeType = data.nodeType

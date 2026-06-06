@@ -162,6 +162,74 @@ public class NodeDefinition {
         return ChainConstants.NODE_TYPE_ITERATOR.equals(type);
     }
 
+    public boolean isFork() {
+        return ChainConstants.NODE_TYPE_FORK.equals(type);
+    }
+
+    public boolean isJoin() {
+        return ChainConstants.NODE_TYPE_JOIN.equals(type);
+    }
+
+    public boolean isTryCatch() {
+        return ChainConstants.NODE_TYPE_TRY_CATCH.equals(type);
+    }
+
+    public boolean isWhile() {
+        return ChainConstants.NODE_TYPE_WHILE.equals(type);
+    }
+
+    public boolean isApproval() {
+        return ChainConstants.NODE_TYPE_APPROVAL.equals(type);
+    }
+
+    public boolean isNotification() {
+        return ChainConstants.NODE_TYPE_NOTIFICATION.equals(type);
+    }
+
+    public boolean isTransformer() {
+        return ChainConstants.NODE_TYPE_TRANSFORMER.equals(type);
+    }
+
+    public boolean isFilter() {
+        return ChainConstants.NODE_TYPE_FILTER.equals(type);
+    }
+
+    public boolean isAggregator() {
+        return ChainConstants.NODE_TYPE_AGGREGATOR.equals(type);
+    }
+
+    public boolean isSplitter() {
+        return ChainConstants.NODE_TYPE_SPLITTER.equals(type);
+    }
+
+    public boolean isHttpClient() {
+        return ChainConstants.NODE_TYPE_HTTP_CLIENT.equals(type);
+    }
+
+    public boolean isMqProducer() {
+        return ChainConstants.NODE_TYPE_MQ_PRODUCER.equals(type);
+    }
+
+    public boolean isMqConsumer() {
+        return ChainConstants.NODE_TYPE_MQ_CONSUMER.equals(type);
+    }
+
+    public boolean isCacheReader() {
+        return ChainConstants.NODE_TYPE_CACHE_READER.equals(type);
+    }
+
+    public boolean isCacheWriter() {
+        return ChainConstants.NODE_TYPE_CACHE_WRITER.equals(type);
+    }
+
+    public boolean isLogger() {
+        return ChainConstants.NODE_TYPE_LOGGER.equals(type);
+    }
+
+    public boolean isDelay() {
+        return ChainConstants.NODE_TYPE_DELAY.equals(type);
+    }
+
     /** 是否内联脚本判断（不依赖 Executor 元件注册表） */
     public boolean isInlineScriptPredicate() {
         return "script".equalsIgnoreCase(predicateMode);

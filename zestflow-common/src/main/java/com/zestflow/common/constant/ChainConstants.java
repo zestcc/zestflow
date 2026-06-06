@@ -47,6 +47,40 @@ public final class ChainConstants {
     public static final String NODE_TYPE_SUB_CHAIN = "SUB_CHAIN";
     /** 迭代节点 */
     public static final String NODE_TYPE_ITERATOR = "ITERATOR";
+    /** 并行分叉节点 */
+    public static final String NODE_TYPE_FORK = "FORK";
+    /** 并行汇聚节点 */
+    public static final String NODE_TYPE_JOIN = "JOIN";
+    /** 异常捕获节点 */
+    public static final String NODE_TYPE_TRY_CATCH = "TRY_CATCH";
+    /** 条件循环节点 */
+    public static final String NODE_TYPE_WHILE = "WHILE";
+    /** 审批节点 */
+    public static final String NODE_TYPE_APPROVAL = "APPROVAL";
+    /** 通知节点 */
+    public static final String NODE_TYPE_NOTIFICATION = "NOTIFICATION";
+    /** 数据转换节点 */
+    public static final String NODE_TYPE_TRANSFORMER = "TRANSFORMER";
+    /** 数据过滤节点 */
+    public static final String NODE_TYPE_FILTER = "FILTER";
+    /** 数据聚合节点 */
+    public static final String NODE_TYPE_AGGREGATOR = "AGGREGATOR";
+    /** 数据拆分节点 */
+    public static final String NODE_TYPE_SPLITTER = "SPLITTER";
+    /** HTTP 调用节点 */
+    public static final String NODE_TYPE_HTTP_CLIENT = "HTTP_CLIENT";
+    /** 消息生产节点 */
+    public static final String NODE_TYPE_MQ_PRODUCER = "MQ_PRODUCER";
+    /** 消息消费节点 */
+    public static final String NODE_TYPE_MQ_CONSUMER = "MQ_CONSUMER";
+    /** 缓存读取节点 */
+    public static final String NODE_TYPE_CACHE_READER = "CACHE_READER";
+    /** 缓存写入节点 */
+    public static final String NODE_TYPE_CACHE_WRITER = "CACHE_WRITER";
+    /** 日志记录节点 */
+    public static final String NODE_TYPE_LOGGER = "LOGGER";
+    /** 延迟等待节点 */
+    public static final String NODE_TYPE_DELAY = "DELAY";
 
     /* ========== 默认值 ========== */
     /** 链默认超时 60s */
@@ -63,6 +97,14 @@ public final class ChainConstants {
     public static final int DEFAULT_CIRCUIT_BREAKER_THRESHOLD = 5;
     /** 熔断器默认恢复时间 30s */
     public static final long DEFAULT_CIRCUIT_BREAKER_RECOVERY_MS = 30_000L;
+    /** 子链最大递归深度 */
+    public static final int MAX_SUB_CHAIN_DEPTH = 10;
+    /** 迭代器最大迭代次数 */
+    public static final int MAX_ITERATOR_COUNT = 10_000;
+    /** 链最大节点数 */
+    public static final int MAX_CHAIN_NODE_COUNT = 100;
+    /** 脚本执行超时（毫秒） */
+    public static final long SCRIPT_EXECUTION_TIMEOUT_MS = 5_000L;
 
     /* ========== 错误策略 ========== */
     /** 失败即终止 */

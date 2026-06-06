@@ -26,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import com.zestflow.executor.expression.AviatorExpressionEvaluator;
 import com.zestflow.executor.context.ExecuteResultPublisher;
+import com.zestflow.executor.security.SensitiveDataMasker;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -159,6 +160,21 @@ public class NodeRunner {
                 case ChainConstants.NODE_TYPE_SCRIPT -> executeScript(nodeDef, context, stateMachine);
                 case ChainConstants.NODE_TYPE_SUB_CHAIN -> executeSubChain(nodeDef, context, stateMachine);
                 case ChainConstants.NODE_TYPE_ITERATOR -> executeIterator(nodeDef, context, stateMachine);
+                case ChainConstants.NODE_TYPE_FORK -> executeFork(nodeDef, context, stateMachine);
+                case ChainConstants.NODE_TYPE_JOIN -> executeJoin(nodeDef, context, stateMachine);
+                case ChainConstants.NODE_TYPE_TRY_CATCH -> executeTryCatch(nodeDef, context, stateMachine);
+                case ChainConstants.NODE_TYPE_WHILE -> executeWhile(nodeDef, context, stateMachine);
+                case ChainConstants.NODE_TYPE_APPROVAL -> executeApproval(nodeDef, context, stateMachine);
+                case ChainConstants.NODE_TYPE_NOTIFICATION -> executeNotification(nodeDef, context, stateMachine);
+                case ChainConstants.NODE_TYPE_TRANSFORMER -> executeTransformer(nodeDef, context, stateMachine);
+                case ChainConstants.NODE_TYPE_FILTER -> executeFilter(nodeDef, context, stateMachine);
+                case ChainConstants.NODE_TYPE_AGGREGATOR -> executeAggregator(nodeDef, context, stateMachine);
+                case ChainConstants.NODE_TYPE_SPLITTER -> executeSplitter(nodeDef, context, stateMachine);
+                case ChainConstants.NODE_TYPE_HTTP_CLIENT -> executeHttpClient(nodeDef, context, stateMachine);
+                case ChainConstants.NODE_TYPE_CACHE_READER -> executeCacheReader(nodeDef, context, stateMachine);
+                case ChainConstants.NODE_TYPE_CACHE_WRITER -> executeCacheWriter(nodeDef, context, stateMachine);
+                case ChainConstants.NODE_TYPE_LOGGER -> executeLogger(nodeDef, context, stateMachine);
+                case ChainConstants.NODE_TYPE_DELAY -> executeDelay(nodeDef, context, stateMachine);
                 default -> throw new IllegalArgumentException("不支持的节点类型: " + nodeDef.getType());
             };
 
@@ -432,6 +448,13 @@ public class NodeRunner {
             throw new IllegalArgumentException("子链编码为空 nodeId=" + nodeDef.getId());
         }
 
+        // 递归深度检查
+        int currentDepth = getSubChainDepth(context);
+        if (currentDepth >= ChainConstants.MAX_SUB_CHAIN_DEPTH) {
+            throw new RuntimeException("子链递归深度超限 nodeId=" + nodeDef.getId()
+                    + " depth=" + currentDepth + " max=" + ChainConstants.MAX_SUB_CHAIN_DEPTH);
+        }
+
         ChainDefinition subChain = chainManager.get(subChainCode);
         if (subChain == null) {
             throw new IllegalArgumentException("子链不存在 code=" + subChainCode + " nodeId=" + nodeDef.getId());
@@ -441,11 +464,16 @@ public class NodeRunner {
             throw new IllegalStateException("子链执行引擎未注入 nodeId=" + nodeDef.getId());
         }
 
-        log.debug("子链执行开始 nodeId={} subChainCode={} parentDeadlineMs={}",
-                nodeDef.getId(), subChainCode, readDeadlineMs(context));
+        log.debug("子链执行开始 nodeId={} subChainCode={} depth={} parentDeadlineMs={}",
+                nodeDef.getId(), subChainCode, currentDepth, readDeadlineMs(context));
         long parentDeadline = readDeadlineMs(context);
+
+        // 传递深度信息到子链上下文
+        Map<String, Object> snapshot = context.snapshot();
+        snapshot.put("_sub_chain_depth", currentDepth + 1);
+
         ChainExecuteResultDTO result = chainExecutionEngine.executeWithDeadline(
-                subChainCode, context.snapshot(), parentDeadline);
+                subChainCode, snapshot, parentDeadline);
         if (result.getStatus() == null || result.getStatus() != ChainConstants.CHAIN_SUCCESS) {
             String msg = result.getErrorMessage() != null
                     ? result.getErrorMessage()
@@ -454,6 +482,14 @@ public class NodeRunner {
         }
         log.debug("子链执行完成 nodeId={} subChainCode={}", nodeDef.getId(), subChainCode);
         return result.getResultData();
+    }
+
+    private static int getSubChainDepth(ChainContext context) {
+        Object depth = context.get("_sub_chain_depth");
+        if (depth instanceof Number number) {
+            return number.intValue();
+        }
+        return 0;
     }
 
     private static long readDeadlineMs(ChainContext context) {
@@ -484,6 +520,13 @@ public class NodeRunner {
         }
 
         Collection<Object> items = (Collection<Object>) dataSource;
+        int maxCount = ChainConstants.MAX_ITERATOR_COUNT;
+        if (items.size() > maxCount) {
+            log.warn("迭代器数据源超过最大限制 nodeId={} size={} max={}，将截断处理",
+                    nodeDef.getId(), items.size(), maxCount);
+            items = new ArrayList<>(items).subList(0, maxCount);
+        }
+
         String itemName = nodeDef.getIteratorItemName();
         List<NodeDefinition> subNodes = nodeDef.getIteratorSubNodes();
 
@@ -495,6 +538,10 @@ public class NodeRunner {
         List<Object> results = new ArrayList<>();
         int index = 0;
         for (Object item : items) {
+            if (index >= maxCount) {
+                log.warn("迭代器达到最大迭代次数 nodeId={} max={}", nodeDef.getId(), maxCount);
+                break;
+            }
             // 将当前迭代项放入上下文
             if (itemName != null && !itemName.isEmpty()) {
                 context.put(itemName, item);
@@ -595,6 +642,16 @@ public class NodeRunner {
         if (eventPublisher == EventPublisher.NOOP) {
             return;
         }
+        // 敏感数据脱敏
+        String maskedParams = params;
+        if (params != null && SensitiveDataMasker.containsSensitiveData(context.snapshot())) {
+            Map<String, Object> masked = SensitiveDataMasker.mask(context.snapshot());
+            try {
+                maskedParams = JSON_MAPPER.writeValueAsString(masked);
+            } catch (JsonProcessingException e) {
+                maskedParams = params;
+            }
+        }
         eventPublisher.publish(ChainEvent.builder()
                 .eventId(UUID.randomUUID().toString())
                 .eventType(eventType)
@@ -607,7 +664,7 @@ public class NodeRunner {
                 .appCode(appCode)
                 .appName(appName)
                 .tenantId(tenantId)
-                .params(params)
+                .params(maskedParams)
                 .result(result)
                 .costMs(costMs)
                 .status(status)
@@ -639,5 +696,179 @@ public class NodeRunner {
 
     private boolean evaluateCondition(String condition, ChainContext context) {
         return AviatorExpressionEvaluator.evaluateBoolean(condition, context.snapshot());
+    }
+
+    // ==================== 新增节点类型执行方法 ====================
+
+    private Object executeFork(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
+        log.debug("FORK 节点执行 nodeId={}", nodeDef.getId());
+        context.put("_fork_node_id", nodeDef.getId());
+        return "FORKED";
+    }
+
+    private Object executeJoin(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
+        log.debug("JOIN 节点执行 nodeId={}", nodeDef.getId());
+        executePreProcessors(nodeDef, context);
+        Object result = lifecycleExecutor.execute(nodeDef, context);
+        publishResult(context, result, nodeDef);
+        executePostProcessors(nodeDef, context);
+        return result;
+    }
+
+    private Object executeTryCatch(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
+        log.debug("TRY_CATCH 节点执行 nodeId={}", nodeDef.getId());
+        try {
+            executePreProcessors(nodeDef, context);
+            Object result = lifecycleExecutor.execute(nodeDef, context);
+            publishResult(context, result, nodeDef);
+            executePostProcessors(nodeDef, context);
+            return result;
+        } catch (Exception e) {
+            log.warn("TRY_CATCH 节点捕获异常 nodeId={} error={}", nodeDef.getId(), e.getMessage());
+            context.put("_try_catch_error", e.getMessage());
+            context.put("_try_catch_error_type", e.getClass().getSimpleName());
+            return null;
+        }
+    }
+
+    private Object executeWhile(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
+        log.debug("WHILE 节点执行 nodeId={}", nodeDef.getId());
+        String condition = nodeDef.getCondition();
+        if (condition == null || condition.isEmpty()) {
+            throw new IllegalArgumentException("WHILE 节点缺少循环条件 nodeId=" + nodeDef.getId());
+        }
+
+        int maxIterations = ChainConstants.MAX_ITERATOR_COUNT;
+        int iteration = 0;
+        List<Object> results = new ArrayList<>();
+
+        while (evaluateCondition(condition, context) && iteration < maxIterations) {
+            context.put("_while_index", iteration);
+            executePreProcessors(nodeDef, context);
+            Object result = lifecycleExecutor.execute(nodeDef, context);
+            publishResult(context, result, nodeDef);
+            executePostProcessors(nodeDef, context);
+            if (result != null) {
+                results.add(result);
+            }
+            iteration++;
+        }
+
+        log.debug("WHILE 节点完成 nodeId={} iterations={}", nodeDef.getId(), iteration);
+        return results;
+    }
+
+    private Object executeApproval(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
+        log.debug("APPROVAL 节点执行 nodeId={}", nodeDef.getId());
+        String approvalStatus = (String) context.get("_approval_status");
+        if ("APPROVED".equals(approvalStatus)) {
+            log.debug("审批已通过，继续执行 nodeId={}", nodeDef.getId());
+            executePreProcessors(nodeDef, context);
+            Object result = lifecycleExecutor.execute(nodeDef, context);
+            publishResult(context, result, nodeDef);
+            executePostProcessors(nodeDef, context);
+            return result;
+        }
+        if ("REJECTED".equals(approvalStatus)) {
+            throw new RuntimeException("审批被拒绝 nodeId=" + nodeDef.getId());
+        }
+        // 挂起等待审批
+        log.debug("审批节点等待人工审批 nodeId={}", nodeDef.getId());
+        context.put("_approval_pending", nodeDef.getId());
+        stateMachine.transit(ChainConstants.NODE_SKIPPED);
+        return "PENDING_APPROVAL";
+    }
+
+    private Object executeNotification(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
+        log.debug("NOTIFICATION 节点执行 nodeId={}", nodeDef.getId());
+        executePreProcessors(nodeDef, context);
+        Object result = lifecycleExecutor.execute(nodeDef, context);
+        publishResult(context, result, nodeDef);
+        executePostProcessors(nodeDef, context);
+        return result;
+    }
+
+    private Object executeTransformer(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
+        log.debug("TRANSFORMER 节点执行 nodeId={}", nodeDef.getId());
+        executePreProcessors(nodeDef, context);
+        Object result = lifecycleExecutor.execute(nodeDef, context);
+        publishResult(context, result, nodeDef);
+        executePostProcessors(nodeDef, context);
+        return result;
+    }
+
+    private Object executeFilter(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
+        log.debug("FILTER 节点执行 nodeId={}", nodeDef.getId());
+        executePreProcessors(nodeDef, context);
+        Object result = lifecycleExecutor.execute(nodeDef, context);
+        publishResult(context, result, nodeDef);
+        executePostProcessors(nodeDef, context);
+        return result;
+    }
+
+    private Object executeAggregator(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
+        log.debug("AGGREGATOR 节点执行 nodeId={}", nodeDef.getId());
+        executePreProcessors(nodeDef, context);
+        Object result = lifecycleExecutor.execute(nodeDef, context);
+        publishResult(context, result, nodeDef);
+        executePostProcessors(nodeDef, context);
+        return result;
+    }
+
+    private Object executeSplitter(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
+        log.debug("SPLITTER 节点执行 nodeId={}", nodeDef.getId());
+        executePreProcessors(nodeDef, context);
+        Object result = lifecycleExecutor.execute(nodeDef, context);
+        publishResult(context, result, nodeDef);
+        executePostProcessors(nodeDef, context);
+        return result;
+    }
+
+    private Object executeHttpClient(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
+        log.debug("HTTP_CLIENT 节点执行 nodeId={}", nodeDef.getId());
+        executePreProcessors(nodeDef, context);
+        Object result = lifecycleExecutor.execute(nodeDef, context);
+        publishResult(context, result, nodeDef);
+        executePostProcessors(nodeDef, context);
+        return result;
+    }
+
+    private Object executeCacheReader(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
+        log.debug("CACHE_READER 节点执行 nodeId={}", nodeDef.getId());
+        executePreProcessors(nodeDef, context);
+        Object result = lifecycleExecutor.execute(nodeDef, context);
+        publishResult(context, result, nodeDef);
+        executePostProcessors(nodeDef, context);
+        return result;
+    }
+
+    private Object executeCacheWriter(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
+        log.debug("CACHE_WRITER 节点执行 nodeId={}", nodeDef.getId());
+        executePreProcessors(nodeDef, context);
+        Object result = lifecycleExecutor.execute(nodeDef, context);
+        publishResult(context, result, nodeDef);
+        executePostProcessors(nodeDef, context);
+        return result;
+    }
+
+    private Object executeLogger(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
+        log.debug("LOGGER 节点执行 nodeId={}", nodeDef.getId());
+        executePreProcessors(nodeDef, context);
+        Object result = lifecycleExecutor.execute(nodeDef, context);
+        publishResult(context, result, nodeDef);
+        executePostProcessors(nodeDef, context);
+        return result;
+    }
+
+    private Object executeDelay(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
+        long delayMs = nodeDef.getTimeout() > 0 ? nodeDef.getTimeout() : 1000L;
+        log.debug("DELAY 节点执行 nodeId={} delayMs={}", nodeDef.getId(), delayMs);
+        try {
+            Thread.sleep(delayMs);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("延迟节点被中断 nodeId=" + nodeDef.getId(), e);
+        }
+        return "DELAYED_" + delayMs + "ms";
     }
 }
