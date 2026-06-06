@@ -25,6 +25,10 @@
         <el-icon><EditPen /></el-icon>
         <span>{{ $t('layout.design') }}</span>
       </el-menu-item>
+      <el-menu-item index="/design/ai-templates">
+        <el-icon><MagicStick /></el-icon>
+        <span>{{ $t('ai.templates.menu') }}</span>
+      </el-menu-item>
       <el-sub-menu index="/playground" v-if="appStore.playgroundEnabled">
         <template #title>
           <el-icon><VideoPlay /></el-icon>
@@ -83,6 +87,10 @@
         <el-menu-item index="/settings/tenants">
           <el-icon><Collection /></el-icon>
           <span>{{ $t('tenant.title') }}</span>
+        </el-menu-item>
+        <el-menu-item index="/settings/ai">
+          <el-icon><MagicStick /></el-icon>
+          <span>{{ $t('settings.ai.menu') }}</span>
         </el-menu-item>
       </el-sub-menu>
     </el-menu>

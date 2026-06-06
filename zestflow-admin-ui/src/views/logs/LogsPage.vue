@@ -146,6 +146,44 @@
           </el-descriptions-item>
         </el-descriptions>
 
+        <div v-if="traceDetail.status === 0" class="ai-diagnose-section">
+          <div class="ai-diagnose-header">
+            <h4 style="margin:0">{{ $t('logs.aiDiagnose') }}</h4>
+            <el-button
+              type="primary"
+              size="small"
+              :loading="diagnoseLoading"
+              :disabled="!copilotAvailable"
+              @click="runAiDiagnose"
+            >
+              {{ $t('logs.aiDiagnoseBtn') }}
+            </el-button>
+          </div>
+          <el-alert
+            v-if="!copilotAvailable && !diagnoseLoading"
+            :title="$t('ai.notConfigured')"
+            type="warning"
+            :closable="false"
+            show-icon
+            style="margin-top:8px"
+          />
+          <div v-if="diagnoseResult" class="ai-diagnose-result">
+            <p><strong>{{ $t('logs.aiDiagnosis') }}</strong></p>
+            <p>{{ diagnoseResult.diagnosis }}</p>
+            <p style="margin-top:12px"><strong>{{ $t('logs.aiSuggestion') }}</strong></p>
+            <p>{{ diagnoseResult.suggestion }}</p>
+            <el-button
+              v-if="diagnoseResult.openDesignPath"
+              type="primary"
+              link
+              style="margin-top:8px;padding:0"
+              @click="openDesignFromDiagnose"
+            >
+              {{ $t('logs.openDesign') }}
+            </el-button>
+          </div>
+        </div>
+
         <h4 style="margin:20px 0 12px;display:flex;align-items:center;gap:8px">
           {{ $t('logs.traceFlow') }}
           <el-button v-if="!graphError && !graphLoading && execGraph" text size="small" type="primary" @click="exportPNG" style="margin-left:8px;font-size:13px">
@@ -230,13 +268,14 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, nextTick, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Loading, FullScreen, Download } from '@element-plus/icons-vue'
 import { Graph } from '@antv/x6'
 import { Export } from '@antv/x6-plugin-export'
 import type { EventQueryParams, ExecutionTrace, NodeExecutionDetail } from '@/api/logs'
 import { queryExecutionTraces, getExecutionTrace, getSnapshot, getNodeExecutionDetail } from '@/api/logs'
+import { aiApi, type AiDiagnoseResponse, type AiConfigVO } from '@/api/ai'
 import { executorApi, type AppOption } from '@/api/executor'
 import { chainApi, type ChainVO } from '@/api/chain'
 import ChainDetailDrawer from '@/components/ChainDetailDrawer.vue'
@@ -247,6 +286,7 @@ import { useResponsivePagination } from '@/composables/useResponsivePagination'
 
 const { t } = useI18n()
 const route = useRoute()
+const router = useRouter()
 const { currentAppCode, syncFromApps } = useCurrentApp()
 const { drawerSize: traceDrawerSize, isMobile: isMobileView } = useResponsiveDrawerSize(720)
 const { drawerSize: nodeDrawerSize } = useResponsiveDrawerSize(560)
@@ -319,6 +359,14 @@ const chainNameCache = ref<Record<string, string>>({})
 const nodeDetailVisible = ref(false)
 const nodeDetailLoading = ref(false)
 const nodeDetail = ref<NodeExecutionDetail | null>(null)
+
+const aiConfig = ref<AiConfigVO | null>(null)
+const diagnoseLoading = ref(false)
+const diagnoseResult = ref<AiDiagnoseResponse | null>(null)
+const copilotAvailable = computed(() => {
+  if (!aiConfig.value) return false
+  return aiConfig.value.globalEnabled !== false && aiConfig.value.enabled && aiConfig.value.configured
+})
 
 function resolveChainCode(row: ExecutionTrace | null | undefined): string | undefined {
   if (!row) return undefined
@@ -466,6 +514,7 @@ async function showDetail(row: ExecutionTrace) {
   detailVisible.value = true
   detailLoading.value = true
   traceDetail.value = null
+  diagnoseResult.value = null
   graphError.value = ''
   graphLoading.value = true
   graphLegend.value = ''
@@ -505,7 +554,40 @@ async function showDetail(row: ExecutionTrace) {
   }
 }
 
+async function runAiDiagnose() {
+  const detail = traceDetail.value
+  if (!detail) return
+  const appCode = detail.appCode || currentAppCode.value
+  if (!appCode) return
+  diagnoseLoading.value = true
+  diagnoseResult.value = null
+  try {
+    diagnoseResult.value = await aiApi.diagnose({
+      appCode,
+      executionId: detail.executionId,
+      chainCode: resolveChainCode(detail),
+      errorSummary: detail.errorMessage,
+    })
+  } catch {
+    diagnoseResult.value = null
+  } finally {
+    diagnoseLoading.value = false
+  }
+}
+
+function openDesignFromDiagnose() {
+  const path = diagnoseResult.value?.openDesignPath
+  if (path) {
+    router.push(path)
+  }
+}
+
 onMounted(async () => {
+  try {
+    aiConfig.value = await aiApi.getConfig()
+  } catch {
+    aiConfig.value = { enabled: false, configured: false }
+  }
   await fetchApps()
   const executionId = typeof route.query.executionId === 'string' ? route.query.executionId.trim() : ''
   if (executionId) {
@@ -913,5 +995,24 @@ function destroyFullscreenGraph() {
   background: #f5f7fa; border: 1px solid #e4e7ed; border-radius: 4px;
   padding: 12px; font-size: 12px; line-height: 1.5; max-height: 240px;
   overflow: auto; white-space: pre-wrap; word-break: break-all; margin: 0;
+}
+.ai-diagnose-section {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  background: #fafafa;
+}
+.ai-diagnose-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ai-diagnose-result {
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #303133;
 }
 </style>

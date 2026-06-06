@@ -109,6 +109,15 @@
         <el-tag v-if="selectedCount > 0" type="info" size="small" style="margin-right:8px">
           {{ $t('design.selected') }} {{ selectedCount }}
         </el-tag>
+        <el-tooltip :content="copilotEnabled ? $t('ai.aiAssistant') : $t('ai.notConfigured')">
+          <el-button
+            class="toolbar-ai-btn"
+            :disabled="!copilotEnabled"
+            @click="showCopilot = true"
+          >
+            <el-icon><MagicStick /></el-icon> {{ $t('ai.aiAssistant') }}
+          </el-button>
+        </el-tooltip>
         <el-button class="toolbar-save-btn" type="primary" :loading="saving" @click="handleSave">
           <el-icon><Check /></el-icon> {{ $t('design.saveGraph') }}
         </el-button>
@@ -301,7 +310,17 @@
                 <el-form-item :label="$t('design.falseBranch')">
                   <el-input v-model="selectedNodeData.falseLabel" placeholder="False" @change="syncConditionBranchLabels" />
                 </el-form-item>
-                <el-form-item :label="$t('design.predicateScript')">
+                <el-form-item>
+                  <template #label>
+                    <span>{{ $t('design.predicateScript') }}</span>
+                    <AiExpressionAssist
+                      :model-value="selectedNodeData.predicateScript || ''"
+                      :disabled="!copilotEnabled"
+                      :get-context="getCopilotContext"
+                      :field-label="$t('design.predicateScript')"
+                      @update:model-value="onPredicateScriptAiApply"
+                    />
+                  </template>
                   <el-input
                       v-model="selectedNodeData.predicateScript"
                       type="textarea"
@@ -419,7 +438,17 @@
                 />
               </el-form-item>
             </template>
-            <el-form-item v-if="hasScriptField(selectedNodeData.nodeType)" :label="$t('design.script')">
+            <el-form-item v-if="hasScriptField(selectedNodeData.nodeType)">
+              <template #label>
+                <span>{{ $t('design.script') }}</span>
+                <AiExpressionAssist
+                  :model-value="selectedNodeData.script || ''"
+                  :disabled="!copilotEnabled"
+                  :get-context="getCopilotContext"
+                  :field-label="$t('design.script')"
+                  @update:model-value="onNodeScriptAiApply"
+                />
+              </template>
               <el-input v-model="selectedNodeData.script" type="textarea" :rows="3" :placeholder="$t('design.scriptPlaceholder')" @input="onDataChange" />
             </el-form-item>
             <el-form-item v-if="hasDescription(selectedNodeData.nodeType)" :label="$t('design.description')">
@@ -698,6 +727,14 @@
         <el-button @click="chainDataDialog.visible=false">{{ $t('common.close') }}</el-button>
       </template>
     </el-dialog>
+
+    <AiCopilotDrawer
+      v-model="showCopilot"
+      :enabled="copilotEnabled"
+      :get-context="getCopilotContext"
+      :playground-chain-code="playgroundChainCode"
+      @apply-proposal="applyAiProposal"
+    />
   </div>
 </template>
 
@@ -719,6 +756,10 @@ import { useDict } from '@/composables/useDict'
 import { useResponsiveDrawerSize } from '@/composables/useResponsiveDrawerSize'
 import { useResponsivePagination } from '@/composables/useResponsivePagination'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
+import AiCopilotDrawer from '@/components/ai/AiCopilotDrawer.vue'
+import AiExpressionAssist from '@/components/ai/AiExpressionAssist.vue'
+import { aiApi } from '@/api/ai'
+import { useAiCopilotStore } from '@/stores/aiCopilot'
 import { componentApi } from '@/api/component'
 import { executorApi } from '@/api/executor'
 import {
@@ -745,7 +786,7 @@ import {
   CopyDocument, DocumentAdd,
   ZoomIn, ZoomOut, FullScreen, ScaleToOriginal,
   Delete, Select, Edit, Picture,
-  ArrowRight, ArrowDown, Sort, Rank, Plus, Setting, Close, DArrowRight, DArrowLeft,
+  ArrowRight, ArrowDown, Sort, Rank, Plus, Setting, Close, DArrowRight, DArrowLeft, MagicStick,
 } from '@element-plus/icons-vue'
 
 const { t } = useI18n()
@@ -783,6 +824,8 @@ const appCode = route.query.appCode as string || ''
 const design = ref<any>(null)
 const appName = ref('')
 const saving = ref(false)
+const showCopilot = ref(false)
+const copilotEnabled = ref(false)
 const selectedCount = ref(0)
 const canUndo = ref(false)
 const canRedo = ref(false)
@@ -818,6 +861,96 @@ const deleteSelectionLabel = computed(() => {
   if (selectedNodeData.value) return t('design.deleteNode')
   return t('design.deleteSelection', { count: selectedCount.value })
 })
+
+const playgroundChainCode = computed(() => {
+  const chains = design.value?.boundChains
+  if (Array.isArray(chains) && chains.length > 0) {
+    return chains[0].code || ''
+  }
+  return ''
+})
+
+async function loadCopilotConfig() {
+  try {
+    const cfg = await aiApi.getConfig()
+    copilotEnabled.value = !!(cfg?.enabled && cfg?.configured && cfg?.globalEnabled !== false)
+  } catch {
+    copilotEnabled.value = false
+  }
+}
+
+function getCopilotContext() {
+  return {
+    designId: designCode,
+    chainCode: playgroundChainCode.value,
+    appCode,
+    currentChainData: JSON.stringify(translateGraphToChain()),
+    graphData: graph ? JSON.stringify(graph.toJSON()) : '',
+  }
+}
+
+function onPredicateScriptAiApply(value: string) {
+  if (!selectedNodeData.value) return
+  selectedNodeData.value.predicateScript = value
+  onDataChange()
+}
+
+function onNodeScriptAiApply(value: string) {
+  if (!selectedNodeData.value) return
+  selectedNodeData.value.script = value
+  onDataChange()
+}
+
+async function loadTemplateFromQuery() {
+  const raw = route.query.aiTemplateId
+  const tplId = typeof raw === 'string' ? Number(raw.trim()) : NaN
+  if (!Number.isFinite(tplId) || tplId <= 0) return
+  try {
+    const tpl = await aiApi.getTemplate(tplId)
+    const store = useAiCopilotStore()
+    store.setPendingProposal(tpl.chainData, tpl.promptSummary || tpl.name)
+    showCopilot.value = true
+    ElMessage.success(t('ai.templates.loadedInCopilot'))
+  } catch {
+    ElMessage.error(t('ai.templates.loadFailed'))
+  }
+}
+
+function applyAiProposal(proposedChainData: string) {
+  if (!graph) return
+  let chain: any
+  try {
+    chain = typeof proposedChainData === 'string' ? JSON.parse(proposedChainData) : proposedChainData
+  } catch {
+    ElMessage.error(t('ai.invalidProposal'))
+    return
+  }
+
+  graph.batchUpdate(() => {
+    const nodes = chain?.nodes
+    if (Array.isArray(nodes)) {
+      nodes.forEach((n: any) => {
+        if (!n?.id) return
+        const cell = graph!.getCellById(n.id)
+        if (!cell?.isNode()) return
+        const data = { ...(cell.getData() || {}) }
+        if (n.label != null) data.label = n.label
+        if (n.component != null) data.componentId = n.component
+        if (n.componentName != null) data.componentName = n.componentName
+        cell.setData(data)
+        updateNodeVisual(cell as Node)
+      })
+    }
+  })
+
+  design.value.chainData = typeof proposedChainData === 'string'
+    ? proposedChainData
+    : JSON.stringify(chain)
+  hydrateNodeConfigFromChainData()
+  ElMessage.success(t('ai.applySuccess'))
+}
+
+defineExpose({ translateGraphToChain, getCopilotContext })
 
 function checkViewport() {
   const width = window.innerWidth
@@ -2878,6 +3011,8 @@ onMounted(async () => {
   await nextTick()
   initGraph()
   await loadDesign()
+  void loadCopilotConfig()
+  await loadTemplateFromQuery()
 })
 
 onBeforeUnmount(() => {

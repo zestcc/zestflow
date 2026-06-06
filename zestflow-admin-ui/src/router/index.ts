@@ -80,6 +80,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '设计列表', requiresExecutor: true },
       },
       {
+        path: 'design/ai-templates',
+        name: 'AiTemplates',
+        component: () => import('@/views/design/AiTemplatesPage.vue'),
+        meta: { title: 'AI 模板库', requiresExecutor: true },
+      },
+      {
         path: 'design/:id',
         name: 'DesignEditor',
         component: () => import('@/views/design/DesignEditorPage.vue'),
@@ -163,6 +169,12 @@ const routes: RouteRecordRaw[] = [
             name: 'TenantManage',
             component: () => import('@/views/tenant/TenantManagePage.vue'),
             meta: { title: '租户管理' },
+          },
+          {
+            path: 'ai',
+            name: 'SettingsAi',
+            component: () => import('@/views/settings/SettingsAiPage.vue'),
+            meta: { title: 'AI 配置' },
           },
         ],
       },

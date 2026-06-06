@@ -47,6 +47,39 @@ public class ChainLoader implements ApplicationRunner, Ordered {
 
     @Data
     @AllArgsConstructor
+    public static class ChainValidationResult {
+        private boolean valid;
+        private List<String> errors;
+    }
+
+    /**
+     * 校验链定义 JSON（不加载、不持久化），供 Copilot / 设计器预检。
+     */
+    public ChainValidationResult validateDefinition(String chainCode, Integer version,
+                                                    String chainDataJson, String graphDataJson) {
+        if (chainCode == null || chainCode.isBlank()) {
+            return new ChainValidationResult(false, List.of("chainCode 不能为空"));
+        }
+        int ver = version != null && version > 0 ? version : 1;
+        boolean hasChain = chainDataJson != null && !chainDataJson.isBlank();
+        boolean hasGraph = graphDataJson != null && !graphDataJson.isBlank();
+        if (!hasChain && !hasGraph) {
+            return new ChainValidationResult(false, List.of("chainData 与 graphData 不能同时为空"));
+        }
+        try {
+            ChainDefinition definition = hasChain
+                    ? chainDefinitionBuilder.build(chainCode, ver, chainDataJson, graphDataJson)
+                    : chainDefinitionBuilder.build(chainCode, ver, graphDataJson);
+            List<String> errors = chainValidator.validate(definition);
+            return new ChainValidationResult(errors.isEmpty(), errors);
+        } catch (Exception e) {
+            log.warn("链定义校验解析失败 chainCode={}", chainCode, e);
+            return new ChainValidationResult(false, List.of("解析失败: " + e.getMessage()));
+        }
+    }
+
+    @Data
+    @AllArgsConstructor
     public static class ChainReloadResult {
         private boolean success;
         private String errorMessage;

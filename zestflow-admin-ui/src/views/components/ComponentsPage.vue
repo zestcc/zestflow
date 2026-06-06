@@ -15,6 +15,7 @@
           >
             <el-option v-for="m in modules" :key="m.appCode" :label="m.appName || m.appCode" :value="m.appCode" />
           </el-select>
+          <el-button type="primary" plain @click="openScaffold">{{ $t('ai.scaffold.menu') }}</el-button>
         </div>
       </div>
     </div>
@@ -142,6 +143,8 @@
         </el-descriptions>
       </div>
     </el-drawer>
+
+    <AiComponentScaffoldDialog ref="scaffoldDialogRef" />
   </div>
 </template>
 
@@ -152,6 +155,7 @@ import { componentApi } from '@/api/component'
 import type { ComponentVO } from '@/api/component'
 import { executorApi, type AppOption } from '@/api/executor'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
+import AiComponentScaffoldDialog from '@/components/ai/AiComponentScaffoldDialog.vue'
 import { useDict } from '@/composables/useDict'
 import { useCurrentApp } from '@/composables/useCurrentApp'
 import { useResponsiveDrawerSize } from '@/composables/useResponsiveDrawerSize'
@@ -162,6 +166,7 @@ const { options: componentTypeOptions } = useDict('component_type')
 const { currentAppCode, syncFromApps } = useCurrentApp()
 const { drawerSize } = useResponsiveDrawerSize(600)
 const { paginationLayout } = useResponsivePagination()
+const scaffoldDialogRef = ref<InstanceType<typeof AiComponentScaffoldDialog> | null>(null)
 
 const componentColumns = computed(() => [
   { prop: 'componentId', label: t('components.componentId'), width: 240, showOverflowTooltip: true },
@@ -264,6 +269,10 @@ async function fetchList() {
   } finally {
     loading.value = false
   }
+}
+
+function openScaffold() {
+  scaffoldDialogRef.value?.open(currentAppCode.value || undefined)
 }
 
 function handleSearch() {
