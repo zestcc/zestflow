@@ -224,6 +224,16 @@ public class ChainDefinitionBuilder {
             }
         }
 
+        // DELAY 节点：优先读取 delayMs 配置，并为 watchdog 留出余量
+        if (ChainConstants.NODE_TYPE_DELAY.equals(nodeDTO.getType())) {
+            long delayMs = parseLongConfig(cfg, "delayMs", 50L);
+            builder.timeout(Math.max(delayMs + 2_000L, 1_000L));
+        }
+
+        if (!cfg.isEmpty()) {
+            builder.config(new java.util.HashMap<>(cfg));
+        }
+
         return builder.build();
     }
 

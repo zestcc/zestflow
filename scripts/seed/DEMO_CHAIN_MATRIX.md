@@ -44,7 +44,17 @@
 
 ## 试验场场景
 
-共 **34** 条 `playground_scene`（含售后 API + **失败继续** `SCN20260602000001`），映射上表各档链路。
+共 **154** 条 `playground_scene`（36 原有 + **115** 条 `SCN_EXT_*` 扩展矩阵），映射 **151** 条链（含 75 步压力链）。
+
+## 151 链 0→1 矩阵测试
+
+| 层级 | 命令 | 说明 |
+|------|------|------|
+| 引擎内集成 | `mvn test -pl zestflow-demo -Dtest=DemoChainMatrixTest` | 从 `demo-chains.json` 加载 151 链，150 条执行 + 1 条压力链 skip |
+| Playground 黑盒 | `scripts/blackbox/run-chain-matrix-e2e.ps1` | 灌库后逐场景 HTTP 执行（需 Admin+Playground） |
+| 种子修复 | `python scripts/seed/patch-demo-chains-matrix.py` | WHILE/DELAY/ITERATOR/HTTP/CACHE 可执行性补丁 |
+
+扩展链：`CHN_DEMO_EXT_001`…`115`，23 种节点类型 × 5 变体。
 
 ## E2E 策略（与黑盒脚本对齐）
 

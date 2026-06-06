@@ -36,7 +36,7 @@ class RegistryTokenFilterTest {
     void rejectsMissingTokenWhenConfigured() throws Exception {
         ReflectionTestUtils.setField(filter, "registryToken", "secret");
         request.setMethod("POST");
-        request.setRequestURI(AdminApiPaths.of("/registry/executor/heartbeat"));
+        request.setRequestURI(AdminApiPaths.of("/registry/heartbeat"));
 
         filter.doFilterInternal(request, response, filterChain);
 
@@ -47,7 +47,7 @@ class RegistryTokenFilterTest {
     void acceptsValidToken() throws Exception {
         ReflectionTestUtils.setField(filter, "registryToken", "secret");
         request.setMethod("POST");
-        request.setRequestURI(AdminApiPaths.of("/registry/executor/heartbeat"));
+        request.setRequestURI(AdminApiPaths.of("/registry/heartbeat"));
         request.addHeader(RegistryAuthConstants.REGISTRY_TOKEN_HEADER, "secret");
 
         filter.doFilterInternal(request, response, filterChain);
@@ -59,7 +59,7 @@ class RegistryTokenFilterTest {
     void allowsOpenModeWhenTokenNotConfigured() throws Exception {
         ReflectionTestUtils.setField(filter, "registryToken", "");
         request.setMethod("POST");
-        request.setRequestURI(AdminApiPaths.of("/registry/executor/heartbeat"));
+        request.setRequestURI(AdminApiPaths.of("/registry/heartbeat"));
 
         filter.doFilterInternal(request, response, filterChain);
 

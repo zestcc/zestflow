@@ -26,6 +26,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import com.zestflow.executor.expression.AviatorExpressionEvaluator;
 import com.zestflow.executor.context.ExecuteResultPublisher;
+import com.zestflow.executor.http.NativeHttpClient;
+import com.zestflow.executor.http.NodeConfigBridge;
 import com.zestflow.executor.security.SensitiveDataMasker;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -153,6 +155,8 @@ public class NodeRunner {
             // 拦截器前置
             interceptorChain.beforeNode(nodeDef, context);
 
+            applyNodeConfigToContext(nodeDef, context);
+
             // 节点类型分发
             Object result = switch (nodeDef.getType()) {
                 case ChainConstants.NODE_TYPE_NORMAL -> executeNormal(nodeDef, context, stateMachine);
@@ -172,6 +176,8 @@ public class NodeRunner {
                 case ChainConstants.NODE_TYPE_AGGREGATOR -> executeAggregator(nodeDef, context, stateMachine);
                 case ChainConstants.NODE_TYPE_SPLITTER -> executeSplitter(nodeDef, context, stateMachine);
                 case ChainConstants.NODE_TYPE_HTTP_CLIENT -> executeHttpClient(nodeDef, context, stateMachine);
+                case ChainConstants.NODE_TYPE_MQ_PRODUCER -> executeMqProducer(nodeDef, context, stateMachine);
+                case ChainConstants.NODE_TYPE_MQ_CONSUMER -> executeMqConsumer(nodeDef, context, stateMachine);
                 case ChainConstants.NODE_TYPE_CACHE_READER -> executeCacheReader(nodeDef, context, stateMachine);
                 case ChainConstants.NODE_TYPE_CACHE_WRITER -> executeCacheWriter(nodeDef, context, stateMachine);
                 case ChainConstants.NODE_TYPE_LOGGER -> executeLogger(nodeDef, context, stateMachine);
@@ -181,6 +187,21 @@ public class NodeRunner {
 
             // 拦截器后置
             interceptorChain.afterNode(nodeDef, context, result);
+
+            if (ChainConstants.NODE_TYPE_APPROVAL.equals(nodeDef.getType())
+                    && "PENDING_APPROVAL".equals(result)) {
+                stateMachine.transit(ChainConstants.NODE_SKIPPED);
+                long costMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
+                publishNodeEvent(ChainEvent.EventType.NODE_COMPLETED, nodeDef, context, costMs, 1, null,
+                        null, toJsonString(result));
+                return NodeResultDTO.builder()
+                        .nodeId(nodeId)
+                        .status(ChainConstants.NODE_SKIPPED)
+                        .costMs(costMs)
+                        .returnValue(result)
+                        .outputData(context.snapshot())
+                        .build();
+            }
 
             stateMachine.transit(ChainConstants.NODE_SUCCESS);
             long costMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
@@ -736,16 +757,25 @@ public class NodeRunner {
     private Object executeFork(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
         log.debug("FORK 节点执行 nodeId={}", nodeDef.getId());
         context.put("_fork_node_id", nodeDef.getId());
-        return "FORKED";
-    }
-
-    private Object executeJoin(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
-        log.debug("JOIN 节点执行 nodeId={}", nodeDef.getId());
         executePreProcessors(nodeDef, context);
         Object result = lifecycleExecutor.execute(nodeDef, context);
         publishResult(context, result, nodeDef);
         executePostProcessors(nodeDef, context);
-        return result;
+        return result != null ? result : "FORKED";
+    }
+
+    private Object executeJoin(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
+        log.debug("JOIN 节点执行 nodeId={}", nodeDef.getId());
+        context.put("_join_node_id", nodeDef.getId());
+        Object forkId = context.get("_fork_node_id");
+        if (forkId != null) {
+            context.put("_join_fork_id", forkId);
+        }
+        executePreProcessors(nodeDef, context);
+        Object result = lifecycleExecutor.execute(nodeDef, context);
+        publishResult(context, result, nodeDef);
+        executePostProcessors(nodeDef, context);
+        return result != null ? result : "JOINED";
     }
 
     private Object executeTryCatch(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
@@ -755,11 +785,15 @@ public class NodeRunner {
             Object result = lifecycleExecutor.execute(nodeDef, context);
             publishResult(context, result, nodeDef);
             executePostProcessors(nodeDef, context);
+            context.put("_branch", "Try");
+            context.remove("_try_catch_error");
+            context.remove("_try_catch_error_type");
             return result;
         } catch (Exception e) {
             log.warn("TRY_CATCH 节点捕获异常 nodeId={} error={}", nodeDef.getId(), e.getMessage());
             context.put("_try_catch_error", e.getMessage());
             context.put("_try_catch_error_type", e.getClass().getSimpleName());
+            context.put("_branch", "Catch");
             return null;
         }
     }
@@ -771,7 +805,7 @@ public class NodeRunner {
             throw new IllegalArgumentException("WHILE 节点缺少循环条件 nodeId=" + nodeDef.getId());
         }
 
-        int maxIterations = ChainConstants.MAX_ITERATOR_COUNT;
+        int maxIterations = resolveMaxWhileIterations(nodeDef);
         int iteration = 0;
         List<Object> results = new ArrayList<>();
 
@@ -808,7 +842,6 @@ public class NodeRunner {
         // 挂起等待审批
         log.debug("审批节点等待人工审批 nodeId={}", nodeDef.getId());
         context.put("_approval_pending", nodeDef.getId());
-        stateMachine.transit(ChainConstants.NODE_SKIPPED);
         return "PENDING_APPROVAL";
     }
 
@@ -860,6 +893,63 @@ public class NodeRunner {
     private Object executeHttpClient(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
         log.debug("HTTP_CLIENT 节点执行 nodeId={}", nodeDef.getId());
         executePreProcessors(nodeDef, context);
+        Object result;
+        String component = nodeDef.getComponent();
+        if (component == null || component.isBlank()) {
+            if (context.get("_http_url") != null) {
+                String method = context.get("_http_method", String.class);
+                result = NativeHttpClient.execute(context, method);
+            } else {
+                component = resolveBuiltinHttpComponent(nodeDef, context);
+                result = lifecycleExecutor.execute(withComponent(nodeDef, component), context);
+            }
+        } else {
+            result = lifecycleExecutor.execute(nodeDef, context);
+        }
+        publishResult(context, result, nodeDef);
+        executePostProcessors(nodeDef, context);
+        return result;
+    }
+
+    private static NodeDefinition withComponent(NodeDefinition nodeDef, String component) {
+        return NodeDefinition.builder()
+                .id(nodeDef.getId())
+                .type(nodeDef.getType())
+                .label(nodeDef.getLabel())
+                .component(component)
+                .config(nodeDef.getConfig())
+                .timeout(nodeDef.getTimeout())
+                .build();
+    }
+
+    private static String resolveBuiltinHttpComponent(NodeDefinition nodeDef, ChainContext context) {
+        String method = context.get("_http_method", String.class);
+        if (method == null && nodeDef.getConfig() != null && nodeDef.getConfig().get("httpMethod") != null) {
+            method = String.valueOf(nodeDef.getConfig().get("httpMethod"));
+        }
+        if (method == null) {
+            method = "GET";
+        }
+        return switch (method.toUpperCase()) {
+            case "POST" -> "httpPost";
+            case "PUT" -> "httpPut";
+            case "DELETE" -> "httpDelete";
+            default -> "httpGet";
+        };
+    }
+
+    private Object executeMqProducer(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
+        log.debug("MQ_PRODUCER 节点执行 nodeId={}", nodeDef.getId());
+        executePreProcessors(nodeDef, context);
+        Object result = lifecycleExecutor.execute(nodeDef, context);
+        publishResult(context, result, nodeDef);
+        executePostProcessors(nodeDef, context);
+        return result;
+    }
+
+    private Object executeMqConsumer(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
+        log.debug("MQ_CONSUMER 节点执行 nodeId={}", nodeDef.getId());
+        executePreProcessors(nodeDef, context);
         Object result = lifecycleExecutor.execute(nodeDef, context);
         publishResult(context, result, nodeDef);
         executePostProcessors(nodeDef, context);
@@ -894,14 +984,69 @@ public class NodeRunner {
     }
 
     private Object executeDelay(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
-        long delayMs = nodeDef.getTimeout() > 0 ? nodeDef.getTimeout() : 1000L;
+        long delayMs = resolveDelayMs(nodeDef);
         log.debug("DELAY 节点执行 nodeId={} delayMs={}", nodeDef.getId(), delayMs);
-        try {
-            Thread.sleep(delayMs);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("延迟节点被中断 nodeId=" + nodeDef.getId(), e);
+        long deadline = System.currentTimeMillis() + delayMs;
+        while (System.currentTimeMillis() < deadline) {
+            if (context.isExecutionStopped()) {
+                throw new RuntimeException("延迟节点被终止 nodeId=" + nodeDef.getId());
+            }
+            long remaining = deadline - System.currentTimeMillis();
+            try {
+                Thread.sleep(Math.min(remaining, 100L));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("延迟节点被中断 nodeId=" + nodeDef.getId(), e);
+            }
         }
         return "DELAYED_" + delayMs + "ms";
+    }
+
+    /** 将设计器 config 注入上下文，供元件读取（对标 n8n/Camunda 字段映射） */
+    private void applyNodeConfigToContext(NodeDefinition nodeDef, ChainContext context) {
+        NodeConfigBridge.apply(nodeDef, context);
+    }
+
+    private long resolveDelayMs(NodeDefinition nodeDef) {
+        Map<String, Object> cfg = nodeDef.getConfig();
+        if (cfg != null && cfg.containsKey("delayMs")) {
+            Object raw = cfg.get("delayMs");
+            if (raw instanceof Number number) {
+                return clampDelay(number.longValue());
+            }
+            try {
+                return clampDelay(Long.parseLong(String.valueOf(raw)));
+            } catch (NumberFormatException ignored) {
+                // fall through
+            }
+        }
+        long configured = nodeDef.getTimeout();
+        if (configured > 2_000L) {
+            return clampDelay(configured - 2_000L);
+        }
+        return clampDelay(configured);
+    }
+
+    private static long clampDelay(long delayMs) {
+        if (delayMs <= 0) {
+            return 1L;
+        }
+        return Math.min(delayMs, ChainConstants.MAX_DELAY_MS);
+    }
+
+    private int resolveMaxWhileIterations(NodeDefinition nodeDef) {
+        Map<String, Object> cfg = nodeDef.getConfig();
+        if (cfg != null && cfg.containsKey("maxIterations")) {
+            Object raw = cfg.get("maxIterations");
+            if (raw instanceof Number number) {
+                return Math.min(Math.max(1, number.intValue()), ChainConstants.MAX_WHILE_ITERATIONS);
+            }
+            try {
+                return Math.min(Math.max(1, Integer.parseInt(String.valueOf(raw))), ChainConstants.MAX_WHILE_ITERATIONS);
+            } catch (NumberFormatException ignored) {
+                // fall through
+            }
+        }
+        return ChainConstants.MAX_WHILE_ITERATIONS;
     }
 }

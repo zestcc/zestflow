@@ -3,6 +3,7 @@ package com.zestflow.demo.service;
 import com.zestflow.common.constant.ChainConstants;
 import com.zestflow.common.model.dto.*;
 import com.zestflow.executor.chain.ChainDefinitionBuilder;
+import com.zestflow.executor.chain.ChainRuntimeRegistrar;
 import com.zestflow.executor.chain.ChainManager;
 import com.zestflow.executor.engine.ChainExecutionEngine;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ public class BizOrchestrationService {
     private final ChainDefinitionBuilder chainDefinitionBuilder;
     private final ChainManager chainManager;
     private final ChainExecutionEngine chainExecutionEngine;
+    private final ChainRuntimeRegistrar chainRuntimeRegistrar;
 
     // ==================== 基础工具 ====================
 
@@ -132,6 +134,7 @@ public class BizOrchestrationService {
                 .config(chainConfig != null ? chainConfig : Map.of())
                 .build();
         chainManager.load(chainDefinitionBuilder.build(dto));
+        chainRuntimeRegistrar.ensurePublished(code);
         log.info("链已加载 code={} nodes={} edges={}", code, nodes.size(), edges.size());
         return chainExecutionEngine.execute(code, params != null ? params : Map.of());
     }

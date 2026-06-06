@@ -34,6 +34,11 @@ public class CacheHandler {
         return null;
     }
 
+    @ZestExecute(value = "readUserCache", name = "读取用户缓存(别名)")
+    public Map<String, Object> readUserCache(@ZestParam(value = "userId") String userId) {
+        return getUserCache(userId);
+    }
+
     @ZestExecute(value = "setUserCache", name = "设置用户缓存")
     public void setUserCache(
             @ZestParam(value = "userId") String userId,
@@ -48,6 +53,14 @@ public class CacheHandler {
         );
         cacheStore.put(key, userData);
         log.info("设置用户缓存 userId={}", userId);
+    }
+
+    @ZestExecute(value = "writeUserCache", name = "写入用户缓存(别名)")
+    public void writeUserCache(
+            @ZestParam(value = "userId") String userId,
+            @ZestParam(value = "userName") String userName,
+            @ZestParam(value = "userStatus", defaultValue = "ACTIVE") String userStatus) {
+        setUserCache(userId, userName, userStatus);
     }
 
     @ZestExecute(value = "getOrderCache", name = "获取订单缓存")

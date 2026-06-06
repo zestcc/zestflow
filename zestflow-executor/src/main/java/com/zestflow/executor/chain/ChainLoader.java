@@ -252,6 +252,10 @@ public class ChainLoader implements ApplicationRunner, Ordered {
             log.info("链热加载成功 code={} nodes={} layers={}",
                     chainCode, definition.nodeCount(), definition.layerCount());
 
+            if (incrementVersion) {
+                chainRepo.markPublished(chainCode, null);
+            }
+
             // 通知 Admin 同步状态（轮询刷新不上报，避免 Admin 状态抖动）
             if (incrementVersion) {
                 notifyAdminSync(List.of(definition), "READY", null);

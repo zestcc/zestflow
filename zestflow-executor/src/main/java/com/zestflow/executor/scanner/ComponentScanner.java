@@ -169,6 +169,7 @@ public class ComponentScanner implements ApplicationContextAware {
         if (method.getAnnotation(ZestSplitter.class) != null) return ComponentType.SPLITTER;
         if (method.getAnnotation(ZestHttpClient.class) != null) return ComponentType.HTTP_CLIENT;
         if (method.getAnnotation(ZestMqProducer.class) != null) return ComponentType.MQ_PRODUCER;
+        if (method.getAnnotation(ZestMqConsumer.class) != null) return ComponentType.MQ_CONSUMER;
         if (method.getAnnotation(ZestCacheReader.class) != null) return ComponentType.CACHE_READER;
         if (method.getAnnotation(ZestCacheWriter.class) != null) return ComponentType.CACHE_WRITER;
         if (method.getAnnotation(ZestLogger.class) != null) return ComponentType.LOGGER;
@@ -230,6 +231,10 @@ public class ComponentScanner implements ApplicationContextAware {
                 ZestMqProducer a = method.getAnnotation(ZestMqProducer.class);
                 yield a != null ? a.value() : "";
             }
+            case MQ_CONSUMER -> {
+                ZestMqConsumer a = method.getAnnotation(ZestMqConsumer.class);
+                yield a != null ? a.value() : "";
+            }
             case CACHE_READER -> {
                 ZestCacheReader a = method.getAnnotation(ZestCacheReader.class);
                 yield a != null ? a.value() : "";
@@ -266,7 +271,7 @@ public class ComponentScanner implements ApplicationContextAware {
                 ZestErrorHandler a = method.getAnnotation(ZestErrorHandler.class);
                 yield a != null ? a.value() : "";
             }
-            case APPROVAL, NOTIFICATION, MQ_CONSUMER,
+            case APPROVAL, NOTIFICATION,
                  FORK, JOIN, TRY_CATCH, WHILE -> "";
         };
     }

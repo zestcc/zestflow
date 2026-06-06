@@ -3,6 +3,7 @@ package com.zestflow.executor.engine.support;
 import com.zestflow.common.constant.ChainConstants;
 import com.zestflow.common.model.dto.NodeResultDTO;
 import com.zestflow.executor.chain.ChainDefinition;
+import com.zestflow.executor.chain.ChainLoader;
 import com.zestflow.executor.chain.ChainManager;
 import com.zestflow.executor.chain.NodeDefinition;
 import com.zestflow.executor.engine.ChainInstanceManager;
@@ -44,7 +45,10 @@ public final class EngineTestFixtures {
         ExecutorProperties properties = new ExecutorProperties();
         properties.setAppCode("perf-bench");
 
-        return new DefaultChainExecutionEngine(
+        ChainLoader chainLoader = mock(ChainLoader.class);
+        when(chainLoader.resolveChainDisplayName(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        DefaultChainExecutionEngine engine = new DefaultChainExecutionEngine(
                 chainManager,
                 new DagSorter(),
                 nodeRunner,
@@ -53,5 +57,7 @@ public final class EngineTestFixtures {
                 new InterceptorChain(),
                 properties
         );
+        engine.setChainLoader(chainLoader);
+        return engine;
     }
 }

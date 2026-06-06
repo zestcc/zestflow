@@ -4,6 +4,7 @@ import com.zestflow.common.constant.ChainConstants;
 import com.zestflow.common.model.dto.*;
 import com.zestflow.executor.chain.ChainDefinitionBuilder;
 import com.zestflow.executor.chain.ChainManager;
+import com.zestflow.executor.chain.ChainRuntimeRegistrar;
 import com.zestflow.executor.engine.ChainExecutionEngine;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,6 +35,9 @@ class ComponentParamBindingE2ETest {
 
     @Autowired
     private ChainDefinitionBuilder chainDefinitionBuilder;
+
+    @Autowired
+    private ChainRuntimeRegistrar chainRuntimeRegistrar;
 
     @BeforeEach
     void setUp() {
@@ -128,6 +132,7 @@ class ComponentParamBindingE2ETest {
                 .config(Map.of("errorStrategy", ChainConstants.ERROR_STRATEGY_STOP))
                 .build();
         chainManager.load(chainDefinitionBuilder.build(dto));
+        chainRuntimeRegistrar.ensurePublished(code);
         return chainExecutionEngine.execute(code, params != null ? params : Map.of());
     }
 

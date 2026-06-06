@@ -1,18 +1,11 @@
 package com.zestflow.admin.client;
 
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
-import com.zestflow.admin.registry.InMemoryRegistryLiveStore;
-import com.zestflow.admin.registry.RegistryLiveStore;
-import com.zestflow.admin.repository.ExecutorRegistryMapper;
+import com.zestflow.admin.schedule.RoundRobinStrategy;
 import com.zestflow.common.constant.RegistryConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
 import java.util.List;
@@ -20,14 +13,11 @@ import java.util.Map;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
 
 /**
  * Phase 2b P-04 — 10 实例轮询均匀性门禁（±10%，对标 Spring Cloud LoadBalancer 轮询语义）。
  */
 @Tag("perf")
-@ExtendWith(MockitoExtension.class)
 class RoundRobinDistributionGateTest {
 
     private static final int EXECUTOR_COUNT = 10;
@@ -36,26 +26,15 @@ class RoundRobinDistributionGateTest {
     private static final int MIN_HITS = 90;
     private static final int MAX_HITS = 110;
 
-    @Mock
-    private RestTemplate restTemplate;
-
-    @Mock
-    private ExecutorRegistryMapper executorRegistryMapper;
-
-    private ExecutorProxyService proxyService;
-    private RegistryLiveStore liveStore;
+    private RoundRobinStrategy strategy;
+    private List<ExecutorRegistryPO> executors;
 
     @BeforeEach
     void setUp() {
-        liveStore = new InMemoryRegistryLiveStore();
-        proxyService = new ExecutorProxyService(restTemplate, executorRegistryMapper, liveStore);
-        ReflectionTestUtils.setField(proxyService, "protocol", "http");
-
-        List<ExecutorRegistryPO> executors = IntStream.range(0, EXECUTOR_COUNT)
+        strategy = new RoundRobinStrategy();
+        executors = IntStream.range(0, EXECUTOR_COUNT)
                 .mapToObj(i -> executor("host-" + i, 20550 + i))
                 .toList();
-        executors.forEach(e -> liveStore.touchExecutor(e.getExecutorId()));
-        when(executorRegistryMapper.selectList(any())).thenReturn(executors);
     }
 
     private static ExecutorRegistryPO executor(String host, int port) {
@@ -73,8 +52,9 @@ class RoundRobinDistributionGateTest {
         Map<String, Integer> hits = new HashMap<>();
 
         for (int i = 0; i < SAMPLES; i++) {
-            String url = proxyService.resolveExecutorBaseUrl("demo-app");
-            assertThat(url).isNotNull();
+            ExecutorRegistryPO selected = strategy.select(executors, "chain-perf-gate");
+            assertThat(selected).isNotNull();
+            String url = "http://" + selected.getExecutorHost() + ":" + selected.getExecutorPort();
             hits.merge(url, 1, Integer::sum);
         }
 

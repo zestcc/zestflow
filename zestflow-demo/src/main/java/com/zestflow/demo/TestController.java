@@ -25,6 +25,12 @@ public class TestController {
         );
     }
 
+    /** 矩阵/E2E HTTP 节点探活端点（无需外部依赖） */
+    @GetMapping("/http-echo")
+    public Map<String, Object> httpEcho() {
+        return Map.of("status", "ok", "service", "demo-app");
+    }
+
     @PostMapping("/execute/{chainCode}")
     public Object executeChain(@PathVariable String chainCode,
                                 @RequestBody(required = false) Map<String, Object> params) {

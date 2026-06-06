@@ -14,8 +14,8 @@ function Escape-Sql([string]$s) {
 
 function ConvertTo-JsonForSql($obj) {
     $json = ($obj | ConvertTo-Json -Compress -Depth 12)
-    # PowerShell ConvertTo-Json 会把单引号转成 \u0027，Aviator 无法解析
-    return ($json -replace '\\u0027', "'")
+    # PowerShell ConvertTo-Json 会把单引号/尖括号转成 \uXXXX，入库后 Aviator 无法解析
+    return ($json -replace '\\u0027', "'" -replace '\\u003e', '>' -replace '\\u003c', '<')
 }
 
 function Expand-SerialChain($chain, $stressList) {
@@ -65,21 +65,37 @@ function Resolve-ChainGraph($chain) {
 
 function Get-VisualMeta($node) {
     switch ($node.type) {
-        'SCRIPT' { return @{ shape = 'flow-script'; nodeType = 'script'; w = 160; h = 46 } }
-        'SUB_CHAIN' { return @{ shape = 'flow-subchain'; nodeType = 'subchain'; w = 160; h = 46 } }
-        'ITERATOR' { return @{ shape = 'flow-iterator'; nodeType = 'iterator'; w = 160; h = 46 } }
+        'SCRIPT' { return @{ shape = 'flow-script'; nodeType = 'SCRIPT'; w = 160; h = 46 } }
+        'SUB_CHAIN' { return @{ shape = 'flow-subchain'; nodeType = 'SUB_CHAIN'; w = 160; h = 46 } }
+        'ITERATOR' { return @{ shape = 'flow-iterator'; nodeType = 'ITERATOR'; w = 160; h = 46 } }
+        'SELECTOR' { return @{ shape = 'flow-multicondition'; nodeType = 'SELECTOR'; w = 120; h = 80 } }
         'CONDITION' {
             $comp = $node.component
             if ($comp -eq 'handleAfterSale' -or $comp -eq 'routePromotion') {
-                return @{ shape = 'flow-multicondition'; nodeType = 'multicondition'; w = 120; h = 80 }
+                return @{ shape = 'flow-multicondition'; nodeType = 'SELECTOR'; w = 120; h = 80 }
             }
-            return @{ shape = 'flow-condition'; nodeType = 'condition'; w = 100; h = 80 }
+            return @{ shape = 'flow-condition'; nodeType = 'CONDITION'; w = 100; h = 80 }
         }
+        'FORK' { return @{ shape = 'flow-task'; nodeType = 'FORK'; w = 160; h = 46 } }
+        'JOIN' { return @{ shape = 'flow-task'; nodeType = 'JOIN'; w = 160; h = 46 } }
+        'TRY_CATCH' { return @{ shape = 'flow-task'; nodeType = 'TRY_CATCH'; w = 160; h = 46 } }
+        'WHILE' { return @{ shape = 'flow-task'; nodeType = 'WHILE'; w = 160; h = 46 } }
+        'DELAY' { return @{ shape = 'flow-task'; nodeType = 'DELAY'; w = 160; h = 46 } }
+        'LOGGER' { return @{ shape = 'flow-task'; nodeType = 'LOGGER'; w = 160; h = 46 } }
+        'HTTP_CLIENT' { return @{ shape = 'flow-task'; nodeType = 'HTTP_CLIENT'; w = 160; h = 46 } }
+        'MQ_PRODUCER' { return @{ shape = 'flow-task'; nodeType = 'MQ_PRODUCER'; w = 160; h = 46 } }
+        'MQ_CONSUMER' { return @{ shape = 'flow-task'; nodeType = 'MQ_CONSUMER'; w = 160; h = 46 } }
+        'TRANSFORMER' { return @{ shape = 'flow-task'; nodeType = 'TRANSFORMER'; w = 160; h = 46 } }
+        'FILTER' { return @{ shape = 'flow-task'; nodeType = 'FILTER'; w = 160; h = 46 } }
+        'AGGREGATOR' { return @{ shape = 'flow-task'; nodeType = 'AGGREGATOR'; w = 160; h = 46 } }
+        'SPLITTER' { return @{ shape = 'flow-task'; nodeType = 'SPLITTER'; w = 160; h = 46 } }
+        'APPROVAL' { return @{ shape = 'flow-task'; nodeType = 'APPROVAL'; w = 160; h = 46 } }
+        'NOTIFICATION' { return @{ shape = 'flow-task'; nodeType = 'NOTIFICATION'; w = 160; h = 46 } }
         default {
             switch ($node.component) {
-                'loadUserInfo' { return @{ shape = 'flow-loader'; nodeType = 'loader'; w = 160; h = 46 } }
-                'parseOrderResult' { return @{ shape = 'flow-parser'; nodeType = 'parser'; w = 160; h = 46 } }
-                default { return @{ shape = 'flow-task'; nodeType = 'task'; w = 160; h = 46 } }
+                'loadUserInfo' { return @{ shape = 'flow-loader'; nodeType = 'LOADER'; w = 160; h = 46 } }
+                'parseOrderResult' { return @{ shape = 'flow-parser'; nodeType = 'PARSER'; w = 160; h = 46 } }
+                default { return @{ shape = 'flow-task'; nodeType = 'NORMAL'; w = 160; h = 46 } }
             }
         }
     }

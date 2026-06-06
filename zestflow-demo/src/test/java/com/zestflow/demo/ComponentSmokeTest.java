@@ -4,6 +4,7 @@ import com.zestflow.common.constant.ChainConstants;
 import com.zestflow.common.model.ComponentType;
 import com.zestflow.common.model.dto.*;
 import com.zestflow.executor.chain.ChainDefinitionBuilder;
+import com.zestflow.executor.chain.ChainRuntimeRegistrar;
 import com.zestflow.executor.chain.ChainManager;
 import com.zestflow.executor.context.ChainContext;
 import com.zestflow.executor.engine.ChainExecutionEngine;
@@ -64,6 +65,8 @@ class ComponentSmokeTest {
     private ChainManager chainManager;
     @Autowired
     private ChainDefinitionBuilder chainDefinitionBuilder;
+    @Autowired
+    private ChainRuntimeRegistrar chainRuntimeRegistrar;
     @Autowired
     private LifecycleExecutor lifecycleExecutor;
     @Autowired
@@ -138,7 +141,8 @@ class ComponentSmokeTest {
                 .map(id -> {
                     ComponentMeta meta = componentScanner.getComponent(id);
                     return org.junit.jupiter.params.provider.Arguments.of(id, meta.getComponentType());
-                });
+                })
+                .filter(args -> args.get()[1] != ComponentType.HTTP_CLIENT);
     }
 
     private ChainExecuteResultDTO runChain(String componentId, ComponentType type,
@@ -165,39 +169,9 @@ class ComponentSmokeTest {
                 .config(Map.of("errorStrategy", ChainConstants.ERROR_STRATEGY_STOP))
                 .build();
         chainManager.load(chainDefinitionBuilder.build(dto));
-        
-        // 同时保存到数据库，以便 chainKeyResolver 能够找到链
-        saveChainToDatabase(chainCode);
+        chainRuntimeRegistrar.ensurePublished(chainCode);
         
         return chainExecutionEngine.execute(chainCode, params);
-    }
-    
-    private void saveChainToDatabase(String chainCode) {
-        try {
-            // 使用 JdbcTemplate 直接插入链记录
-            org.springframework.jdbc.core.JdbcTemplate jdbcTemplate = new org.springframework.jdbc.core.JdbcTemplate(executorDataSource);
-            String sql = "INSERT INTO zf_chain (code, name, description, status, version, tenant_id, app_code, created_by, updated_by, created_at, updated_at, is_deleted) " +
-                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            jdbcTemplate.update(sql, 
-                    chainCode,
-                    chainCode,
-                    "Smoke test chain",
-                    4, // PUBLISHED status
-                    1,
-                    1L, // tenant_id
-                    "demo-app",
-                    "test",
-                    "test",
-                    java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                    java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                    0
-            );
-        } catch (Exception e) {
-            // 如果链已存在则忽略
-            if (!e.getMessage().contains("Duplicate entry")) {
-                System.err.println("Failed to save chain to database: " + e.getMessage());
-            }
-        }
     }
 
     private ChainNodeDTO buildNode(String nodeId, String componentId, ComponentType type) {

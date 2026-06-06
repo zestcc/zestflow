@@ -15,7 +15,7 @@ spring:
       schema-locations: classpath:schema.sql
   # 主数据源 — 业务数据库（H2 文件模式）
   datasource:
-    url: jdbc:h2:file:./test-db/test_business;DB_CLOSE_DELAY=-1;MODE=MySQL
+    url: jdbc:h2:mem:zestflow_demo_test;DB_CLOSE_DELAY=-1;MODE=MySQL
     username: sa
     password:
     driver-class-name: org.h2.Driver
@@ -34,7 +34,7 @@ spring:
 zestflow:
   executor:
     datasource:
-      url: jdbc:h2:file:./test-db/test_business;DB_CLOSE_DELAY=-1;MODE=MySQL
+      url: jdbc:h2:mem:zestflow_demo_test;DB_CLOSE_DELAY=-1;MODE=MySQL
       username: sa
       password:
       driver-class-name: org.h2.Driver
@@ -47,7 +47,7 @@ zestflow:
     execute-response-mode: BODY
     execute-failure-policy: PROPAGATE
     chain:
-      declaration-sync-enabled: true
+      declaration-sync-enabled: false
       declaration-delete-guard-enabled: true
       reload-polling-enabled: false
     execute-pool-queue-capacity: 64

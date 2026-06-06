@@ -910,12 +910,20 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
      */
     private List<String> resolveNodeSuccessors(String nodeId, ChainDefinition definition, ChainContext context) {
         NodeDefinition nodeDef = definition.getNode(nodeId);
-        // 非 CONDITION 节点走 DagSorter 标准逻辑
-        if (nodeDef == null || !ChainConstants.NODE_TYPE_CONDITION.equals(nodeDef.getType())) {
-            return dagSorter.resolveReachableSuccessors(nodeId, definition, context.snapshot());
+        if (nodeDef != null && isBranchRoutingNode(nodeDef.getType())) {
+            return resolveBranchRoutingSuccessors(nodeId, definition, context, nodeDef);
         }
+        return dagSorter.resolveReachableSuccessors(nodeId, definition, context.snapshot());
+    }
 
-        // CONDITION 节点：检查出边是否有 condition
+    private static boolean isBranchRoutingNode(String nodeType) {
+        return ChainConstants.NODE_TYPE_CONDITION.equals(nodeType)
+                || ChainConstants.NODE_TYPE_SELECTOR.equals(nodeType)
+                || ChainConstants.NODE_TYPE_TRY_CATCH.equals(nodeType);
+    }
+
+    private List<String> resolveBranchRoutingSuccessors(String nodeId, ChainDefinition definition,
+                                                        ChainContext context, NodeDefinition nodeDef) {
         List<ChainEdge> outgoingEdges = definition.getEdges().stream()
                 .filter(e -> e.getSource().equals(nodeId))
                 .toList();
@@ -923,30 +931,26 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
                 .anyMatch(e -> e.getCondition() != null && !e.getCondition().isEmpty());
 
         if (hasConditionalEdges) {
-            // 边上有 condition，走 DagSorter 条件评估
             return dagSorter.resolveReachableSuccessors(nodeId, definition, context.snapshot());
         }
 
-        // 边无 condition：用 _branch 约定键匹配 label
         Map<String, Object> snapshot = context.snapshot();
         Object branchValue = snapshot.get("_branch");
         if (branchValue != null) {
             String branchStr = branchValue.toString();
             for (ChainEdge edge : outgoingEdges) {
                 if (edge.getLabel() != null && edge.getLabel().equals(branchStr)) {
-                    log.debug("CONDITION 节点路由匹配 nodeId={} branch={} target={}",
-                            nodeId, branchStr, edge.getTarget());
+                    log.debug("分支路由匹配 nodeId={} type={} branch={} target={}",
+                            nodeId, nodeDef.getType(), branchStr, edge.getTarget());
                     return List.of(edge.getTarget());
                 }
             }
-            log.warn("CONDITION 节点未匹配到分支 nodeId={} _branch={} labels={}",
-                    nodeId, branchStr, outgoingEdges.stream().map(ChainEdge::getLabel).toList());
-            // _branch 已设置但无匹配标签 → 停止该分支，不走无条件边（防全分支执行）
+            log.warn("分支路由未匹配 nodeId={} type={} _branch={} labels={}",
+                    nodeId, nodeDef.getType(), branchStr,
+                    outgoingEdges.stream().map(ChainEdge::getLabel).toList());
             return List.of();
         }
 
-        // 无 _branch：CONDITION 纯路由器（无组件但有条件表达式）
-        // 条件已通过 evaluateCondition 验证，所有无条件边均可达
         List<String> unconditionalTargets = outgoingEdges.stream()
                 .filter(e -> e.getCondition() == null || e.getCondition().isEmpty())
                 .map(ChainEdge::getTarget)

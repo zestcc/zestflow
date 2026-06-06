@@ -38,6 +38,7 @@ import com.zestflow.executor.param.resolver.ZestResultParameterResolver;
 import com.zestflow.executor.retry.RetryExecutor;
 import com.zestflow.executor.scanner.ComponentScanner;
 import com.zestflow.executor.chain.ChainRepository;
+import com.zestflow.executor.chain.ChainRuntimeRegistrar;
 import com.zestflow.executor.design.DesignRepository;
 import com.zestflow.executor.server.ExecutorServer;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -395,6 +396,13 @@ public class ExecutorAutoConfig {
     }
 
     // ==================== 数据访问 ====================
+
+    @Bean
+    public ChainRuntimeRegistrar chainRuntimeRegistrar(
+            @Qualifier("executorJdbcTemplate") org.springframework.jdbc.core.JdbcTemplate jdbcTemplate,
+            ExecutorProperties properties) {
+        return new ChainRuntimeRegistrar(jdbcTemplate, properties, properties.getTenantId());
+    }
 
     @Bean
     public ChainRepository chainRepository(@Qualifier("executorJdbcTemplate") org.springframework.jdbc.core.JdbcTemplate jdbcTemplate,

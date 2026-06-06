@@ -103,6 +103,10 @@ public final class ChainConstants {
     public static final int MAX_SUB_CHAIN_DEPTH = 10;
     /** 迭代器最大迭代次数 */
     public static final int MAX_ITERATOR_COUNT = 10_000;
+    /** WHILE 循环默认上限 */
+    public static final int MAX_WHILE_ITERATIONS = 10_000;
+    /** DELAY 节点最大延迟（24h，对标 BPMN Timer） */
+    public static final long MAX_DELAY_MS = 86_400_000L;
     /** 链最大节点数 */
     public static final int MAX_CHAIN_NODE_COUNT = 100;
     /** 脚本执行超时（毫秒） */

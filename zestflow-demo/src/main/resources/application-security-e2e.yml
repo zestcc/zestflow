@@ -3,3 +3,5 @@ zestflow:
   executor:
     access-token: e2e-security-executor-token
     registry-token: e2e-security-registry-token
+  collector:
+    access-token: e2e-security-collector-token

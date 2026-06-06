@@ -1522,6 +1522,3201 @@
           "target": "n3"
         }
       ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_001",
+      "name": "扩展链-NORMAL-001",
+      "desc": "元件类型 NORMAL 组合示例 #1",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "用户校验-1",
+          "type": "NORMAL",
+          "component": "validateUser"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_002",
+      "name": "扩展链-SCRIPT-002",
+      "desc": "元件类型 SCRIPT 组合示例 #2",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "脚本网关-1",
+          "type": "SCRIPT",
+          "script": "amount > 0"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_003",
+      "name": "扩展链-SUB_CHAIN-003",
+      "desc": "元件类型 SUB_CHAIN 组合示例 #3",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "子链调用-1",
+          "type": "SUB_CHAIN",
+          "subChainCode": "CHN_DEMO_ORDER_CREATE"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_004",
+      "name": "扩展链-CONDITION-004",
+      "desc": "元件类型 CONDITION 组合示例 #4",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n0",
+          "label": "前置校验",
+          "type": "NORMAL",
+          "component": "validateUser"
+        },
+        {
+          "id": "n1",
+          "label": "金额风控-1",
+          "type": "CONDITION",
+          "component": "riskCheckAmount"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n0",
+          "target": "n1"
+        },
+        {
+          "source": "n1",
+          "target": "n2",
+          "label": "通过"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_005",
+      "name": "扩展链-SELECTOR-005",
+      "desc": "元件类型 SELECTOR 组合示例 #5",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "促销路由-1",
+          "type": "SELECTOR",
+          "component": "routePromotion"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2",
+          "label": "VIP"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_006",
+      "name": "扩展链-ITERATOR-006",
+      "desc": "元件类型 ITERATOR 组合示例 #6",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n0",
+          "label": "种子通知列表",
+          "type": "NORMAL",
+          "component": "seedNotifyItems"
+        },
+        {
+          "id": "n1",
+          "label": "批量通知-1",
+          "type": "ITERATOR",
+          "config": {
+            "dataSource": "notifyItems",
+            "itemName": "item",
+            "subNodes": [
+              {
+                "component": "sendNotify"
+              }
+            ]
+          }
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n0",
+          "target": "n1"
+        },
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_007",
+      "name": "扩展链-FORK-007",
+      "desc": "元件类型 FORK 组合示例 #7",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "并行分叉-1",
+          "type": "FORK",
+          "component": "validateUser"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_008",
+      "name": "扩展链-JOIN-008",
+      "desc": "元件类型 JOIN 组合示例 #8",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "并行汇聚-1",
+          "type": "JOIN",
+          "component": "sendNotify"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_009",
+      "name": "扩展链-TRY_CATCH-009",
+      "desc": "元件类型 TRY_CATCH 组合示例 #9",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "异常捕获-1",
+          "type": "TRY_CATCH",
+          "component": "validateUser"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2",
+          "label": "Try"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_010",
+      "name": "扩展链-WHILE-010",
+      "desc": "元件类型 WHILE 组合示例 #10",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "条件循环-1",
+          "type": "WHILE",
+          "component": "validateUser",
+          "config": {
+            "condition": "step < 0"
+          }
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_011",
+      "name": "扩展链-DELAY-011",
+      "desc": "元件类型 DELAY 组合示例 #11",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "延迟等待-1",
+          "type": "DELAY",
+          "component": "validateUser",
+          "config": {
+            "delayMs": 10
+          }
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_012",
+      "name": "扩展链-LOGGER-012",
+      "desc": "元件类型 LOGGER 组合示例 #12",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "日志记录-1",
+          "type": "LOGGER",
+          "component": "validateUser"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_013",
+      "name": "扩展链-TRANSFORMER-013",
+      "desc": "元件类型 TRANSFORMER 组合示例 #13",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "数据转换-1",
+          "type": "TRANSFORMER",
+          "component": "transformOrderStatus"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_014",
+      "name": "扩展链-FILTER-014",
+      "desc": "元件类型 FILTER 组合示例 #14",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "数据过滤-1",
+          "type": "FILTER",
+          "component": "filterValidUsers"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_015",
+      "name": "扩展链-AGGREGATOR-015",
+      "desc": "元件类型 AGGREGATOR 组合示例 #15",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "数据聚合-1",
+          "type": "AGGREGATOR",
+          "component": "aggregateOrderAmounts"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_016",
+      "name": "扩展链-SPLITTER-016",
+      "desc": "元件类型 SPLITTER 组合示例 #16",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "数据拆分-1",
+          "type": "SPLITTER",
+          "component": "splitOrdersByStatus"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_017",
+      "name": "扩展链-HTTP_CLIENT-017",
+      "desc": "元件类型 HTTP_CLIENT 组合示例 #17",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "HTTP调用-1",
+          "type": "HTTP_CLIENT",
+          "component": "httpGet",
+          "config": {
+            "httpMethod": "GET",
+            "httpUrl": "http://127.0.0.1:8081/test/http-echo"
+          }
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_018",
+      "name": "扩展链-MQ_PRODUCER-018",
+      "desc": "元件类型 MQ_PRODUCER 组合示例 #18",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "消息生产-1",
+          "type": "MQ_PRODUCER",
+          "component": "sendOrderCreatedMsg"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_019",
+      "name": "扩展链-MQ_CONSUMER-019",
+      "desc": "元件类型 MQ_CONSUMER 组合示例 #19",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "消息消费-1",
+          "type": "MQ_CONSUMER",
+          "component": "consumeOrderCreatedMsg"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_020",
+      "name": "扩展链-CACHE_READER-020",
+      "desc": "元件类型 CACHE_READER 组合示例 #20",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "缓存读取-1",
+          "type": "CACHE_READER",
+          "component": "getUserCache"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_021",
+      "name": "扩展链-CACHE_WRITER-021",
+      "desc": "元件类型 CACHE_WRITER 组合示例 #21",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "缓存写入-1",
+          "type": "CACHE_WRITER",
+          "component": "setUserCache"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_022",
+      "name": "扩展链-APPROVAL-022",
+      "desc": "元件类型 APPROVAL 组合示例 #22",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "审批节点-1",
+          "type": "APPROVAL",
+          "component": "validateUser"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_023",
+      "name": "扩展链-NOTIFICATION-023",
+      "desc": "元件类型 NOTIFICATION 组合示例 #23",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "通知节点-1",
+          "type": "NOTIFICATION",
+          "component": "sendNotify"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_024",
+      "name": "扩展链-NORMAL-024",
+      "desc": "元件类型 NORMAL 组合示例 #24",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "用户校验-2",
+          "type": "NORMAL",
+          "component": "validateUser"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_025",
+      "name": "扩展链-SCRIPT-025",
+      "desc": "元件类型 SCRIPT 组合示例 #25",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "脚本网关-2",
+          "type": "SCRIPT",
+          "script": "amount > 0"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_026",
+      "name": "扩展链-SUB_CHAIN-026",
+      "desc": "元件类型 SUB_CHAIN 组合示例 #26",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "子链调用-2",
+          "type": "SUB_CHAIN",
+          "subChainCode": "CHN_DEMO_ORDER_CREATE"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_027",
+      "name": "扩展链-CONDITION-027",
+      "desc": "元件类型 CONDITION 组合示例 #27",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n0",
+          "label": "前置校验",
+          "type": "NORMAL",
+          "component": "validateUser"
+        },
+        {
+          "id": "n1",
+          "label": "金额风控-2",
+          "type": "CONDITION",
+          "component": "riskCheckAmount"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n0",
+          "target": "n1"
+        },
+        {
+          "source": "n1",
+          "target": "n2",
+          "label": "通过"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_028",
+      "name": "扩展链-SELECTOR-028",
+      "desc": "元件类型 SELECTOR 组合示例 #28",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "促销路由-2",
+          "type": "SELECTOR",
+          "component": "routePromotion"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2",
+          "label": "VIP"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_029",
+      "name": "扩展链-ITERATOR-029",
+      "desc": "元件类型 ITERATOR 组合示例 #29",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n0",
+          "label": "种子通知列表",
+          "type": "NORMAL",
+          "component": "seedNotifyItems"
+        },
+        {
+          "id": "n1",
+          "label": "批量通知-2",
+          "type": "ITERATOR",
+          "config": {
+            "dataSource": "notifyItems",
+            "itemName": "item",
+            "subNodes": [
+              {
+                "component": "sendNotify"
+              }
+            ]
+          }
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n0",
+          "target": "n1"
+        },
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_030",
+      "name": "扩展链-FORK-030",
+      "desc": "元件类型 FORK 组合示例 #30",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "并行分叉-2",
+          "type": "FORK",
+          "component": "validateUser"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_031",
+      "name": "扩展链-JOIN-031",
+      "desc": "元件类型 JOIN 组合示例 #31",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "并行汇聚-2",
+          "type": "JOIN",
+          "component": "sendNotify"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_032",
+      "name": "扩展链-TRY_CATCH-032",
+      "desc": "元件类型 TRY_CATCH 组合示例 #32",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "异常捕获-2",
+          "type": "TRY_CATCH",
+          "component": "validateUser"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2",
+          "label": "Try"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_033",
+      "name": "扩展链-WHILE-033",
+      "desc": "元件类型 WHILE 组合示例 #33",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "条件循环-2",
+          "type": "WHILE",
+          "component": "validateUser",
+          "config": {
+            "condition": "step < 0"
+          }
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_034",
+      "name": "扩展链-DELAY-034",
+      "desc": "元件类型 DELAY 组合示例 #34",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "延迟等待-2",
+          "type": "DELAY",
+          "component": "validateUser",
+          "config": {
+            "delayMs": 10
+          }
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_035",
+      "name": "扩展链-LOGGER-035",
+      "desc": "元件类型 LOGGER 组合示例 #35",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "日志记录-2",
+          "type": "LOGGER",
+          "component": "validateUser"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_036",
+      "name": "扩展链-TRANSFORMER-036",
+      "desc": "元件类型 TRANSFORMER 组合示例 #36",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "数据转换-2",
+          "type": "TRANSFORMER",
+          "component": "transformOrderStatus"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_037",
+      "name": "扩展链-FILTER-037",
+      "desc": "元件类型 FILTER 组合示例 #37",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "数据过滤-2",
+          "type": "FILTER",
+          "component": "filterValidUsers"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_038",
+      "name": "扩展链-AGGREGATOR-038",
+      "desc": "元件类型 AGGREGATOR 组合示例 #38",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "数据聚合-2",
+          "type": "AGGREGATOR",
+          "component": "aggregateOrderAmounts"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_039",
+      "name": "扩展链-SPLITTER-039",
+      "desc": "元件类型 SPLITTER 组合示例 #39",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "数据拆分-2",
+          "type": "SPLITTER",
+          "component": "splitOrdersByStatus"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_040",
+      "name": "扩展链-HTTP_CLIENT-040",
+      "desc": "元件类型 HTTP_CLIENT 组合示例 #40",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "HTTP调用-2",
+          "type": "HTTP_CLIENT",
+          "component": "httpGet",
+          "config": {
+            "httpMethod": "GET",
+            "httpUrl": "http://127.0.0.1:8081/test/http-echo"
+          }
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_041",
+      "name": "扩展链-MQ_PRODUCER-041",
+      "desc": "元件类型 MQ_PRODUCER 组合示例 #41",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "消息生产-2",
+          "type": "MQ_PRODUCER",
+          "component": "sendOrderCreatedMsg"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_042",
+      "name": "扩展链-MQ_CONSUMER-042",
+      "desc": "元件类型 MQ_CONSUMER 组合示例 #42",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "消息消费-2",
+          "type": "MQ_CONSUMER",
+          "component": "consumeOrderCreatedMsg"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_043",
+      "name": "扩展链-CACHE_READER-043",
+      "desc": "元件类型 CACHE_READER 组合示例 #43",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "缓存读取-2",
+          "type": "CACHE_READER",
+          "component": "getUserCache"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_044",
+      "name": "扩展链-CACHE_WRITER-044",
+      "desc": "元件类型 CACHE_WRITER 组合示例 #44",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "缓存写入-2",
+          "type": "CACHE_WRITER",
+          "component": "setUserCache"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_045",
+      "name": "扩展链-APPROVAL-045",
+      "desc": "元件类型 APPROVAL 组合示例 #45",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "审批节点-2",
+          "type": "APPROVAL",
+          "component": "validateUser"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_046",
+      "name": "扩展链-NOTIFICATION-046",
+      "desc": "元件类型 NOTIFICATION 组合示例 #46",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "通知节点-2",
+          "type": "NOTIFICATION",
+          "component": "sendNotify"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_047",
+      "name": "扩展链-NORMAL-047",
+      "desc": "元件类型 NORMAL 组合示例 #47",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "用户校验-3",
+          "type": "NORMAL",
+          "component": "validateUser"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_048",
+      "name": "扩展链-SCRIPT-048",
+      "desc": "元件类型 SCRIPT 组合示例 #48",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "脚本网关-3",
+          "type": "SCRIPT",
+          "script": "amount > 0"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_049",
+      "name": "扩展链-SUB_CHAIN-049",
+      "desc": "元件类型 SUB_CHAIN 组合示例 #49",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "子链调用-3",
+          "type": "SUB_CHAIN",
+          "subChainCode": "CHN_DEMO_ORDER_CREATE"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_050",
+      "name": "扩展链-CONDITION-050",
+      "desc": "元件类型 CONDITION 组合示例 #50",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n0",
+          "label": "前置校验",
+          "type": "NORMAL",
+          "component": "validateUser"
+        },
+        {
+          "id": "n1",
+          "label": "金额风控-3",
+          "type": "CONDITION",
+          "component": "riskCheckAmount"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n0",
+          "target": "n1"
+        },
+        {
+          "source": "n1",
+          "target": "n2",
+          "label": "通过"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_051",
+      "name": "扩展链-SELECTOR-051",
+      "desc": "元件类型 SELECTOR 组合示例 #51",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "促销路由-3",
+          "type": "SELECTOR",
+          "component": "routePromotion"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2",
+          "label": "VIP"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_052",
+      "name": "扩展链-ITERATOR-052",
+      "desc": "元件类型 ITERATOR 组合示例 #52",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n0",
+          "label": "种子通知列表",
+          "type": "NORMAL",
+          "component": "seedNotifyItems"
+        },
+        {
+          "id": "n1",
+          "label": "批量通知-3",
+          "type": "ITERATOR",
+          "config": {
+            "dataSource": "notifyItems",
+            "itemName": "item",
+            "subNodes": [
+              {
+                "component": "sendNotify"
+              }
+            ]
+          }
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n0",
+          "target": "n1"
+        },
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_053",
+      "name": "扩展链-FORK-053",
+      "desc": "元件类型 FORK 组合示例 #53",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "并行分叉-3",
+          "type": "FORK",
+          "component": "validateUser"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_054",
+      "name": "扩展链-JOIN-054",
+      "desc": "元件类型 JOIN 组合示例 #54",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "并行汇聚-3",
+          "type": "JOIN",
+          "component": "sendNotify"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_055",
+      "name": "扩展链-TRY_CATCH-055",
+      "desc": "元件类型 TRY_CATCH 组合示例 #55",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "异常捕获-3",
+          "type": "TRY_CATCH",
+          "component": "validateUser"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2",
+          "label": "Try"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_056",
+      "name": "扩展链-WHILE-056",
+      "desc": "元件类型 WHILE 组合示例 #56",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "条件循环-3",
+          "type": "WHILE",
+          "component": "validateUser",
+          "config": {
+            "condition": "step < 0"
+          }
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_057",
+      "name": "扩展链-DELAY-057",
+      "desc": "元件类型 DELAY 组合示例 #57",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "延迟等待-3",
+          "type": "DELAY",
+          "component": "validateUser",
+          "config": {
+            "delayMs": 10
+          }
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_058",
+      "name": "扩展链-LOGGER-058",
+      "desc": "元件类型 LOGGER 组合示例 #58",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "日志记录-3",
+          "type": "LOGGER",
+          "component": "validateUser"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_059",
+      "name": "扩展链-TRANSFORMER-059",
+      "desc": "元件类型 TRANSFORMER 组合示例 #59",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "数据转换-3",
+          "type": "TRANSFORMER",
+          "component": "transformOrderStatus"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_060",
+      "name": "扩展链-FILTER-060",
+      "desc": "元件类型 FILTER 组合示例 #60",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "数据过滤-3",
+          "type": "FILTER",
+          "component": "filterValidUsers"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_061",
+      "name": "扩展链-AGGREGATOR-061",
+      "desc": "元件类型 AGGREGATOR 组合示例 #61",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "数据聚合-3",
+          "type": "AGGREGATOR",
+          "component": "aggregateOrderAmounts"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_062",
+      "name": "扩展链-SPLITTER-062",
+      "desc": "元件类型 SPLITTER 组合示例 #62",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "数据拆分-3",
+          "type": "SPLITTER",
+          "component": "splitOrdersByStatus"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_063",
+      "name": "扩展链-HTTP_CLIENT-063",
+      "desc": "元件类型 HTTP_CLIENT 组合示例 #63",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "HTTP调用-3",
+          "type": "HTTP_CLIENT",
+          "component": "httpGet",
+          "config": {
+            "httpMethod": "GET",
+            "httpUrl": "http://127.0.0.1:8081/test/http-echo"
+          }
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_064",
+      "name": "扩展链-MQ_PRODUCER-064",
+      "desc": "元件类型 MQ_PRODUCER 组合示例 #64",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "消息生产-3",
+          "type": "MQ_PRODUCER",
+          "component": "sendOrderCreatedMsg"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_065",
+      "name": "扩展链-MQ_CONSUMER-065",
+      "desc": "元件类型 MQ_CONSUMER 组合示例 #65",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "消息消费-3",
+          "type": "MQ_CONSUMER",
+          "component": "consumeOrderCreatedMsg"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_066",
+      "name": "扩展链-CACHE_READER-066",
+      "desc": "元件类型 CACHE_READER 组合示例 #66",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "缓存读取-3",
+          "type": "CACHE_READER",
+          "component": "getUserCache"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_067",
+      "name": "扩展链-CACHE_WRITER-067",
+      "desc": "元件类型 CACHE_WRITER 组合示例 #67",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "缓存写入-3",
+          "type": "CACHE_WRITER",
+          "component": "setUserCache"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_068",
+      "name": "扩展链-APPROVAL-068",
+      "desc": "元件类型 APPROVAL 组合示例 #68",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "审批节点-3",
+          "type": "APPROVAL",
+          "component": "validateUser"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_069",
+      "name": "扩展链-NOTIFICATION-069",
+      "desc": "元件类型 NOTIFICATION 组合示例 #69",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "通知节点-3",
+          "type": "NOTIFICATION",
+          "component": "sendNotify"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_070",
+      "name": "扩展链-NORMAL-070",
+      "desc": "元件类型 NORMAL 组合示例 #70",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "用户校验-4",
+          "type": "NORMAL",
+          "component": "validateUser"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_071",
+      "name": "扩展链-SCRIPT-071",
+      "desc": "元件类型 SCRIPT 组合示例 #71",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "脚本网关-4",
+          "type": "SCRIPT",
+          "script": "amount > 0"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_072",
+      "name": "扩展链-SUB_CHAIN-072",
+      "desc": "元件类型 SUB_CHAIN 组合示例 #72",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "子链调用-4",
+          "type": "SUB_CHAIN",
+          "subChainCode": "CHN_DEMO_ORDER_CREATE"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_073",
+      "name": "扩展链-CONDITION-073",
+      "desc": "元件类型 CONDITION 组合示例 #73",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n0",
+          "label": "前置校验",
+          "type": "NORMAL",
+          "component": "validateUser"
+        },
+        {
+          "id": "n1",
+          "label": "金额风控-4",
+          "type": "CONDITION",
+          "component": "riskCheckAmount"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n0",
+          "target": "n1"
+        },
+        {
+          "source": "n1",
+          "target": "n2",
+          "label": "通过"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_074",
+      "name": "扩展链-SELECTOR-074",
+      "desc": "元件类型 SELECTOR 组合示例 #74",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "促销路由-4",
+          "type": "SELECTOR",
+          "component": "routePromotion"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2",
+          "label": "VIP"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_075",
+      "name": "扩展链-ITERATOR-075",
+      "desc": "元件类型 ITERATOR 组合示例 #75",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n0",
+          "label": "种子通知列表",
+          "type": "NORMAL",
+          "component": "seedNotifyItems"
+        },
+        {
+          "id": "n1",
+          "label": "批量通知-4",
+          "type": "ITERATOR",
+          "config": {
+            "dataSource": "notifyItems",
+            "itemName": "item",
+            "subNodes": [
+              {
+                "component": "sendNotify"
+              }
+            ]
+          }
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n0",
+          "target": "n1"
+        },
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_076",
+      "name": "扩展链-FORK-076",
+      "desc": "元件类型 FORK 组合示例 #76",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "并行分叉-4",
+          "type": "FORK",
+          "component": "validateUser"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_077",
+      "name": "扩展链-JOIN-077",
+      "desc": "元件类型 JOIN 组合示例 #77",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "并行汇聚-4",
+          "type": "JOIN",
+          "component": "sendNotify"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_078",
+      "name": "扩展链-TRY_CATCH-078",
+      "desc": "元件类型 TRY_CATCH 组合示例 #78",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "异常捕获-4",
+          "type": "TRY_CATCH",
+          "component": "validateUser"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2",
+          "label": "Try"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_079",
+      "name": "扩展链-WHILE-079",
+      "desc": "元件类型 WHILE 组合示例 #79",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "条件循环-4",
+          "type": "WHILE",
+          "component": "validateUser",
+          "config": {
+            "condition": "step < 0"
+          }
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_080",
+      "name": "扩展链-DELAY-080",
+      "desc": "元件类型 DELAY 组合示例 #80",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "延迟等待-4",
+          "type": "DELAY",
+          "component": "validateUser",
+          "config": {
+            "delayMs": 10
+          }
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_081",
+      "name": "扩展链-LOGGER-081",
+      "desc": "元件类型 LOGGER 组合示例 #81",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "日志记录-4",
+          "type": "LOGGER",
+          "component": "validateUser"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_082",
+      "name": "扩展链-TRANSFORMER-082",
+      "desc": "元件类型 TRANSFORMER 组合示例 #82",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "数据转换-4",
+          "type": "TRANSFORMER",
+          "component": "transformOrderStatus"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_083",
+      "name": "扩展链-FILTER-083",
+      "desc": "元件类型 FILTER 组合示例 #83",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "数据过滤-4",
+          "type": "FILTER",
+          "component": "filterValidUsers"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_084",
+      "name": "扩展链-AGGREGATOR-084",
+      "desc": "元件类型 AGGREGATOR 组合示例 #84",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "数据聚合-4",
+          "type": "AGGREGATOR",
+          "component": "aggregateOrderAmounts"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_085",
+      "name": "扩展链-SPLITTER-085",
+      "desc": "元件类型 SPLITTER 组合示例 #85",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "数据拆分-4",
+          "type": "SPLITTER",
+          "component": "splitOrdersByStatus"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_086",
+      "name": "扩展链-HTTP_CLIENT-086",
+      "desc": "元件类型 HTTP_CLIENT 组合示例 #86",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "HTTP调用-4",
+          "type": "HTTP_CLIENT",
+          "component": "httpGet",
+          "config": {
+            "httpMethod": "GET",
+            "httpUrl": "http://127.0.0.1:8081/test/http-echo"
+          }
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_087",
+      "name": "扩展链-MQ_PRODUCER-087",
+      "desc": "元件类型 MQ_PRODUCER 组合示例 #87",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "消息生产-4",
+          "type": "MQ_PRODUCER",
+          "component": "sendOrderCreatedMsg"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_088",
+      "name": "扩展链-MQ_CONSUMER-088",
+      "desc": "元件类型 MQ_CONSUMER 组合示例 #88",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "消息消费-4",
+          "type": "MQ_CONSUMER",
+          "component": "consumeOrderCreatedMsg"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_089",
+      "name": "扩展链-CACHE_READER-089",
+      "desc": "元件类型 CACHE_READER 组合示例 #89",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "缓存读取-4",
+          "type": "CACHE_READER",
+          "component": "getUserCache"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_090",
+      "name": "扩展链-CACHE_WRITER-090",
+      "desc": "元件类型 CACHE_WRITER 组合示例 #90",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "缓存写入-4",
+          "type": "CACHE_WRITER",
+          "component": "setUserCache"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_091",
+      "name": "扩展链-APPROVAL-091",
+      "desc": "元件类型 APPROVAL 组合示例 #91",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "审批节点-4",
+          "type": "APPROVAL",
+          "component": "validateUser"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_092",
+      "name": "扩展链-NOTIFICATION-092",
+      "desc": "元件类型 NOTIFICATION 组合示例 #92",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "通知节点-4",
+          "type": "NOTIFICATION",
+          "component": "sendNotify"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_093",
+      "name": "扩展链-NORMAL-093",
+      "desc": "元件类型 NORMAL 组合示例 #93",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "用户校验-5",
+          "type": "NORMAL",
+          "component": "validateUser"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_094",
+      "name": "扩展链-SCRIPT-094",
+      "desc": "元件类型 SCRIPT 组合示例 #94",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "脚本网关-5",
+          "type": "SCRIPT",
+          "script": "amount > 0"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_095",
+      "name": "扩展链-SUB_CHAIN-095",
+      "desc": "元件类型 SUB_CHAIN 组合示例 #95",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "子链调用-5",
+          "type": "SUB_CHAIN",
+          "subChainCode": "CHN_DEMO_ORDER_CREATE"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_096",
+      "name": "扩展链-CONDITION-096",
+      "desc": "元件类型 CONDITION 组合示例 #96",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n0",
+          "label": "前置校验",
+          "type": "NORMAL",
+          "component": "validateUser"
+        },
+        {
+          "id": "n1",
+          "label": "金额风控-5",
+          "type": "CONDITION",
+          "component": "riskCheckAmount"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n0",
+          "target": "n1"
+        },
+        {
+          "source": "n1",
+          "target": "n2",
+          "label": "通过"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_097",
+      "name": "扩展链-SELECTOR-097",
+      "desc": "元件类型 SELECTOR 组合示例 #97",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "促销路由-5",
+          "type": "SELECTOR",
+          "component": "routePromotion"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2",
+          "label": "VIP"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_098",
+      "name": "扩展链-ITERATOR-098",
+      "desc": "元件类型 ITERATOR 组合示例 #98",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n0",
+          "label": "种子通知列表",
+          "type": "NORMAL",
+          "component": "seedNotifyItems"
+        },
+        {
+          "id": "n1",
+          "label": "批量通知-5",
+          "type": "ITERATOR",
+          "config": {
+            "dataSource": "notifyItems",
+            "itemName": "item",
+            "subNodes": [
+              {
+                "component": "sendNotify"
+              }
+            ]
+          }
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n0",
+          "target": "n1"
+        },
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_099",
+      "name": "扩展链-FORK-099",
+      "desc": "元件类型 FORK 组合示例 #99",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "并行分叉-5",
+          "type": "FORK",
+          "component": "validateUser"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_100",
+      "name": "扩展链-JOIN-100",
+      "desc": "元件类型 JOIN 组合示例 #100",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "并行汇聚-5",
+          "type": "JOIN",
+          "component": "sendNotify"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_101",
+      "name": "扩展链-TRY_CATCH-101",
+      "desc": "元件类型 TRY_CATCH 组合示例 #101",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "异常捕获-5",
+          "type": "TRY_CATCH",
+          "component": "validateUser"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2",
+          "label": "Try"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_102",
+      "name": "扩展链-WHILE-102",
+      "desc": "元件类型 WHILE 组合示例 #102",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "条件循环-5",
+          "type": "WHILE",
+          "component": "validateUser",
+          "config": {
+            "condition": "step < 0"
+          }
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_103",
+      "name": "扩展链-DELAY-103",
+      "desc": "元件类型 DELAY 组合示例 #103",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "延迟等待-5",
+          "type": "DELAY",
+          "component": "validateUser",
+          "config": {
+            "delayMs": 10
+          }
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_104",
+      "name": "扩展链-LOGGER-104",
+      "desc": "元件类型 LOGGER 组合示例 #104",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "日志记录-5",
+          "type": "LOGGER",
+          "component": "validateUser"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_105",
+      "name": "扩展链-TRANSFORMER-105",
+      "desc": "元件类型 TRANSFORMER 组合示例 #105",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "数据转换-5",
+          "type": "TRANSFORMER",
+          "component": "transformOrderStatus"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_106",
+      "name": "扩展链-FILTER-106",
+      "desc": "元件类型 FILTER 组合示例 #106",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "数据过滤-5",
+          "type": "FILTER",
+          "component": "filterValidUsers"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_107",
+      "name": "扩展链-AGGREGATOR-107",
+      "desc": "元件类型 AGGREGATOR 组合示例 #107",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "数据聚合-5",
+          "type": "AGGREGATOR",
+          "component": "aggregateOrderAmounts"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_108",
+      "name": "扩展链-SPLITTER-108",
+      "desc": "元件类型 SPLITTER 组合示例 #108",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "数据拆分-5",
+          "type": "SPLITTER",
+          "component": "splitOrdersByStatus"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_109",
+      "name": "扩展链-HTTP_CLIENT-109",
+      "desc": "元件类型 HTTP_CLIENT 组合示例 #109",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "HTTP调用-5",
+          "type": "HTTP_CLIENT",
+          "component": "httpGet",
+          "config": {
+            "httpMethod": "GET",
+            "httpUrl": "http://127.0.0.1:8081/test/http-echo"
+          }
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_110",
+      "name": "扩展链-MQ_PRODUCER-110",
+      "desc": "元件类型 MQ_PRODUCER 组合示例 #110",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "消息生产-5",
+          "type": "MQ_PRODUCER",
+          "component": "sendOrderCreatedMsg"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_111",
+      "name": "扩展链-MQ_CONSUMER-111",
+      "desc": "元件类型 MQ_CONSUMER 组合示例 #111",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "消息消费-5",
+          "type": "MQ_CONSUMER",
+          "component": "consumeOrderCreatedMsg"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_112",
+      "name": "扩展链-CACHE_READER-112",
+      "desc": "元件类型 CACHE_READER 组合示例 #112",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "缓存读取-5",
+          "type": "CACHE_READER",
+          "component": "getUserCache"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_113",
+      "name": "扩展链-CACHE_WRITER-113",
+      "desc": "元件类型 CACHE_WRITER 组合示例 #113",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "缓存写入-5",
+          "type": "CACHE_WRITER",
+          "component": "setUserCache"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_114",
+      "name": "扩展链-APPROVAL-114",
+      "desc": "元件类型 APPROVAL 组合示例 #114",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "审批节点-5",
+          "type": "APPROVAL",
+          "component": "validateUser"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
+    },
+    {
+      "code": "CHN_DEMO_EXT_115",
+      "name": "扩展链-NOTIFICATION-115",
+      "desc": "元件类型 NOTIFICATION 组合示例 #115",
+      "tier": "1-3",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "通知节点-5",
+          "type": "NOTIFICATION",
+          "component": "sendNotify"
+        },
+        {
+          "id": "n2",
+          "label": "发送通知",
+          "type": "NORMAL",
+          "component": "sendNotify"
+        }
+      ],
+      "edges": [
+        {
+          "source": "n1",
+          "target": "n2"
+        }
+      ]
     }
   ],
   "scenes": [
@@ -1535,49 +4730,49 @@
       "scene": "SCN20260531000002",
       "name": "双节点",
       "chain": "CHN_DEMO_NODE_2",
-      "body": "{\"userId\":\"U10086\"}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
     },
     {
       "scene": "SCN20260531000003",
       "name": "脚本节点",
       "chain": "CHN_DEMO_SCRIPT_GATE",
-      "body": "{\"userId\":\"U10086\"}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
     },
     {
       "scene": "SCN20260531000004",
       "name": "75步压力链",
       "chain": "CHN_DEMO_STRESS_75",
-      "body": "{\"userId\":\"U10086\"}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
     },
     {
       "scene": "SCN20260531010001",
       "name": "订单创建",
       "chain": "CHN_DEMO_ORDER_CREATE",
-      "body": "{\"userId\":\"U10086\",\"sku\":\"SKU9981\",\"quantity\":2}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\", \"sku\": \"SKU9981\", \"quantity\": 2}"
     },
     {
       "scene": "SCN20260531010002",
       "name": "订单支付",
       "chain": "CHN_DEMO_ORDER_PAY",
-      "body": "{\"orderId\":\"ORD202605310001\",\"userId\":\"U10086\"}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD202605310001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
     },
     {
       "scene": "SCN20260531010003",
       "name": "订单退款",
       "chain": "CHN_DEMO_ORDER_REFUND",
-      "body": "{\"orderId\":\"ORD202605310001\",\"userId\":\"U10086\"}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD202605310001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
     },
     {
       "scene": "SCN20260531010004",
       "name": "订单取消",
       "chain": "CHN_DEMO_ORDER_CANCEL",
-      "body": "{\"orderId\":\"ORD202605310001\",\"userId\":\"U10086\"}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD202605310001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
     },
     {
       "scene": "SCN20260531010005",
       "name": "订单评价",
       "chain": "CHN_DEMO_ORDER_REVIEW",
-      "body": "{\"orderId\":\"ORD202605310001\",\"userId\":\"U10086\",\"rating\":5}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD202605310001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\", \"rating\": 5}"
     },
     {
       "scene": "SCN20260531010006",
@@ -1589,157 +4784,157 @@
       "scene": "SCN20260531010007",
       "name": "支付风控分支",
       "chain": "CHN_DEMO_PAYMENT_RISK",
-      "body": "{\"userId\":\"U10086\",\"amount\":199}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 199, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
     },
     {
       "scene": "SCN20260531010008",
       "name": "订单全链路",
       "chain": "CHN_DEMO_ORDER_PIPELINE",
-      "body": "{\"userId\":\"U10086\",\"sku\":\"SKU9981\"}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\", \"sku\": \"SKU9981\"}"
     },
     {
       "scene": "SCN20260531010009",
       "name": "子链下单",
       "chain": "CHN_DEMO_SUB_ORDER",
-      "body": "{\"userId\":\"U10086\"}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
     },
     {
       "scene": "SCN20260531010010",
       "name": "迭代通知",
       "chain": "CHN_DEMO_ITER_NOTIFY",
-      "body": "{\"userId\":\"U10086\"}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
     },
     {
       "scene": "SCN20260531020001",
       "name": "商品入库",
       "chain": "CHN_DEMO_STOCK_IN",
-      "body": "{\"sku\":\"SKU9981\",\"quantity\":100}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\", \"sku\": \"SKU9981\", \"quantity\": 100}"
     },
     {
       "scene": "SCN20260531020002",
       "name": "商品出库",
       "chain": "CHN_DEMO_STOCK_OUT",
-      "body": "{\"orderId\":\"ORD202605310001\",\"sku\":\"SKU9981\"}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD202605310001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\", \"sku\": \"SKU9981\"}"
     },
     {
       "scene": "SCN20260531020003",
       "name": "库存盘点",
       "chain": "CHN_DEMO_STOCK_CHECK",
-      "body": "{\"warehouseCode\":\"WH001\"}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\", \"warehouseCode\": \"WH001\"}"
     },
     {
       "scene": "SCN20260531020004",
       "name": "库存调拨",
       "chain": "CHN_DEMO_STOCK_TRANSFER",
-      "body": "{\"sku\":\"SKU9981\",\"qty\":10}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\", \"sku\": \"SKU9981\", \"qty\": 10}"
     },
     {
       "scene": "SCN20260531020005",
       "name": "物流发货",
       "chain": "CHN_DEMO_LOGISTICS_SHIP",
-      "body": "{\"orderId\":\"ORD202605310001\"}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD202605310001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
     },
     {
       "scene": "SCN20260531030001",
       "name": "会员注册",
       "chain": "CHN_DEMO_MEMBER_REGISTER",
-      "body": "{\"userId\":\"U10087\"}"
+      "body": "{\"userId\": \"U10087\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
     },
     {
       "scene": "SCN20260531030002",
       "name": "会员升级",
       "chain": "CHN_DEMO_MEMBER_UPGRADE",
-      "body": "{\"userId\":\"U10086\"}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
     },
     {
       "scene": "SCN20260531030003",
       "name": "积分累计",
       "chain": "CHN_DEMO_POINTS_EARN",
-      "body": "{\"userId\":\"U10086\",\"amount\":179}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 179, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
     },
     {
       "scene": "SCN20260531030004",
       "name": "积分兑换",
       "chain": "CHN_DEMO_POINTS_REDEEM",
-      "body": "{\"userId\":\"U10086\",\"costPoints\":200}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\", \"costPoints\": 200}"
     },
     {
       "scene": "SCN20260531030005",
       "name": "会员充值",
       "chain": "CHN_DEMO_MEMBER_TOPUP",
-      "body": "{\"userId\":\"U10086\",\"amount\":500}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 500, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
     },
     {
       "scene": "SCN20260531030006",
       "name": "等级计算",
       "chain": "CHN_DEMO_LEVEL_CALC",
-      "body": "{\"userId\":\"U10086\"}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
     },
     {
       "scene": "SCN20260531040001",
       "name": "支付回调",
       "chain": "CHN_DEMO_PAYMENT_CALLBACK",
-      "body": "{\"orderId\":\"ORD202605310001\"}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD202605310001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
     },
     {
       "scene": "SCN20260531040002",
       "name": "账单生成",
       "chain": "CHN_DEMO_BILL_GEN",
-      "body": "{\"userId\":\"U10086\"}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
     },
     {
       "scene": "SCN20260531040003",
       "name": "对账处理",
       "chain": "CHN_DEMO_RECONCILE",
-      "body": "{\"bizDate\":\"2026-05-31\"}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\", \"bizDate\": \"2026-05-31\"}"
     },
     {
       "scene": "SCN20260531040004",
       "name": "发票开具",
       "chain": "CHN_DEMO_INVOICE",
-      "body": "{\"orderId\":\"ORD202605310001\",\"userId\":\"U10086\"}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD202605310001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
     },
     {
       "scene": "SCN20260531050001",
       "name": "优惠券发放",
       "chain": "CHN_DEMO_COUPON_ISSUE",
-      "body": "{\"userId\":\"U10086\"}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
     },
     {
       "scene": "SCN20260531050002",
       "name": "优惠券核销",
       "chain": "CHN_DEMO_COUPON_USE",
-      "body": "{\"userId\":\"U10086\"}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
     },
     {
       "scene": "SCN20260531050003",
       "name": "秒杀活动",
       "chain": "CHN_DEMO_FLASH_SALE",
-      "body": "{\"userId\":\"U10086\",\"sku\":\"SKU9981\"}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\", \"sku\": \"SKU9981\"}"
     },
     {
       "scene": "SCN20260531050004",
       "name": "满减计算",
       "chain": "CHN_DEMO_PROMO_CALC",
-      "body": "{\"userId\":\"U10086\"}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
     },
     {
       "scene": "SCN20260531050005",
       "name": "营销多分支",
       "chain": "CHN_DEMO_MARKETING_BRANCH",
-      "body": "{\"userId\":\"U10086\"}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
     },
     {
       "scene": "SCN20260531060001",
       "name": "短信发送",
       "chain": "CHN_DEMO_SMS_SEND",
-      "body": "{\"userId\":\"U10086\",\"phone\":\"13800008888\"}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\", \"phone\": \"13800008888\"}"
     },
     {
       "scene": "SCN20260531060002",
       "name": "邮件通知",
       "chain": "CHN_DEMO_EMAIL_SEND",
-      "body": "{\"userId\":\"U10086\",\"to\":\"user@example.com\"}"
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\", \"to\": \"user@example.com\"}"
     },
     {
       "scene": "SCN20260601000229",
@@ -1752,16 +4947,706 @@
       "scene": "SCN20260602000001",
       "name": "失败继续",
       "chain": "CHN_DEMO_CONTINUE_ON_ERROR",
-      "body": "{\"userId\":\"U10086\"}",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}",
       "e2eExpect": "partialGreen"
     },
     {
       "scene": "SCN20260602000002",
       "name": "租户B专属",
       "chain": "CHN_DEMO_NODE_1",
-      "body": "{\"userId\":\"U10086\"}",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}",
       "tenantId": 2,
       "e2eExpect": "enterpriseOnly"
+    },
+    {
+      "scene": "SCN_EXT_000001",
+      "name": "扩展场景-NORMAL-001",
+      "chain": "CHN_DEMO_EXT_001",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000002",
+      "name": "扩展场景-SCRIPT-002",
+      "chain": "CHN_DEMO_EXT_002",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000003",
+      "name": "扩展场景-SUB_CHAIN-003",
+      "chain": "CHN_DEMO_EXT_003",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000004",
+      "name": "扩展场景-CONDITION-004",
+      "chain": "CHN_DEMO_EXT_004",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000005",
+      "name": "扩展场景-SELECTOR-005",
+      "chain": "CHN_DEMO_EXT_005",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000006",
+      "name": "扩展场景-ITERATOR-006",
+      "chain": "CHN_DEMO_EXT_006",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000007",
+      "name": "扩展场景-FORK-007",
+      "chain": "CHN_DEMO_EXT_007",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000008",
+      "name": "扩展场景-JOIN-008",
+      "chain": "CHN_DEMO_EXT_008",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000009",
+      "name": "扩展场景-TRY_CATCH-009",
+      "chain": "CHN_DEMO_EXT_009",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000010",
+      "name": "扩展场景-WHILE-010",
+      "chain": "CHN_DEMO_EXT_010",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000011",
+      "name": "扩展场景-DELAY-011",
+      "chain": "CHN_DEMO_EXT_011",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000012",
+      "name": "扩展场景-LOGGER-012",
+      "chain": "CHN_DEMO_EXT_012",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000013",
+      "name": "扩展场景-TRANSFORMER-013",
+      "chain": "CHN_DEMO_EXT_013",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000014",
+      "name": "扩展场景-FILTER-014",
+      "chain": "CHN_DEMO_EXT_014",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000015",
+      "name": "扩展场景-AGGREGATOR-015",
+      "chain": "CHN_DEMO_EXT_015",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000016",
+      "name": "扩展场景-SPLITTER-016",
+      "chain": "CHN_DEMO_EXT_016",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000017",
+      "name": "扩展场景-HTTP_CLIENT-017",
+      "chain": "CHN_DEMO_EXT_017",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000018",
+      "name": "扩展场景-MQ_PRODUCER-018",
+      "chain": "CHN_DEMO_EXT_018",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000019",
+      "name": "扩展场景-MQ_CONSUMER-019",
+      "chain": "CHN_DEMO_EXT_019",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000020",
+      "name": "扩展场景-CACHE_READER-020",
+      "chain": "CHN_DEMO_EXT_020",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000021",
+      "name": "扩展场景-CACHE_WRITER-021",
+      "chain": "CHN_DEMO_EXT_021",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000022",
+      "name": "扩展场景-APPROVAL-022",
+      "chain": "CHN_DEMO_EXT_022",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000023",
+      "name": "扩展场景-NOTIFICATION-023",
+      "chain": "CHN_DEMO_EXT_023",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000024",
+      "name": "扩展场景-NORMAL-024",
+      "chain": "CHN_DEMO_EXT_024",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000025",
+      "name": "扩展场景-SCRIPT-025",
+      "chain": "CHN_DEMO_EXT_025",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000026",
+      "name": "扩展场景-SUB_CHAIN-026",
+      "chain": "CHN_DEMO_EXT_026",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000027",
+      "name": "扩展场景-CONDITION-027",
+      "chain": "CHN_DEMO_EXT_027",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000028",
+      "name": "扩展场景-SELECTOR-028",
+      "chain": "CHN_DEMO_EXT_028",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000029",
+      "name": "扩展场景-ITERATOR-029",
+      "chain": "CHN_DEMO_EXT_029",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000030",
+      "name": "扩展场景-FORK-030",
+      "chain": "CHN_DEMO_EXT_030",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000031",
+      "name": "扩展场景-JOIN-031",
+      "chain": "CHN_DEMO_EXT_031",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000032",
+      "name": "扩展场景-TRY_CATCH-032",
+      "chain": "CHN_DEMO_EXT_032",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000033",
+      "name": "扩展场景-WHILE-033",
+      "chain": "CHN_DEMO_EXT_033",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000034",
+      "name": "扩展场景-DELAY-034",
+      "chain": "CHN_DEMO_EXT_034",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000035",
+      "name": "扩展场景-LOGGER-035",
+      "chain": "CHN_DEMO_EXT_035",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000036",
+      "name": "扩展场景-TRANSFORMER-036",
+      "chain": "CHN_DEMO_EXT_036",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000037",
+      "name": "扩展场景-FILTER-037",
+      "chain": "CHN_DEMO_EXT_037",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000038",
+      "name": "扩展场景-AGGREGATOR-038",
+      "chain": "CHN_DEMO_EXT_038",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000039",
+      "name": "扩展场景-SPLITTER-039",
+      "chain": "CHN_DEMO_EXT_039",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000040",
+      "name": "扩展场景-HTTP_CLIENT-040",
+      "chain": "CHN_DEMO_EXT_040",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000041",
+      "name": "扩展场景-MQ_PRODUCER-041",
+      "chain": "CHN_DEMO_EXT_041",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000042",
+      "name": "扩展场景-MQ_CONSUMER-042",
+      "chain": "CHN_DEMO_EXT_042",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000043",
+      "name": "扩展场景-CACHE_READER-043",
+      "chain": "CHN_DEMO_EXT_043",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000044",
+      "name": "扩展场景-CACHE_WRITER-044",
+      "chain": "CHN_DEMO_EXT_044",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000045",
+      "name": "扩展场景-APPROVAL-045",
+      "chain": "CHN_DEMO_EXT_045",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000046",
+      "name": "扩展场景-NOTIFICATION-046",
+      "chain": "CHN_DEMO_EXT_046",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000047",
+      "name": "扩展场景-NORMAL-047",
+      "chain": "CHN_DEMO_EXT_047",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000048",
+      "name": "扩展场景-SCRIPT-048",
+      "chain": "CHN_DEMO_EXT_048",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000049",
+      "name": "扩展场景-SUB_CHAIN-049",
+      "chain": "CHN_DEMO_EXT_049",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000050",
+      "name": "扩展场景-CONDITION-050",
+      "chain": "CHN_DEMO_EXT_050",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000051",
+      "name": "扩展场景-SELECTOR-051",
+      "chain": "CHN_DEMO_EXT_051",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000052",
+      "name": "扩展场景-ITERATOR-052",
+      "chain": "CHN_DEMO_EXT_052",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000053",
+      "name": "扩展场景-FORK-053",
+      "chain": "CHN_DEMO_EXT_053",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000054",
+      "name": "扩展场景-JOIN-054",
+      "chain": "CHN_DEMO_EXT_054",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000055",
+      "name": "扩展场景-TRY_CATCH-055",
+      "chain": "CHN_DEMO_EXT_055",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000056",
+      "name": "扩展场景-WHILE-056",
+      "chain": "CHN_DEMO_EXT_056",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000057",
+      "name": "扩展场景-DELAY-057",
+      "chain": "CHN_DEMO_EXT_057",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000058",
+      "name": "扩展场景-LOGGER-058",
+      "chain": "CHN_DEMO_EXT_058",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000059",
+      "name": "扩展场景-TRANSFORMER-059",
+      "chain": "CHN_DEMO_EXT_059",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000060",
+      "name": "扩展场景-FILTER-060",
+      "chain": "CHN_DEMO_EXT_060",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000061",
+      "name": "扩展场景-AGGREGATOR-061",
+      "chain": "CHN_DEMO_EXT_061",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000062",
+      "name": "扩展场景-SPLITTER-062",
+      "chain": "CHN_DEMO_EXT_062",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000063",
+      "name": "扩展场景-HTTP_CLIENT-063",
+      "chain": "CHN_DEMO_EXT_063",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000064",
+      "name": "扩展场景-MQ_PRODUCER-064",
+      "chain": "CHN_DEMO_EXT_064",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000065",
+      "name": "扩展场景-MQ_CONSUMER-065",
+      "chain": "CHN_DEMO_EXT_065",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000066",
+      "name": "扩展场景-CACHE_READER-066",
+      "chain": "CHN_DEMO_EXT_066",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000067",
+      "name": "扩展场景-CACHE_WRITER-067",
+      "chain": "CHN_DEMO_EXT_067",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000068",
+      "name": "扩展场景-APPROVAL-068",
+      "chain": "CHN_DEMO_EXT_068",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000069",
+      "name": "扩展场景-NOTIFICATION-069",
+      "chain": "CHN_DEMO_EXT_069",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000070",
+      "name": "扩展场景-NORMAL-070",
+      "chain": "CHN_DEMO_EXT_070",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000071",
+      "name": "扩展场景-SCRIPT-071",
+      "chain": "CHN_DEMO_EXT_071",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000072",
+      "name": "扩展场景-SUB_CHAIN-072",
+      "chain": "CHN_DEMO_EXT_072",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000073",
+      "name": "扩展场景-CONDITION-073",
+      "chain": "CHN_DEMO_EXT_073",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000074",
+      "name": "扩展场景-SELECTOR-074",
+      "chain": "CHN_DEMO_EXT_074",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000075",
+      "name": "扩展场景-ITERATOR-075",
+      "chain": "CHN_DEMO_EXT_075",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000076",
+      "name": "扩展场景-FORK-076",
+      "chain": "CHN_DEMO_EXT_076",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000077",
+      "name": "扩展场景-JOIN-077",
+      "chain": "CHN_DEMO_EXT_077",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000078",
+      "name": "扩展场景-TRY_CATCH-078",
+      "chain": "CHN_DEMO_EXT_078",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000079",
+      "name": "扩展场景-WHILE-079",
+      "chain": "CHN_DEMO_EXT_079",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000080",
+      "name": "扩展场景-DELAY-080",
+      "chain": "CHN_DEMO_EXT_080",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000081",
+      "name": "扩展场景-LOGGER-081",
+      "chain": "CHN_DEMO_EXT_081",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000082",
+      "name": "扩展场景-TRANSFORMER-082",
+      "chain": "CHN_DEMO_EXT_082",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000083",
+      "name": "扩展场景-FILTER-083",
+      "chain": "CHN_DEMO_EXT_083",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000084",
+      "name": "扩展场景-AGGREGATOR-084",
+      "chain": "CHN_DEMO_EXT_084",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000085",
+      "name": "扩展场景-SPLITTER-085",
+      "chain": "CHN_DEMO_EXT_085",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000086",
+      "name": "扩展场景-HTTP_CLIENT-086",
+      "chain": "CHN_DEMO_EXT_086",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000087",
+      "name": "扩展场景-MQ_PRODUCER-087",
+      "chain": "CHN_DEMO_EXT_087",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000088",
+      "name": "扩展场景-MQ_CONSUMER-088",
+      "chain": "CHN_DEMO_EXT_088",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000089",
+      "name": "扩展场景-CACHE_READER-089",
+      "chain": "CHN_DEMO_EXT_089",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000090",
+      "name": "扩展场景-CACHE_WRITER-090",
+      "chain": "CHN_DEMO_EXT_090",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000091",
+      "name": "扩展场景-APPROVAL-091",
+      "chain": "CHN_DEMO_EXT_091",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000092",
+      "name": "扩展场景-NOTIFICATION-092",
+      "chain": "CHN_DEMO_EXT_092",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000093",
+      "name": "扩展场景-NORMAL-093",
+      "chain": "CHN_DEMO_EXT_093",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000094",
+      "name": "扩展场景-SCRIPT-094",
+      "chain": "CHN_DEMO_EXT_094",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000095",
+      "name": "扩展场景-SUB_CHAIN-095",
+      "chain": "CHN_DEMO_EXT_095",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000096",
+      "name": "扩展场景-CONDITION-096",
+      "chain": "CHN_DEMO_EXT_096",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000097",
+      "name": "扩展场景-SELECTOR-097",
+      "chain": "CHN_DEMO_EXT_097",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000098",
+      "name": "扩展场景-ITERATOR-098",
+      "chain": "CHN_DEMO_EXT_098",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000099",
+      "name": "扩展场景-FORK-099",
+      "chain": "CHN_DEMO_EXT_099",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000100",
+      "name": "扩展场景-JOIN-100",
+      "chain": "CHN_DEMO_EXT_100",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000101",
+      "name": "扩展场景-TRY_CATCH-101",
+      "chain": "CHN_DEMO_EXT_101",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000102",
+      "name": "扩展场景-WHILE-102",
+      "chain": "CHN_DEMO_EXT_102",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000103",
+      "name": "扩展场景-DELAY-103",
+      "chain": "CHN_DEMO_EXT_103",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000104",
+      "name": "扩展场景-LOGGER-104",
+      "chain": "CHN_DEMO_EXT_104",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000105",
+      "name": "扩展场景-TRANSFORMER-105",
+      "chain": "CHN_DEMO_EXT_105",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000106",
+      "name": "扩展场景-FILTER-106",
+      "chain": "CHN_DEMO_EXT_106",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000107",
+      "name": "扩展场景-AGGREGATOR-107",
+      "chain": "CHN_DEMO_EXT_107",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000108",
+      "name": "扩展场景-SPLITTER-108",
+      "chain": "CHN_DEMO_EXT_108",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000109",
+      "name": "扩展场景-HTTP_CLIENT-109",
+      "chain": "CHN_DEMO_EXT_109",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000110",
+      "name": "扩展场景-MQ_PRODUCER-110",
+      "chain": "CHN_DEMO_EXT_110",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000111",
+      "name": "扩展场景-MQ_CONSUMER-111",
+      "chain": "CHN_DEMO_EXT_111",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000112",
+      "name": "扩展场景-CACHE_READER-112",
+      "chain": "CHN_DEMO_EXT_112",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000113",
+      "name": "扩展场景-CACHE_WRITER-113",
+      "chain": "CHN_DEMO_EXT_113",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000114",
+      "name": "扩展场景-APPROVAL-114",
+      "chain": "CHN_DEMO_EXT_114",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
+    },
+    {
+      "scene": "SCN_EXT_000115",
+      "name": "扩展场景-NOTIFICATION-115",
+      "chain": "CHN_DEMO_EXT_115",
+      "body": "{\"userId\": \"U10086\", \"userName\": \"Matrix User\", \"amount\": 128.5, \"orderId\": \"ORD-MATRIX-001\", \"step\": 0, \"_http_url\": \"http://127.0.0.1:8081/test/http-echo\"}"
     }
   ]
 }

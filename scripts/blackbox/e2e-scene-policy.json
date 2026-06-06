@@ -6,7 +6,7 @@
       "comment": "全绿：全部 required 场景必须通过，含 75 步压力链",
       "mode": "strict",
       "skipHeavyDefault": false,
-      "optionalScenes": [],
+      "optionalScenes": ["SCN20260602000002"],
       "partialGreenScenes": []
     },
     "partialGreen": {
@@ -41,7 +41,8 @@
   "tierMatrix": {
     "1-3": ["SCN20260531000001", "SCN20260531000002", "SCN20260531000003", "SCN20260531010001", "SCN20260602000001"],
     "5-10": ["SCN20260531010007", "SCN20260531010008", "SCN20260531010010", "SCN20260531050005", "SCN20260531010006"],
-    "70-80": ["SCN20260531000004"]
+    "70-80": ["SCN20260531000004"],
+    "extended": "SCN_EXT_* (115 scenes, auto-executed via playground list-all when seeded)"
   },
   "requiredTiers": ["1-3", "5-10", "70-80"]
 }

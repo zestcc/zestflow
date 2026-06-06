@@ -191,6 +191,20 @@ public class ChainRepository {
     }
 
     /**
+     * 热加载成功后标记链为已发布（saveGraph 会将绑定链置为未发布）。
+     */
+    public void markPublished(String code, String updatedBy) {
+        String now = LocalDateTime.now().format(DTF);
+        jdbc.update("UPDATE zf_chain SET status=?, updated_by=?, updated_at=? WHERE code=? AND tenant_id=?",
+                ChainLifecycleStatus.PUBLISHED,
+                updatedBy != null ? updatedBy : "",
+                now,
+                code,
+                tenantId);
+        log.info("链已标记为已发布 code={} updatedBy={}", code, updatedBy);
+    }
+
+    /**
      * 设计保存后同步绑定链状态：校验通过→未发布，失败→设计中
      */
     public void syncBoundChainStatusAfterDesignSave(String designCode, boolean flowValid, String updatedBy) {

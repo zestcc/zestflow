@@ -138,8 +138,10 @@
           </el-button>
         </div>
         <div class="palette-list">
-          <div
-              v-for="nt in nodeTypes"
+          <div v-for="group in paletteGroups" :key="group.category" class="palette-group">
+            <div class="palette-group-title">{{ paletteCategoryLabel(group.category) }}</div>
+            <div
+              v-for="nt in group.nodes"
               :key="nt.type"
               class="palette-item"
               :class="{ 'palette-item--pending': pendingPlaceNode?.type === nt.type }"
@@ -147,10 +149,11 @@
               @dragstart="onDragStart($event, nt)"
               @click="!isTouchPalette && onPaletteItemTap(nt)"
               @touchend.prevent="isTouchPalette && onPaletteItemTouchEnd($event, nt)"
-          >
-            <div class="palette-icon" :style="{ background: nt.color }" v-html="nt.icon" />
-            <div class="palette-label">{{ typeLabel(nt.type) }}</div>
-            <span v-if="isTouchPalette" class="palette-tap-hint">{{ $t('design.tapToAdd') }}</span>
+            >
+              <div class="palette-icon" :style="{ background: nt.color }" v-html="nt.icon" />
+              <div class="palette-label">{{ typeLabel(nt.type) }}</div>
+              <span v-if="isTouchPalette" class="palette-tap-hint">{{ $t('design.tapToAdd') }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -260,7 +263,7 @@
         <div v-if="selectedNodeData" class="panel-body">
           <el-form size="small" label-position="top">
             <!-- 判断元件：脚本 / 绑定双模式 -->
-            <template v-if="selectedNodeData.nodeType === 'condition'">
+            <template v-if="normalizeNodeType(selectedNodeData.nodeType) === 'CONDITION'">
               <el-form-item :label="$t('design.predicateMode')">
                 <el-radio-group v-model="selectedNodeData.predicateMode" @change="onPredicateModeChange">
                   <el-radio value="script">{{ $t('design.predicateModeScript') }}</el-radio>
@@ -376,6 +379,46 @@
               </div>
               <el-button size="small" type="primary" plain @click="openBindDialog('post')" style="width:100%">{{ $t('design.addPost') }}</el-button>
             </div>
+            <!-- 类型专属 config（对标 Camunda/n8n 字段配置） -->
+            <template v-for="field in selectedNodeTypeFields" :key="field.key">
+              <el-form-item :label="$t(`design.nodeFields.${field.i18nKey}`)">
+                <el-select
+                    v-if="field.input === 'select'"
+                    v-model="selectedNodeData[field.key]"
+                    style="width:100%"
+                    @change="onDataChange"
+                >
+                  <el-option
+                      v-for="opt in field.options || []"
+                      :key="opt.value"
+                      :label="$t(`design.nodeFields.${opt.labelKey}`)"
+                      :value="opt.value"
+                  />
+                </el-select>
+                <el-input-number
+                    v-else-if="field.input === 'number'"
+                    v-model="selectedNodeData[field.key]"
+                    :min="0"
+                    controls-position="right"
+                    style="width:100%"
+                    @change="onDataChange"
+                />
+                <el-input
+                    v-else-if="field.input === 'textarea'"
+                    v-model="selectedNodeData[field.key]"
+                    type="textarea"
+                    :rows="3"
+                    :placeholder="field.placeholder"
+                    @input="onDataChange"
+                />
+                <el-input
+                    v-else
+                    v-model="selectedNodeData[field.key]"
+                    :placeholder="field.placeholder"
+                    @input="onDataChange"
+                />
+              </el-form-item>
+            </template>
             <el-form-item v-if="hasScriptField(selectedNodeData.nodeType)" :label="$t('design.script')">
               <el-input v-model="selectedNodeData.script" type="textarea" :rows="3" :placeholder="$t('design.scriptPlaceholder')" @input="onDataChange" />
             </el-form-item>
@@ -383,11 +426,11 @@
               <el-input v-model="selectedNodeData.description" type="textarea" :rows="3" @input="onDataChange" />
             </el-form-item>
             <!-- 子链节点：子链编码 -->
-            <el-form-item v-if="selectedNodeData.nodeType === 'subchain'" :label="$t('design.subChainCode')">
+            <el-form-item v-if="normalizeNodeType(selectedNodeData.nodeType) === 'SUB_CHAIN'" :label="$t('design.subChainCode')">
               <el-input v-model="selectedNodeData.subChainCode" :placeholder="$t('design.selectChain')" @input="onDataChange" />
             </el-form-item>
             <!-- 迭代器节点：数据源 + 迭代项名 -->
-            <template v-if="selectedNodeData.nodeType === 'iterator'">
+            <template v-if="normalizeNodeType(selectedNodeData.nodeType) === 'ITERATOR'">
               <el-form-item :label="$t('design.iteratorDataSource')">
                 <el-input v-model="selectedNodeData.iteratorDataSource" :placeholder="$t('design.iteratorDataSourcePlaceholder')" @input="onDataChange" />
               </el-form-item>
@@ -679,6 +722,25 @@ import ResponsiveTable from '@/components/ResponsiveTable.vue'
 import { componentApi } from '@/api/component'
 import { executorApi } from '@/api/executor'
 import {
+  normalizeNodeType,
+  mapNodeTypeToDto,
+  getShapeForNodeType,
+  getNodeSize,
+  isRectPortType,
+  canBindNodeType,
+} from '@/utils/nodeType'
+import {
+  NODE_TYPE_REGISTRY,
+  paletteNodeTypes,
+  paletteNodeTypesByCategory,
+  type NodeCategory,
+  getNodeTypeMeta,
+  defaultNodeFieldValues,
+  extractConfigFromNodeData,
+  hydrateNodeDataFromConfig,
+} from '@/config/nodeTypeRegistry'
+import { registerFlowShapes } from '@/utils/flowShapes'
+import {
   ArrowLeft, Check, Pointer, Back, Right,
   CopyDocument, DocumentAdd,
   ZoomIn, ZoomOut, FullScreen, ScaleToOriginal,
@@ -799,14 +861,16 @@ function cancelPlaceMode() {
   pendingPlaceNode.value = null
 }
 
-function onPaletteItemTap(nt: typeof nodeTypes[0]) {
+type PaletteNode = { type: string; label: string; color: string; icon: string }
+
+function onPaletteItemTap(nt: PaletteNode) {
   if (!isTouchPalette.value) return
   pendingPlaceNode.value = { type: nt.type, label: nt.label }
   if (isCompactEditor.value) nodeSheetOpen.value = false
   ElMessage.info(t('design.tapToPlace'))
 }
 
-function onPaletteItemTouchEnd(e: TouchEvent, nt: typeof nodeTypes[0]) {
+function onPaletteItemTouchEnd(e: TouchEvent, nt: PaletteNode) {
   if (!isTouchPalette.value) return
   e.preventDefault()
   onPaletteItemTap(nt)
@@ -1064,81 +1128,58 @@ function clearSelectionIfNeeded(cell: any) {
   if (selectedCell === cell) { selectedCell = null; selectedNodeData.value = null; selectedEdgeData.value = null }
 }
 
-// ====== 节点类型定义 ======
-const nodeColors: Record<string, string> = {
-  start: '#22c55e',
-  NORMAL: '#3b82f6',
-  CONDITION: '#f59e0b',
-  SELECTOR: '#8b5cf6',
-  LOADER: '#06b6d4',
-  PARSER: '#ec4899',
-  SCRIPT: '#8b5cf6',
-  SUB_CHAIN: '#06b6d4',
-  ITERATOR: '#f97316',
-  TRANSFORMER: '#10b981',
-  FILTER: '#6366f1',
-  AGGREGATOR: '#f43f5e',
-  SPLITTER: '#14b8a6',
-  HTTP_CLIENT: '#0ea5e9',
-  MQ_PRODUCER: '#f59e0b',
-  MQ_CONSUMER: '#10b981',
-  CACHE_READER: '#eab308',
-  CACHE_WRITER: '#a855f7',
-  FORK: '#a855f7',
-  JOIN: '#d946ef',
-  TRY_CATCH: '#ef4444',
-  WHILE: '#fb923c',
-  APPROVAL: '#ec4899',
-  NOTIFICATION: '#06b6d4',
-  LOGGER: '#64748b',
-  DELAY: '#94a3b8',
-  end: '#6b7280',
+// ====== 节点类型定义（注册表驱动） ======
+const nodeColors: Record<string, string> = Object.fromEntries(
+  NODE_TYPE_REGISTRY.map(m => [m.type, m.color]),
+)
+
+const nodeTypes = computed(() => paletteNodeTypes().map(m => ({
+  type: m.type,
+  label: t(`design.${m.i18nKey}`),
+  color: m.color,
+  icon: m.icon,
+})))
+
+const paletteGroups = computed(() => paletteNodeTypesByCategory().map(g => ({
+  category: g.category,
+  nodes: g.nodes.map(m => ({
+    type: m.type,
+    label: t(`design.${m.i18nKey}`),
+    color: m.color,
+    icon: m.icon,
+  })),
+})))
+
+function paletteCategoryLabel(category: NodeCategory) {
+  return t(`design.paletteCategory.${category}`)
 }
 
-const nodeTypes = [
-  // 流程控制类
-  { type: 'start', label: '开始', color: '#22c55e', icon: '<svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="currentColor"/></svg>' },
-  { type: 'NORMAL', label: '执行元件', color: '#3b82f6', icon: '<svg viewBox="0 0 14 14"><rect x="2" y="1" width="10" height="12" rx="2" fill="currentColor"/></svg>' },
-  { type: 'CONDITION', label: '判断元件', color: '#f59e0b', icon: '<svg viewBox="0 0 14 14"><polygon points="7,0 14,7 7,14 0,7" fill="currentColor"/></svg>' },
-  { type: 'SCRIPT', label: '脚本元件', color: '#8b5cf6', icon: '<svg viewBox="0 0 14 14"><path d="M4,0 L14,0 L14,10 L10,14 L0,14 L0,4 Z M5,5 L9,9 M9,5 L5,9" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' },
-  { type: 'SUB_CHAIN', label: '子链元件', color: '#06b6d4', icon: '<svg viewBox="0 0 14 14"><path d="M2,4 L8,4 L8,10 L2,10 Z M6,7 L12,7 L12,13 L6,13 Z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' },
-  { type: 'ITERATOR', label: '迭代器元件', color: '#f97316', icon: '<svg viewBox="0 0 14 14"><path d="M7,0 L14,7 L7,14 L0,7 Z M10,5 L10,9 M4,5 L4,9" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' },
-  { type: 'FORK', label: '并行分叉', color: '#a855f7', icon: '<svg viewBox="0 0 14 14"><path d="M7,1 L7,6 M3,6 L7,1 L11,6 M3,8 L7,13 L11,8" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' },
-  { type: 'JOIN', label: '并行汇聚', color: '#d946ef', icon: '<svg viewBox="0 0 14 14"><path d="M3,1 L7,6 L11,1 M3,13 L7,8 L11,13" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' },
-  { type: 'TRY_CATCH', label: '异常捕获', color: '#ef4444', icon: '<svg viewBox="0 0 14 14"><rect x="2" y="2" width="10" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="5" y1="5" x2="9" y2="9" stroke="currentColor" stroke-width="1.5"/><line x1="9" y1="5" x2="5" y2="9" stroke="currentColor" stroke-width="1.5"/></svg>' },
-  { type: 'WHILE', label: '条件循环', color: '#fb923c', icon: '<svg viewBox="0 0 14 14"><path d="M7,2 C10,2 12,4 12,7 C12,10 10,12 7,12 C4,12 2,10 2,7" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="7,0 9,3 5,3" fill="currentColor"/></svg>' },
-  // 数据处理类
-  { type: 'TRANSFORMER', label: '转换器', color: '#10b981', icon: '<svg viewBox="0 0 14 14"><path d="M2,4 L6,1 L10,4 L6,7 Z M4,10 L8,13 L12,10 L8,7 Z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' },
-  { type: 'FILTER', label: '过滤器', color: '#6366f1', icon: '<svg viewBox="0 0 14 14"><path d="M1,2 L13,2 L8,7 L8,13 L6,10 L6,7 Z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' },
-  { type: 'AGGREGATOR', label: '聚合器', color: '#f43f5e', icon: '<svg viewBox="0 0 14 14"><path d="M2,7 L5,2 L9,2 L12,7 L9,12 L5,12 Z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' },
-  { type: 'SPLITTER', label: '拆分器', color: '#14b8a6', icon: '<svg viewBox="0 0 14 14"><path d="M7,1 L7,13 M3,4 L7,1 L11,4 M3,10 L7,13 L11,10" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' },
-  // 集成连接类
-  { type: 'HTTP_CLIENT', label: 'HTTP调用', color: '#0ea5e9', icon: '<svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="7" y1="2" x2="7" y2="12" stroke="currentColor" stroke-width="1"/></svg>' },
-  { type: 'MQ_PRODUCER', label: '消息生产', color: '#f59e0b', icon: '<svg viewBox="0 0 14 14"><path d="M2,4 L12,4 L12,10 L2,10 Z M5,7 L9,7" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="5,5 7,7 5,9" fill="currentColor"/></svg>' },
-  { type: 'MQ_CONSUMER', label: '消息消费', color: '#10b981', icon: '<svg viewBox="0 0 14 14"><path d="M2,4 L12,4 L12,10 L2,10 Z M5,7 L9,7" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="9,5 7,7 9,9" fill="currentColor"/></svg>' },
-  { type: 'CACHE_READER', label: '缓存读取', color: '#eab308', icon: '<svg viewBox="0 0 14 14"><rect x="2" y="3" width="10" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5,6 L5,10 L9,8 Z" fill="currentColor"/></svg>' },
-  { type: 'CACHE_WRITER', label: '缓存写入', color: '#a855f7', icon: '<svg viewBox="0 0 14 14"><rect x="2" y="3" width="10" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5,8 L9,8 L9,6 L5,6 Z" fill="currentColor"/></svg>' },
-  // 人工交互类
-  { type: 'APPROVAL', label: '审批节点', color: '#ec4899', icon: '<svg viewBox="0 0 14 14"><rect x="2" y="2" width="10" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4,7 L7,10 L10,4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' },
-  { type: 'NOTIFICATION', label: '通知节点', color: '#06b6d4', icon: '<svg viewBox="0 0 14 14"><rect x="3" y="2" width="8" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5,10 L7,12 L9,10" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' },
-  // 辅助增强类
-  { type: 'LOGGER', label: '日志记录', color: '#64748b', icon: '<svg viewBox="0 0 14 14"><rect x="2" y="1" width="10" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="5" y1="4" x2="9" y2="4" stroke="currentColor" stroke-width="1"/><line x1="5" y1="7" x2="9" y2="7" stroke="currentColor" stroke-width="1"/><line x1="5" y1="10" x2="7" y2="10" stroke="currentColor" stroke-width="1"/></svg>' },
-  { type: 'DELAY', label: '延迟等待', color: '#94a3b8', icon: '<svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="7" y1="7" x2="10" y2="7" stroke="currentColor" stroke-width="1.5"/><line x1="7" y1="7" x2="7" y2="4" stroke="currentColor" stroke-width="1.5"/></svg>' },
-  { type: 'end', label: '结束', color: '#6b7280', icon: '<svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="7" cy="7" r="2" fill="currentColor"/></svg>' },
-]
+const selectedNodeTypeFields = computed(() => {
+  const nt = selectedNodeData.value?.nodeType
+  return getNodeTypeMeta(nt)?.fields.filter(f => f.inConfig) || []
+})
 
-function nodeColor(type: string) { return nodeColors[type] || '#3b82f6' }
+function nodeColor(type: string) {
+  return nodeColors[normalizeNodeType(type)] || '#3b82f6'
+}
 
 function typeLabel(type: string) {
-  const key = `design.${type}Node`
-  const translated = t(key)
-  return translated !== key ? translated : (nodeTypes.find(nt => nt.type === type)?.label || type)
+  const nt = normalizeNodeType(type)
+  const meta = getNodeTypeMeta(nt)
+  if (meta) {
+    const key = `design.${meta.i18nKey}`
+    const translated = t(key)
+    if (translated !== key) return translated
+  }
+  return nt
 }
 
-function hasDescription(type: string) { return type !== 'start' && type !== 'end' }
+function hasDescription(type: string) {
+  return getNodeTypeMeta(type)?.hasDescription ?? false
+}
 
 function hasScriptField(type: string) {
-  return type === 'LOADER' || type === 'PARSER' || type === 'SCRIPT'
+  return getNodeTypeMeta(type)?.hasScript ?? false
 }
 
 function showsStandardBindPanel(nodeType: string) {
@@ -1237,6 +1278,7 @@ function bindTypeTargetLabel(target: string): string {
 
 /** 节点类型 → 元件类型映射 */
 function typeToComponentType(nodeType: string): string {
+  const nt = normalizeNodeType(nodeType)
   const map: Record<string, string> = {
     NORMAL: 'EXECUTOR',
     CONDITION: 'PREDICATE',
@@ -1264,7 +1306,7 @@ function typeToComponentType(nodeType: string): string {
     SUB_CHAIN: 'EXECUTOR',
     ITERATOR: 'EXECUTOR',
   }
-  return map[nodeType] || ''
+  return map[nt] || ''
 }
 
 /** 非开始/结束节点可绑定元件 */
@@ -1458,9 +1500,8 @@ const handleGroup = {
 }
 
 function getPorts(type: string) {
-  // 矩形类（所有基本节点）：每条边 2 个端口，共 8 个
-  const rectTypes = ['start', 'end', 'task', 'loader', 'parser', 'transformer', 'filter', 'aggregator', 'splitter', 'httpclient', 'cache', 'fork', 'join', 'trycatch', 'while', 'logger', 'delay']
-  if (rectTypes.includes(type)) {
+  const nt = normalizeNodeType(type)
+  if (isRectPortType(nt)) {
     return [
       { id: 't',  group: 'handle', args: { x: '50%', y: '0%' } },
       { id: 'tr', group: 'handle', args: { x: '100%', y: '15%' } },
@@ -1472,8 +1513,8 @@ function getPorts(type: string) {
       { id: 'tl', group: 'handle', args: { x: '0%', y: '15%' } },
     ]
   }
-  // 菱形（条件）：4 个顶点
-  if (type === 'CONDITION') {
+  // 菱形（条件/循环）：4 个顶点
+  if (nt === 'CONDITION' || nt === 'WHILE') {
     return [
       { id: 't', group: 'handle', args: { x: '50%', y: '0%' } },
       { id: 'r', group: 'handle', args: { x: '100%', y: '50%' } },
@@ -1482,7 +1523,7 @@ function getPorts(type: string) {
     ]
   }
   // 六边形（多条件/选择器）：6 个顶点
-  if (type === 'SELECTOR') {
+  if (nt === 'SELECTOR') {
     return [
       { id: 'tr', group: 'handle', args: { x: '71%', y: '0%' } },
       { id: 'r',  group: 'handle', args: { x: '100%', y: '50%' } },
@@ -1515,144 +1556,27 @@ function hidePorts(node: Node) {
   })
 }
 
-// ====== 注册 X6 原生形状 ======
+// ====== 注册 X6 原生形状（注册表批量注册） ======
 function registerShapes() {
   function reg(name: string, def: any) {
     try { Graph.registerNode(name, def) } catch { /* ignore duplicate HMR */ }
   }
-
-  // --- 开始节点（绿色圆角矩形） ---
-  reg('flow-start', {
-    inherit: 'rect',
-    attrs: {
-      body: { rx: 20, ry: 20, fill: nodeColors.start, stroke: 'none' },
-      label: { text: t('design.startNode'), fill: '#fff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
+  registerFlowShapes(
+    reg,
+    NODE_TYPE_REGISTRY,
+    (i18nKey, fallback) => {
+      const key = `design.${i18nKey}`
+      const tr = t(key)
+      return tr !== key ? tr : fallback
     },
-    ports: { groups: { handle: handleGroup }, items: getPorts('start') },
-  })
-
-  // --- 结束节点（灰色圆角矩形） ---
-  reg('flow-end', {
-    inherit: 'rect',
-    width: 148,
-    height: 40,
-    markup: [{ tagName: 'rect', selector: 'body' }, { tagName: 'text', selector: 'label' }],
-    attrs: {
-      body: { rx: 20, ry: 20, fill: nodeColors.end, stroke: 'none' },
-      label: { text: t('design.endNode'), fill: '#fff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
-    },
-    ports: { groups: { handle: handleGroup }, items: getPorts('end') },
-  })
-
-  // --- 执行元件（蓝底白字） ---
-  reg('flow-task', {
-    inherit: 'rect',
-    width: 160,
-    height: 46,
-    markup: [{ tagName: 'rect', selector: 'body' }, { tagName: 'text', selector: 'label' }],
-    attrs: {
-      body: { rx: 8, ry: 8, fill: nodeColors.task, stroke: 'none' },
-      label: { text: t('design.taskNode'), fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
-    },
-    ports: { groups: { handle: handleGroup }, items: getPorts('task') },
-  })
-
-  // --- 判断元件（橘色菱形） ---
-  reg('flow-condition', {
-    inherit: 'polygon',
-    width: 100,
-    height: 80,
-    markup: [{ tagName: 'polygon', selector: 'body' }, { tagName: 'text', selector: 'label' }],
-    attrs: {
-      body: { refPoints: '50,0 100,40 50,80 0,40', fill: nodeColors.condition, stroke: 'none' },
-      label: { text: t('design.conditionNode'), fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
-    },
-    ports: { groups: { handle: handleGroup }, items: getPorts('condition') },
-  })
-
-  // --- 选择器元件（紫色六边形） ---
-  reg('flow-multicondition', {
-    inherit: 'polygon',
-    width: 120,
-    height: 80,
-    markup: [{ tagName: 'polygon', selector: 'body' }, { tagName: 'text', selector: 'label' }],
-    attrs: {
-      body: { refPoints: '85,0 120,40 85,80 35,80 0,40 35,0', fill: nodeColors.multicondition, stroke: 'none' },
-      label: { text: t('design.multiconditionNode'), fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
-    },
-    ports: { groups: { handle: handleGroup }, items: getPorts('multicondition') },
-  })
-
-  // --- 加载器元件（青色圆角矩形） ---
-  reg('flow-loader', {
-    inherit: 'rect',
-    width: 160,
-    height: 46,
-    markup: [{ tagName: 'rect', selector: 'body' }, { tagName: 'text', selector: 'label' }],
-    attrs: {
-      body: { rx: 8, ry: 8, fill: nodeColors.loader, stroke: 'none' },
-      label: { text: t('design.loaderNode'), fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
-    },
-    ports: { groups: { handle: handleGroup }, items: getPorts('loader') },
-  })
-
-  // --- 解析器元件（粉色圆角矩形） ---
-  reg('flow-parser', {
-    inherit: 'rect',
-    width: 160,
-    height: 46,
-    markup: [{ tagName: 'rect', selector: 'body' }, { tagName: 'text', selector: 'label' }],
-    attrs: {
-      body: { rx: 8, ry: 8, fill: nodeColors.parser, stroke: 'none' },
-      label: { text: t('design.parserNode'), fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
-    },
-    ports: { groups: { handle: handleGroup }, items: getPorts('parser') },
-  })
-
-  // --- 脚本元件（紫色圆角矩形） ---
-  reg('flow-script', {
-    inherit: 'rect',
-    width: 160,
-    height: 46,
-    markup: [{ tagName: 'rect', selector: 'body' }, { tagName: 'text', selector: 'label' }],
-    attrs: {
-      body: { rx: 8, ry: 8, fill: nodeColors.script, stroke: 'none' },
-      label: { text: t('design.scriptNode'), fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
-    },
-    ports: { groups: { handle: handleGroup }, items: getPorts('script') },
-  })
-
-  // --- 子链元件（青色胶囊形） ---
-  reg('flow-subchain', {
-    inherit: 'rect',
-    width: 160,
-    height: 46,
-    markup: [{ tagName: 'rect', selector: 'body' }, { tagName: 'text', selector: 'label' }],
-    attrs: {
-      body: { rx: 23, ry: 23, fill: nodeColors.subchain, stroke: 'none' },
-      label: { text: t('design.subchainNode'), fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
-    },
-    ports: { groups: { handle: handleGroup }, items: getPorts('subchain') },
-  })
-
-  // --- 迭代器元件（橙色圆角矩形 + 虚线边框） ---
-  reg('flow-iterator', {
-    inherit: 'rect',
-    width: 160,
-    height: 46,
-    markup: [{ tagName: 'rect', selector: 'body' }, { tagName: 'text', selector: 'label' }],
-    attrs: {
-      body: { rx: 8, ry: 8, fill: nodeColors.iterator, stroke: '#fff', strokeWidth: 2, strokeDasharray: '4,2' },
-      label: { text: t('design.iteratorNode'), fill: '#ffffff', fontSize: 13, fontWeight: 600, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', cursor: 'pointer' },
-    },
-    ports: { groups: { handle: handleGroup }, items: getPorts('iterator') },
-  })
+    { start: t('design.startNode'), end: t('design.endNode') },
+  )
 }
 
 // ====== 更新节点视觉 ======
 function updateNodeVisual(node: Node) {
   const data = node.getData() || {}
-  const nt = data.nodeType || 'task'
+  const nt = normalizeNodeType(data.nodeType || 'NORMAL')
   node.attr('label/text', data.label || typeLabel(nt))
 }
 
@@ -1720,16 +1644,7 @@ function normalizeLoadedEdges() {
 
 // ====== 获取形状名 ======
 function getShapeForType(nodeType: string): string {
-  return {
-    start: 'flow-start', task: 'flow-task', condition: 'flow-condition',
-    multicondition: 'flow-multicondition', loader: 'flow-loader', parser: 'flow-parser',
-    script: 'flow-script', subchain: 'flow-subchain', iterator: 'flow-iterator',
-    transformer: 'flow-task', filter: 'flow-task', aggregator: 'flow-task',
-    splitter: 'flow-task', httpclient: 'flow-task', cache: 'flow-task',
-    fork: 'flow-task', join: 'flow-task', trycatch: 'flow-task',
-    while: 'flow-task', logger: 'flow-task', delay: 'flow-task',
-    end: 'flow-end',
-  }[nodeType] || 'flow-task'
+  return getShapeForNodeType(nodeType)
 }
 
 function getTouchDistance(touches: TouchList) {
@@ -2112,7 +2027,7 @@ function updateStats() {
 }
 
 // ====== 拖拽 ======
-function onDragStart(event: DragEvent, nt: typeof nodeTypes[0]) {
+function onDragStart(event: DragEvent, nt: PaletteNode) {
   if (event.dataTransfer) {
     event.dataTransfer.setData('text/plain', JSON.stringify({ type: nt.type, label: nt.label }))
     event.dataTransfer.effectAllowed = 'copy'
@@ -2123,38 +2038,40 @@ function onDragOver(event: DragEvent) {
   if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
 }
 
-const NODE_SIZES: Record<string, [number, number]> = {
-  start: [148, 40], task: [160, 46], condition: [100, 80], multicondition: [120, 80],
-  loader: [160, 46], parser: [160, 46], script: [160, 46], subchain: [160, 46], iterator: [160, 46], end: [148, 40],
-}
 
 function buildNodeData(type: string, label: string) {
+  const nt = normalizeNodeType(type)
+  const meta = getNodeTypeMeta(nt)
+  const fieldDefaults = meta ? defaultNodeFieldValues(meta) : {}
   return ensureConditionDefaults({
-    label, nodeType: type, description: '', preComponents: [], postComponents: [], paramResolvers: [],
+    label, nodeType: nt, description: '', preComponents: [], postComponents: [], paramResolvers: [],
     paramValidatorId: '', paramValidatorName: '', executeStrategy: 'NORMAL',
     transactionPropagation: 'INHERIT', script: '', subChainCode: '',
     iteratorDataSource: '', iteratorItemName: 'item',
-    predicateMode: type === 'CONDITION' ? 'script' : undefined,
-    predicateScript: type === 'CONDITION' ? '' : undefined,
-    trueLabel: type === 'CONDITION' ? 'True' : undefined,
-    falseLabel: type === 'CONDITION' ? 'False' : undefined,
-    componentId: type === 'CONDITION' ? generateInlinePredId() : '',
+    predicateMode: nt === 'CONDITION' ? 'script' : undefined,
+    predicateScript: nt === 'CONDITION' ? '' : undefined,
+    trueLabel: nt === 'CONDITION' ? 'True' : undefined,
+    falseLabel: nt === 'CONDITION' ? 'False' : undefined,
+    componentId: nt === 'CONDITION' ? generateInlinePredId() : '',
+    ...fieldDefaults,
   })
 }
 
 function addNodeAtLocal(type: string, label: string, localX: number, localY: number) {
   if (!graph) return null
-  const shape = getShapeForType(type)
-  const [w, h] = NODE_SIZES[type] || [160, 46]
+  const nt = normalizeNodeType(type)
+  const shape = getShapeForType(nt)
+  const [w, h] = getNodeSize(nt)
   const node = graph.addNode({
     shape,
     x: localX - w / 2,
     y: localY - h / 2,
     width: w,
     height: h,
-    data: buildNodeData(type, label),
+    data: buildNodeData(nt, label),
   })
   updateNodeVisual(node)
+  node.setProp('ports', { groups: { handle: handleGroup }, items: getPorts(nt) })
   return node
 }
 
@@ -2460,29 +2377,7 @@ function downloadURI(uri: string, filename: string) {
 
 /** 节点类型映射：X6 nodeType → ChainNodeDTO type */
 function mapNodeType(nodeType: string): string {
-  const map: Record<string, string> = {
-    task: 'NORMAL',
-    condition: 'CONDITION',
-    multicondition: 'CONDITION',
-    loader: 'NORMAL',
-    parser: 'NORMAL',
-    script: 'SCRIPT',
-    subchain: 'SUB_CHAIN',
-    iterator: 'ITERATOR',
-    transformer: 'TRANSFORMER',
-    filter: 'FILTER',
-    aggregator: 'AGGREGATOR',
-    splitter: 'SPLITTER',
-    httpclient: 'HTTP_CLIENT',
-    cache: 'CACHE_READER',
-    fork: 'FORK',
-    join: 'JOIN',
-    trycatch: 'TRY_CATCH',
-    while: 'WHILE',
-    logger: 'LOGGER',
-    delay: 'DELAY',
-  }
-  return map[nodeType] || 'NORMAL'
+  return mapNodeTypeToDto(nodeType)
 }
 
 /** 翻译 X6 图为 ChainDefinitionDTO JSON */
@@ -2540,7 +2435,7 @@ function translateGraphToChain(): any {
         if (data.subChainCode) node.subChainCode = data.subChainCode
 
         // 迭代器配置
-        if (data.nodeType === 'iterator') {
+        if (normalizeNodeType(data.nodeType) === 'ITERATOR') {
           const icfg: Record<string, any> = {}
           if (data.iteratorDataSource) icfg.dataSource = data.iteratorDataSource
           if (data.iteratorItemName && data.iteratorItemName !== 'item') icfg.itemName = data.iteratorItemName
@@ -2553,7 +2448,7 @@ function translateGraphToChain(): any {
         if (data.description) node.description = data.description
 
         // 判断元件：内联脚本 / 绑定模式
-        if (data.nodeType === 'condition') {
+        if (normalizeNodeType(data.nodeType) === 'CONDITION') {
           const predCfg: Record<string, any> = {}
           const mode = data.predicateMode || 'bind'
           predCfg.predicateMode = mode
@@ -2566,7 +2461,12 @@ function translateGraphToChain(): any {
         }
 
         // 执行策略配置
-        if (Object.keys(config).length > 0) node.config = config
+        if (Object.keys(config).length > 0) node.config = { ...(node.config || {}), ...config }
+
+        const typeCfg = extractConfigFromNodeData(data.nodeType, data)
+        if (Object.keys(typeCfg).length > 0) {
+          node.config = { ...(node.config || {}), ...typeCfg }
+        }
 
         // 参数解析器链
         if (data.paramResolvers?.length) {
@@ -2688,12 +2588,11 @@ function validateChain(): string[] {
   })
 
   // 4. 业务节点（除 start/end）未绑定元件
-  const bindableTypes = new Set(['task', 'condition', 'multicondition', 'loader', 'parser', 'transformer', 'filter', 'aggregator', 'splitter', 'httpclient', 'cache', 'fork', 'join', 'trycatch', 'while', 'logger', 'delay'])
   nodes.forEach(n => {
     const data = ensureConditionDefaults({ ...(n.getData() || {}) })
-    const nodeType = data.nodeType
-    if (!bindableTypes.has(nodeType)) return
-    if (nodeType === 'condition' && data.predicateMode === 'script') {
+    const nodeType = normalizeNodeType(data.nodeType)
+    if (!canBindNodeType(nodeType)) return
+    if (nodeType === 'CONDITION' && data.predicateMode === 'script') {
       if (!data.componentId?.trim()) {
         errors.push(t('design.inlinePredIdRequired', { label: data.label || n.id }))
       }
@@ -2713,8 +2612,8 @@ function validateChain(): string[] {
   // 5. 条件节点出线检查
   nodes.forEach(n => {
     const data = n.getData() || {}
-    const nodeType = data.nodeType
-    if (nodeType !== 'condition' && nodeType !== 'multicondition') return
+    const nodeType = normalizeNodeType(data.nodeType)
+    if (nodeType !== 'CONDITION' && nodeType !== 'SELECTOR') return
     const outgoingEdges = edges.filter(e => e.getSourceCellId() === n.id)
     if (outgoingEdges.length === 0) {
       errors.push(t('design.conditionNoOutEdge', { label: data.label || n.id }))
@@ -2817,6 +2716,27 @@ function hydrateNodeTransactionFromChainData() {
   } catch { /* ignore */ }
 }
 
+function hydrateNodeConfigFromChainData() {
+  if (!graph || !design.value?.chainData) return
+  try {
+    let chainData = design.value.chainData
+    if (typeof chainData === 'string') chainData = JSON.parse(chainData)
+    const nodes = chainData?.nodes
+    if (!Array.isArray(nodes)) return
+    const cfgMap = new Map<string, Record<string, any>>()
+    nodes.forEach((n: any) => {
+      if (n?.id && n?.config) cfgMap.set(n.id, n.config)
+    })
+    graph.getNodes().forEach(n => {
+      const cfg = cfgMap.get(n.id)
+      if (!cfg) return
+      const data = { ...(n.getData() || {}) }
+      hydrateNodeDataFromConfig(data.nodeType || 'NORMAL', data, cfg)
+      n.setData(data)
+    })
+  } catch { /* ignore */ }
+}
+
 function hydrateChainSettingsFromDesign() {
   chainSettings.transactionEnabled = false
   chainSettings.transactionPropagation = 'REQUIRED'
@@ -2853,6 +2773,9 @@ async function loadDesign() {
       if (data?.cells?.length > 0) {
         // 兼容旧版 flow-node shape → 新版专用形状
         data.cells.forEach((cell: any) => {
+          if (cell.data?.nodeType) {
+            cell.data.nodeType = normalizeNodeType(cell.data.nodeType)
+          }
           if (cell.shape === 'flow-node' && cell.data?.nodeType) {
             cell.shape = getShapeForType(cell.data.nodeType)
           }
@@ -2864,14 +2787,17 @@ async function loadDesign() {
         graph.getNodes().forEach(n => {
           updateNodeVisual(n)
           // 序列化可能丢失端口 group 定义，重新注入完整端口配置
-          const nodeType = n.getData()?.nodeType || 'task'
+          const nodeType = normalizeNodeType(n.getData()?.nodeType || 'NORMAL')
           n.setProp('ports', { groups: { handle: handleGroup }, items: getPorts(nodeType) })
-          if (nodeType === 'condition') {
-            n.setData(ensureConditionDefaults({ ...(n.getData() || {}) }))
+          if (nodeType === 'CONDITION') {
+            n.setData(ensureConditionDefaults({ ...(n.getData() || {}), nodeType }))
+          } else if (n.getData()?.nodeType !== nodeType) {
+            n.setData({ ...(n.getData() || {}), nodeType })
           }
         })
         normalizeLoadedEdges()
         hydrateNodeTransactionFromChainData()
+        hydrateNodeConfigFromChainData()
         applyAllEdgeHitWraps()
         graph.zoomToFit({ padding: 60, maxScale: 1 })
         return
@@ -3027,6 +2953,15 @@ onBeforeUnmount(() => {
 }
 .palette-header { padding: 12px 16px; font-weight: 600; font-size: 13px; color: #475569; border-bottom: 1px solid #e2e8f0; }
 .palette-list { padding: 8px; }
+.palette-group { margin-bottom: 10px; }
+.palette-group-title {
+  padding: 4px 8px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
 
 .palette-item {
   display: flex; align-items: center; gap: 8px; padding: 8px 12px;

@@ -8,6 +8,7 @@ import com.zestflow.common.model.dto.ChainNodeDTO;
 import com.zestflow.demo.tx.TxProbeHandler;
 import com.zestflow.executor.chain.ChainDefinitionBuilder;
 import com.zestflow.executor.chain.ChainManager;
+import com.zestflow.executor.chain.ChainRuntimeRegistrar;
 import com.zestflow.executor.engine.ChainExecutionEngine;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,6 +44,9 @@ class ChainTransactionE2ETest {
 
     @Autowired
     private ChainDefinitionBuilder chainDefinitionBuilder;
+
+    @Autowired
+    private ChainRuntimeRegistrar chainRuntimeRegistrar;
 
     @Autowired
     @Qualifier("executorJdbcTemplate")
@@ -134,6 +138,7 @@ class ChainTransactionE2ETest {
                 .config(config)
                 .build();
         chainManager.load(chainDefinitionBuilder.build(dto));
+        chainRuntimeRegistrar.ensurePublished(code);
         return chainExecutionEngine.execute(code, Map.of());
     }
 

@@ -6,6 +6,7 @@ import com.zestflow.common.model.dto.*;
 import com.zestflow.executor.chain.ChainDefinition;
 import com.zestflow.executor.chain.ChainDefinitionBuilder;
 import com.zestflow.executor.chain.ChainManager;
+import com.zestflow.executor.chain.ChainRuntimeRegistrar;
 import com.zestflow.executor.engine.ChainExecutionEngine;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeAll;
@@ -40,7 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(classes = DemoApplication.class)
 @ActiveProfiles("test")
-@Import(ZestFlowE2ETest.InMemoryCollectorConfig.class)
+@Import({ZestFlowE2ETest.InMemoryCollectorConfig.class})
 class ZestFlowE2ETest {
 
     @Autowired
@@ -51,6 +52,9 @@ class ZestFlowE2ETest {
 
     @Autowired
     private ChainDefinitionBuilder chainDefinitionBuilder;
+
+    @Autowired
+    private ChainRuntimeRegistrar chainRuntimeRegistrar;
 
     @Autowired
     private InMemoryEventCollector eventCollector;
@@ -161,6 +165,7 @@ class ZestFlowE2ETest {
                 .edges(List.of(edge("subA", "subB")))
                 .build();
         chainManager.load(chainDefinitionBuilder.build(subDTO));
+        chainRuntimeRegistrar.ensurePublished("sub-chain-001");
 
         com.zestflow.common.model.dto.ChainExecuteResultDTO result = execute("main-chain", List.of(
                 node("start", "NORMAL", "validateUser"),
@@ -370,35 +375,9 @@ class ZestFlowE2ETest {
                 .config(Map.of("errorStrategy", ChainConstants.ERROR_STRATEGY_STOP))
                 .build();
         chainManager.load(chainDefinitionBuilder.build(dto));
-        saveChainToDatabase(code);
+        chainRuntimeRegistrar.ensurePublished(code);
         log.info("执行链 code={} nodes={}", code, nodes.size());
         return chainExecutionEngine.execute(code, params != null ? params : Map.of());
-    }
-
-    private void saveChainToDatabase(String chainCode) {
-        try {
-            JdbcTemplate jdbcTemplate = new JdbcTemplate(executorDataSource);
-            String sql = "INSERT INTO zf_chain (code, name, description, status, version, tenant_id, app_code, created_by, updated_by, created_at, updated_at, is_deleted) " +
-                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            jdbcTemplate.update(sql,
-                    chainCode,
-                    chainCode,
-                    "E2E test chain",
-                    4, // PUBLISHED status
-                    1,
-                    1L, // tenant_id
-                    "demo-app",
-                    "test",
-                    "test",
-                    java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                    java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                    0
-            );
-        } catch (Exception e) {
-            if (!e.getMessage().contains("Duplicate entry") && !e.getMessage().contains("unique constraint")) {
-                System.err.println("Failed to save chain to database: " + e.getMessage());
-            }
-        }
     }
 
     private static ChainNodeDTO node(String id, String type, String component) {

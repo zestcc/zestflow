@@ -70,7 +70,10 @@ class InlineScriptPredicateHttpFlowTest {
         String chainCode = setupAndPublishChain();
         ChainExecuteResultDTO result = executeChain(chainCode, Map.of(
                 "supplierType", "OTA",
-                "userId", "U001"
+                "userId", "U001",
+                "amount", 100,
+                "payAmount", 100.0,
+                "orderId", "ORD-HTTP-001"
         ));
 
         assertThat(result.getStatus()).isEqualTo(ChainConstants.CHAIN_SUCCESS);
@@ -81,7 +84,11 @@ class InlineScriptPredicateHttpFlowTest {
     @Test
     void httpFlow_inlineScriptPredicateRoutesFalseBranch() throws Exception {
         String chainCode = setupAndPublishChain();
-        ChainExecuteResultDTO result = executeChain(chainCode, Map.of("userId", "U001"));
+        ChainExecuteResultDTO result = executeChain(chainCode, Map.of(
+                "userId", "U001",
+                "amount", 100,
+                "orderId", "ORD-HTTP-002"
+        ));
 
         assertThat(result.getStatus()).isEqualTo(ChainConstants.CHAIN_SUCCESS);
         assertThat(result.getNodeResults()).extracting(nr -> nr.getNodeId())
