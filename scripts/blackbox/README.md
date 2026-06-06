@@ -8,6 +8,8 @@
 | `run-full-e2e.ps1` | 全流程：登录、features、租户、Admin 各模块、Collector、**全部试验场场景**、安全矩阵 |
 | `e2e-scene-policy.json` | 场景策略：**全绿 / 一部分绿 / 报错跳过** |
 | `run-enterprise-gate.ps1` | **发布门禁**：mvn test + fullGreen E2E + 多租户/IP + 安全 token（可选） |
+| `run-ai-copilot-e2e.ps1` | Copilot API 黑盒（P0～P5；`-AllowLlmSkip` 在无 Ollama 时跳过 explain/suggest） |
+| `run-ai-copilot-acceptance.ps1` | Copilot **部署验收**：AI 单测 + 上述 E2E |
 | `run-chain-publish-e2e.ps1` | 链 publish → active-codes → 可选 rollback |
 | `run-chain-lifecycle-e2e.ps1` | 创建设计/链 → 绑定 → 发布 → Netty `/execute` |
 | `run-rbac-horizontal-e2e.ps1` | 无 JWT / 无效 JWT 访问受保护 API 应 401/403 |
