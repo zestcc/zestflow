@@ -1,11 +1,11 @@
--- Flyway V1 — Admin 库全量表结构
--- 勿修改已发布版本；增量 DDL 请新增 V2__*.sql
+-- Flyway V1 — Admin 库全量表结构（幂等：表已存在则跳过）
+-- 增量 DDL 请新增 V2__*.sql；勿改已发布 V* 的语义（改 checksum 需 repair）
 -- 2026-06-02：由 init.sql 迁入，Flyway 单轨维护
 
 -- ==================== Admin 表 ====================
 
 -- 2026-06-01：租户表 — 多租户基础
-CREATE TABLE `tenant` (
+CREATE TABLE IF NOT EXISTS `tenant` (
     `id`             BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `name`           VARCHAR(128) NOT NULL                 COMMENT '租户名称',
     `code`           VARCHAR(64)  NOT NULL                 COMMENT '租户编码',
@@ -25,7 +25,7 @@ CREATE TABLE `tenant` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='租户表';
 
 -- 2026-06-01：用户-租户关联表
-CREATE TABLE `user_tenant` (
+CREATE TABLE IF NOT EXISTS `user_tenant` (
     `id`              BIGINT   NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `user_id`         BIGINT   NOT NULL                 COMMENT '用户ID',
     `tenant_id`       BIGINT   NOT NULL                 COMMENT '租户ID',
@@ -38,7 +38,7 @@ CREATE TABLE `user_tenant` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户租户关联表';
 
 -- 2026-06-01：IP-租户映射表（演示环境自动映射）
-CREATE TABLE `tenant_ip_mapping` (
+CREATE TABLE IF NOT EXISTS `tenant_ip_mapping` (
     `id`              BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `ip_address`      VARCHAR(64)  NOT NULL                 COMMENT 'IP地址',
     `tenant_id`       BIGINT       NOT NULL                 COMMENT '租户ID',
@@ -50,7 +50,7 @@ CREATE TABLE `tenant_ip_mapping` (
     KEY `idx_last_active` (`last_active_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='IP-租户映射表（演示环境）';
 
-CREATE TABLE `user` (
+CREATE TABLE IF NOT EXISTS `user` (
     `id`                   BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `username`             VARCHAR(50)  NOT NULL                 COMMENT '用户名',
     `email`                VARCHAR(100) DEFAULT NULL             COMMENT '邮箱',
@@ -74,7 +74,7 @@ CREATE TABLE `user` (
     UNIQUE KEY `uk_email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
-CREATE TABLE `role` (
+CREATE TABLE IF NOT EXISTS `role` (
     `id`          BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `code`        VARCHAR(30)  NOT NULL                 COMMENT '角色编码：APP_ADMIN/APP_EDITOR/APP_VIEWER',
     `name`        VARCHAR(50)  NOT NULL                 COMMENT '角色名称',
@@ -88,7 +88,7 @@ CREATE TABLE `role` (
     UNIQUE KEY `uk_tenant_role` (`tenant_id`, `code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色表';
 
-CREATE TABLE `user_app_role` (
+CREATE TABLE IF NOT EXISTS `user_app_role` (
     `id`         BIGINT   NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `user_id`    BIGINT   NOT NULL                 COMMENT '用户ID',
     `app_code`   VARCHAR(50) NOT NULL              COMMENT '应用编码',
@@ -103,7 +103,7 @@ CREATE TABLE `user_app_role` (
     KEY `idx_user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户应用角色关联表';
 
-CREATE TABLE `executor_registry` (
+CREATE TABLE IF NOT EXISTS `executor_registry` (
     `id`             BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `executor_id`    VARCHAR(100) NOT NULL                 COMMENT '执行器唯一标识',
     `app_code`       VARCHAR(50)  DEFAULT NULL             COMMENT '应用编码（分组标识）',
@@ -123,7 +123,7 @@ CREATE TABLE `executor_registry` (
     KEY `idx_app_code` (`app_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='执行器注册表';
 
-CREATE TABLE `schedule` (
+CREATE TABLE IF NOT EXISTS `schedule` (
     `id`             BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `chain_id`       BIGINT       NOT NULL                 COMMENT '关联链ID',
     `chain_code`     VARCHAR(128) NOT NULL                 COMMENT '链编码（冗余，方便执行器执行）',
@@ -144,7 +144,7 @@ CREATE TABLE `schedule` (
     KEY `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='调度定义表';
 
-CREATE TABLE `schedule_log` (
+CREATE TABLE IF NOT EXISTS `schedule_log` (
     `id`               BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `schedule_id`      BIGINT       NOT NULL                 COMMENT '调度ID',
     `chain_code`       VARCHAR(128) NOT NULL                 COMMENT '链编码',
@@ -170,7 +170,7 @@ CREATE TABLE `schedule_log` (
     KEY `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='调度执行日志表';
 
-CREATE TABLE `component` (
+CREATE TABLE IF NOT EXISTS `component` (
     `id`              BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `executor_id`     VARCHAR(128) NOT NULL                 COMMENT '执行器唯一标识',
     `component_id`    VARCHAR(128) NOT NULL                 COMMENT '元件 ID（@ZestExecute value 或 类名.方法名）',
@@ -191,7 +191,7 @@ CREATE TABLE `component` (
     KEY `idx_executor_id` (`executor_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='执行元件注册表';
 
-CREATE TABLE `collector_registry` (
+CREATE TABLE IF NOT EXISTS `collector_registry` (
     `id`             BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `collector_id`   VARCHAR(128) NOT NULL                 COMMENT '采集器唯一标识',
     `app_code`       VARCHAR(50)  DEFAULT NULL             COMMENT '应用编码（分组标识）',
@@ -210,7 +210,7 @@ CREATE TABLE `collector_registry` (
     KEY `idx_app_code` (`app_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='采集器注册表';
 
-CREATE TABLE `sys_dict_type` (
+CREATE TABLE IF NOT EXISTS `sys_dict_type` (
     `id`          BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `code`        VARCHAR(64)  NOT NULL                 COMMENT '字典编码（唯一）',
     `name`        VARCHAR(128) NOT NULL                 COMMENT '字典名称',
@@ -227,7 +227,7 @@ CREATE TABLE `sys_dict_type` (
     UNIQUE KEY `uk_tenant_dict_type` (`tenant_id`, `code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='字典类型表';
 
-CREATE TABLE `sys_dict_data` (
+CREATE TABLE IF NOT EXISTS `sys_dict_data` (
     `id`           BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `type_code`    VARCHAR(64)  NOT NULL                 COMMENT '字典类型编码',
     `label`        VARCHAR(128) NOT NULL                 COMMENT '数据标签',
@@ -249,7 +249,7 @@ CREATE TABLE `sys_dict_data` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='字典数据表';
 
 -- 2026-05-31：演示场景定义表 — 替代 application.yml 配置，DB 驱动 CRUD
-CREATE TABLE `playground_scene` (
+CREATE TABLE IF NOT EXISTS `playground_scene` (
     `id`               BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键',
     `scene_code`       VARCHAR(64)  NOT NULL                 COMMENT '场景编码（SCN{yMMdd}{6位序号}）',
     `name`             VARCHAR(128) NOT NULL                 COMMENT '场景名称',
@@ -275,7 +275,7 @@ CREATE TABLE `playground_scene` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='试验场场景定义表';
 
 -- 2026-06-01：演示执行记录表
-CREATE TABLE `playground_record` (
+CREATE TABLE IF NOT EXISTS `playground_record` (
     `id`               BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键',
     `scene_id`         BIGINT       DEFAULT NULL             COMMENT '关联场景ID',
     `scene_name`       VARCHAR(128) DEFAULT NULL             COMMENT '场景名称（冗余）',

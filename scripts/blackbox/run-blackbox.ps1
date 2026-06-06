@@ -150,24 +150,24 @@ Write-Host "=== ZestFlow Blackbox $(if ($PerfGateOnly) { '(Perf Gate)' }) ==="
 
 $token = $null
 if (-not $PerfGateOnly) {
-    $r = Invoke-Api GET "$BaseAdmin/api/dashboard/stats" $null $null
-    Add-Result "security" "admin-no-token" GET "$BaseAdmin/api/dashboard/stats" $r.status ($r.status -in 401,403) $r.ms ""
+    $r = Invoke-Api GET "$BaseAdmin/api/zestflow/dashboard/stats" $null $null
+    Add-Result "security" "admin-no-token" GET "$BaseAdmin/api/zestflow/dashboard/stats" $r.status ($r.status -in 401,403) $r.ms ""
 
-    $r = Invoke-Api GET "$BaseAdmin/api/playground/scenes/list-all" $null $null
-    Add-Result "security" "playground-no-token" GET "$BaseAdmin/api/playground/scenes/list-all" $r.status ($r.status -in 401,403) $r.ms ""
+    $r = Invoke-Api GET "$BaseAdmin/api/zestflow/playground/scenes/list-all" $null $null
+    Add-Result "security" "playground-no-token" GET "$BaseAdmin/api/zestflow/playground/scenes/list-all" $r.status ($r.status -in 401,403) $r.ms ""
 
-    $r = Invoke-Api POST "$BaseAdmin/api/registry/register" '{"executorId":"evil","host":"1.1.1.1","port":1}' $null
-    Add-Result "security" "registry-no-token-dev" POST "$BaseAdmin/api/registry/register" $r.status ($r.status -ge 200 -and $r.status -lt 500) $r.ms "dev-open"
+    $r = Invoke-Api POST "$BaseAdmin/api/zestflow/registry/register" '{"executorId":"evil","host":"1.1.1.1","port":1}' $null
+    Add-Result "security" "registry-no-token-dev" POST "$BaseAdmin/api/zestflow/registry/register" $r.status ($r.status -ge 200 -and $r.status -lt 500) $r.ms "dev-open"
 
     $loginBody = '{"username":"admin","password":"admin123"}'
-    $r = Invoke-Api POST "$BaseAdmin/api/auth/login" $loginBody $null
+    $r = Invoke-Api POST "$BaseAdmin/api/zestflow/auth/login" $loginBody $null
     if ($r.ok) { try { $token = (ConvertFrom-Json $r.body).data.token } catch {} }
-    Add-Result "auth" "login-ok" POST "$BaseAdmin/api/auth/login" $r.status ($null -ne $token) $r.ms ""
+    Add-Result "auth" "login-ok" POST "$BaseAdmin/api/zestflow/auth/login" $r.status ($null -ne $token) $r.ms ""
 
-    $r = Invoke-Api POST "$BaseAdmin/api/auth/login" '{"username":"admin","password":"wrong"}' $null
+    $r = Invoke-Api POST "$BaseAdmin/api/zestflow/auth/login" '{"username":"admin","password":"wrong"}' $null
     $badLoginOk = $false
     if ($r.ok) { try { $badLoginOk = ((ConvertFrom-Json $r.body).code -ne 200) } catch {} } else { $badLoginOk = ($r.status -ge 400) }
-    Add-Result "auth" "login-bad-password" POST "$BaseAdmin/api/auth/login" $r.status $badLoginOk $r.ms ""
+    Add-Result "auth" "login-bad-password" POST "$BaseAdmin/api/zestflow/auth/login" $r.status $badLoginOk $r.ms ""
 
     $r = Invoke-Api GET "$BaseNetty/health" $null $null
     Add-Result "executor" "netty-health" GET "$BaseNetty/health" $r.status ($r.status -eq 200) $r.ms ""
@@ -183,12 +183,12 @@ if (-not $PerfGateOnly) {
 
     if ($token) {
         $authH = @{ Authorization = "Bearer $token" }
-        $r = Invoke-Api GET "$BaseAdmin/api/auth/userinfo" $null $authH
-        Add-Result "admin" "userinfo" GET "$BaseAdmin/api/auth/userinfo" $r.status ($r.status -eq 200) $r.ms ""
-        $r = Invoke-Api GET "$BaseAdmin/api/dashboard/stats" $null $authH
-        Add-Result "admin" "dashboard" GET "$BaseAdmin/api/dashboard/stats" $r.status ($r.status -eq 200) $r.ms ""
-        $r = Invoke-Api POST "$BaseAdmin/api/logs/events/query" '{"page":1,"size":5}' $authH
-        Add-Result "admin" "logs-query" POST "$BaseAdmin/api/logs/events/query" $r.status ($r.status -eq 200) $r.ms ""
+        $r = Invoke-Api GET "$BaseAdmin/api/zestflow/auth/userinfo" $null $authH
+        Add-Result "admin" "userinfo" GET "$BaseAdmin/api/zestflow/auth/userinfo" $r.status ($r.status -eq 200) $r.ms ""
+        $r = Invoke-Api GET "$BaseAdmin/api/zestflow/dashboard/stats" $null $authH
+        Add-Result "admin" "dashboard" GET "$BaseAdmin/api/zestflow/dashboard/stats" $r.status ($r.status -eq 200) $r.ms ""
+        $r = Invoke-Api POST "$BaseAdmin/api/zestflow/logs/events/query" '{"page":1,"size":5}' $authH
+        Add-Result "admin" "logs-query" POST "$BaseAdmin/api/zestflow/logs/events/query" $r.status ($r.status -eq 200) $r.ms ""
     }
 }
 

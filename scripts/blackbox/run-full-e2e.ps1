@@ -128,7 +128,7 @@ function Invoke-Api($method, $url, $body, $headers, $timeoutSec = 30) {
 Write-Host "=== Full E2E ===" -ForegroundColor Cyan
 
 # --- Auth first (system/features requires JWT) ---
-$login = Invoke-Api POST "$BaseAdmin/api/auth/login" '{"username":"admin","password":"admin123"}' $null
+$login = Invoke-Api POST "$BaseAdmin/api/zestflow/auth/login" '{"username":"admin","password":"admin123"}' $null
 $token = $null
 if ($login.ok) { try { $token = (ConvertFrom-Json $login.body).data.token } catch {} }
 Add-F "auth" "login" ($null -ne $token) $login.status $login.ms ""
@@ -140,7 +140,7 @@ if (-not $token) {
 $h = @{ Authorization = "Bearer $token" }
 
 # --- Config probe (runtime) ---
-$feat = Invoke-Api GET "$BaseAdmin/api/system/features" $null $h
+$feat = Invoke-Api GET "$BaseAdmin/api/zestflow/system/features" $null $h
 $pgEnabled = $false
 $tenantMode = "single"
 $ipDemoMode = "disabled"
@@ -168,40 +168,40 @@ Add-C "runtime" "zestflow.mail.enabled" "see application-local.yml" "false=NoopM
 
 Add-F "config" "system-features" $feat.ok $feat.status $feat.ms "playground=$pgEnabled"
 
-$r = Invoke-Api GET "$BaseAdmin/api/auth/userinfo" $null $h
+$r = Invoke-Api GET "$BaseAdmin/api/zestflow/auth/userinfo" $null $h
 Add-F "auth" "userinfo" $r.ok $r.status $r.ms ""
 
-$r = Invoke-Api GET "$BaseAdmin/api/auth/tenants" $null $h
+$r = Invoke-Api GET "$BaseAdmin/api/zestflow/auth/tenants" $null $h
 $tenantCount = 0
 if ($r.ok) { try { $tenantCount = @((ConvertFrom-Json $r.body).data).Count } catch {} }
 Add-F "tenant" "list-my-tenants" $r.ok $r.status $r.ms "count=$tenantCount"
 
-$r = Invoke-Api GET "$BaseAdmin/api/tenants" $null $h
+$r = Invoke-Api GET "$BaseAdmin/api/zestflow/tenants" $null $h
 Add-F "tenant" "tenant-crud-list" $r.ok $r.status $r.ms ""
 
-$r = Invoke-Api POST "$BaseAdmin/api/auth/switch-tenant/1" $null $h
+$r = Invoke-Api POST "$BaseAdmin/api/zestflow/auth/switch-tenant/1" $null $h
 Add-F "tenant" "switch-tenant-1" $r.ok $r.status $r.ms ""
 
 # --- Core admin modules ---
 $modules = @(
-    @{ cat="admin"; name="dashboard"; url="$BaseAdmin/api/dashboard/stats" },
-    @{ cat="admin"; name="executors-apps"; url="$BaseAdmin/api/executors/apps" },
-    @{ cat="admin"; name="executors-list"; url="$BaseAdmin/api/executors" },
-    @{ cat="admin"; name="collectors"; url="$BaseAdmin/api/collectors" },
-    @{ cat="admin"; name="chains"; url="$BaseAdmin/api/chains?appCode=demo-app" + '&page=1&size=5' },
-    @{ cat="admin"; name="designs"; url="$BaseAdmin/api/designs?appCode=demo-app" + '&page=1&size=5' },
-    @{ cat="admin"; name="components"; url="$BaseAdmin/api/components?appCode=demo-app" },
-    @{ cat="admin"; name="schedules"; url="$BaseAdmin/api/schedules?page=1&size=5" },
-    @{ cat="admin"; name="users"; url="$BaseAdmin/api/users?page=1&size=5" },
-    @{ cat="admin"; name="roles"; url="$BaseAdmin/api/roles" },
-    @{ cat="admin"; name="dict-types"; url="$BaseAdmin/api/dict-types?page=1&size=5" }
+    @{ cat="admin"; name="dashboard"; url="$BaseAdmin/api/zestflow/dashboard/stats" },
+    @{ cat="admin"; name="executors-apps"; url="$BaseAdmin/api/zestflow/executors/apps" },
+    @{ cat="admin"; name="executors-list"; url="$BaseAdmin/api/zestflow/executors" },
+    @{ cat="admin"; name="collectors"; url="$BaseAdmin/api/zestflow/collectors" },
+    @{ cat="admin"; name="chains"; url="$BaseAdmin/api/zestflow/chains?appCode=demo-app" + '&page=1&size=5' },
+    @{ cat="admin"; name="designs"; url="$BaseAdmin/api/zestflow/designs?appCode=demo-app" + '&page=1&size=5' },
+    @{ cat="admin"; name="components"; url="$BaseAdmin/api/zestflow/components?appCode=demo-app" },
+    @{ cat="admin"; name="schedules"; url="$BaseAdmin/api/zestflow/schedules?page=1&size=5" },
+    @{ cat="admin"; name="users"; url="$BaseAdmin/api/zestflow/users?page=1&size=5" },
+    @{ cat="admin"; name="roles"; url="$BaseAdmin/api/zestflow/roles" },
+    @{ cat="admin"; name="dict-types"; url="$BaseAdmin/api/zestflow/dict-types?page=1&size=5" }
 )
 foreach ($m in $modules) {
     $r = Invoke-Api GET $m.url $null $h
     Add-F $m.cat $m.name $r.ok $r.status $r.ms ""
 }
 
-$r = Invoke-Api POST "$BaseAdmin/api/logs/events/query" '{"page":1,"size":5}' $h
+$r = Invoke-Api POST "$BaseAdmin/api/zestflow/logs/events/query" '{"page":1,"size":5}' $h
 Add-F "admin" "logs-events" $r.ok $r.status $r.ms ""
 
 $r = Invoke-Api GET "$BaseAdmin/actuator/health" $null $null 10
@@ -224,7 +224,7 @@ if ($healthOk) {
 }
 Add-F "admin" "actuator-zestFlowAdmin" ([bool]$healthOk) $(if ($healthOk) { 200 } else { $r.status }) $r.ms ""
 
-$r = Invoke-Api GET "$BaseAdmin/api/chains/active-codes?appCode=$($policyRaw.appCode)" $null $h
+$r = Invoke-Api GET "$BaseAdmin/api/zestflow/chains/active-codes?appCode=$($policyRaw.appCode)" $null $h
 Add-F "admin" "chains-active-codes" $r.ok $r.status $r.ms ""
 
 & "$PSScriptRoot\run-chain-publish-e2e.ps1" -BaseAdmin $BaseAdmin -AppCode $policyRaw.appCode
@@ -239,7 +239,7 @@ Add-F "admin" "chain-lifecycle-e2e" $chainLifeOk $(if ($chainLifeOk) { 200 } els
 $rbacOk = ($LASTEXITCODE -eq 0)
 Add-F "security" "rbac-horizontal-e2e" $rbacOk $(if ($rbacOk) { 200 } else { 403 }) 0 $(if ($LASTEXITCODE -eq 2) { "skipped" } else { "no-jwt-denied" })
 
-$r = Invoke-Api GET "$BaseAdmin/api/schedules?page=1&size=1" $null $h
+$r = Invoke-Api GET "$BaseAdmin/api/zestflow/schedules?page=1&size=1" $null $h
 $scheduleId = $null
 if ($r.ok) {
     try {
@@ -249,7 +249,7 @@ if ($r.ok) {
     } catch {}
 }
 if ($scheduleId) {
-    $r2 = Invoke-Api POST "$BaseAdmin/api/schedules/$scheduleId/trigger" $null $h 60
+    $r2 = Invoke-Api POST "$BaseAdmin/api/zestflow/schedules/$scheduleId/trigger" $null $h 60
     Add-F "admin" "schedule-trigger" $r2.ok $r2.status $r2.ms "id=$scheduleId"
 } else {
     Add-F "admin" "schedule-trigger" $true 0 0 "skipped-no-schedule"
@@ -266,7 +266,7 @@ Add-F "collector" "health" $r.ok $r.status $r.ms ""
 
 # --- Playground module ---
 if ($pgEnabled) {
-    $r = Invoke-Api GET "$BaseAdmin/api/playground/scenes/list-all" $null $h
+    $r = Invoke-Api GET "$BaseAdmin/api/zestflow/playground/scenes/list-all" $null $h
     $list = @()
     if ($r.ok) {
         try { $list = (ConvertFrom-Json $r.body).data } catch {}
@@ -292,7 +292,7 @@ if ($pgEnabled) {
         $to = if ($heavyCfg) { [Math]::Max($SceneTimeoutSec, $heavyTimeout) }
                elseif ($path -eq '/execute' -or $path.StartsWith('/api/') -or $path -match '/api/') { $SceneTimeoutSec }
                else { 30 }
-        $r = Invoke-Api POST "$BaseAdmin/api/playground/execute/$code" $body $h $to
+        $r = Invoke-Api POST "$BaseAdmin/api/zestflow/playground/execute/$code" $body $h $to
         $eval = Test-PlaygroundOk $r.body $path $code $partialGreenScenes
         $runOk = $r.ok -and $eval.ok
         $note = $eval.note
@@ -319,18 +319,18 @@ if ($pgEnabled) {
     $batchOk = ($requiredFail -eq 0)
     Add-F "playground" "all-scenes-batch" $batchOk 200 0 "profile=$profileName mode=$policyMode reqPass=$requiredPass reqFail=$requiredFail optSkip=$optionalSkipped heavySkip=$heavySkipped"
 } else {
-    $r = Invoke-Api GET "$BaseAdmin/api/playground/scenes/list-all" $null $h
+    $r = Invoke-Api GET "$BaseAdmin/api/zestflow/playground/scenes/list-all" $null $h
     Add-F "playground" "disabled-expect-404" ($r.status -eq 404) $r.status $r.ms "actual when playground.enabled=false"
 }
 
 # --- Security matrix ---
-$rNoJwt = Invoke-Api GET "$BaseAdmin/api/dashboard/stats" $null $null
+$rNoJwt = Invoke-Api GET "$BaseAdmin/api/zestflow/dashboard/stats" $null $null
 $badH = @{ Authorization = "Bearer invalid.token.here" }
-$rBadJwt = Invoke-Api GET "$BaseAdmin/api/dashboard/stats" $null $badH
+$rBadJwt = Invoke-Api GET "$BaseAdmin/api/zestflow/dashboard/stats" $null $badH
 $devOpenSec = ($rNoJwt.status -eq 200) -and ($rBadJwt.status -in 401,403)
 Add-F "security" "no-jwt" (($rNoJwt.status -in 401,403) -or $devOpenSec) $rNoJwt.status $rNoJwt.ms $(if ($devOpenSec) { "dev-open" } else { "" })
 
-$r = Invoke-Api POST "$BaseAdmin/api/registry/register" '{"executorId":"e2e-evil","host":"10.0.0.1","port":1,"moduleCode":"x","moduleName":"x"}' $null
+$r = Invoke-Api POST "$BaseAdmin/api/zestflow/registry/register" '{"executorId":"e2e-evil","host":"10.0.0.1","port":1,"moduleCode":"x","moduleName":"x"}' $null
 Add-F "security" "registry-no-token" ($r.status -ge 200 -and $r.status -lt 500) $r.status $r.ms "dev-open if token empty"
 
 Add-F "security" "bad-jwt-protected-api" ($rBadJwt.status -in 401,403) $rBadJwt.status $rBadJwt.ms "/api/auth/** is permitAll"

@@ -2,6 +2,7 @@ package com.zestflow.collector.jdbc.registry;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.zestflow.collector.http.ZestFlowHttpClient;
+import com.zestflow.common.constant.AdminApiPaths;
 import com.zestflow.common.constant.RegistryAuthConstants;
 import com.zestflow.common.model.Result;
 import com.zestflow.common.model.dto.HeartbeatDTO;
@@ -41,7 +42,7 @@ public class CollectorAdminClient {
         List<String> failures = new ArrayList<>();
         for (String adminUrl : adminList) {
             try {
-                String url = adminUrl + "/api/registry/collector/register";
+                String url = adminUrl + AdminApiPaths.of("/registry/collector/register");
                 Result<Void> result = httpClient.post(url, dto, buildHeaders(), RESULT_VOID_TYPE);
                 if (result != null && result.getCode() == 200) {
                     log.info("采集器注册成功 adminUrl={} collectorId={}", adminUrl, dto.getExecutorId());
@@ -59,7 +60,7 @@ public class CollectorAdminClient {
         log.error(RegistryRegisterDiagnostics.summarizeFailures(
                 "采集器", dto.getExecutorId(), properties.getAdminAddresses(),
                 "zestflow.collector.registry.admin-addresses", "zestflow.collector.registry-token",
-                "/api/registry/collector/register", String.join("; ", failures)));
+                AdminApiPaths.of("/registry/collector/register"), String.join("; ", failures)));
         return false;
     }
 
@@ -67,7 +68,7 @@ public class CollectorAdminClient {
         List<String> adminList = parseAddresses();
         for (String adminUrl : adminList) {
             try {
-                String url = adminUrl + "/api/registry/collector/heartbeat";
+                String url = adminUrl + AdminApiPaths.of("/registry/collector/heartbeat");
                 Result<Void> result = httpClient.post(url, dto, buildHeaders(), RESULT_VOID_TYPE);
                 if (result != null && result.getCode() == 200) {
                     return true;
@@ -84,7 +85,7 @@ public class CollectorAdminClient {
         boolean allSuccess = true;
         for (String adminUrl : adminList) {
             try {
-                String url = adminUrl + "/api/registry/collector/" + collectorId;
+                String url = adminUrl + AdminApiPaths.of("/registry/collector/" + collectorId);
                 Result<Void> result = httpClient.delete(url, buildHeaders(), RESULT_VOID_TYPE);
                 if (result == null || result.getCode() != 200) {
                     allSuccess = false;

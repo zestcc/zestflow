@@ -1,5 +1,6 @@
 package com.zestflow.admin.config;
 
+import com.zestflow.common.constant.AdminApiPaths;
 import com.zestflow.common.constant.RegistryAuthConstants;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -64,10 +65,10 @@ public class RegistryTokenFilter extends OncePerRequestFilter {
         String uri = request.getRequestURI();
         String method = request.getMethod();
 
-        if (HttpMethod.POST.matches(method) && "/api/chains/sync".equals(uri)) {
+        if (HttpMethod.POST.matches(method) && AdminApiPaths.of("/chains/sync").equals(uri)) {
             return true;
         }
-        if (!uri.startsWith("/api/registry/")) {
+        if (!uri.startsWith(AdminApiPaths.of("/registry/"))) {
             return false;
         }
         return HttpMethod.POST.matches(method) || HttpMethod.DELETE.matches(method);

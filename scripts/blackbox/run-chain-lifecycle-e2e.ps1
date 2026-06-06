@@ -1,4 +1,4 @@
-# 链全生命周期 E2E：创建设计 → 绑定链 → 发布 → Netty /execute
+# 链全生命周期 E2E：创建设�?�?绑定�?�?发布 �?Netty /execute
 param(
     [string]$BaseAdmin = "http://127.0.0.1:8080",
     [string]$BaseNetty = "http://127.0.0.1:20550",
@@ -37,7 +37,7 @@ function Get-Data($json) {
 
 Write-Host "=== Chain Lifecycle E2E ===" -ForegroundColor Cyan
 
-$login = Invoke-Api POST "$BaseAdmin/api/auth/login" '{"username":"admin","password":"admin123"}' $null
+$login = Invoke-Api POST "$BaseAdmin/api/zestflow/auth/login" '{"username":"admin","password":"admin123"}' $null
 if (-not $login.ok) {
     Write-Host "Login failed status=$($login.status)" -ForegroundColor Red
     if ($AllowSkip) { exit 2 }
@@ -71,7 +71,7 @@ $designBody = @{
     chainData = $chainDataJson
 } | ConvertTo-Json -Compress -Depth 8
 
-$designResp = Invoke-Api POST "$BaseAdmin/api/designs" $designBody $h
+$designResp = Invoke-Api POST "$BaseAdmin/api/zestflow/designs" $designBody $h
 if (-not $designResp.ok) {
     Write-Host "Create design failed status=$($designResp.status) body=$($designResp.body)" -ForegroundColor Red
     if ($AllowSkip) { exit 2 }
@@ -97,7 +97,7 @@ $chainBody = @{
     status = 2
 } | ConvertTo-Json -Compress
 
-$chainResp = Invoke-Api POST "$BaseAdmin/api/chains" $chainBody $h
+$chainResp = Invoke-Api POST "$BaseAdmin/api/zestflow/chains" $chainBody $h
 if (-not $chainResp.ok) {
     Write-Host "Create chain failed status=$($chainResp.status)" -ForegroundColor Red
     if ($AllowSkip) { exit 2 }
@@ -118,11 +118,11 @@ if (-not $chainCode) {
 Write-Host "Chain created: $chainCode"
 
 $bindBody = "{`"chainCode`":`"$chainCode`",`"appCode`":`"$AppCode`"}"
-$bindResp = Invoke-Api POST "$BaseAdmin/api/designs/$designCode/bindings?appCode=$AppCode" $bindBody $h
+$bindResp = Invoke-Api POST "$BaseAdmin/api/zestflow/designs/$designCode/bindings?appCode=$AppCode" $bindBody $h
 $bindOk = $bindResp.ok
 Write-Host "Bind design-chain status=$($bindResp.status) ok=$bindOk"
 
-$publish = Invoke-Api POST "$BaseAdmin/api/chains/$chainCode/publish?appCode=$AppCode" $null $h 120
+$publish = Invoke-Api POST "$BaseAdmin/api/zestflow/chains/$chainCode/publish?appCode=$AppCode" $null $h 120
 $publishOk = $false
 $success = 0; $total = 0
 if ($publish.ok) {
@@ -152,7 +152,7 @@ if ($execResp.ok) {
 Write-Host "Execute status=$($execResp.status) ok=$execOk"
 
 $activeOk = $false
-$activeResp = Invoke-Api GET "$BaseAdmin/api/chains/active-codes?appCode=$AppCode" $null $h
+$activeResp = Invoke-Api GET "$BaseAdmin/api/zestflow/chains/active-codes?appCode=$AppCode" $null $h
 if ($activeResp.ok) {
     try {
         $raw = ConvertFrom-Json $activeResp.body
@@ -164,8 +164,8 @@ if ($activeResp.ok) {
 }
 
 if (-not $SkipCleanup) {
-    Invoke-Api DELETE "$BaseAdmin/api/chains/$chainCode?appCode=$AppCode" $null $h | Out-Null
-    Invoke-Api DELETE "$BaseAdmin/api/designs/$designCode?appCode=$AppCode" $null $h | Out-Null
+    Invoke-Api DELETE "$BaseAdmin/api/zestflow/chains/$chainCode?appCode=$AppCode" $null $h | Out-Null
+    Invoke-Api DELETE "$BaseAdmin/api/zestflow/designs/$designCode?appCode=$AppCode" $null $h | Out-Null
 }
 
 $allOk = $bindOk -and $publishOk -and $execOk -and $activeOk

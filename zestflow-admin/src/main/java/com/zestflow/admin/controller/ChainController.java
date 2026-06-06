@@ -32,7 +32,7 @@ import java.util.UUID;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/chains")
+@RequestMapping("/chains")
 @RequiredArgsConstructor
 public class ChainController {
 

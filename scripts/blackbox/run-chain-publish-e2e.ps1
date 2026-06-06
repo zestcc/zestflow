@@ -1,4 +1,4 @@
-# 链发布 / active-codes / 可选回滚 — Layer B 黑盒（需 Admin + Executor 在线）
+# 链发�?/ active-codes / 可选回�?�?Layer B 黑盒（需 Admin + Executor 在线�?
 param(
     [string]$BaseAdmin = "http://127.0.0.1:8080",
     [string]$AppCode = "demo-app",
@@ -43,7 +43,7 @@ function Get-Data($json) {
 
 Write-Host "=== Chain Publish E2E ===" -ForegroundColor Cyan
 
-$login = Invoke-Api POST "$BaseAdmin/api/auth/login" '{"username":"admin","password":"admin123"}' $null
+$login = Invoke-Api POST "$BaseAdmin/api/zestflow/auth/login" '{"username":"admin","password":"admin123"}' $null
 if (-not $login.ok) {
     Write-Host "Login failed status=$($login.status)" -ForegroundColor Red
     if ($AllowSkip) { exit 2 }
@@ -58,7 +58,7 @@ if (-not $token) {
 }
 $h = @{ Authorization = "Bearer $token" }
 
-$list = Invoke-Api GET "$BaseAdmin/api/chains?appCode=$AppCode&page=1&size=50" $null $h
+$list = Invoke-Api GET "$BaseAdmin/api/zestflow/chains?appCode=$AppCode&page=1&size=50" $null $h
 if (-not $list.ok) {
     Write-Host "List chains failed status=$($list.status)" -ForegroundColor Red
     if ($AllowSkip) { exit 2 }
@@ -79,7 +79,7 @@ if (-not $candidate) {
 $chainCode = [string]$candidate.code
 Write-Host "Candidate chain: $chainCode status=$($candidate.status) design=$($candidate.designCode)"
 
-$activeBefore = Invoke-Api GET "$BaseAdmin/api/chains/active-codes?appCode=$AppCode" $null $h
+$activeBefore = Invoke-Api GET "$BaseAdmin/api/zestflow/chains/active-codes?appCode=$AppCode" $null $h
 $activeSet = @()
 if ($activeBefore.ok) {
     try {
@@ -89,7 +89,7 @@ if ($activeBefore.ok) {
     } catch {}
 }
 
-$publish = Invoke-Api POST "$BaseAdmin/api/chains/$chainCode/publish?appCode=$AppCode" $null $h 120
+$publish = Invoke-Api POST "$BaseAdmin/api/zestflow/chains/$chainCode/publish?appCode=$AppCode" $null $h 120
 if (-not $publish.ok) {
     Write-Host "Publish HTTP failed status=$($publish.status) body=$($publish.body)" -ForegroundColor Red
     if ($AllowSkip) { exit 2 }
@@ -111,7 +111,7 @@ $success = [int]$pubData.success
 $publishOk = ($total -gt 0) -and ($success -eq $total)
 Write-Host "Publish result success=$success total=$total publishId=$($pubData.publishId)"
 
-$activeAfter = Invoke-Api GET "$BaseAdmin/api/chains/active-codes?appCode=$AppCode" $null $h
+$activeAfter = Invoke-Api GET "$BaseAdmin/api/zestflow/chains/active-codes?appCode=$AppCode" $null $h
 $activeAfterSet = @()
 if ($activeAfter.ok) {
     try {
@@ -122,7 +122,7 @@ if ($activeAfter.ok) {
 }
 $activeOk = $activeAfterSet -contains $chainCode
 
-$detail = Invoke-Api GET "$BaseAdmin/api/chains/$chainCode?appCode=$AppCode" $null $h
+$detail = Invoke-Api GET "$BaseAdmin/api/zestflow/chains/$chainCode?appCode=$AppCode" $null $h
 $statusOk = $false
 if ($detail.ok) {
     try {
@@ -131,12 +131,12 @@ if ($detail.ok) {
         if ($node.PSObject.Properties['status'] -and [int]$node.status -eq 4) { $statusOk = $true }
     } catch {}
 }
-# 发布成功且 active-codes 已包含该链，视为已发布（对标 xxl-job 以运行态为准）
+# 发布成功�?active-codes 已包含该链，视为已发布（对标 xxl-job 以运行态为准）
 if (-not $statusOk -and $publishOk -and $activeOk) { $statusOk = $true }
 
 $rollbackOk = $true
 if (-not $SkipRollback) {
-    $versions = Invoke-Api GET "$BaseAdmin/api/chains/$chainCode/versions?appCode=$AppCode" $null $h
+    $versions = Invoke-Api GET "$BaseAdmin/api/zestflow/chains/$chainCode/versions?appCode=$AppCode" $null $h
     $targetVersion = $null
     if ($versions.ok) {
         try {
@@ -153,11 +153,11 @@ if (-not $SkipRollback) {
     }
     if ($null -ne $targetVersion) {
         $rbBody = "{`"appCode`":`"$AppCode`"}"
-        $rollback = Invoke-Api POST "$BaseAdmin/api/chains/$chainCode/rollback/$targetVersion" $rbBody $h 60
+        $rollback = Invoke-Api POST "$BaseAdmin/api/zestflow/chains/$chainCode/rollback/$targetVersion" $rbBody $h 60
         $rollbackOk = $rollback.ok
         Write-Host "Rollback to version $targetVersion status=$($rollback.status)"
         # 回滚后再次发布，恢复 demo 环境
-        $republish = Invoke-Api POST "$BaseAdmin/api/chains/$chainCode/publish?appCode=$AppCode" $null $h 120
+        $republish = Invoke-Api POST "$BaseAdmin/api/zestflow/chains/$chainCode/publish?appCode=$AppCode" $null $h 120
         if (-not $republish.ok) {
             Write-Host "Republish after rollback failed" -ForegroundColor Yellow
             $rollbackOk = $false

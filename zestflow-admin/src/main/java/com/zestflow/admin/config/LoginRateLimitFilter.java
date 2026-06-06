@@ -2,6 +2,7 @@ package com.zestflow.admin.config;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.zestflow.common.constant.AdminApiPaths;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -39,7 +40,7 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
 
         // 只拦截登录接口
-        if (!"/api/auth/login".equals(path) || !"POST".equalsIgnoreCase(request.getMethod())) {
+        if (!AdminApiPaths.of("/auth/login").equals(path) || !"POST".equalsIgnoreCase(request.getMethod())) {
             chain.doFilter(request, response);
             return;
         }

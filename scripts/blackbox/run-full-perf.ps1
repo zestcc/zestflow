@@ -1,4 +1,4 @@
-# 全盘压测 — Phase 2c 门禁 + 运行时 Playground/Netty 并发 + 75 步压力链
+# 全盘压测 �?Phase 2c 门禁 + 运行�?Playground/Netty 并发 + 75 步压力链
 param(
     [string]$JavaHome = $(if ($env:JAVA_HOME) { $env:JAVA_HOME } else { "D:\IT\JDK17\jdk-17.0.19+10" }),
     [string]$BaseAdmin = "http://127.0.0.1:8080",
@@ -26,7 +26,7 @@ function Add-Phase($name, $ok, $note, $metrics) {
     }) | Out-Null
     if (-not $ok) { $script:exitCode = 1 }
     $color = if ($ok) { 'Green' } else { 'Red' }
-    Write-Host ("[{0}] {1} — {2}" -f $(if ($ok) { 'PASS' } else { 'FAIL' }), $name, $note) -ForegroundColor $color
+    Write-Host ("[{0}] {1} �?{2}" -f $(if ($ok) { 'PASS' } else { 'FAIL' }), $name, $note) -ForegroundColor $color
 }
 
 function Get-Percentile($sorted, $p) {
@@ -70,7 +70,7 @@ function Invoke-Api($method, $url, $body, $headers, $timeoutSec = 120) {
 }
 
 function Measure-PlaygroundPerf($name, $sceneId, $body, $headers, $requests, $timeoutSec) {
-    $url = "$BaseAdmin/api/playground/execute/$sceneId"
+    $url = "$BaseAdmin/api/zestflow/playground/execute/$sceneId"
     $latencies = New-Object System.Collections.Generic.List[int]
     $success = 0
     $fail = 0
@@ -105,7 +105,7 @@ function Write-FullPerfReport {
         environment = @{ admin = $BaseAdmin; netty = $BaseNetty; collector = $BaseCollector }
         phases = $phases
         runtimePerformance = $runtimePerf
-        note = "全盘压测 = Maven perf + Netty 并发 + Playground Hello/75步; P-03 队列灌满 / P-04 多 Executor 需额外环境"
+        note = "全盘压测 = Maven perf + Netty 并发 + Playground Hello/75�? P-03 队列灌满 / P-04 �?Executor 需额外环境"
     }
     Set-Content -Path $ReportJson -Value ($report | ConvertTo-Json -Depth 8) -Encoding UTF8
     Write-Host "Full perf report: $ReportJson" -ForegroundColor Cyan
@@ -158,7 +158,7 @@ if ($nettyUp) {
 }
 
 $token = $null
-$login = Invoke-Api POST "$BaseAdmin/api/auth/login" '{"username":"admin","password":"admin123"}' $null 10
+$login = Invoke-Api POST "$BaseAdmin/api/zestflow/auth/login" '{"username":"admin","password":"admin123"}' $null 10
 if ($login.ok) {
     try { $token = (ConvertFrom-Json $login.body).data.token } catch {}
 }

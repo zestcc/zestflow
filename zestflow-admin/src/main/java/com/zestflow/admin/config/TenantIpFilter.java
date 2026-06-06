@@ -1,6 +1,7 @@
 package com.zestflow.admin.config;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.zestflow.common.constant.AdminApiPaths;
 import com.zestflow.admin.model.entity.TenantIpMappingPO;
 import com.zestflow.admin.repository.TenantIpMappingMapper;
 import com.zestflow.admin.tenant.TenantProvisioner;
@@ -49,7 +50,7 @@ public class TenantIpFilter extends OncePerRequestFilter {
         }
 
         String uri = request.getRequestURI();
-        if (uri != null && uri.startsWith("/api/auth/")) {
+        if (uri != null && uri.startsWith(AdminApiPaths.of("/auth/"))) {
             filterChain.doFilter(request, response);
             return;
         }

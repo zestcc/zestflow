@@ -2,6 +2,7 @@ package com.zestflow.executor.registry;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.zestflow.collector.http.ZestFlowHttpClient;
+import com.zestflow.common.constant.AdminApiPaths;
 import com.zestflow.common.constant.RegistryAuthConstants;
 import com.zestflow.common.model.Result;
 import com.zestflow.common.model.dto.ChainDefinitionDTO;
@@ -47,7 +48,7 @@ public class AdminClient {
         List<String> failures = new ArrayList<>();
         for (String adminUrl : adminList) {
             try {
-                String url = adminUrl + "/api/registry/register";
+                String url = adminUrl + AdminApiPaths.of("/registry/register");
                 Result<Void> result = httpClient.post(url, dto, buildHeaders(), RESULT_VOID_TYPE);
                 if (result != null && result.getCode() == 200) {
                     log.info("注册成功 adminUrl={} executorId={}", adminUrl, dto.getExecutorId());
@@ -65,7 +66,7 @@ public class AdminClient {
         log.error(RegistryRegisterDiagnostics.summarizeFailures(
                 "执行器", dto.getExecutorId(), properties.getAdminAddresses(),
                 "zestflow.executor.admin-addresses", "zestflow.executor.registry-token",
-                "/api/registry/register", String.join("; ", failures)));
+                AdminApiPaths.of("/registry/register"), String.join("; ", failures)));
         return false;
     }
 
@@ -73,7 +74,7 @@ public class AdminClient {
         List<String> adminList = parseAddresses();
         for (String adminUrl : adminList) {
             try {
-                String url = adminUrl + "/api/registry/heartbeat";
+                String url = adminUrl + AdminApiPaths.of("/registry/heartbeat");
                 Result<Void> result = httpClient.post(url, dto, buildHeaders(), RESULT_VOID_TYPE);
                 if (result != null && result.getCode() == 200) {
                     return true;
@@ -90,7 +91,7 @@ public class AdminClient {
         boolean allSuccess = true;
         for (String adminUrl : adminList) {
             try {
-                String url = adminUrl + "/api/registry/" + executorId;
+                String url = adminUrl + AdminApiPaths.of("/registry/" + executorId);
                 Result<Void> result = httpClient.delete(url, buildHeaders(), RESULT_VOID_TYPE);
                 if (result == null || result.getCode() != 200) {
                     allSuccess = false;
@@ -107,7 +108,7 @@ public class AdminClient {
         List<String> adminList = parseAddresses();
         for (String adminUrl : adminList) {
             try {
-                String url = adminUrl + "/api/chains/active-codes?appCode=" + appCode;
+                String url = adminUrl + AdminApiPaths.of("/chains/active-codes?appCode=" + appCode);
                 Result<List<String>> result = httpClient.get(url, buildHeaders(), RESULT_LIST_STRING_TYPE);
                 if (result != null && result.getCode() == 200 && result.getData() != null) {
                     return result.getData();
@@ -123,7 +124,7 @@ public class AdminClient {
         List<String> adminList = parseAddresses();
         for (String adminUrl : adminList) {
             try {
-                String url = adminUrl + "/api/chains/code/" + code;
+                String url = adminUrl + AdminApiPaths.of("/chains/code/" + code);
                 Result<ChainDefinitionDTO> result = httpClient.get(url, buildHeaders(), RESULT_CHAIN_DEF_TYPE);
                 if (result != null && result.getCode() == 200) {
                     return result.getData();
@@ -139,7 +140,7 @@ public class AdminClient {
         List<String> adminList = parseAddresses();
         for (String adminUrl : adminList) {
             try {
-                String url = adminUrl + "/api/chains/sync";
+                String url = adminUrl + AdminApiPaths.of("/chains/sync");
                 httpClient.post(url, sync, buildHeaders(), RESULT_VOID_TYPE);
                 return;
             } catch (Throwable e) {

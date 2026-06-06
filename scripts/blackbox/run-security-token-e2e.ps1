@@ -1,4 +1,4 @@
-# registry-token + executor-access-token 成对 E2E（需 security-e2e profile 重启 Admin + Executor）
+# registry-token + executor-access-token 成对 E2E（需 security-e2e profile 重启 Admin + Executor�?
 param(
     [string]$BaseAdmin = "http://127.0.0.1:8080",
     [string]$BaseNetty = "http://127.0.0.1:20550",
@@ -6,7 +6,7 @@ param(
     [string]$RegistryToken = "e2e-security-registry-token",
     [string]$ExecutorAccessToken = "e2e-security-executor-token",
     [string]$CollectorAccessToken = "e2e-security-collector-token",
-    [string]$RegistryPath = "/api/registry/executor/heartbeat",
+    [string]$RegistryPath = "/api/zestflow/registry/executor/heartbeat",
     [switch]$AllowSkip,
     [switch]$SkipExecutorTests
 )
@@ -30,13 +30,13 @@ function Invoke-Http($method, $url, $body, $headers, $timeoutSec = 20) {
 }
 
 function Get-SecurityFeatures {
-    $login = Invoke-Http POST "$BaseAdmin/api/auth/login" '{"username":"admin","password":"admin123"}' $null
+    $login = Invoke-Http POST "$BaseAdmin/api/zestflow/auth/login" '{"username":"admin","password":"admin123"}' $null
     if (-not $login.ok) { return $null }
     $token = $null
     try { $token = (ConvertFrom-Json $login.body).data.token } catch {}
     if (-not $token) { return $null }
     $h = @{ Authorization = "Bearer $token" }
-    $feat = Invoke-Http GET "$BaseAdmin/api/system/features" $null $h
+    $feat = Invoke-Http GET "$BaseAdmin/api/zestflow/system/features" $null $h
     if (-not $feat.ok) { return $null }
     try {
         return @{
@@ -67,8 +67,8 @@ if ($probe.json.security) {
 }
 
 if (-not $registryOn) {
-    Write-Host "registry-token 未开启（非 security-e2e profile）" -ForegroundColor Yellow
-    Write-Host "重启: Admin/Executor 加 -Dspring-boot.run.profiles=local,security-e2e" -ForegroundColor Yellow
+    Write-Host "registry-token 未开启（�?security-e2e profile�? -ForegroundColor Yellow
+    Write-Host "重启: Admin/Executor �?-Dspring-boot.run.profiles=local,security-e2e" -ForegroundColor Yellow
     if ($AllowSkip) { exit 2 }
     exit 1
 }
@@ -92,7 +92,7 @@ $registryOk = ($noReg -eq 401) -and ($badReg -eq 401) -and ($okReg -ge 200 -and 
 $executorOk = $true
 if (-not $SkipExecutorTests) {
     if (-not $executorTokenOn) {
-        Write-Host "executor-access-token 未在 Admin 配置，跳过 Netty 探测" -ForegroundColor Yellow
+        Write-Host "executor-access-token 未在 Admin 配置，跳�?Netty 探测" -ForegroundColor Yellow
         $executorOk = $false
     } else {
         function Invoke-Netty($path, $token) {
@@ -128,7 +128,7 @@ Write-Host "collector health=$($colHealth.status) no-token=$noCol wrong=$badCol 
 if ($noCol -eq 401 -and $badCol -eq 401 -and $okCol -ge 200 -and $okCol -lt 300) {
     $collectorOk = $true
 } elseif ($noCol -ge 200 -and $noCol -lt 300) {
-    Write-Host "Collector token 未开启（非 security-e2e profile）" -ForegroundColor Yellow
+    Write-Host "Collector token 未开启（�?security-e2e profile�? -ForegroundColor Yellow
     if ($AllowSkip) { $collectorOk = $true } else { $collectorOk = $false }
 } else {
     $collectorOk = $false

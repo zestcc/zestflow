@@ -1,0 +1,3 @@
+# ZestFlow Admin — 管理控制台，不对搜索引擎开放
+User-agent: *
+Disallow: /

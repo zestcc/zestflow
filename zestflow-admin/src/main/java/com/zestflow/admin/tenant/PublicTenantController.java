@@ -28,7 +28,7 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/public/tenants")
+@RequestMapping("/public/tenants")
 @RequiredArgsConstructor
 @ConditionalOnProperty(prefix = "zestflow.tenant", name = "public-provision-enabled", havingValue = "true")
 public class PublicTenantController {

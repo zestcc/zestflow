@@ -1,4 +1,4 @@
-# 多租户数据隔离 E2E（要求 Admin 已启用 enterprise-e2e profile：tenant.mode=multi）
+# 多租户数据隔�?E2E（要�?Admin 已启�?enterprise-e2e profile：tenant.mode=multi�?
 param(
     [string]$BaseAdmin = "http://127.0.0.1:8080",
     [switch]$AllowSkip
@@ -37,14 +37,14 @@ function Invoke-Api($method, $url, $body, $headers) {
 }
 
 function Get-SceneCodes($headers) {
-    $r = Invoke-Api GET "$BaseAdmin/api/playground/scenes/list-all?appCode=demo-app" $null $headers
+    $r = Invoke-Api GET "$BaseAdmin/api/zestflow/playground/scenes/list-all?appCode=demo-app" $null $headers
     if (-not $r.ok) { return @() }
     try { return @((ConvertFrom-Json $r.body).data | ForEach-Object { $_.sceneCode }) } catch { return @() }
 }
 
 Write-Host "=== Tenant Multi E2E ===" -ForegroundColor Cyan
 
-$login = Invoke-Api POST "$BaseAdmin/api/auth/login" '{"username":"admin","password":"admin123"}' $null
+$login = Invoke-Api POST "$BaseAdmin/api/zestflow/auth/login" '{"username":"admin","password":"admin123"}' $null
 $token = $null
 if ($login.ok) { try { $token = (ConvertFrom-Json $login.body).data.token } catch {} }
 if (-not $token) {
@@ -53,7 +53,7 @@ if (-not $token) {
 }
 $h = @{ Authorization = "Bearer $token" }
 
-$feat = Invoke-Api GET "$BaseAdmin/api/system/features" $null $h
+$feat = Invoke-Api GET "$BaseAdmin/api/zestflow/system/features" $null $h
 $mode = "unknown"
 if ($feat.ok) {
     try {
@@ -73,7 +73,7 @@ $codesT1 = Get-SceneCodes $h
 $hasBOnT1 = $codesT1 -contains 'SCN20260602000002'
 Add-Check "tenant1-no-tenant-b-scene" (-not $hasBOnT1) "tenant1 scenes=$($codesT1.Count) hasB=$hasBOnT1"
 
-$sw = Invoke-Api POST "$BaseAdmin/api/auth/switch-tenant/2" $null $h
+$sw = Invoke-Api POST "$BaseAdmin/api/zestflow/auth/switch-tenant/2" $null $h
 $token2 = $null
 if ($sw.ok) { try { $token2 = (ConvertFrom-Json $sw.body).data.token } catch {} }
 if (-not $token2) {

@@ -60,6 +60,22 @@ powershell -File scripts/deploy/package-admin.ps1
 | `zestflow_admin_{version}_win/` | Windows 目录（含 start-admin.bat） |
 | `zestflow_admin_{version}_win.zip` | Windows 压缩包 |
 
+**方式 B — 公网试玩包（Admin + Demo 同机，仅 Linux 目录）**
+
+```powershell
+cd zestflow-admin-ui && pnpm build
+mvn package -pl zestflow-admin,zestflow-demo -am -Pdemo-dist -DskipTests
+# 或
+powershell -File scripts/deploy/package-demo.ps1
+```
+
+| 路径 | 说明 |
+|------|------|
+| `zestflow_admin_demo_{version}_linux/` | Admin（profile=demo，试验场+IP试玩） |
+| `zestflow_demo_demo_{version}_linux/` | Demo（Executor+Collector，令牌与 Admin 成对） |
+
+同一 MySQL 实例上建 `zestflow_admin`、`zestflow_app_bussiness`、`zestflow_app_log`，两处 `application-demo.yml` 改同一 host/user/password。详见包内 `README.txt`。
+
 `config/` 内自动生成：`secret`、`registry-token`、`executor-access-token`、`collector.access-token`、`application-secrets.yml`、`bootstrap-admin.password`。
 
 默认数据库：`127.0.0.1` / `root` / `root`；邮件关闭；`SPRING_PROFILE=prod`。
@@ -109,20 +125,30 @@ java -jar zestflow-demo\target\zestflow-demo-0.1.0.jar --spring.profiles.active=
 
 ### 2.5 反向代理（Nginx 示例）
 
-```nginx
-server {
-    listen 443 ssl;
-    server_name flow.example.com;
-    # ssl_certificate ...
+Admin REST API 统一前缀 **`/api/zestflow`**（常量见 `AdminApiPaths`）。公网 Nginx 建议仅放行此前缀下的 API，其余 `/api/*` 扫描路径直接 404。
 
-    location / {
-        proxy_pass http://127.0.0.1:8080;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
+完整示例见 [deploy/nginx-zestflow.cn.example.conf](./deploy/nginx-zestflow.cn.example.conf)，核心片段：
+
+```nginx
+# 挡掉 /api/lottery 等扫描噪音
+location ~ ^/api/(?!zestflow/) {
+    return 404;
+}
+
+location /api/zestflow/ {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
+location / {
+    proxy_pass http://127.0.0.1:8080;
+    # ... 同上 header（SPA + 静态资源）
 }
 ```
+
+生产建议 **`server.address: 127.0.0.1`**，防火墙仅开放 80/443，不暴露 8080。
 
 Admin 配置：`zestflow.mail.base-url: https://flow.example.com`
 
@@ -160,7 +186,7 @@ powershell -File scripts/blackbox/run-security-token-e2e.ps1
 
 - [x] prod 启动守卫（代码强制）
 - [ ] 修改 bootstrap 管理员口令；首次登录若 `mustChangePassword=1` 须改密
-- [ ] 防火墙：仅 443/8080 对公网；20550/20650/8081 内网
+- [ ] 防火墙：仅 443/80 对公网；8080 仅 127.0.0.1；20550/20650/8081 内网
 - [ ] TLS 在反向代理层终止
 - [ ] MySQL 强口令 + 仅内网访问
 - [ ] 定期备份三库

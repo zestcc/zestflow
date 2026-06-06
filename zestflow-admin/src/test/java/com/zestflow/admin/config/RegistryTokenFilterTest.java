@@ -1,5 +1,6 @@
 package com.zestflow.admin.config;
 
+import com.zestflow.common.constant.AdminApiPaths;
 import com.zestflow.common.constant.RegistryAuthConstants;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,7 +36,7 @@ class RegistryTokenFilterTest {
     void rejectsMissingTokenWhenConfigured() throws Exception {
         ReflectionTestUtils.setField(filter, "registryToken", "secret");
         request.setMethod("POST");
-        request.setRequestURI("/api/registry/executor/heartbeat");
+        request.setRequestURI(AdminApiPaths.of("/registry/executor/heartbeat"));
 
         filter.doFilterInternal(request, response, filterChain);
 
@@ -46,7 +47,7 @@ class RegistryTokenFilterTest {
     void acceptsValidToken() throws Exception {
         ReflectionTestUtils.setField(filter, "registryToken", "secret");
         request.setMethod("POST");
-        request.setRequestURI("/api/registry/executor/heartbeat");
+        request.setRequestURI(AdminApiPaths.of("/registry/executor/heartbeat"));
         request.addHeader(RegistryAuthConstants.REGISTRY_TOKEN_HEADER, "secret");
 
         filter.doFilterInternal(request, response, filterChain);
@@ -58,7 +59,7 @@ class RegistryTokenFilterTest {
     void allowsOpenModeWhenTokenNotConfigured() throws Exception {
         ReflectionTestUtils.setField(filter, "registryToken", "");
         request.setMethod("POST");
-        request.setRequestURI("/api/registry/executor/heartbeat");
+        request.setRequestURI(AdminApiPaths.of("/registry/executor/heartbeat"));
 
         filter.doFilterInternal(request, response, filterChain);
 

@@ -1,4 +1,4 @@
-# ZestFlow 开源发布前企业级质量门禁（单元测试 + 黑盒 + 多租户/IP 可选层）
+# ZestFlow 开源发布前企业级质量门禁（单元测试 + 黑盒 + 多租�?IP 可选层�?
 param(
     [string]$JavaHome = $(if ($env:JAVA_HOME) { $env:JAVA_HOME } else { "D:\IT\JDK17\jdk-17.0.19+10" }),
     [switch]$SkipMavenTest,
@@ -22,7 +22,7 @@ function Add-Phase($name, $ok, $note) {
     $script:phases.Add([pscustomobject]@{ phase=$name; ok=$ok; note=$note }) | Out-Null
     if (-not $ok) { $script:exitCode = 1 }
     $color = if ($ok) { 'Green' } else { 'Red' }
-    Write-Host ("[{0}] {1} — {2}" -f $(if ($ok) { 'PASS' } else { 'FAIL' }), $name, $note) -ForegroundColor $color
+    Write-Host ("[{0}] {1} �?{2}" -f $(if ($ok) { 'PASS' } else { 'FAIL' }), $name, $note) -ForegroundColor $color
 }
 
 function Write-GateReport {
@@ -80,7 +80,7 @@ if ($SkipRuntimeE2e) {
 
 $adminUp = $false
 try {
-    $ping = Invoke-WebRequest -Uri "http://127.0.0.1:8080/api/auth/login" -Method POST `
+    $ping = Invoke-WebRequest -Uri "http://127.0.0.1:8080/api/zestflow/auth/login" -Method POST `
         -Body '{"username":"admin","password":"admin123"}' -ContentType "application/json" `
         -UseBasicParsing -TimeoutSec 5
     $adminUp = ($ping.StatusCode -eq 200)

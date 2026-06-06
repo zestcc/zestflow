@@ -9,7 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/registry")
+@RequestMapping("/registry")
 @RequiredArgsConstructor
 public class RegistryController {
 

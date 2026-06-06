@@ -1,4 +1,4 @@
-# IP 演示租户隔离 E2E（要求 enterprise-e2e：mode=multi + ip-demo-mode=enabled）
+# IP 演示租户隔离 E2E（要�?enterprise-e2e：mode=multi + ip-demo-mode=enabled�?
 param(
     [string]$BaseAdmin = "http://127.0.0.1:8080",
     [switch]$AllowSkip
@@ -37,21 +37,21 @@ function Invoke-Api($method, $url, $body, $headers) {
 }
 
 function Get-SceneCodes($headers) {
-    $r = Invoke-Api GET "$BaseAdmin/api/playground/scenes/list-all?appCode=demo-app" $null $headers
+    $r = Invoke-Api GET "$BaseAdmin/api/zestflow/playground/scenes/list-all?appCode=demo-app" $null $headers
     if (-not $r.ok) { return @() }
     try { return @((ConvertFrom-Json $r.body).data | ForEach-Object { $_.sceneCode }) } catch { return @() }
 }
 
 Write-Host "=== IP Demo Tenant E2E ===" -ForegroundColor Cyan
 
-$login = Invoke-Api POST "$BaseAdmin/api/auth/login" '{"username":"admin","password":"admin123"}' $null
+$login = Invoke-Api POST "$BaseAdmin/api/zestflow/auth/login" '{"username":"admin","password":"admin123"}' $null
 $token = $null
 if ($login.ok) { try { $token = (ConvertFrom-Json $login.body).data.token } catch {} }
 $hJwt = if ($token) { @{ Authorization = "Bearer $token" } } else { $null }
 
 $mode = "unknown"; $ipDemo = "unknown"
 if ($hJwt) {
-    $feat = Invoke-Api GET "$BaseAdmin/api/system/features" $null $hJwt
+    $feat = Invoke-Api GET "$BaseAdmin/api/zestflow/system/features" $null $hJwt
     if ($feat.ok) {
         try {
             $fj = ConvertFrom-Json $feat.body
@@ -81,7 +81,7 @@ Add-Check "ip-101-sees-tenant-b-scene" ($codesIpB -contains 'SCN20260602000002')
 Add-Check "ip-101-no-tenant1-only-bulk" ($codesIpB.Count -lt 35) "count=$($codesIpB.Count)"
 Add-Check "ip-102-no-tenant-b-scene" (-not ($codesIpA -contains 'SCN20260602000002')) "count=$($codesIpA.Count)"
 
-# 未预埋 IP — 首次访问应自动建租户并克隆母版场景（V1 provisioner）
+# 未预�?IP �?首次访问应自动建租户并克隆母版场景（V1 provisioner�?
 $randomIp = "10.99." + (Get-Random -Minimum 1 -Maximum 250) + "." + (Get-Random -Minimum 1 -Maximum 250)
 $hdrNew = @{ "X-Forwarded-For" = $randomIp }
 $codesNew = Get-SceneCodes $hdrNew

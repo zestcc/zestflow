@@ -1,8 +1,8 @@
-# 兼容入口 — 请优先使用 run-security-token-e2e.ps1
+# 兼容入口 �?请优先使�?run-security-token-e2e.ps1
 param(
     [string]$BaseAdmin = "http://127.0.0.1:8080",
     [string]$ValidToken = "",
-    [string]$RegistryPath = "/api/registry/executor/heartbeat",
+    [string]$RegistryPath = "/api/zestflow/registry/executor/heartbeat",
     [switch]$AllowSkip
 )
 

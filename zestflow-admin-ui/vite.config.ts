@@ -12,12 +12,12 @@ export default defineConfig({
   server: {
     port: 8001,
     proxy: {
-      '/api': {
+      '/api/zestflow': {
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
       '/uploads': {
-        target: 'http://localhost:8080/api',
+        target: 'http://localhost:8080',
         changeOrigin: true,
       },
     },

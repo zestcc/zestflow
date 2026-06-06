@@ -1,5 +1,6 @@
 package com.zestflow.admin.config;
 
+import com.zestflow.common.constant.AdminApiPaths;
 import com.zestflow.admin.model.entity.TenantIpMappingPO;
 import com.zestflow.admin.repository.TenantIpMappingMapper;
 import com.zestflow.admin.tenant.TenantProvisioner;
@@ -69,7 +70,7 @@ class TenantIpFilterTest {
     void enabled_skipsAuthPath() throws Exception {
         when(tenantModeConfig.getIpDemoMode()).thenReturn("enabled");
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setRequestURI("/api/auth/login");
+        request.setRequestURI(AdminApiPaths.of("/auth/login"));
         request.setRemoteAddr("127.0.0.1");
 
         filter.doFilter(request, new MockHttpServletResponse(), filterChain);

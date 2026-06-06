@@ -55,6 +55,12 @@ public class DefaultAdminInitializer implements ApplicationRunner {
                         .last("LIMIT 1")
         );
         if (existing != null) {
+            if (!prod && existing.getMustChangePassword() != null && existing.getMustChangePassword() == 1) {
+                existing.setMustChangePassword(0);
+                existing.setUpdatedAt(LocalDateTime.now());
+                userMapper.updateById(existing);
+                log.info("试玩环境已关闭强制改密 username={}", username);
+            }
             ensureDefaultTenantBindings(existing.getId());
             log.debug("默认管理员用户已存在 username={}", username);
             return;

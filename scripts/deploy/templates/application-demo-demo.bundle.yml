@@ -1,0 +1,79 @@
+# ============================================================
+# ZestFlow Demo（Executor + Collector）试玩包 — 与 Admin 同 MySQL 实例
+# ============================================================
+
+server:
+  port: 8081
+  address: 127.0.0.1
+
+spring:
+  application:
+    name: demo-app
+  config:
+    import: optional:application-secrets.yml
+  datasource:
+    url: jdbc:mysql://127.0.0.1:2882/zestflow_app_bussiness?useUnicode=true&characterEncoding=utf-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=true
+    username: root
+    password: "cxz1024zest#.p"
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 1
+    validate-on-migrate: false
+    clean-disabled: true
+
+zestflow:
+  executor:
+    port: 20550
+    execute-endpoint-enabled: false
+    chain-route-enabled: false
+    execute-response-mode: BODY
+    execute-failure-policy: PROPAGATE
+    admin-addresses: http://127.0.0.1:8080
+    timeout-ms: 5000
+    execute-pool-core-size: 8
+    execute-pool-max-size: 16
+    execute-pool-queue-capacity: 256
+    chain:
+      declaration-sync-enabled: true
+      declaration-delete-guard-enabled: true
+    datasource:
+      url: jdbc:mysql://127.0.0.1:2882/zestflow_app_bussiness?useUnicode=true&characterEncoding=utf-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=true
+      username: root
+      password: "cxz1024zest#.p"
+      driver-class-name: com.mysql.cj.jdbc.Driver
+    event:
+      async-enabled: true
+  playground:
+    scan-packages:
+      - com.zestflow.demo.controller
+    url: http://127.0.0.1:8081
+  collector:
+    async-enabled: false
+    datasource:
+      url: jdbc:mysql://127.0.0.1:2882/zestflow_app_log?useUnicode=true&characterEncoding=utf-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=true
+      username: root
+      password: "cxz1024zest#.p"
+      driver-class-name: com.mysql.cj.jdbc.Driver
+    registry:
+      port: 20650
+      admin-addresses: http://127.0.0.1:8080
+    disk-fallback-enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+
+logging:
+  level:
+    com.zestflow: info

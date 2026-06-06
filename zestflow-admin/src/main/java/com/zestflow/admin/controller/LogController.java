@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/logs")
+@RequestMapping("/logs")
 @RequiredArgsConstructor
 public class LogController {
 

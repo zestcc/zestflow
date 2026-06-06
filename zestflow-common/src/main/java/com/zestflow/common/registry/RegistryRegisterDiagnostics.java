@@ -1,5 +1,6 @@
 package com.zestflow.common.registry;
 
+import com.zestflow.common.constant.AdminApiPaths;
 import com.zestflow.common.model.Result;
 
 /**
@@ -15,7 +16,7 @@ public final class RegistryRegisterDiagnostics {
      */
     public static String describeResultFailure(Result<?> result) {
         if (result == null) {
-            return "Admin 响应为空（HTTP 有 body 但解析后为空，或 Nginx 未反代 /api/registry/*，或 Admin 未启动）";
+            return "Admin 响应为空（HTTP 有 body 但解析后为空，或 Nginx 未反代 " + AdminApiPaths.PREFIX + "/registry/*，或 Admin 未启动）";
         }
         if (result.getCode() == 200) {
             return null;
@@ -26,10 +27,11 @@ public final class RegistryRegisterDiagnostics {
         return switch (result.getCode()) {
             case 401 -> "Registry Token 无效或未配置：请对齐下游 registry-token 与 Admin 的 "
                     + "zestflow.admin.registry-token（生产环境必填，dev 可留空）: " + message;
-            case 403 -> "被拒绝（常见：Nginx 防盗链/仅放行 GET 静态资源，未反代 POST /api/registry）: "
+            case 403 -> "被拒绝（常见：Nginx 未放行 POST " + AdminApiPaths.PREFIX + "/registry）: "
                     + message;
             case 404 -> "接口不存在：admin-addresses 应指向 Admin 根地址（能 POST "
-                    + "/api/registry/register 或 /api/registry/collector/register），不是仅静态页: "
+                    + AdminApiPaths.of("/registry/register") + " 或 "
+                    + AdminApiPaths.of("/registry/collector/register") + "），不是仅静态页: "
                     + message;
             case 502, 503, 504 -> "Admin 不可达或 Nginx 反代 upstream 失败（HTTP " + result.getCode()
                     + "，检查 Admin:8080 是否存活）: " + message;
@@ -63,15 +65,15 @@ public final class RegistryRegisterDiagnostics {
             return hintTokenMismatch(root, registryTokenConfigured);
         }
         if (lower.contains("403")) {
-            return "HTTP 403（" + root + "）。浏览器能打开首页不代表 POST /api 可用；"
-                    + "请确认 Nginx 整站反代到 Admin:8080，勿单独 alias /assets 或 valid_referers 拦截";
+            return "HTTP 403（" + root + "）。浏览器能打开首页不代表 POST " + AdminApiPaths.PREFIX + " 可用；"
+                    + "请确认 Nginx 放行 " + AdminApiPaths.PREFIX + "/* 并反代到 Admin:8080";
         }
         if (lower.contains("404")) {
             return "HTTP 404（" + root + "），admin-addresses 可能不是 Admin API 根地址";
         }
         if (lower.contains("json") || lower.contains("unrecognized token") || lower.contains("<html")) {
             return "响应非 JSON（" + root + "），可能访问到了 Nginx/HTML 错误页而非 Admin API；"
-                    + "用 curl.exe -X POST .../api/registry/register 验证";
+                    + "用 curl.exe -X POST ..." + AdminApiPaths.of("/registry/register") + " 验证";
         }
         if (!registryTokenConfigured && (lower.contains("timeout") || lower.contains("timed out"))) {
             return "请求超时（" + root + "）。请检查网络；若 Admin 为 prod profile，"
@@ -102,7 +104,7 @@ public final class RegistryRegisterDiagnostics {
                 + " (2) 注册接口是否可达: curl.exe -X POST " + base + registerPath
                 + " -H Content-Type:application/json [-H X-Registry-Token:令牌] -d \"{...}\""
                 + " (3) " + registryTokenKey + " 与 Admin zestflow.admin.registry-token 是否一致"
-                + " (4) 同机部署优先用 http://127.0.0.1:8080，公网 UI 端口(如10063)须整站反代/api"
+                + " (4) 同机部署优先用 http://127.0.0.1:8080，公网经 Nginx 须放行 " + AdminApiPaths.PREFIX + "/*"
                 + " (5) 注册成功≠能执行链：Admin 还须能回连执行器 Netty(host:port)，本机内网 IP 公网 Admin 无法访问";
     }
 

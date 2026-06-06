@@ -15,6 +15,7 @@ public interface ErrorCode {
     // Common
     String VALIDATION_ERROR = "VALIDATION_ERROR";
     String SERVER_ERROR = "SERVER_ERROR";
+    String NOT_FOUND = "NOT_FOUND";
 
     // Application
     String MODULE_CODE_EXISTS = "MODULE_CODE_EXISTS";

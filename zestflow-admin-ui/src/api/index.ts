@@ -15,7 +15,7 @@ interface HttpClient {
 }
 
 const instance: AxiosInstance = axios.create({
-  baseURL: '/api',
+  baseURL: '/api/zestflow',
   timeout: 30000,
 })
 

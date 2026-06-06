@@ -1,4 +1,4 @@
-# playground.enabled=false 验收 — 需 Admin profiles=local,playground-disabled-e2e
+# playground.enabled=false 验收 �?需 Admin profiles=local,playground-disabled-e2e
 param(
     [string]$BaseAdmin = "http://127.0.0.1:8080",
     [switch]$AllowSkip
@@ -22,7 +22,7 @@ function Invoke-Api($method, $url, $body, $headers) {
 
 Write-Host "=== Playground Disabled E2E ===" -ForegroundColor Cyan
 
-$login = Invoke-Api POST "$BaseAdmin/api/auth/login" '{"username":"admin","password":"admin123"}' $null
+$login = Invoke-Api POST "$BaseAdmin/api/zestflow/auth/login" '{"username":"admin","password":"admin123"}' $null
 if (-not $login.ok) {
     Write-Host "Login failed" -ForegroundColor Red
     if ($AllowSkip) { exit 2 }
@@ -31,7 +31,7 @@ if (-not $login.ok) {
 $token = (ConvertFrom-Json $login.body).data.token
 $h = @{ Authorization = "Bearer $token" }
 
-$feat = Invoke-Api GET "$BaseAdmin/api/system/features" $null $h
+$feat = Invoke-Api GET "$BaseAdmin/api/zestflow/system/features" $null $h
 $pgEnabled = $true
 if ($feat.ok) {
     try {
@@ -46,8 +46,8 @@ if ($pgEnabled) {
     exit 1
 }
 
-$list = Invoke-Api GET "$BaseAdmin/api/playground/scenes/list-all?appCode=demo-app" $null $h
-$exec = Invoke-Api POST "$BaseAdmin/api/playground/execute/SCN20260601000001" '{}' $h
+$list = Invoke-Api GET "$BaseAdmin/api/zestflow/playground/scenes/list-all?appCode=demo-app" $null $h
+$exec = Invoke-Api POST "$BaseAdmin/api/zestflow/playground/execute/SCN20260601000001" '{}' $h
 
 $list404 = ($list.status -eq 404)
 $exec404 = ($exec.status -eq 404)

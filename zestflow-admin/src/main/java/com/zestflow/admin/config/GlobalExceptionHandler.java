@@ -16,6 +16,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @Slf4j
 @RestControllerAdvice
@@ -58,6 +59,16 @@ public class GlobalExceptionHandler {
     public Result<Void> handleBaseException(BaseException e, HttpServletRequest request) {
         log.error("系统异常 code={} uri={}", e.getCode(), request.getRequestURI(), e);
         return Result.fail(e.getCode(), ErrorCode.SERVER_ERROR, resolveMessage(ErrorCode.SERVER_ERROR, null, e.getMessage()));
+    }
+
+    /** 静态资源不存在（爬虫/浏览器探测路径），404 即可，勿打 ERROR 堆栈 */
+    @ExceptionHandler(NoResourceFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Result<Void> handleNoResourceFound(NoResourceFoundException e, HttpServletRequest request) {
+        if (log.isDebugEnabled()) {
+            log.debug("静态资源不存在 uri={}", request.getRequestURI());
+        }
+        return Result.fail(404, ErrorCode.NOT_FOUND, "Not Found");
     }
 
     @ExceptionHandler(Exception.class)

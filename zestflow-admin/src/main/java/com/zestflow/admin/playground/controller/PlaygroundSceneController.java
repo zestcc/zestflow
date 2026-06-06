@@ -26,7 +26,7 @@ import java.util.*;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/playground/scenes")
+@RequestMapping("/playground/scenes")
 @ConditionalOnProperty(prefix = "zestflow.playground", name = "enabled", havingValue = "true", matchIfMissing = false)
 @RequiredArgsConstructor
 public class PlaygroundSceneController {

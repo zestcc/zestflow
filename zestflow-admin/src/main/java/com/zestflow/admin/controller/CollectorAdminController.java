@@ -13,7 +13,7 @@ import java.util.Map;
  * Admin UI 采集器管理端点
  */
 @RestController
-@RequestMapping("/api/collectors")
+@RequestMapping("/collectors")
 @RequiredArgsConstructor
 public class CollectorAdminController {
 
