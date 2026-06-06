@@ -1,7 +1,5 @@
 <template>
   <div class="dashboard">
-    <h2>{{ $t('dashboard.title') }}</h2>
-
     <el-alert v-if="features?.admin" type="info" :closable="false" class="runtime-banner" show-icon>
       <template #title>{{ $t('dashboard.runtimeTitle') }}</template>
       <div class="runtime-tags">
@@ -253,12 +251,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.dashboard h2 {
-  margin: 0 0 24px;
-  font-size: 22px;
-  color: #303133;
-}
-
 .runtime-banner {
   margin-bottom: 20px;
 }
@@ -307,11 +299,6 @@ onMounted(() => {
 }
 
 @media (max-width: 767px) {
-  .dashboard h2 {
-    font-size: 18px;
-    margin-bottom: 16px;
-  }
-
   .section-title {
     margin: 16px 0 12px;
     font-size: 14px;

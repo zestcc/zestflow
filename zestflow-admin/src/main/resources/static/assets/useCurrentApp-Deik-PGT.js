@@ -1,0 +1,1 @@
+import{bb as n,H as s}from"./index-NNLnyQbO.js";function C(){const e=n(),r=s({get:()=>e.currentAppCode,set:p=>e.setCurrentAppCode(p)});function t(p,o){return e.syncAppCode(p,o)}return{currentAppCode:r,syncFromApps:t,setCurrentAppCode:e.setCurrentAppCode}}export{C as u};
