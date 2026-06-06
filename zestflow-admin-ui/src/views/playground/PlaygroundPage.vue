@@ -1,5 +1,5 @@
 <template>
-  <div class="playground-container">
+  <div class="playground-container" :class="{ 'playground-container--mobile': isMobileView, 'playground-container--tablet': isTabletView }">
     <!-- 顶栏 -->
     <div class="pg-header">
       <div class="pg-header-left">
@@ -9,10 +9,23 @@
       <el-tag type="warning" size="small" effect="plain">{{ $t('playground.playground.modeTag') }}</el-tag>
     </div>
 
+    <div v-if="isMobileView" class="pg-mobile-tabs">
+      <el-button
+        size="small"
+        :type="mobilePanel === 'history' ? 'primary' : 'default'"
+        @click="mobilePanel = 'history'"
+      >{{ $t('playground.playground.history') }}</el-button>
+      <el-button
+        size="small"
+        :type="mobilePanel === 'workspace' ? 'primary' : 'default'"
+        @click="mobilePanel = 'workspace'"
+      >{{ $t('playground.playground.debugPanel') }}</el-button>
+    </div>
+
     <!-- 主内容区 -->
     <div class="pg-body">
       <!-- 左栏：历史记录 -->
-      <div class="pg-history">
+      <div v-show="!isMobileView || mobilePanel === 'history'" class="pg-history">
         <div class="pg-panel-title">
           <span>{{ $t('playground.playground.history') }}</span>
           <el-tag size="small" type="info">{{ totalHistory }}</el-tag>
@@ -55,7 +68,7 @@
       </div>
 
       <!-- 右栏：请求 + 响应 -->
-      <div class="pg-workspace">
+      <div v-show="!isMobileView || mobilePanel === 'workspace'" class="pg-workspace">
         <!-- 请求区 -->
         <div class="pg-section">
           <div class="pg-panel-title">{{ $t('playground.playground.request') }}</div>
@@ -65,7 +78,7 @@
             <el-select
               v-model="currentAppCode"
               filterable
-              style="width:160px"
+              class="pg-app-select"
               placeholder="选择应用"
               @change="handleAppChange"
             >
@@ -177,17 +190,19 @@
             <el-button
               type="primary"
               :icon="VideoPlay"
-              size="large"
+              :size="isMobileView ? 'default' : 'large'"
               :loading="executing"
               :disabled="!selectedSceneCode"
+              class="pg-action-btn"
               @click="handleExecute"
             >
               {{ $t('playground.playground.execute') }}
             </el-button>
             <el-button
               :icon="Refresh"
-              size="large"
+              :size="isMobileView ? 'default' : 'large'"
               :disabled="!selectedHistoryId"
+              class="pg-action-btn"
               @click="loadHistoryToForm"
             >
               {{ $t('playground.playground.retry') }}
@@ -273,7 +288,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElNotification } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -293,6 +308,27 @@ import { useCurrentApp } from '@/composables/useCurrentApp'
 const { t } = useI18n()
 const router = useRouter()
 const { currentAppCode, syncFromApps } = useCurrentApp()
+
+const TABLET_BREAKPOINT = 768
+const COMPACT_BREAKPOINT = 1024
+const isMobileView = ref(false)
+const isTabletView = ref(false)
+const mobilePanel = ref<'history' | 'workspace'>('workspace')
+
+function checkViewport() {
+  const width = window.innerWidth
+  isMobileView.value = width < TABLET_BREAKPOINT
+  isTabletView.value = width >= TABLET_BREAKPOINT && width < COMPACT_BREAKPOINT
+  if (!isMobileView.value) {
+    mobilePanel.value = 'workspace'
+  }
+}
+
+function showWorkspaceOnMobile() {
+  if (isMobileView.value) {
+    mobilePanel.value = 'workspace'
+  }
+}
 
 // === 场景 ===
 const scenes = ref<PlaygroundSceneVO[]>([])
@@ -427,6 +463,7 @@ async function handleExecute() {
     lastResult.value = res
     notifyExecuteResult(res)
     await loadHistory()
+    showWorkspaceOnMobile()
   } catch (e: any) {
     executeError.value = e.message || t('common.networkError')
     ElMessage.error(executeError.value)
@@ -575,6 +612,7 @@ async function loadHistoryDetail(item: PlaygroundRecordVO) {
   } catch {
     historyDetail.value = item
   }
+  showWorkspaceOnMobile()
 }
 
 function loadHistoryToForm() {
@@ -615,6 +653,7 @@ function loadHistoryToForm() {
   }
 
   ElMessage.success(t('playground.playground.loadedToForm'))
+  showWorkspaceOnMobile()
 }
 
 // === 工具 ===
@@ -636,9 +675,15 @@ function prettyPrintJson(str: string | null | undefined): string {
 
 // === 初始化 ===
 onMounted(async () => {
+  checkViewport()
+  window.addEventListener('resize', checkViewport)
   await loadApps()
   await loadScenes()
   await loadHistory()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkViewport)
 })
 </script>
 
@@ -757,6 +802,7 @@ onMounted(async () => {
   margin-bottom: 8px;
 }
 .pg-scene-select { width: 220px; }
+.pg-app-select { width: 160px; }
 .scene-option { display: flex; flex-direction: column; }
 .scene-option-desc { font-size: 11px; color: #909399; }
 .pg-method-tag { font-weight: 700; font-family: monospace; }
@@ -827,7 +873,166 @@ onMounted(async () => {
 .pg-detail-item span { font-size: 13px; }
 .pg-detail-json { margin: 4px 0 0; font-family: monospace; font-size: 12px; background: #f5f7fa; padding: 6px 8px; border-radius: 4px; white-space: pre-wrap; }
 
+.pg-mobile-tabs {
+  display: none;
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .playground-container--tablet {
+    height: calc(100vh - 108px);
+    height: calc(100dvh - 108px);
+  }
+
+  .playground-container--tablet .pg-history {
+    width: 220px;
+    min-width: 200px;
+  }
+
+  .playground-container--tablet .pg-section {
+    padding: 12px;
+  }
+
+  .playground-container--tablet .pg-url-bar {
+    flex-wrap: wrap;
+  }
+
+  .playground-container--tablet .pg-app-select {
+    width: 140px;
+  }
+
+  .playground-container--tablet .pg-scene-select {
+    width: 180px;
+  }
+
+  .playground-container--tablet .pg-url-display {
+    flex: 1 1 100%;
+    white-space: normal;
+    word-break: break-all;
+  }
+}
+
 @media (max-width: 767px) {
+  .playground-container--mobile {
+    height: calc(100vh - 52px);
+    height: calc(100dvh - 52px);
+    margin: 0 -12px;
+    width: calc(100% + 24px);
+    gap: 8px;
+  }
+
+  .pg-mobile-tabs {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .pg-mobile-tabs .el-button {
+    flex: 1;
+    margin: 0;
+  }
+
+  .playground-container--mobile .pg-header {
+    padding: 0 12px;
+  }
+
+  .playground-container--mobile .pg-header-left h2 {
+    font-size: 16px;
+  }
+
+  .playground-container--mobile .pg-body {
+    flex-direction: column;
+    min-height: 0;
+    padding: 0 12px 12px;
+  }
+
+  .playground-container--mobile .pg-history,
+  .playground-container--mobile .pg-workspace {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+  }
+
+  .playground-container--mobile .pg-history {
+    min-width: 0;
+  }
+
+  .playground-container--mobile .pg-section {
+    padding: 12px;
+  }
+
+  .playground-container--mobile .pg-url-bar {
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  .playground-container--mobile .pg-app-select,
+  .playground-container--mobile .pg-scene-select {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .playground-container--mobile .pg-method-tag {
+    flex-shrink: 0;
+  }
+
+  .playground-container--mobile .pg-url-display {
+    flex: 1 1 100%;
+    white-space: normal;
+    word-break: break-all;
+  }
+
+  .playground-container--mobile .pg-scene-desc {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .playground-container--mobile .pg-block-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .playground-container--mobile .pg-header-row,
+  .playground-container--mobile .pg-form-row {
+    flex-wrap: wrap;
+  }
+
+  .playground-container--mobile .pg-header-key,
+  .playground-container--mobile .pg-form-key,
+  .playground-container--mobile .pg-header-value,
+  .playground-container--mobile .pg-form-value {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .playground-container--mobile .pg-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .playground-container--mobile .pg-action-btn {
+    width: 100%;
+    margin: 0;
+  }
+
+  .playground-container--mobile .pg-response-summary {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .playground-container--mobile .pg-response-actions {
+    flex-wrap: wrap;
+  }
+
+  .playground-container--mobile .pg-response-actions .el-button {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
+    margin: 0;
+  }
+
+  .playground-container--mobile .pg-response-body {
+    max-height: 40vh;
+  }
+
   .pg-detail-grid {
     grid-template-columns: 1fr;
   }

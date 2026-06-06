@@ -128,6 +128,7 @@
           'node-palette--compact': isCompactEditor,
           'node-palette--tablet': isTabletEditor,
           'node-palette--sheet-open': isCompactEditor && nodeSheetOpen,
+          'node-palette--touch': isTouchPalette,
         }"
       >
         <div class="palette-header">
@@ -144,11 +145,12 @@
               :class="{ 'palette-item--pending': pendingPlaceNode?.type === nt.type }"
               :draggable="!isTouchPalette"
               @dragstart="onDragStart($event, nt)"
-              @click="onPaletteItemTap(nt)"
+              @click="!isTouchPalette && onPaletteItemTap(nt)"
+              @touchend.prevent="isTouchPalette && onPaletteItemTouchEnd($event, nt)"
           >
             <div class="palette-icon" :style="{ background: nt.color }" v-html="nt.icon" />
             <div class="palette-label">{{ typeLabel(nt.type) }}</div>
-            <span v-if="isTouchPalette && isCompactEditor" class="palette-tap-hint">{{ $t('design.tapToAdd') }}</span>
+            <span v-if="isTouchPalette" class="palette-tap-hint">{{ $t('design.tapToAdd') }}</span>
           </div>
         </div>
       </div>
@@ -156,13 +158,13 @@
       <!-- 中间画布 -->
       <div
         class="canvas-area"
-        :class="{ 'canvas-area--placing': !!pendingPlaceNode }"
+        :class="{ 'canvas-area--placing': !!pendingPlaceNode, 'canvas-area--touch': isOverlayEditor }"
         ref="canvasContainerRef"
         @dragover.prevent="onDragOver"
         @drop.prevent="onDrop"
       >
         <div ref="graphContainerRef" class="graph-container" />
-        <div ref="minimapContainerRef" class="minimap-container" />
+        <div v-if="!isOverlayEditor" ref="minimapContainerRef" class="minimap-container" />
         <!-- 连线端点拖拽手柄 -->
         <div
             v-for="ep in endpointHandles" :key="ep.side"
@@ -175,10 +177,23 @@
           <span>{{ $t('design.tapCanvasToPlace', { label: typeLabel(pendingPlaceNode.type) }) }}</span>
           <el-button size="small" text @click="cancelPlaceMode">{{ $t('design.cancelPlace') }}</el-button>
         </div>
-        <!-- 触摸端浮动操作（手机：节点+属性；平板：仅属性） -->
-        <div v-if="isOverlayEditor" class="canvas-fab-bar" :class="{ 'canvas-fab-bar--tablet': isTabletEditor }">
+        <!-- 触摸端选中操作条 -->
+        <div
+          v-if="isOverlayEditor && selectedCount > 0 && !pendingPlaceNode"
+          class="selection-action-bar"
+        >
+          <span class="selection-action-bar__count">{{ $t('design.selected') }} {{ selectedCount }}</span>
+          <el-button type="danger" round size="small" @click="handleDeleteSelected">
+            <el-icon><Delete /></el-icon>
+            {{ deleteSelectionLabel }}
+          </el-button>
+          <el-button round size="small" @click="clearGraphSelection">
+            {{ $t('design.deselect') }}
+          </el-button>
+        </div>
+        <!-- 触摸端浮动操作（手机：节点+属性） -->
+        <div v-if="isCompactEditor" class="canvas-fab-bar">
           <el-button
-            v-if="isCompactEditor"
             round
             type="primary"
             :class="{ 'fab-btn--active': nodeSheetOpen }"
@@ -198,12 +213,24 @@
         </div>
       </div>
 
-      <!-- 属性面板（桌面内联；手机/平板为底部抽屉） -->
+      <button
+        v-if="!isPropertyOverlay && propertyPanelCollapsed"
+        type="button"
+        class="property-panel-expand"
+        :title="$t('design.expandProperties')"
+        @click="togglePropertyPanelCollapse"
+      >
+        <el-icon><DArrowLeft /></el-icon>
+        <span>{{ $t('design.properties') }}</span>
+      </button>
+
+      <!-- 属性面板（桌面/平板内联可收起；手机底部抽屉） -->
       <div
         class="property-panel"
         :class="{
-          'property-panel--overlay': isOverlayEditor,
-          'property-panel--sheet-open': isOverlayEditor && propertySheetOpen,
+          'property-panel--overlay': isPropertyOverlay,
+          'property-panel--sheet-open': isPropertyOverlay && propertySheetOpen,
+          'property-panel--collapsed': !isPropertyOverlay && propertyPanelCollapsed,
         }"
       >
         <div class="panel-header">
@@ -216,8 +243,17 @@
               {{ $t('design.bindComponent') }}
             </el-button>
           </span>
-          <el-button v-if="isOverlayEditor" text size="small" @click="propertySheetOpen = false">
+          <el-button v-if="isPropertyOverlay" text size="small" @click="propertySheetOpen = false">
             <el-icon><Close /></el-icon>
+          </el-button>
+          <el-button
+            v-else
+            text
+            size="small"
+            :title="propertyPanelCollapsed ? $t('design.expandProperties') : $t('design.collapseProperties')"
+            @click="togglePropertyPanelCollapse"
+          >
+            <el-icon><DArrowRight v-if="!propertyPanelCollapsed" /><DArrowLeft v-else /></el-icon>
           </el-button>
         </div>
         <!-- 节点属性 -->
@@ -360,6 +396,11 @@
               </el-form-item>
             </template>
           </el-form>
+          <div class="panel-actions">
+            <el-button type="danger" plain style="width:100%" @click="handleDeleteSelected">
+              <el-icon><Delete /></el-icon> {{ $t('design.deleteNode') }}
+            </el-button>
+          </div>
         </div>
         <!-- 连线属性 -->
         <div v-else-if="selectedEdgeData" class="panel-body">
@@ -378,6 +419,11 @@
               </el-radio-group>
             </el-form-item>
           </el-form>
+          <div class="panel-actions">
+            <el-button type="danger" plain style="width:100%" @click="handleDeleteSelected">
+              <el-icon><Delete /></el-icon> {{ $t('design.deleteEdge') }}
+            </el-button>
+          </div>
         </div>
         <div v-else class="panel-body">
           <div class="panel-header" style="margin-bottom:12px">{{ $t('design.chainSettings') }}</div>
@@ -396,7 +442,7 @@
       </div>
 
       <div
-        v-if="isOverlayEditor && ((isCompactEditor && nodeSheetOpen) || propertySheetOpen)"
+        v-if="isPropertyOverlay && ((isCompactEditor && nodeSheetOpen) || propertySheetOpen)"
         class="editor-sheet-backdrop"
         @click="closeCompactSheets"
       />
@@ -637,7 +683,7 @@ import {
   CopyDocument, DocumentAdd,
   ZoomIn, ZoomOut, FullScreen, ScaleToOriginal,
   Delete, Select, Edit, Picture,
-  ArrowRight, ArrowDown, Sort, Rank, Plus, Setting, Close,
+  ArrowRight, ArrowDown, Sort, Rank, Plus, Setting, Close, DArrowRight, DArrowLeft,
 } from '@element-plus/icons-vue'
 
 const { t } = useI18n()
@@ -701,7 +747,15 @@ const pendingPlaceNode = ref<{ type: string; label: string } | null>(null)
 let draggingEp: { side: 'source' | 'target' } | null = null
 
 const isOverlayEditor = computed(() => isCompactEditor.value || isTabletEditor.value)
+const isPropertyOverlay = computed(() => isCompactEditor.value)
 const isTouchPalette = computed(() => isOverlayEditor.value)
+const propertyPanelCollapsed = ref(false)
+const deleteSelectionLabel = computed(() => {
+  if (selectedCount.value > 1) return t('design.deleteSelection', { count: selectedCount.value })
+  if (selectedEdgeData.value) return t('design.deleteEdge')
+  if (selectedNodeData.value) return t('design.deleteNode')
+  return t('design.deleteSelection', { count: selectedCount.value })
+})
 
 function checkViewport() {
   const width = window.innerWidth
@@ -715,6 +769,7 @@ function checkViewport() {
   }
   isCompactEditor.value = nextCompact
   isTabletEditor.value = nextTablet
+  applyTouchGraphInteraction()
 }
 
 function toggleNodeSheet() {
@@ -725,6 +780,14 @@ function toggleNodeSheet() {
 function togglePropertySheet() {
   nodeSheetOpen.value = false
   propertySheetOpen.value = !propertySheetOpen.value
+}
+
+function togglePropertyPanelCollapse() {
+  if (isPropertyOverlay.value) {
+    propertySheetOpen.value = !propertySheetOpen.value
+    return
+  }
+  propertyPanelCollapsed.value = !propertyPanelCollapsed.value
 }
 
 function closeCompactSheets() {
@@ -743,10 +806,18 @@ function onPaletteItemTap(nt: typeof nodeTypes[0]) {
   ElMessage.info(t('design.tapToPlace'))
 }
 
+function onPaletteItemTouchEnd(e: TouchEvent, nt: typeof nodeTypes[0]) {
+  if (!isTouchPalette.value) return
+  e.preventDefault()
+  onPaletteItemTap(nt)
+}
+
 watch([selectedNodeData, selectedEdgeData], ([node, edge]) => {
-  if (isOverlayEditor.value && (node || edge)) {
+  if (isPropertyOverlay.value && (node || edge)) {
     if (isCompactEditor.value) nodeSheetOpen.value = false
     propertySheetOpen.value = true
+  } else if ((node || edge) && propertyPanelCollapsed.value) {
+    propertyPanelCollapsed.value = false
   }
 })
 
@@ -841,6 +912,16 @@ const inlineInputRef = ref<any>(null)
 
 let graph: Graph | null = null
 let resizeObserver: ResizeObserver | null = null
+let touchPinchCleanup: (() => void) | null = null
+let touchLongPressCleanup: (() => void) | null = null
+
+const EDGE_HIT_WRAP_ATTRS = {
+  connection: true,
+  strokeWidth: 14,
+  strokeLinejoin: 'round',
+  stroke: 'transparent',
+  fill: 'none',
+}
 let selectedCell: any = null
 
 // ====== 行内编辑器 ======
@@ -928,18 +1009,26 @@ function closeContextMenu() {
   }
 }
 
-function onCanvasContextMenu(e: MouseEvent) {
+function openContextMenuAt(clientX: number, clientY: number) {
   if (!graph) return
-  const cell = (graph as any).getCellAt(e.clientX, e.clientY)
+  closeContextMenu()
+  const cell = (graph as any).getCellAt(clientX, clientY)
+  if (cell) {
+    graph.cleanSelection()
+    graph.select(cell.id)
+  }
   contextMenu.isNode = !!cell && cell.isNode()
   contextMenu.isEdge = !!cell && cell.isEdge()
   contextMenu.cell = cell
-  contextMenu.x = e.clientX
-  contextMenu.y = e.clientY
+  contextMenu.x = clientX
+  contextMenu.y = clientY
   contextMenu.visible = true
-  closeContextMenu()
   contextMenuCloseHandler = () => { closeContextMenu() }
   setTimeout(() => document.addEventListener('click', contextMenuCloseHandler!), 0)
+}
+
+function onCanvasContextMenu(e: MouseEvent) {
+  openContextMenuAt(e.clientX, e.clientY)
 }
 
 function contextDeleteNode() {
@@ -1627,14 +1716,156 @@ function getShapeForType(nodeType: string): string {
   }[nodeType] || 'flow-task'
 }
 
+function getTouchDistance(touches: TouchList) {
+  const dx = touches[0].clientX - touches[1].clientX
+  const dy = touches[0].clientY - touches[1].clientY
+  return Math.hypot(dx, dy)
+}
+
+function teardownTouchPinchZoom() {
+  touchPinchCleanup?.()
+  touchPinchCleanup = null
+}
+
+function teardownTouchLongPress() {
+  touchLongPressCleanup?.()
+  touchLongPressCleanup = null
+}
+
+function applyEdgeHitWrap(edge: Edge) {
+  edge.attr('wrap', EDGE_HIT_WRAP_ATTRS)
+}
+
+function applyAllEdgeHitWraps() {
+  graph?.getEdges().forEach(applyEdgeHitWrap)
+}
+
+function setupTouchLongPress(container: HTMLElement) {
+  teardownTouchLongPress()
+  let timer: ReturnType<typeof setTimeout> | null = null
+  let startX = 0
+  let startY = 0
+
+  const clearTimer = () => {
+    if (timer) {
+      clearTimeout(timer)
+      timer = null
+    }
+  }
+
+  const onTouchStart = (e: TouchEvent) => {
+    if (e.touches.length !== 1 || pendingPlaceNode.value) return
+    const touch = e.touches[0]
+    startX = touch.clientX
+    startY = touch.clientY
+    clearTimer()
+    timer = setTimeout(() => {
+      timer = null
+      openContextMenuAt(startX, startY)
+      navigator.vibrate?.(15)
+    }, 480)
+  }
+
+  const onTouchMove = (e: TouchEvent) => {
+    if (!timer || e.touches.length !== 1) return
+    const touch = e.touches[0]
+    if (Math.hypot(touch.clientX - startX, touch.clientY - startY) > 12) clearTimer()
+  }
+
+  const onTouchEnd = () => clearTimer()
+  const onTouchCancel = () => clearTimer()
+
+  container.addEventListener('touchstart', onTouchStart, { passive: true })
+  container.addEventListener('touchmove', onTouchMove, { passive: true })
+  container.addEventListener('touchend', onTouchEnd)
+  container.addEventListener('touchcancel', onTouchCancel)
+
+  touchLongPressCleanup = () => {
+    clearTimer()
+    container.removeEventListener('touchstart', onTouchStart)
+    container.removeEventListener('touchmove', onTouchMove)
+    container.removeEventListener('touchend', onTouchEnd)
+    container.removeEventListener('touchcancel', onTouchCancel)
+  }
+}
+
+function setupTouchPinchZoom(container: HTMLElement) {
+  teardownTouchPinchZoom()
+  let pinchState: { dist: number; scale: number } | null = null
+
+  const onTouchStart = (e: TouchEvent) => {
+    if (pendingPlaceNode.value) return
+    if (e.touches.length === 2 && graph) {
+      e.preventDefault()
+      pinchState = { dist: getTouchDistance(e.touches), scale: graph.zoom() }
+    }
+  }
+  const onTouchMove = (e: TouchEvent) => {
+    if (!graph || !pinchState || e.touches.length !== 2) return
+    e.preventDefault()
+    const dist = getTouchDistance(e.touches)
+    if (dist <= 0) return
+    const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2
+    const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2
+    const nextScale = pinchState.scale * (dist / pinchState.dist)
+    graph.zoom(nextScale, { absolute: true, center: { x: cx, y: cy } })
+  }
+  const onTouchEnd = (e: TouchEvent) => {
+    if (e.touches.length < 2) pinchState = null
+  }
+
+  container.addEventListener('touchstart', onTouchStart, { passive: false })
+  container.addEventListener('touchmove', onTouchMove, { passive: false })
+  container.addEventListener('touchend', onTouchEnd)
+  container.addEventListener('touchcancel', onTouchEnd)
+
+  touchPinchCleanup = () => {
+    container.removeEventListener('touchstart', onTouchStart)
+    container.removeEventListener('touchmove', onTouchMove)
+    container.removeEventListener('touchend', onTouchEnd)
+    container.removeEventListener('touchcancel', onTouchEnd)
+  }
+}
+
+function applyTouchGraphInteraction() {
+  if (!graph) return
+  const touchMode = isOverlayEditor.value
+  graph.options.panning.enabled = true
+  graph.options.panning.eventTypes = touchMode || panModeEnabled.value
+    ? ['leftMouseDown']
+    : ['rightMouseDown']
+  graph.options.mousewheel.enabled = true
+  graph.options.mousewheel.zoomAtMousePosition = true
+
+  const selection = graph.getPlugin<any>('selection')
+  if (selection) {
+    selection.options.rubberband = !touchMode
+  }
+
+  if (canvasContainerRef.value) {
+    canvasContainerRef.value.classList.toggle('pan-mode', touchMode || panModeEnabled.value)
+  }
+
+  if (touchMode && graphContainerRef.value) {
+    setupTouchPinchZoom(graphContainerRef.value)
+    setupTouchLongPress(graphContainerRef.value)
+    applyAllEdgeHitWraps()
+  } else {
+    teardownTouchPinchZoom()
+    teardownTouchLongPress()
+  }
+}
+
 // ====== 初始化 Graph ======
 function initGraph() {
   if (!graphContainerRef.value) return
 
+  const touchMode = isOverlayEditor.value
+
   graph = new Graph({
     container: graphContainerRef.value,
     grid: { visible: true, size: 20, type: 'dot' },
-    panning: { enabled: true, eventTypes: ['rightMouseDown'] },
+    panning: { enabled: true, eventTypes: touchMode ? ['leftMouseDown'] : ['rightMouseDown'] },
     mousewheel: { enabled: true, zoomAtMousePosition: true },
     interacting: { edgeLabelMovable: true },
     connecting: {
@@ -1655,6 +1886,7 @@ function initGraph() {
       ...edgeStyleGraphOptions(defaultEdgeStyle.value),
       attrs: {
         line: { stroke: '#94a3b8', strokeWidth: 2, targetMarker: { name: 'classic', size: 8 } },
+        wrap: EDGE_HIT_WRAP_ATTRS,
       },
       label: {
         markup: [{ tagName: 'rect', selector: 'labelBg' }, { tagName: 'text', selector: 'label' }],
@@ -1671,9 +1903,12 @@ function initGraph() {
   // 插件
   graph.use(new Snapline({ enabled: true, sharp: true }))
   graph.use(new Selection({
-    enabled: true, multiple: true, rubberEdge: true, rubberNode: true, rubberband: true, showNodeSelectionBox: true,
+    enabled: true, multiple: true, rubberEdge: true, rubberNode: true,
+    rubberband: !touchMode, showNodeSelectionBox: true,
   }))
-  graph.use(new MiniMap({ container: minimapContainerRef.value!, width: 200, height: 140 }))
+  if (!touchMode && minimapContainerRef.value) {
+    graph.use(new MiniMap({ container: minimapContainerRef.value, width: 200, height: 140 }))
+  }
   graph.use(new History({ enabled: true }))
   graph.use(new Keyboard({ enabled: true }))
   graph.use(new Clipboard())
@@ -1744,6 +1979,8 @@ function initGraph() {
     lastClickNode = node
     graph?.cleanSelection(); graph?.select(node.id)
   })
+
+  graph.on('edge:added', ({ edge }) => applyEdgeHitWrap(edge))
 
   graph.on('edge:click', ({ edge }) => {
     graph?.cleanSelection(); graph?.select(edge.id)
@@ -1824,6 +2061,11 @@ function initGraph() {
       }
     })
     resizeObserver.observe(container)
+  }
+
+  applyTouchGraphInteraction()
+  if (touchMode && canvasContainerRef.value) {
+    canvasContainerRef.value.classList.add('pan-mode')
   }
 }
 
@@ -2025,9 +2267,12 @@ function clearCanvas() {
 /** 手型拖拽模式切换 */
 function togglePanMode() {
   if (!graph) return
+  if (isOverlayEditor.value) {
+    ElMessage.info(t('design.touchPanHint'))
+    return
+  }
   panModeEnabled.value = !panModeEnabled.value
   if (panModeEnabled.value) {
-    // 左键拖拽平移画布，禁用选择
     graph.options.panning.eventTypes = ['leftMouseDown']
     graph.disableSelection()
     graph.getSelectedCells().forEach(c => graph?.unselect(c.id))
@@ -2101,7 +2346,28 @@ function onLabelDragMove(e: MouseEvent, edge: Edge, path: any, totalLen: number)
 function removeSelected() {
   if (!graph) return
   const cells = graph.getSelectedCells()
-  if (cells.length > 0) { graph.removeCells(cells); selectedCell = null; selectedNodeData.value = null; selectedEdgeData.value = null; hideEndpointHandles() }
+  if (cells.length > 0) {
+    graph.removeCells(cells)
+    selectedCell = null
+    selectedNodeData.value = null
+    selectedEdgeData.value = null
+    hideEndpointHandles()
+  }
+}
+
+function handleDeleteSelected() {
+  if (!graph || selectedCount.value === 0) return
+  removeSelected()
+  if (isPropertyOverlay.value) propertySheetOpen.value = false
+}
+
+function clearGraphSelection() {
+  if (!graph) return
+  graph.cleanSelection()
+  selectedCell = null
+  selectedNodeData.value = null
+  selectedEdgeData.value = null
+  hideEndpointHandles()
 }
 
 function handleUndo() { graph?.undo() }
@@ -2590,6 +2856,7 @@ async function loadDesign() {
         })
         normalizeLoadedEdges()
         hydrateNodeTransactionFromChainData()
+        applyAllEdgeHitWraps()
         graph.zoomToFit({ padding: 60, maxScale: 1 })
         return
       }
@@ -2677,6 +2944,8 @@ onBeforeUnmount(() => {
   inlineEditor.show = false
   document.removeEventListener('click', inlineEditorOutsideClick)
   resizeObserver?.disconnect()
+  teardownTouchPinchZoom()
+  teardownTouchLongPress()
   graph?.dispose()
   graph = null
   draggingEp = null
@@ -2727,6 +2996,19 @@ onBeforeUnmount(() => {
 }
 
 .node-palette { width: 180px; border-right: 1px solid #e2e8f0; background: #f8fafc; flex-shrink: 0; overflow-y: auto; }
+.node-palette--touch {
+  overscroll-behavior: contain;
+  overscroll-behavior-x: none;
+  touch-action: pan-y;
+}
+.node-palette--touch .palette-item {
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-user-drag: none;
+}
+.node-palette--touch .palette-tap-hint {
+  display: inline;
+}
 .palette-header { padding: 12px 16px; font-weight: 600; font-size: 13px; color: #475569; border-bottom: 1px solid #e2e8f0; }
 .palette-list { padding: 8px; }
 
@@ -2750,6 +3032,7 @@ onBeforeUnmount(() => {
 .canvas-area { flex: 1; position: relative; overflow: hidden; background: #fafbfc; }
 .canvas-area.pan-mode { cursor: grab; }
 .canvas-area.pan-mode:active { cursor: grabbing; }
+.canvas-area--touch .graph-container { touch-action: none; }
 .graph-container { width: 100%; height: 100%; }
 
 .minimap-container {
@@ -2758,8 +3041,38 @@ onBeforeUnmount(() => {
   box-shadow: 0 2px 12px rgba(0,0,0,0.08); z-index: 10; overflow: hidden;
 }
 
-.property-panel { width: 260px; border-left: 1px solid #e2e8f0; background: #f8fafc; flex-shrink: 0; overflow-y: auto; }
-.panel-header { padding: 12px 16px; font-weight: 600; font-size: 13px; color: #475569; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; }
+.property-panel { width: 260px; border-left: 1px solid #e2e8f0; background: #f8fafc; flex-shrink: 0; overflow-y: auto; transition: width 0.2s ease, opacity 0.2s ease; }
+.property-panel--collapsed {
+  width: 0;
+  min-width: 0;
+  border-left: none;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.property-panel-expand {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px;
+  border: 1px solid #e2e8f0;
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  background: #fff;
+  color: #475569;
+  font-size: 11px;
+  line-height: 1.2;
+  cursor: pointer;
+  box-shadow: -4px 0 16px rgba(15, 23, 42, 0.08);
+}
+.property-panel-expand:hover { background: #f8fafc; color: #3b82f6; }
+.panel-header { padding: 12px 16px; font-weight: 600; font-size: 13px; color: #475569; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .panel-body { padding: 16px; }
 .panel-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 16px; color: #94a3b8; font-size: 13px; }
 
@@ -2788,6 +3101,37 @@ onBeforeUnmount(() => {
   font-size: 12px;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25);
   pointer-events: auto;
+}
+
+.selection-action-bar {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 72px;
+  z-index: 56;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.14);
+  border: 1px solid #e2e8f0;
+  pointer-events: auto;
+}
+
+.selection-action-bar__count {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.panel-actions {
+  padding: 12px 16px 16px;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 8px;
 }
 
 .canvas-area--placing .graph-container {
@@ -2909,30 +3253,12 @@ onBeforeUnmount(() => {
     min-width: 0;
   }
 
-  .canvas-fab-bar {
-    display: flex;
-    position: absolute;
-    right: 12px;
-    bottom: 12px;
-    left: auto;
-    z-index: 55;
-    gap: 8px;
-    pointer-events: none;
+  .editor-body--tablet .property-panel {
+    width: 220px;
   }
 
-  .canvas-fab-bar--tablet .el-button {
-    pointer-events: auto;
-    flex: none;
-    margin: 0;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
-  }
-
-  .editor-sheet-backdrop {
-    display: block;
-    position: fixed;
-    inset: 0;
-    z-index: 200;
-    background: rgba(15, 23, 42, 0.35);
+  .editor-body--tablet .property-panel--collapsed {
+    width: 0;
   }
 }
 
@@ -3019,8 +3345,12 @@ onBeforeUnmount(() => {
     box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
   }
 
-  .canvas-fab-bar .fab-btn--active {
+  .editor-body--compact .canvas-fab-bar .fab-btn--active {
     box-shadow: 0 8px 24px rgba(59, 130, 246, 0.35);
+  }
+
+  .editor-body--compact .selection-action-bar {
+    bottom: 72px;
   }
 
   .editor-sheet-backdrop {
@@ -3126,6 +3456,18 @@ onBeforeUnmount(() => {
 .x6-context-menu .context-item.danger:hover { background: #fef2f2; }
 .x6-context-menu .context-item .el-icon { font-size: 15px; }
 .x6-context-menu .context-separator { height: 1px; background: #e2e8f0; margin: 4px 8px; }
+
+@media (max-width: 1023px) {
+  .x6-context-menu {
+    min-width: 180px;
+    padding: 6px;
+  }
+  .x6-context-menu .context-item {
+    min-height: 44px;
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+}
 
 /* 行内编辑器 */
 .inline-editor-overlay {

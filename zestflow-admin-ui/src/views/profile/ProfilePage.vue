@@ -1,10 +1,5 @@
 <template>
   <div class="profile-page">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <h2>{{ $t('profile.title') }}</h2>
-    </div>
-
     <el-row :gutter="24">
       <!-- 左列 -->
       <el-col :xs="24" :md="7">
@@ -213,13 +208,6 @@ async function handleFileChange(e: Event) {
   max-width: 960px;
 }
 
-.page-header h2 {
-  margin: 0 0 24px;
-  font-size: 22px;
-  color: #303133;
-  font-weight: 600;
-}
-
 /* 左侧卡片 */
 .info-card {
   border-radius: 10px;
@@ -312,11 +300,5 @@ async function handleFileChange(e: Event) {
 
 .profile-form {
   margin-top: 8px;
-}
-
-@media (max-width: 767px) {
-  .page-header h2 {
-    font-size: 18px;
-  }
 }
 </style>
