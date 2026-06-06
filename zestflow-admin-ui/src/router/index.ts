@@ -83,7 +83,7 @@ const routes: RouteRecordRaw[] = [
         path: 'design/:id',
         name: 'DesignEditor',
         component: () => import('@/views/design/DesignEditorPage.vue'),
-        meta: { title: '设计编辑器', requiresExecutor: true },
+        meta: { title: '设计编辑器', hideTitle: true, requiresExecutor: true },
       },
       {
         path: 'playground/scenes',

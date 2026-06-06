@@ -1,17 +1,24 @@
 <template>
-  <el-drawer v-model="visible" :title="$t('chains.chainDetails')" :size="480" destroy-on-close append-to-body>
+  <el-drawer
+    v-model="visible"
+    :title="$t('chains.chainDetails')"
+    :size="drawerSize"
+    class="detail-drawer"
+    destroy-on-close
+    append-to-body
+  >
     <div v-if="loading" style="text-align:center;padding:40px">
       <el-icon class="is-loading" :size="24"><Loading /></el-icon>
     </div>
     <template v-else-if="detail">
-      <div style="padding:0 8px">
-        <div style="font-size:20px;font-weight:600;color:#303133;margin-bottom:12px">{{ detail.name }}</div>
+      <div class="detail-drawer-body">
+        <div class="detail-drawer-title">{{ detail.name }}</div>
         <el-descriptions :column="1" border size="small">
           <el-descriptions-item :label="$t('chains.code')">
             <el-tag size="small" style="font-family:monospace">{{ detail.code }}</el-tag>
           </el-descriptions-item>
           <el-descriptions-item :label="$t('chains.chainKey')">
-            <span v-if="detail.chainKey">{{ detail.chainKey }}</span>
+            <span v-if="detail.chainKey" class="detail-mono-text">{{ detail.chainKey }}</span>
             <span v-else style="color:#c0c4cc">-</span>
           </el-descriptions-item>
           <el-descriptions-item :label="$t('chains.appDeclared')">
@@ -56,8 +63,10 @@ import { useI18n } from 'vue-i18n'
 import { Loading } from '@element-plus/icons-vue'
 import { chainApi, type ChainVO } from '@/api/chain'
 import DesignDetailDrawer from '@/components/DesignDetailDrawer.vue'
+import { useResponsiveDrawerSize } from '@/composables/useResponsiveDrawerSize'
 
 const { t } = useI18n()
+const { drawerSize } = useResponsiveDrawerSize(480)
 
 const visible = ref(false)
 const loading = ref(false)
@@ -99,3 +108,21 @@ function openDesignDetail(designCode: string, appCode: string) {
 
 defineExpose({ open })
 </script>
+
+<style scoped>
+.detail-drawer-body {
+  padding: 0 4px;
+}
+
+.detail-drawer-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 12px;
+}
+
+.detail-mono-text {
+  font-family: monospace;
+  word-break: break-all;
+}
+</style>

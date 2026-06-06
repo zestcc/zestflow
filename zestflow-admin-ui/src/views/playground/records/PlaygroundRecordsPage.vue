@@ -1,113 +1,97 @@
 <template>
   <div>
     <div class="page-header">
-      <div class="stats-summary">
+      <div class="page-stats-row">
         <span style="font-weight:600;color:#409eff">{{ $t('playground.records.total') }} {{ total }}</span>
-        <el-select
-          v-model="currentAppCode"
-          filterable
-          style="width:200px;margin-left:16px"
-          placeholder="选择应用"
-          @change="handleAppChange"
-        >
-          <el-option v-for="m in apps" :key="m.appCode" :label="m.appName || m.appCode" :value="m.appCode" />
-        </el-select>
-        <el-input v-model="filter.keyword" :placeholder="$t('playground.records.sceneNamePlaceholder')" clearable style="width:200px;margin-left:16px" @keyup.enter="handleSearch" />
-        <el-select v-model="filter.status" :placeholder="$t('common.all')" clearable style="width:120px;margin-left:8px">
-          <el-option :label="$t('common.success')" :value="1" />
-          <el-option :label="$t('common.failed')" :value="0" />
-        </el-select>
-        <el-date-picker
-          v-model="timeRange"
-          type="datetimerange"
-          value-format="YYYY-MM-DD HH:mm:ss"
-          :shortcuts="timeShortcuts"
-          range-separator="~"
-          :start-placeholder="$t('playground.records.startTime')"
-          :end-placeholder="$t('playground.records.endTime')"
-          style="width:340px;margin-left:8px"
-        />
-        <el-button type="primary" style="margin-left:8px" @click="handleSearch">{{ $t('common.search') }}</el-button>
-        <el-button @click="handleReset">{{ $t('common.reset') }}</el-button>
       </div>
+      <el-form inline size="default" class="responsive-filter-form" style="margin-top:12px">
+        <el-form-item>
+          <el-select v-model="currentAppCode" filterable class="page-filter-control" placeholder="选择应用" @change="handleAppChange">
+            <el-option v-for="m in apps" :key="m.appCode" :label="m.appName || m.appCode" :value="m.appCode" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-input v-model="filter.keyword" :placeholder="$t('playground.records.sceneNamePlaceholder')" clearable class="page-filter-control" @keyup.enter="handleSearch" />
+        </el-form-item>
+        <el-form-item>
+          <el-select v-model="filter.status" :placeholder="$t('common.all')" clearable class="page-filter-control--sm">
+            <el-option :label="$t('common.success')" :value="1" />
+            <el-option :label="$t('common.failed')" :value="0" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-date-picker
+            v-model="timeRange"
+            type="datetimerange"
+            value-format="YYYY-MM-DD HH:mm:ss"
+            :shortcuts="timeShortcuts"
+            range-separator="~"
+            :start-placeholder="$t('playground.records.startTime')"
+            :end-placeholder="$t('playground.records.endTime')"
+            class="page-filter-control page-filter-control--wide"
+          />
+        </el-form-item>
+        <el-form-item class="filter-actions-item">
+          <el-button type="primary" @click="handleSearch">{{ $t('common.search') }}</el-button>
+          <el-button @click="handleReset">{{ $t('common.reset') }}</el-button>
+        </el-form-item>
+      </el-form>
     </div>
 
-    <el-table
-        :data="recordList"
-        v-loading="loading"
-        :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"
-        @row-click="openDetailDrawer"
-      >
-        <el-table-column :label="$t('playground.records.sceneCode')" width="180" show-overflow-tooltip>
-          <template #default="{ row }">
-            <span
-              v-if="row.sceneCode"
-              class="code-link"
-              @click.stop="goToSceneDetail(row.sceneCode)"
-            >{{ row.sceneCode }}</span>
-            <span v-else>-</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="sceneName" :label="$t('playground.records.sceneName')" min-width="140" show-overflow-tooltip />
-        <el-table-column :label="$t('playground.records.executionChainCode')" width="180" show-overflow-tooltip>
-          <template #default="{ row }">
-            <span
-              v-if="row.chainCode"
-              class="code-link"
-              @click.stop="openChainDetail(row.chainCode)"
-            >{{ row.chainCode }}</span>
-            <span v-else>-</span>
-          </template>
-        </el-table-column>
-        <el-table-column :label="$t('playground.records.logCode')" width="200" show-overflow-tooltip>
-          <template #default="{ row }">
-            <span
-              v-if="row.instanceId"
-              class="code-link"
-              @click.stop="goToLogDetail(row.instanceId)"
-            >{{ row.instanceId }}</span>
-            <span v-else>-</span>
-          </template>
-        </el-table-column>
-        <el-table-column :label="$t('playground.records.status')" width="100">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
-              {{ row.status === 1 ? $t('common.success') : $t('common.failed') }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="costMs" :label="$t('playground.records.costMs')" width="100" />
-        <el-table-column prop="createdAt" :label="$t('playground.records.createdAt')" width="180" show-overflow-tooltip />
-        <el-table-column :label="$t('common.actions')" width="100" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link size="small" class="action-btn" @click.stop="openDetailDrawer(row)">
-              {{ $t('common.detail') }}
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+    <ResponsiveTable
+      :data="recordList"
+      :columns="recordColumns"
+      :loading="loading"
+      row-key="id"
+      :show-actions="true"
+      :actions-label="$t('common.actions')"
+      :actions-width="100"
+      @row-click="openDetailDrawer"
+    >
+      <template #sceneCode="{ row }">
+        <span v-if="row.sceneCode" class="code-link" @click.stop="goToSceneDetail(row.sceneCode)">{{ row.sceneCode }}</span>
+        <span v-else>-</span>
+      </template>
+      <template #chainCode="{ row }">
+        <span v-if="row.chainCode" class="code-link" @click.stop="openChainDetail(row.chainCode)">{{ row.chainCode }}</span>
+        <span v-else>-</span>
+      </template>
+      <template #instanceId="{ row }">
+        <span v-if="row.instanceId" class="code-link" @click.stop="goToLogDetail(row.instanceId)">{{ row.instanceId }}</span>
+        <span v-else>-</span>
+      </template>
+      <template #status="{ row }">
+        <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
+          {{ row.status === 1 ? $t('common.success') : $t('common.failed') }}
+        </el-tag>
+      </template>
+      <template #actions="{ row }">
+        <el-button type="primary" link size="small" class="action-btn" @click.stop="openDetailDrawer(row)">{{ $t('common.detail') }}</el-button>
+      </template>
+    </ResponsiveTable>
 
-      <div class="pagination-wrap">
-        <el-pagination
-          v-model:current-page="page"
-          v-model:page-size="size"
-          :total="total"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next"
-          background
-          @size-change="loadData"
-          @current-change="loadData"
-        />
-      </div>
+    <div class="page-pagination-wrap">
+      <el-pagination
+        v-model:current-page="page"
+        v-model:page-size="size"
+        :total="total"
+        :page-sizes="[10, 20, 50, 100]"
+        :layout="paginationLayout"
+        background
+        @size-change="loadData"
+        @current-change="loadData"
+      />
+    </div>
 
 
     <!-- 详情 Drawer -->
     <el-drawer
       v-model="detailVisible"
       :title="$t('playground.records.detail')"
-      size="600px"
+      :size="detailDrawerSize"
+      class="detail-drawer"
     >
-      <template v-if="detailData">
+      <div v-if="detailData" class="detail-drawer-body">
         <el-descriptions :column="1" border size="small">
           <el-descriptions-item :label="$t('playground.records.sceneCode')">
             <span
@@ -175,7 +159,7 @@
             {{ detailData.updatedAt || '-' }}
           </el-descriptions-item>
         </el-descriptions>
-      </template>
+      </div>
     </el-drawer>
 
     <ChainDetailDrawer ref="chainDetailDrawerRef" />
@@ -183,17 +167,32 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import ChainDetailDrawer from '@/components/ChainDetailDrawer.vue'
+import ResponsiveTable from '@/components/ResponsiveTable.vue'
 import { executorApi, type AppOption } from '@/api/executor'
 import { queryRecordPage, getRecordById, type PlaygroundRecordVO, type PlaygroundRecordQueryDTO } from '@/api/playground-record'
 import { useCurrentApp } from '@/composables/useCurrentApp'
+import { useResponsiveDrawerSize } from '@/composables/useResponsiveDrawerSize'
+import { useResponsivePagination } from '@/composables/useResponsivePagination'
 
 const { t } = useI18n()
 const router = useRouter()
 const { currentAppCode, syncFromApps } = useCurrentApp()
+const { drawerSize: detailDrawerSize } = useResponsiveDrawerSize(600)
+const { paginationLayout } = useResponsivePagination()
+
+const recordColumns = computed(() => [
+  { prop: 'sceneCode', label: t('playground.records.sceneCode'), width: 180, showOverflowTooltip: true },
+  { prop: 'sceneName', label: t('playground.records.sceneName'), minWidth: 140, showOverflowTooltip: true },
+  { prop: 'chainCode', label: t('playground.records.executionChainCode'), width: 180, showOverflowTooltip: true },
+  { prop: 'instanceId', label: t('playground.records.logCode'), width: 200, showOverflowTooltip: true },
+  { prop: 'status', label: t('playground.records.status'), width: 100 },
+  { prop: 'costMs', label: t('playground.records.costMs'), width: 100 },
+  { prop: 'createdAt', label: t('playground.records.createdAt'), width: 180, showOverflowTooltip: true },
+])
 
 const chainDetailDrawerRef = ref<InstanceType<typeof ChainDetailDrawer> | null>(null)
 
@@ -315,22 +314,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.page-header { margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
-.stats-summary { display: flex; align-items: center; font-size: 14px; }
-.pagination-wrap { margin-top: 16px; display: flex; justify-content: flex-end; }
 .detail-json { margin: 0; font-family: monospace; font-size: 12px; white-space: pre-wrap; max-height: 200px; overflow-y: auto; background: #f5f7fa; padding: 8px; border-radius: 4px; }
 .action-btn { padding: 2px 4px; margin-left: 0; }
-
-@media (max-width: 767px) {
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .stats-summary {
-    flex-wrap: wrap;
-    font-size: 12px;
-  }
-}
 </style>

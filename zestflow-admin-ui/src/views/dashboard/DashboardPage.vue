@@ -131,17 +131,42 @@
       :data="recentExecutions"
       :columns="executionColumns"
       :row-key="'executionId'"
-    />
+      empty-text="暂无执行记录"
+    >
+      <template #executionId="{ row }">
+        {{ row.executionId }}
+      </template>
+      <template #chainName="{ row }">
+        {{ row.chainName || '-' }}
+      </template>
+      <template #executorId="{ row }">
+        {{ row.executorId || '-' }}
+      </template>
+      <template #status="{ row }">
+        <el-tag :type="row.status === 1 ? 'success' : row.status === 0 ? 'danger' : 'info'" size="small">
+          {{ row.status === 1 ? t('schedules.success') : row.status === 0 ? t('schedules.failed') : '-' }}
+        </el-tag>
+      </template>
+      <template #costMs="{ row }">
+        {{ row.costMs != null ? row.costMs + ' ms' : '-' }}
+      </template>
+      <template #startTime="{ row }">
+        {{ formatTime(row.startTime) }}
+      </template>
+    </ResponsiveTable>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { dashboardApi } from '@/api/dashboard'
 import { queryExecutionTraces } from '@/api/logs'
 import { getFeatures, type Features } from '@/api/system'
 import type { DashboardStatsVO } from '@/api/dashboard'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
+
+const { t } = useI18n()
 
 const features = ref<Features | null>(null)
 
@@ -186,34 +211,12 @@ function formatTime(ts: number): string {
 }
 
 const executionColumns = computed(() => [
-  {
-    prop: 'executionId',
-    label: $t('logs.executionId'),
-    formatter: (row: any) => row.executionId?.substring(0, 12) + '...' || '-',
-  },
-  {
-    prop: 'chainName',
-    label: $t('logs.chainName'),
-  },
-  {
-    prop: 'status',
-    label: $t('schedules.logStatus'),
-    formatter: (row: any) => {
-      if (row.status === 1) return '成功'
-      if (row.status === 0) return '失败'
-      return '-'
-    },
-  },
-  {
-    prop: 'costMs',
-    label: $t('schedules.costMs'),
-    formatter: (row: any) => row.costMs != null ? row.costMs + ' ms' : '-',
-  },
-  {
-    prop: 'startTime',
-    label: $t('logs.timestamp'),
-    formatter: (row: any) => formatTime(row.startTime),
-  },
+  { prop: 'executionId', label: t('logs.executionId'), minWidth: 200, showOverflowTooltip: true },
+  { prop: 'chainName', label: t('logs.chainName'), minWidth: 140, showOverflowTooltip: true },
+  { prop: 'executorId', label: t('logs.executorId'), minWidth: 140, showOverflowTooltip: true },
+  { prop: 'status', label: t('schedules.logStatus'), width: 100 },
+  { prop: 'costMs', label: t('schedules.costMs'), width: 110 },
+  { prop: 'startTime', label: t('logs.timestamp'), width: 180 },
 ])
 
 async function fetchStats() {

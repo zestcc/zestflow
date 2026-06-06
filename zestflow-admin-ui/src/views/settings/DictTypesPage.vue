@@ -1,76 +1,70 @@
 <template>
   <div class="dict-types-page">
     <div class="page-header">
-      <div class="stats-summary">
-        <span class="summary-total">{{ $t('dict.total') }} {{ list.length }}</span>
-        <el-divider direction="vertical" />
-        <span class="summary-healthy">{{ $t('dict.enabled') }} {{ list.filter(d => d.status === 1).length }}</span>
-        <el-divider direction="vertical" />
-        <span class="summary-offline">{{ $t('dict.disabled') }} {{ list.filter(d => d.status === 0).length }}</span>
+      <div class="page-header-row">
+        <div class="page-stats-row">
+          <span class="summary-total">{{ $t('dict.total') }} {{ list.length }}</span>
+          <el-divider direction="vertical" />
+          <span class="summary-healthy">{{ $t('dict.enabled') }} {{ list.filter(d => d.status === 1).length }}</span>
+          <el-divider direction="vertical" />
+          <span class="summary-offline">{{ $t('dict.disabled') }} {{ list.filter(d => d.status === 0).length }}</span>
+        </div>
+        <el-button type="primary" @click="showCreateType">{{ $t('dict.createType') }}</el-button>
       </div>
-      <el-button type="primary" @click="showCreateType">{{ $t('dict.createType') }}</el-button>
     </div>
 
-    <el-form :model="filter" inline size="default" style="margin-bottom:12px">
+    <el-form :model="filter" inline size="default" class="responsive-filter-form" style="margin-bottom:12px">
       <el-form-item :label="$t('common.keyword')">
-        <el-input v-model="filter.keyword" :placeholder="$t('dict.filterPlaceholder')" clearable style="width:200px" @keyup.enter="handleSearch" />
+        <el-input v-model="filter.keyword" :placeholder="$t('dict.filterPlaceholder')" clearable class="page-filter-control" @keyup.enter="handleSearch" />
       </el-form-item>
       <el-form-item :label="$t('common.status')">
-        <el-select v-model="filter.status" :placeholder="$t('common.all')" clearable style="width:100px">
+        <el-select v-model="filter.status" :placeholder="$t('common.all')" clearable class="page-filter-control--sm">
           <el-option :label="$t('dict.enabled')" :value="1" />
           <el-option :label="$t('dict.disabled')" :value="0" />
         </el-select>
       </el-form-item>
-      <el-form-item>
+      <el-form-item class="filter-actions-item">
         <el-button type="primary" @click="handleSearch">{{ $t('common.search') }}</el-button>
         <el-button @click="handleReset">{{ $t('common.reset') }}</el-button>
       </el-form-item>
     </el-form>
 
-    <el-table
+    <ResponsiveTable
       :data="list"
-      v-loading="loading"
-      stripe border
-      style="width:100%"
-      :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"
+      :columns="typeColumns"
+      :loading="loading"
+      row-key="id"
+      :show-actions="true"
+      :actions-label="$t('common.actions')"
+      :actions-width="240"
     >
-      <el-table-column prop="code" :label="$t('dict.code')" width="160" show-overflow-tooltip>
-        <template #default="{ row }">
-          <el-link type="primary" :underline="'never'" style="font-family:monospace;font-weight:500;cursor:pointer" @click="showDataDrawer(row)">
-            {{ row.code }}
-          </el-link>
-        </template>
-      </el-table-column>
-      <el-table-column prop="name" :label="$t('dict.name')" show-overflow-tooltip min-width="120" />
-      <el-table-column prop="description" :label="$t('dict.description')" show-overflow-tooltip min-width="140" />
-      <el-table-column prop="sort" :label="$t('dict.sort')" width="70" align="center" />
-      <el-table-column :label="$t('common.status')" width="80" align="center">
-        <template #default="{ row }">
-          <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
-            {{ row.status === 1 ? $t('dict.enabled') : $t('dict.disabled') }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="updatedBy" :label="$t('common.updatedBy')" width="120" show-overflow-tooltip />
-      <el-table-column :label="$t('common.actions')" width="240" fixed="right">
-        <template #default="{ row }">
-          <el-button text size="small" type="primary" class="action-btn" @click="showEditType(row)">{{ $t('common.edit') }}</el-button>
-          <el-button text size="small" :type="row.status === 1 ? 'warning' : 'success'" class="action-btn" @click="toggleTypeStatus(row)">
-            {{ row.status === 1 ? $t('dict.disable') : $t('dict.enable') }}
-          </el-button>
-          <el-button text size="small" type="primary" class="action-btn" @click="showDataDrawer(row)">{{ $t('dict.dataItems') }}</el-button>
-          <el-button text size="small" type="danger" class="action-btn" @click="handleDeleteType(row)">{{ $t('common.delete') }}</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+      <template #code="{ row }">
+        <el-link type="primary" :underline="'never'" style="font-family:monospace;font-weight:500;cursor:pointer" @click="showDataDrawer(row)">
+          {{ row.code }}
+        </el-link>
+      </template>
+      <template #status="{ row }">
+        <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
+          {{ row.status === 1 ? $t('dict.enabled') : $t('dict.disabled') }}
+        </el-tag>
+      </template>
+      <template #actions="{ row }">
+        <el-button text size="small" type="primary" class="action-btn" @click="showEditType(row)">{{ $t('common.edit') }}</el-button>
+        <el-button text size="small" :type="row.status === 1 ? 'warning' : 'success'" class="action-btn" @click="toggleTypeStatus(row)">
+          {{ row.status === 1 ? $t('dict.disable') : $t('dict.enable') }}
+        </el-button>
+        <el-button text size="small" type="primary" class="action-btn" @click="showDataDrawer(row)">{{ $t('dict.dataItems') }}</el-button>
+        <el-button text size="small" type="danger" class="action-btn" @click="handleDeleteType(row)">{{ $t('common.delete') }}</el-button>
+      </template>
+    </ResponsiveTable>
 
-    <div style="display:flex;justify-content:flex-end;margin-top:12px">
+    <div class="page-pagination-wrap">
       <el-pagination
         v-model:current-page="page"
         v-model:page-size="pageSize"
         :total="total"
         :page-sizes="[10, 20, 50]"
-        layout="total, sizes, prev, pager, next, jumper"
+        :layout="paginationLayout"
         @current-change="fetchList"
         @size-change="page=1;fetchList()"
       />
@@ -111,7 +105,8 @@
     <el-drawer
       v-model="dataDrawerVisible"
       :title="currentType?.code + ' - ' + currentType?.name"
-      size="50%"
+      :size="dataDrawerSize"
+      class="detail-drawer"
       destroy-on-close
       @close="fetchList"
     >
@@ -122,52 +117,41 @@
         </div>
       </template>
 
-      <el-table
-        :data="dataList"
-        v-loading="dataLoading"
-        stripe border
-        style="width:100%"
-        :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"
-      >
-        <el-table-column prop="label" :label="$t('dict.label')" show-overflow-tooltip min-width="100" />
-        <el-table-column prop="value" :label="$t('dict.value')" show-overflow-tooltip min-width="100" />
-        <el-table-column prop="sort" :label="$t('dict.sort')" width="60" align="center" />
-        <el-table-column :label="$t('common.status')" width="70" align="center">
-          <template #default="{ row }">
+      <div class="detail-drawer-body">
+        <ResponsiveTable
+          :data="dataList"
+          :columns="dataColumns"
+          :loading="dataLoading"
+          row-key="id"
+          :show-actions="true"
+          :actions-label="$t('common.actions')"
+          :actions-width="140"
+        >
+          <template #status="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
               {{ row.status === 1 ? $t('dict.enabled') : $t('dict.disabled') }}
             </el-tag>
           </template>
-        </el-table-column>
-        <el-table-column prop="tagType" :label="$t('dict.tagType')" width="100" align="center">
-          <template #default="{ row }">
+          <template #tagType="{ row }">
             <el-tag v-if="row.tagType" :type="row.tagType" size="small">{{ row.tagType }}</el-tag>
             <span v-else>-</span>
           </template>
-        </el-table-column>
-        <el-table-column :label="$t('dict.default')" width="90" align="center">
-          <template #default="{ row }">
+          <template #defaultFlag="{ row }">
             <el-tag v-if="row.defaultFlag === 1" type="success" size="small">{{ $t('dict.yes') }}</el-tag>
             <span v-else>-</span>
           </template>
-        </el-table-column>
-        <el-table-column prop="remark" :label="$t('dict.remark')" show-overflow-tooltip min-width="100" />
-        <el-table-column :label="$t('common.actions')" width="140" fixed="right">
-          <template #default="{ row }">
+          <template #actions="{ row }">
             <el-button text size="small" type="primary" class="action-btn" @click="showEditData(row)">{{ $t('common.edit') }}</el-button>
             <el-button text size="small" type="danger" class="action-btn" @click="handleDeleteData(row)">{{ $t('common.delete') }}</el-button>
           </template>
-        </el-table-column>
-      </el-table>
+        </ResponsiveTable>
 
-      <!-- 数据项抽屉内的底部详细区 -->
-      <template v-if="selectedData" style="margin-top:16px">
-        <el-descriptions :column="1" border size="small" style="margin-top:16px">
+        <el-descriptions v-if="selectedData" :column="1" border size="small" style="margin-top:16px">
           <el-descriptions-item :label="$t('dict.createdBy')">{{ selectedData.updatedBy || '-' }}</el-descriptions-item>
           <el-descriptions-item :label="$t('dict.createdAt')">{{ selectedData.createdAt || '-' }}</el-descriptions-item>
           <el-descriptions-item :label="$t('dict.updatedAt')">{{ selectedData.updatedAt || '-' }}</el-descriptions-item>
         </el-descriptions>
-      </template>
+      </div>
     </el-drawer>
 
     <!-- 新建/编辑数据项弹窗 -->
@@ -212,15 +196,39 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { dictApi, type DictTypeVO, type DictDataVO } from '@/api/dict'
+import ResponsiveTable from '@/components/ResponsiveTable.vue'
 import { useDict } from '@/composables/useDict'
 import { useDictStore } from '@/stores/dict'
+import { useResponsiveDrawerSize } from '@/composables/useResponsiveDrawerSize'
+import { useResponsivePagination } from '@/composables/useResponsivePagination'
 
 const { t } = useI18n()
 const dictStore = useDictStore()
+const { drawerSize: dataDrawerSize } = useResponsiveDrawerSize('50%')
+const { paginationLayout } = useResponsivePagination()
+
+const typeColumns = computed(() => [
+  { prop: 'code', label: t('dict.code'), width: 160, showOverflowTooltip: true },
+  { prop: 'name', label: t('dict.name'), minWidth: 120, showOverflowTooltip: true },
+  { prop: 'description', label: t('dict.description'), minWidth: 140, showOverflowTooltip: true },
+  { prop: 'sort', label: t('dict.sort'), width: 70, align: 'center' as const },
+  { prop: 'status', label: t('common.status'), width: 80, align: 'center' as const },
+  { prop: 'updatedBy', label: t('common.updatedBy'), width: 120, showOverflowTooltip: true },
+])
+
+const dataColumns = computed(() => [
+  { prop: 'label', label: t('dict.label'), minWidth: 100, showOverflowTooltip: true },
+  { prop: 'value', label: t('dict.value'), minWidth: 100, showOverflowTooltip: true },
+  { prop: 'sort', label: t('dict.sort'), width: 60, align: 'center' as const },
+  { prop: 'status', label: t('common.status'), width: 70, align: 'center' as const },
+  { prop: 'tagType', label: t('dict.tagType'), width: 100, align: 'center' as const },
+  { prop: 'defaultFlag', label: t('dict.default'), width: 90, align: 'center' as const },
+  { prop: 'remark', label: t('dict.remark'), minWidth: 100, showOverflowTooltip: true },
+])
 
 const loading = ref(false)
 const list = ref<DictTypeVO[]>([])
@@ -435,18 +443,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-.stats-summary {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 14px;
-}
 .summary-total { font-weight: 600; color: #409eff; }
 .summary-healthy { font-weight: 600; color: #67c23a; }
 .summary-offline { font-weight: 600; color: #c0c4cc; }
@@ -456,22 +452,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   width: 100%;
-}
-
-@media (max-width: 767px) {
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .page-header h2 {
-    font-size: 18px;
-  }
-
-  .stats-summary {
-    flex-wrap: wrap;
-    font-size: 12px;
-  }
+  flex-wrap: wrap;
+  gap: 8px;
 }
 </style>

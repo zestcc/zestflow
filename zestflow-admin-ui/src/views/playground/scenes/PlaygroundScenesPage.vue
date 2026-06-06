@@ -1,85 +1,71 @@
 <template>
   <div>
     <div class="page-header">
-      <div class="stats-summary">
-        <span style="font-weight:600;color:#409eff">{{ $t('playground.scenes.total') }} {{ total }}</span>
-        <el-select
-          v-model="currentAppCode"
-          filterable
-          style="width:200px;margin-left:16px"
-          placeholder="选择应用"
-          @change="handleAppChange"
-        >
-          <el-option v-for="m in apps" :key="m.appCode" :label="m.appName || m.appCode" :value="m.appCode" />
-        </el-select>
-        <el-input v-model="keyword" :placeholder="$t('playground.scenes.keywordPlaceholder')" clearable style="width:200px;margin-left:16px" @keyup.enter="handleSearch" />
-        <el-button type="primary" style="margin-left:8px" @click="handleSearch">{{ $t('common.search') }}</el-button>
-        <el-button @click="handleReset">{{ $t('common.reset') }}</el-button>
+      <div class="page-header-row">
+        <div class="page-stats-row">
+          <span style="font-weight:600;color:#409eff">{{ $t('playground.scenes.total') }} {{ total }}</span>
+        </div>
+        <div class="page-filter-actions">
+          <el-button type="primary" @click="openCreateDialog">{{ $t('playground.scenes.create') }}</el-button>
+          <el-button @click="openImportDialog">{{ $t('playground.scenes.importFromController') }}</el-button>
+        </div>
       </div>
-      <el-button type="primary" @click="openCreateDialog">{{ $t('playground.scenes.create') }}</el-button>
-      <el-button @click="openImportDialog">{{ $t('playground.scenes.importFromController') }}</el-button>
+      <div class="page-toolbar">
+        <el-form inline size="default" class="responsive-filter-form page-filters">
+          <el-form-item>
+            <el-select v-model="currentAppCode" filterable class="page-filter-control" placeholder="选择应用" @change="handleAppChange">
+              <el-option v-for="m in apps" :key="m.appCode" :label="m.appName || m.appCode" :value="m.appCode" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-input v-model="keyword" :placeholder="$t('playground.scenes.keywordPlaceholder')" clearable class="page-filter-control" @keyup.enter="handleSearch" />
+          </el-form-item>
+          <el-form-item class="filter-actions-item">
+            <el-button type="primary" @click="handleSearch">{{ $t('common.search') }}</el-button>
+            <el-button @click="handleReset">{{ $t('common.reset') }}</el-button>
+          </el-form-item>
+        </el-form>
+      </div>
     </div>
 
-    <!-- 表格 -->
-    <el-table
-        :data="sceneList"
-        v-loading="loading"
-        :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"
-      >
-        <el-table-column prop="sceneCode" :label="$t('playground.scenes.sceneCode')" width="180" show-overflow-tooltip>
-          <template #default="{ row }">
-            <span
-              v-if="row.sceneCode"
-              class="code-link"
-              @click.stop="openDetailDrawer(row)"
-            >{{ row.sceneCode }}</span>
-            <span v-else>-</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="name" :label="$t('playground.scenes.name')" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="requestPath" :label="$t('playground.scenes.requestPath')" min-width="120" show-overflow-tooltip />
-        <el-table-column prop="requestMethod" :label="$t('playground.scenes.requestMethod')" width="100">
-          <template #default="{ row }">
-            <el-tag :type="row.requestMethod === 'POST' ? 'success' : 'warning'" size="small">
-              {{ row.requestMethod }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column :label="$t('playground.scenes.executionChainCode')" width="180" show-overflow-tooltip>
-          <template #default="{ row }">
-            <span
-              v-if="row.chainCode"
-              class="code-link"
-              @click.stop="openChainDetail(row.chainCode, row.appCode)"
-            >{{ row.chainCode }}</span>
-            <span v-else>-</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="rateLimit" :label="$t('playground.scenes.rateLimit')" width="100" />
-        <el-table-column :label="$t('common.actions')" width="130" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link size="small" class="action-btn" @click="openEditDialog(row)">
-              {{ $t('common.edit') }}
-            </el-button>
-            <el-button type="danger" link size="small" class="action-btn" @click="handleDelete(row)">
-              {{ $t('common.delete') }}
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+    <ResponsiveTable
+      :data="sceneList"
+      :columns="sceneColumns"
+      :loading="loading"
+      row-key="id"
+      :show-actions="true"
+      :actions-label="$t('common.actions')"
+      :actions-width="130"
+    >
+      <template #sceneCode="{ row }">
+        <span v-if="row.sceneCode" class="code-link" @click.stop="openDetailDrawer(row)">{{ row.sceneCode }}</span>
+        <span v-else>-</span>
+      </template>
+      <template #requestMethod="{ row }">
+        <el-tag :type="row.requestMethod === 'POST' ? 'success' : 'warning'" size="small">{{ row.requestMethod }}</el-tag>
+      </template>
+      <template #chainCode="{ row }">
+        <span v-if="row.chainCode" class="code-link" @click.stop="openChainDetail(row.chainCode, row.appCode)">{{ row.chainCode }}</span>
+        <span v-else>-</span>
+      </template>
+      <template #actions="{ row }">
+        <el-button type="primary" link size="small" class="action-btn" @click="openEditDialog(row)">{{ $t('common.edit') }}</el-button>
+        <el-button type="danger" link size="small" class="action-btn" @click="handleDelete(row)">{{ $t('common.delete') }}</el-button>
+      </template>
+    </ResponsiveTable>
 
-      <div class="pagination-wrap">
-        <el-pagination
-          v-model:current-page="page"
-          v-model:page-size="size"
-          :total="total"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next"
-          background
-          @size-change="loadData"
-          @current-change="loadData"
-        />
-      </div>
+    <div class="page-pagination-wrap">
+      <el-pagination
+        v-model:current-page="page"
+        v-model:page-size="size"
+        :total="total"
+        :page-sizes="[10, 20, 50, 100]"
+        :layout="paginationLayout"
+        background
+        @size-change="loadData"
+        @current-change="loadData"
+      />
+    </div>
 
     <!-- 新建/编辑 弹窗 -->
     <el-dialog
@@ -158,54 +144,46 @@
       :close-on-click-modal="false"
     >
       <p style="margin:0 0 12px;color:#909399;font-size:13px">{{ $t('playground.scenes.importDialogDesc') }}</p>
-      <div style="margin-bottom:12px;display:flex;gap:8px">
-        <el-select v-model="endpointClassName" clearable :placeholder="$t('playground.scenes.importControllerPlaceholder')" style="width:200px" @change="handleEndpointSearch">
+      <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <el-select v-model="endpointClassName" clearable :placeholder="$t('playground.scenes.importControllerPlaceholder')" class="page-filter-control--md" @change="handleEndpointSearch">
           <el-option v-for="c in endpointClasses" :key="c" :label="c" :value="c" />
         </el-select>
         <el-input
           v-model="importKeyword"
           :placeholder="$t('playground.scenes.importSearchPlaceholder')"
           clearable
-          style="width:240px"
+          class="page-filter-control"
           @keyup.enter="handleEndpointSearch"
         />
         <el-button type="primary" @click="handleEndpointSearch">{{ $t('common.search') }}</el-button>
       </div>
-      <el-table
+      <ResponsiveTable
         :data="endpointList"
-        v-loading="endpointLoading"
-        :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"
-        highlight-current-row
-        @current-change="onEndpointSelect"
+        :columns="endpointColumns"
+        :loading="endpointLoading"
+        :row-key="endpointRowKey"
+        @row-click="onEndpointSelect"
       >
-        <el-table-column prop="className" label="Controller" width="200" show-overflow-tooltip />
-        <el-table-column prop="methodName" label="方法" width="130" show-overflow-tooltip>
-          <template #default="{ row }">
-            <el-button type="primary" link size="small" @click.stop="openEndpointDetail(row)">
-              {{ row.methodName }}
-            </el-button>
-          </template>
-        </el-table-column>
-        <el-table-column prop="requestMethod" label="Method" width="90">
-          <template #default="{ row }">
-            <el-tag :type="row.requestMethod === 'POST' ? 'success' : row.requestMethod === 'GET' ? 'primary' : 'warning'" size="small">
-              {{ row.requestMethod }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="requestPath" label="接口路径" min-width="220" show-overflow-tooltip />
-        <el-table-column :label="$t('design.colSelected')" width="55" align="center">
-          <template #default="{ row }">
-            <el-tag v-if="selectedEndpoint?.className === row.className && selectedEndpoint?.methodName === row.methodName && selectedEndpoint?.requestPath === row.requestPath" type="success" size="small">{{ $t('design.selected') }}</el-tag>
-          </template>
-        </el-table-column>
-      </el-table>
-      <div style="margin-top:12px;display:flex;justify-content:flex-end">
+        <template #methodName="{ row }">
+          <el-button type="primary" link size="small" @click.stop="openEndpointDetail(row)">
+            {{ row.methodName }}
+          </el-button>
+        </template>
+        <template #requestMethod="{ row }">
+          <el-tag :type="row.requestMethod === 'POST' ? 'success' : row.requestMethod === 'GET' ? 'primary' : 'warning'" size="small">
+            {{ row.requestMethod }}
+          </el-tag>
+        </template>
+        <template #selected="{ row }">
+          <el-tag v-if="isEndpointSelected(row)" type="success" size="small">{{ $t('design.selected') }}</el-tag>
+        </template>
+      </ResponsiveTable>
+      <div class="page-pagination-wrap">
         <el-pagination
           v-model:current-page="endpointPage"
           :page-size="10"
           :total="endpointTotal"
-          layout="total, prev, pager, next"
+          :layout="paginationLayout"
           background
           small
           @current-change="loadEndpoints"
@@ -221,9 +199,10 @@
     <el-drawer
       v-model="endpointDetailVisible"
       :title="endpointDetailData?.methodName || '端点详情'"
-      size="680px"
+      :size="endpointDrawerSize"
+      class="detail-drawer"
     >
-      <template v-if="endpointDetailData">
+      <div v-if="endpointDetailData" class="detail-drawer-body">
         <el-descriptions :column="1" border size="small" style="margin-bottom:20px">
           <el-descriptions-item label="Controller" :span="1">
             <el-tag size="small" effect="plain">{{ endpointDetailData.className }}</el-tag>
@@ -257,16 +236,17 @@
           </div>
           <pre class="endpoint-json">{{ formatJson(endpointDetailData.responseBodyTemplate) }}</pre>
         </div>
-      </template>
+      </div>
     </el-drawer>
 
     <!-- 详情 Drawer -->
     <el-drawer
       v-model="detailVisible"
       :title="$t('playground.scenes.detail')"
-      size="500px"
+      :size="detailDrawerSize"
+      class="detail-drawer"
     >
-      <template v-if="detailData">
+      <div v-if="detailData" class="detail-drawer-body">
         <el-descriptions :column="1" border size="small">
           <el-descriptions-item :label="$t('playground.scenes.sceneCode')">{{ detailData.sceneCode }}</el-descriptions-item>
           <el-descriptions-item :label="$t('playground.scenes.name')">{{ detailData.name }}</el-descriptions-item>
@@ -297,7 +277,7 @@
           <el-descriptions-item :label="$t('playground.scenes.updatedBy')">{{ detailData.updatedBy || '-' }}</el-descriptions-item>
           <el-descriptions-item :label="$t('playground.scenes.updatedAt')">{{ detailData.updatedAt || '-' }}</el-descriptions-item>
         </el-descriptions>
-      </template>
+      </div>
     </el-drawer>
 
     <ChainDetailDrawer ref="chainDetailDrawerRef" />
@@ -305,11 +285,12 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import ChainDetailDrawer from '@/components/ChainDetailDrawer.vue'
+import ResponsiveTable from '@/components/ResponsiveTable.vue'
 import { executorApi, type AppOption } from '@/api/executor'
 import { chainApi, type ChainVO } from '@/api/chain'
 import {
@@ -319,10 +300,43 @@ import {
   type AvailableEndpoint,
 } from '@/api/playground-scene'
 import { useCurrentApp } from '@/composables/useCurrentApp'
+import { useResponsiveDrawerSize } from '@/composables/useResponsiveDrawerSize'
+import { useResponsivePagination } from '@/composables/useResponsivePagination'
 
 const { t } = useI18n()
 const route = useRoute()
 const { currentAppCode, syncFromApps } = useCurrentApp()
+const { drawerSize: detailDrawerSize } = useResponsiveDrawerSize(500)
+const { drawerSize: endpointDrawerSize } = useResponsiveDrawerSize(680)
+const { paginationLayout } = useResponsivePagination()
+
+const sceneColumns = computed(() => [
+  { prop: 'sceneCode', label: t('playground.scenes.sceneCode'), width: 180, showOverflowTooltip: true },
+  { prop: 'name', label: t('playground.scenes.name'), minWidth: 140, showOverflowTooltip: true },
+  { prop: 'requestPath', label: t('playground.scenes.requestPath'), minWidth: 120, showOverflowTooltip: true },
+  { prop: 'requestMethod', label: t('playground.scenes.requestMethod'), width: 100 },
+  { prop: 'chainCode', label: t('playground.scenes.executionChainCode'), width: 180, showOverflowTooltip: true },
+  { prop: 'rateLimit', label: t('playground.scenes.rateLimit'), width: 100 },
+])
+
+const endpointColumns = computed(() => [
+  { prop: 'className', label: 'Controller', width: 200, showOverflowTooltip: true },
+  { prop: 'methodName', label: '方法', width: 130, showOverflowTooltip: true },
+  { prop: 'requestMethod', label: 'Method', width: 90 },
+  { prop: 'requestPath', label: '接口路径', minWidth: 220, showOverflowTooltip: true },
+  { prop: 'selected', label: t('design.colSelected'), width: 55, align: 'center' as const },
+])
+
+function endpointRowKey(row: AvailableEndpoint): string {
+  return `${row.className}|${row.methodName}|${row.requestPath}`
+}
+
+function isEndpointSelected(row: AvailableEndpoint): boolean {
+  if (!selectedEndpoint.value) return false
+  return selectedEndpoint.value.className === row.className
+    && selectedEndpoint.value.methodName === row.methodName
+    && selectedEndpoint.value.requestPath === row.requestPath
+}
 
 const chainDetailDrawerRef = ref<InstanceType<typeof ChainDetailDrawer> | null>(null)
 
@@ -626,23 +640,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page-header { margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
-.stats-summary { display: flex; align-items: center; font-size: 14px; }
-.pagination-wrap { margin-top: 16px; display: flex; justify-content: flex-end; }
 .detail-json { margin: 0; font-family: monospace; font-size: 12px; white-space: pre-wrap; max-height: 200px; overflow-y: auto; background: #f5f7fa; padding: 8px; border-radius: 4px; }
 .action-btn { padding: 2px 4px; margin-left: 0; }
 .endpoint-json { margin: 0; font-family: 'SF Mono', 'Cascadia Code', monospace; font-size: 12px; line-height: 1.6; white-space: pre-wrap; background: #1e1e1e; color: #d4d4d4; padding: 16px; border-radius: 6px; max-height: 360px; overflow-y: auto; }
-
-@media (max-width: 767px) {
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .stats-summary {
-    flex-wrap: wrap;
-    font-size: 12px;
-  }
-}
 </style>

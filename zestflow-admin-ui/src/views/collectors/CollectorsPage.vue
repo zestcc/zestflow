@@ -12,82 +12,74 @@
       </div>
     </div>
 
-    <!-- 筛选条件 -->
-    <el-form :model="filter" inline size="default" style="margin-bottom:12px">
+    <el-form :model="filter" inline size="default" class="responsive-filter-form" style="margin-bottom:12px">
       <el-form-item label="应用编码">
-        <el-input v-model="filter.appCode" placeholder="输入应用编码" clearable style="width:140px" />
+        <el-input v-model="filter.appCode" placeholder="输入应用编码" clearable class="page-filter-control--xs" />
       </el-form-item>
       <el-form-item :label="$t('collectors.collectorId')">
-        <el-input v-model="filter.collectorId" :placeholder="$t('collectors.collectorIdPlaceholder')" clearable style="width:180px" />
+        <el-input v-model="filter.collectorId" :placeholder="$t('collectors.collectorIdPlaceholder')" clearable class="page-filter-control--md" />
       </el-form-item>
       <el-form-item :label="$t('collectors.address')">
-        <el-input v-model="filter.address" placeholder="输入地址" clearable style="width:150px" />
+        <el-input v-model="filter.address" placeholder="输入地址" clearable class="page-filter-control--md" />
       </el-form-item>
       <el-form-item :label="$t('common.status')">
-        <el-select v-model="filter.status" :placeholder="$t('common.all')" clearable style="width:100px">
+        <el-select v-model="filter.status" :placeholder="$t('common.all')" clearable class="page-filter-control--sm">
           <el-option :label="$t('collectors.online')" :value="1" />
           <el-option :label="$t('collectors.abnormal')" :value="2" />
           <el-option :label="$t('collectors.offline')" :value="0" />
         </el-select>
       </el-form-item>
-      <el-form-item>
+      <el-form-item class="filter-actions-item">
         <el-button type="primary" @click="handleSearch">{{ $t('common.search') }}</el-button>
         <el-button @click="handleReset">{{ $t('common.reset') }}</el-button>
       </el-form-item>
     </el-form>
 
-    <el-table
+    <ResponsiveTable
       :data="paginatedList"
-      v-loading="loading"
-      stripe border
-      style="width: 100%"
-      :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"
+      :columns="collectorColumns"
+      :loading="loading"
+      row-key="id"
+      :show-actions="true"
+      :actions-label="$t('common.actions')"
+      :actions-width="170"
     >
-      <el-table-column prop="collectorId" :label="$t('collectors.collectorId')" show-overflow-tooltip />
-      <el-table-column prop="appCode" label="应用编码" width="120" show-overflow-tooltip />
-      <el-table-column prop="appName" label="应用名称" width="140" show-overflow-tooltip />
-      <el-table-column :label="$t('collectors.address')" show-overflow-tooltip>
-        <template #default="{ row }">
-          <span style="font-family:monospace;font-size:13px">{{ row.collectorHost }}:{{ row.collectorPort }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="status" :label="$t('common.status')" width="90" align="center">
-        <template #default="{ row }">
-          <el-tag v-if="row.status === 1" type="success" size="small" effect="dark">{{ $t('collectors.online') }}</el-tag>
-          <el-tag v-else-if="row.status === 2" type="danger" size="small" effect="dark">{{ $t('collectors.abnormal') }}</el-tag>
-          <el-tag v-else type="info" size="small" effect="dark">{{ $t('collectors.offline') }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column :label="$t('collectors.lastHeartbeat')" show-overflow-tooltip>
-        <template #default="{ row }">
-          {{ formatTime(row.lastHeartbeat) }}
-        </template>
-      </el-table-column>
-      <el-table-column prop="updatedBy" :label="$t('common.updatedBy')" width="120" show-overflow-tooltip />
-      <el-table-column :label="$t('common.actions')" width="170" fixed="right" align="center">
-        <template #default="{ row }">
-          <el-button
-            v-if="row.status !== 1"
-            text type="success" size="small"
-            :loading="togglingId === row.id"
-            @click="toggleStatus(row, 1)"
-          >{{ $t('collectors.onlineBtn') }}</el-button>
-          <el-button
-            v-if="row.status !== 0"
-            text type="warning" size="small"
-            :loading="togglingId === row.id"
-            @click="toggleStatus(row, 0)"
-          >{{ $t('collectors.offlineBtn') }}</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
-    <div style="display:flex;justify-content:flex-end;margin-top:12px">
+      <template #collectorId="{ row }">{{ row.collectorId }}</template>
+      <template #appCode="{ row }">{{ row.appCode || '-' }}</template>
+      <template #appName="{ row }">{{ row.appName || '-' }}</template>
+      <template #address="{ row }">
+        <span style="font-family:monospace;font-size:13px">{{ row.collectorHost }}:{{ row.collectorPort }}</span>
+      </template>
+      <template #status="{ row }">
+        <el-tag v-if="row.status === 1" type="success" size="small" effect="dark">{{ $t('collectors.online') }}</el-tag>
+        <el-tag v-else-if="row.status === 2" type="danger" size="small" effect="dark">{{ $t('collectors.abnormal') }}</el-tag>
+        <el-tag v-else type="info" size="small" effect="dark">{{ $t('collectors.offline') }}</el-tag>
+      </template>
+      <template #lastHeartbeat="{ row }">{{ formatTime(row.lastHeartbeat) }}</template>
+      <template #updatedBy="{ row }">{{ row.updatedBy || '-' }}</template>
+      <template #actions="{ row }">
+        <el-button
+          v-if="row.status !== 1"
+          text type="success" size="small" class="action-btn"
+          :loading="togglingId === row.id"
+          @click.stop="toggleStatus(row, 1)"
+        >{{ $t('collectors.onlineBtn') }}</el-button>
+        <el-button
+          v-if="row.status !== 0"
+          text type="warning" size="small" class="action-btn"
+          :loading="togglingId === row.id"
+          @click.stop="toggleStatus(row, 0)"
+        >{{ $t('collectors.offlineBtn') }}</el-button>
+      </template>
+    </ResponsiveTable>
+
+    <div class="page-pagination-wrap">
       <el-pagination
         v-model:current-page="page"
         v-model:page-size="pageSize"
         :total="filteredList.length"
         :page-sizes="[10, 20, 50]"
-        layout="total, sizes, prev, pager, next, jumper"
+        :layout="paginationLayout"
       />
     </div>
   </div>
@@ -99,8 +91,11 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { collectorApi } from '@/api/collector'
 import type { CollectorRegistryVO } from '@/api/collector'
+import ResponsiveTable from '@/components/ResponsiveTable.vue'
+import { useResponsivePagination } from '@/composables/useResponsivePagination'
 
 const { t } = useI18n()
+const { paginationLayout } = useResponsivePagination()
 
 const loading = ref(false)
 const list = ref<CollectorRegistryVO[]>([])
@@ -114,6 +109,16 @@ const filter = ref({
 
 const page = ref(1)
 const pageSize = ref(10)
+
+const collectorColumns = computed(() => [
+  { prop: 'collectorId', label: t('collectors.collectorId'), minWidth: 140, showOverflowTooltip: true },
+  { prop: 'appCode', label: '应用编码', width: 120, showOverflowTooltip: true },
+  { prop: 'appName', label: '应用名称', width: 140, showOverflowTooltip: true },
+  { prop: 'address', label: t('collectors.address'), minWidth: 160, showOverflowTooltip: true },
+  { prop: 'status', label: t('common.status'), width: 90, align: 'center' as const },
+  { prop: 'lastHeartbeat', label: t('collectors.lastHeartbeat'), minWidth: 160, showOverflowTooltip: true },
+  { prop: 'updatedBy', label: t('common.updatedBy'), width: 120, showOverflowTooltip: true },
+])
 
 const filteredList = computed(() => {
   let arr = list.value
@@ -170,36 +175,8 @@ onMounted(fetchList)
 </script>
 
 <style scoped>
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-
-.stats-summary {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 14px;
-}
-
 .summary-total { font-weight: 600; color: #409eff; }
 .summary-healthy { font-weight: 600; color: #67c23a; }
 .summary-error { font-weight: 600; color: #f56c6c; }
 .summary-offline { font-weight: 600; color: #c0c4cc; }
-.action-btn.action-btn { padding: 2px 4px; margin-left: 0; }
-
-@media (max-width: 767px) {
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .stats-summary {
-    flex-wrap: wrap;
-    font-size: 12px;
-  }
-}
 </style>
