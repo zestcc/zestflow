@@ -44,13 +44,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { computeChainDiff, hasChainDiff as checkHasDiff } from '@/utils/chainDiff'
+import { ref, computed, watch } from 'vue'
+import { computeChainDiff, hasChainDiff as checkHasDiff, type ChainDiffSummary } from '@/utils/chainDiff'
 
 const props = defineProps<{
   summary?: string | null
   chainJson?: string | null
   currentChainJson?: string | null
+}>()
+
+const emit = defineEmits<{
+  highlight: [diff: ChainDiffSummary | null]
 }>()
 
 const expanded = ref(false)
@@ -67,6 +71,10 @@ const formattedJson = computed(() => {
 
 const diff = computed(() => computeChainDiff(props.currentChainJson, props.chainJson))
 const hasDiff = computed(() => checkHasDiff(diff.value))
+
+watch(diff, (value) => {
+  emit('highlight', value)
+}, { immediate: true })
 </script>
 
 <style scoped>

@@ -1046,6 +1046,8 @@ export default {
       deleteConfirm: '确定删除模板「{name}」吗？',
       applyCopilot: '在 Copilot 中使用',
       openInCopilot: '打开设计器并加载',
+      applyToCanvas: '直接应用到画布',
+      appliedToCanvas: '模板已应用到画布，请检查后手动保存',
       designCodePlaceholder: '输入设计编码，如 DES001',
       loadedInCopilot: '模板已加载到 Copilot，请预览后应用到画布',
       loadFailed: '加载模板失败',
@@ -1074,6 +1076,13 @@ export default {
     diffNodesChanged: '修改节点',
     diffEdgesAdded: '新增连线',
     diffEdgesRemoved: '删除连线',
+    playground: {
+      title: '内嵌试跑',
+      selectScene: '选择演示场景',
+      bodyPlaceholder: '请求 JSON',
+      execute: '试跑',
+      openFull: '打开完整试验场',
+    },
   },
   layout: {
     dashboard: '仪表盘',

@@ -91,6 +91,10 @@ jobs:
           }
           & ./scripts/blackbox/run-enterprise-gate.ps1 -SkipMavenTest @args
 
+      - name: AI Copilot E2E
+        shell: pwsh
+        run: ./scripts/blackbox/run-ai-copilot-e2e.ps1 -AllowSkip
+
   instructions:
     name: Layer B/C — Local instructions
     needs: unit-tests

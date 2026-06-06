@@ -1,1 +1,0 @@
-import{aM as i,aN as r,aV as s,I as t}from"./index-DUoD_3-I.js";const a=768;function w(o=480){const e=s(!1);function n(){e.value=window.innerWidth<a}return i(()=>{n(),window.addEventListener("resize",n)}),r(()=>{window.removeEventListener("resize",n)}),{drawerSize:t(()=>e.value?"100%":o),isMobile:e}}export{w as u};

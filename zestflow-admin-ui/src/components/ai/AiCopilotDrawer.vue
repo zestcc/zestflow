@@ -52,9 +52,16 @@
         :summary="store.pendingSummary"
         :chain-json="store.pendingProposal"
         :current-chain-json="currentChainJson"
+        @highlight="emit('highlight-diff', $event)"
       />
 
       <AiValidationPanel :validation="store.validation" />
+
+      <AiCopilotPlayground
+        :enabled="enabled && !!playgroundChainCode"
+        :app-code="playgroundAppCode"
+        :chain-code="playgroundChainCode"
+      />
 
       <div class="ai-copilot-actions">
         <el-button
@@ -121,17 +128,20 @@ import { aiApi, type AiChainKeyHints } from '@/api/ai'
 import AiMessageList from './AiMessageList.vue'
 import AiProposalPreview from './AiProposalPreview.vue'
 import AiValidationPanel from './AiValidationPanel.vue'
+import AiCopilotPlayground from './AiCopilotPlayground.vue'
 
 const props = defineProps<{
   modelValue: boolean
   enabled: boolean
   getContext: () => AiCopilotContext
   playgroundChainCode?: string
+  playgroundAppCode?: string
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   'apply-proposal': [chainData: string]
+  'highlight-diff': [diff: import('@/utils/chainDiff').ChainDiffSummary | null]
 }>()
 
 const router = useRouter()

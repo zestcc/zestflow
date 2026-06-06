@@ -40,6 +40,18 @@ public class AiProperties {
     /** 是否启用轻量 RAG（classpath ai-rag 文档检索） */
     private boolean ragEnabled = true;
 
+    /** RAG 检索模式：keyword | vector | hybrid */
+    private String ragMode = "hybrid";
+
+    /** 是否使用 LLM Embedding API 对候选片段重排（需租户 AI 配置可用） */
+    private boolean ragUseLlmEmbedding = false;
+
+    /** Embedding 模型（留空则沿用租户 chat 模型） */
+    private String ragEmbeddingModel = "";
+
+    /** LLM Embedding 重排时的候选上限 */
+    private int ragEmbeddingCandidateLimit = 12;
+
     /** RAG 注入 Prompt 的最大片段数 */
     private int ragMaxChunks = 3;
 }

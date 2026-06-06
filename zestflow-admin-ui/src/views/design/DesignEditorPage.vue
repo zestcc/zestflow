@@ -733,13 +733,16 @@
       :enabled="copilotEnabled"
       :get-context="getCopilotContext"
       :playground-chain-code="playgroundChainCode"
+      :playground-app-code="appCode"
       @apply-proposal="applyAiProposal"
+      @highlight-diff="applyAiDiffHighlight"
     />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, nextTick, reactive, computed, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -760,6 +763,13 @@ import AiCopilotDrawer from '@/components/ai/AiCopilotDrawer.vue'
 import AiExpressionAssist from '@/components/ai/AiExpressionAssist.vue'
 import { aiApi } from '@/api/ai'
 import { useAiCopilotStore } from '@/stores/aiCopilot'
+import { applyChainDefinitionToGraph, type ChainDefinitionDTO } from '@/utils/chainApply'
+import {
+  AI_DIFF_STYLES,
+  classifyNodeDiff,
+  computeChainDiff,
+  type ChainDiffSummary,
+} from '@/utils/chainDiff'
 import { componentApi } from '@/api/component'
 import { executorApi } from '@/api/executor'
 import {
@@ -825,6 +835,9 @@ const design = ref<any>(null)
 const appName = ref('')
 const saving = ref(false)
 const showCopilot = ref(false)
+const aiCopilotStore = useAiCopilotStore()
+const { pendingProposal } = storeToRefs(aiCopilotStore)
+const aiDiffHighlightBackup = new Map<string, { stroke?: string; strokeWidth?: number; strokeDasharray?: string | number }>()
 const copilotEnabled = ref(false)
 const selectedCount = ref(0)
 const canUndo = ref(false)
@@ -905,10 +918,16 @@ async function loadTemplateFromQuery() {
   const raw = route.query.aiTemplateId
   const tplId = typeof raw === 'string' ? Number(raw.trim()) : NaN
   if (!Number.isFinite(tplId) || tplId <= 0) return
+  const autoApply = route.query.aiAutoApply === '1' || route.query.aiAutoApply === 'true'
   try {
     const tpl = await aiApi.getTemplate(tplId)
-    const store = useAiCopilotStore()
-    store.setPendingProposal(tpl.chainData, tpl.promptSummary || tpl.name)
+    if (autoApply) {
+      applyAiProposal(tpl.chainData)
+      aiCopilotStore.clearProposal()
+      ElMessage.success(t('ai.templates.appliedToCanvas'))
+      return
+    }
+    aiCopilotStore.setPendingProposal(tpl.chainData, tpl.promptSummary || tpl.name)
     showCopilot.value = true
     ElMessage.success(t('ai.templates.loadedInCopilot'))
   } catch {
@@ -916,9 +935,113 @@ async function loadTemplateFromQuery() {
   }
 }
 
+function getGraphLayoutMetrics() {
+  if (!graph) {
+    return { centerX: 280, nextY: 120, rowGap: 72 }
+  }
+  const nodes = graph.getNodes()
+  if (nodes.length === 0) {
+    return { centerX: 280, nextY: 120, rowGap: 72 }
+  }
+  let maxY = 0
+  let sumX = 0
+  nodes.forEach(n => {
+    const box = n.getBBox()
+    maxY = Math.max(maxY, box.y + box.height)
+    sumX += box.x + box.width / 2
+  })
+  return {
+    centerX: sumX / nodes.length,
+    nextY: maxY + 40,
+    rowGap: 72,
+  }
+}
+
+function addChainEdgeFromProposal(source: string, target: string, label?: string) {
+  if (!graph) return
+  const edge = graph.addEdge({
+    source: { cell: source, port: 'b' },
+    target: { cell: target, port: 't' },
+    ...edgeStyleGraphOptions(defaultEdgeStyle.value),
+    attrs: {
+      line: { stroke: '#94a3b8', strokeWidth: 2, targetMarker: { name: 'classic', size: 8 } },
+      wrap: EDGE_HIT_WRAP_ATTRS,
+    },
+  })
+  applyEdgeHitWrap(edge as Edge)
+  if (label) setEdgeLabelSafe(edge, label)
+}
+
+function hasChainEdge(source: string, target: string, label?: string): boolean {
+  if (!graph) return false
+  return graph.getEdges().some(e => {
+    if (e.getSourceCellId() !== source || e.getTargetCellId() !== target) return false
+    const edgeLabel = String(e.getLabels()?.[0]?.attrs?.label?.text || '')
+    return (label || '') === edgeLabel
+  })
+}
+
+function clearAiDiffHighlight() {
+  if (!graph) return
+  aiDiffHighlightBackup.forEach((backup, nodeId) => {
+    const cell = graph!.getCellById(nodeId)
+    if (!cell?.isNode()) return
+    const node = cell as Node
+    if (backup.stroke !== undefined) node.attr('body/stroke', backup.stroke)
+    else node.attr('body/stroke', 'none')
+    if (backup.strokeWidth !== undefined) node.attr('body/strokeWidth', backup.strokeWidth)
+    else node.attr('body/strokeWidth', 0)
+    if (backup.strokeDasharray !== undefined) node.attr('body/strokeDasharray', backup.strokeDasharray)
+    else node.attr('body/strokeDasharray', 0)
+  })
+  aiDiffHighlightBackup.clear()
+  graph.getEdges().forEach(e => {
+    e.attr('line/stroke', '#94a3b8')
+    e.attr('line/strokeWidth', 2)
+    e.attr('line/strokeDasharray', 0)
+  })
+}
+
+function applyAiDiffHighlight(diff: ChainDiffSummary | null) {
+  if (!graph) return
+  clearAiDiffHighlight()
+  if (!diff) return
+
+  graph.getNodes().forEach(n => {
+    const kind = classifyNodeDiff(n.id, diff)
+    if (!kind) return
+    if (!aiDiffHighlightBackup.has(n.id)) {
+      aiDiffHighlightBackup.set(n.id, {
+        stroke: n.attr('body/stroke'),
+        strokeWidth: n.attr('body/strokeWidth'),
+        strokeDasharray: n.attr('body/strokeDasharray'),
+      })
+    }
+    const style = AI_DIFF_STYLES[kind]
+    n.attr('body/stroke', style.stroke)
+    n.attr('body/strokeWidth', style.strokeWidth)
+    n.attr('body/strokeDasharray', style.strokeDasharray || 0)
+  })
+
+  graph.getEdges().forEach(e => {
+    const source = e.getSourceCellId() || ''
+    const target = e.getTargetCellId() || ''
+    const label = String(e.getLabels()?.[0]?.attrs?.label?.text || '')
+    const key = `${source}->${target}:${label}`
+    if (diff.edgeKeysAdded.includes(key)) {
+      e.attr('line/stroke', '#22c55e')
+      e.attr('line/strokeWidth', 3)
+    } else if (diff.edgeKeysRemoved.includes(key)) {
+      e.attr('line/stroke', '#ef4444')
+      e.attr('line/strokeWidth', 3)
+      e.attr('line/strokeDasharray', '6,3')
+    }
+  })
+}
+
 function applyAiProposal(proposedChainData: string) {
   if (!graph) return
-  let chain: any
+  let chain: ChainDefinitionDTO
   try {
     chain = typeof proposedChainData === 'string' ? JSON.parse(proposedChainData) : proposedChainData
   } catch {
@@ -927,26 +1050,43 @@ function applyAiProposal(proposedChainData: string) {
   }
 
   graph.batchUpdate(() => {
-    const nodes = chain?.nodes
-    if (Array.isArray(nodes)) {
-      nodes.forEach((n: any) => {
-        if (!n?.id) return
-        const cell = graph!.getCellById(n.id)
-        if (!cell?.isNode()) return
-        const data = { ...(cell.getData() || {}) }
-        if (n.label != null) data.label = n.label
-        if (n.component != null) data.componentId = n.component
-        if (n.componentName != null) data.componentName = n.componentName
-        cell.setData(data)
-        updateNodeVisual(cell as Node)
-      })
-    }
+    applyChainDefinitionToGraph(chain, {
+      getNodeById: (id) => {
+        const cell = graph!.getCellById(id)
+        if (!cell?.isNode()) return null
+        return {
+          getData: () => cell.getData() || {},
+          setData: (data) => {
+            cell.setData(data)
+            updateNodeVisual(cell as Node)
+          },
+        }
+      },
+      addNode: (options) => {
+        const node = graph!.addNode({
+          id: options.id,
+          shape: options.shape,
+          x: options.x,
+          y: options.y,
+          width: options.width,
+          height: options.height,
+          data: options.data,
+        })
+        updateNodeVisual(node as Node)
+        const nt = normalizeNodeType(options.data?.nodeType || 'NORMAL')
+        node.setProp('ports', { groups: { handle: handleGroup }, items: getPorts(nt) })
+      },
+      addEdge: addChainEdgeFromProposal,
+      hasEdge: hasChainEdge,
+      getLayoutMetrics: getGraphLayoutMetrics,
+    }, generateInlinePredId)
   })
 
   design.value.chainData = typeof proposedChainData === 'string'
     ? proposedChainData
     : JSON.stringify(chain)
   hydrateNodeConfigFromChainData()
+  clearAiDiffHighlight()
   ElMessage.success(t('ai.applySuccess'))
 }
 
@@ -3015,7 +3155,16 @@ onMounted(async () => {
   await loadTemplateFromQuery()
 })
 
+watch(pendingProposal, (proposal) => {
+  if (!proposal || !graph) {
+    clearAiDiffHighlight()
+    return
+  }
+  applyAiDiffHighlight(computeChainDiff(JSON.stringify(translateGraphToChain()), proposal))
+})
+
 onBeforeUnmount(() => {
+  clearAiDiffHighlight()
   window.removeEventListener('resize', checkViewport)
   closeContextMenu()
   inlineEditor.show = false

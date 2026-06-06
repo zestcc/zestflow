@@ -112,6 +112,14 @@ public class AiCopilotController {
         return Result.success(aiRagService.retrieve(q, limit));
     }
 
+    @GetMapping("/rag/status")
+    public Result<java.util.Map<String, Object>> ragStatus() {
+        java.util.Map<String, Object> status = new java.util.LinkedHashMap<>();
+        status.put("enabled", aiRagService.retrievalMode().equals("disabled") ? false : true);
+        status.put("mode", aiRagService.retrievalMode());
+        return Result.success(status);
+    }
+
     @PostMapping("/design/explain")
     public Result<AiExplainResponse> explain(@RequestBody AiExplainRequest request) {
         requireAppEditor(request.getAppCode());

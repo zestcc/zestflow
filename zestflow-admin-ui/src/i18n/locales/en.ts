@@ -1045,6 +1045,8 @@ export default {
       deleteConfirm: 'Delete template "{name}"?',
       applyCopilot: 'Use in Copilot',
       openInCopilot: 'Open designer & load',
+      applyToCanvas: 'Apply to canvas',
+      appliedToCanvas: 'Template applied to canvas. Review and save manually.',
       designCodePlaceholder: 'Design code, e.g. DES001',
       loadedInCopilot: 'Template loaded in Copilot. Preview and apply to canvas.',
       loadFailed: 'Failed to load template',
@@ -1073,6 +1075,13 @@ export default {
     diffNodesChanged: 'Nodes changed',
     diffEdgesAdded: 'Edges added',
     diffEdgesRemoved: 'Edges removed',
+    playground: {
+      title: 'Inline trial run',
+      selectScene: 'Select demo scene',
+      bodyPlaceholder: 'Request JSON',
+      execute: 'Run',
+      openFull: 'Open full playground',
+    },
   },
   layout: {
     dashboard: 'Dashboard',

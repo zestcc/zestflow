@@ -97,6 +97,10 @@ zestflow:
     pii-mask: true
     repair-max-rounds: 2
     rag-enabled: true
+    rag-mode: hybrid
+    rag-use-llm-embedding: false
+    rag-embedding-model: nomic-embed-text
+    rag-embedding-candidate-limit: 12
     rag-max-chunks: 3
     # 环境变量中的免费/试用 API Key（租户未单独配置时使用）
     env-keys:

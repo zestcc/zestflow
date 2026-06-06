@@ -1,6 +1,6 @@
 # ZestFlow AI 集成方案（Copilot）
 
-> **版本** 1.0 · **更新** 2026-06-02 · **状态** 已实现（P0～P3）  
+> **版本** 1.1 · **更新** 2026-06-02 · **状态** 已实现（P0～P3 + Phase 4 增强）  
 > **定位** 面向开发人员的编排辅助（Copilot），非自动上线（Autopilot）
 
 ---
@@ -637,6 +637,7 @@ CREATE TABLE zf_ai_copilot_message (
 | **P1** | 4～6 周 | 设计器 Copilot（explain / suggest / expression / diff / repair） |
 | **P2** | 3～4 周 | Playground 联动、日志诊断、chain_key 提示 |
 | **P3** | 按需 | 元件脚手架、AI 模板库、RAG（轻量 classpath 检索） |
+| **P4** | 按需 | 向量 RAG（TF-IDF + 可选 LLM Embedding）、模板一键落画布、画布 diff 高亮、Copilot 内嵌试跑、CI E2E |
 
 **人力建议：** 1 后端（Admin + Executor validate）+ 1 前端（设计器）+ 0.5 Prompt/测试
 

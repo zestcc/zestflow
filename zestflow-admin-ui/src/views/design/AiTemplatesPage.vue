@@ -46,6 +46,9 @@
         <el-button text type="primary" size="small" class="action-btn" @click="openApplyDialog(row)">
           {{ $t('ai.templates.applyCopilot') }}
         </el-button>
+        <el-button text type="success" size="small" class="action-btn" @click="applyTemplateToCanvas(row)">
+          {{ $t('ai.templates.applyToCanvas') }}
+        </el-button>
         <el-button text type="danger" size="small" class="action-btn" @click="handleDelete(row)">
           {{ $t('common.delete') }}
         </el-button>
@@ -66,6 +69,7 @@
       <template #footer>
         <el-button @click="detailVisible = false">{{ $t('common.close') }}</el-button>
         <el-button type="primary" @click="openApplyDialog(detail!)">{{ $t('ai.templates.applyCopilot') }}</el-button>
+        <el-button type="success" @click="applyTemplateToCanvas(detail!)">{{ $t('ai.templates.applyToCanvas') }}</el-button>
         <el-button type="primary" @click="goDesign">{{ $t('ai.templates.openDesign') }}</el-button>
       </template>
     </el-dialog>
@@ -108,7 +112,7 @@
       <template #footer>
         <el-button @click="applyVisible = false">{{ $t('common.cancel') }}</el-button>
         <el-button type="primary" :disabled="!applyDesignCode.trim()" @click="confirmApplyToDesign">
-          {{ $t('ai.templates.openInCopilot') }}
+          {{ applyMode === 'canvas' ? $t('ai.templates.applyToCanvas') : $t('ai.templates.openInCopilot') }}
         </el-button>
       </template>
     </el-dialog>
@@ -138,6 +142,7 @@ const createVisible = ref(false)
 const applyVisible = ref(false)
 const applyDesignCode = ref('')
 const applyTarget = ref<AiChainTemplate | null>(null)
+const applyMode = ref<'copilot' | 'canvas'>('copilot')
 const detail = ref<AiChainTemplate | null>(null)
 
 const createForm = reactive<AiChainTemplateSaveDTO>({
@@ -242,9 +247,17 @@ function goDesign() {
   router.push({ path: '/design', query: { appCode: detail.value.appCode } })
 }
 
+function applyTemplateToCanvas(row: AiChainTemplate) {
+  applyDesignCode.value = ''
+  applyTarget.value = row
+  applyVisible.value = true
+  applyMode.value = 'canvas'
+}
+
 function openApplyDialog(row: AiChainTemplate) {
   applyTarget.value = row
   applyDesignCode.value = ''
+  applyMode.value = 'copilot'
   applyVisible.value = true
 }
 
@@ -260,6 +273,7 @@ function confirmApplyToDesign() {
     query: {
       appCode: row.appCode || currentAppCode.value || undefined,
       aiTemplateId: String(row.id),
+      aiAutoApply: applyMode.value === 'canvas' ? '1' : undefined,
     },
   })
 }
