@@ -49,6 +49,7 @@ public class AiCopilotService {
     private final AiRagService aiRagService;
     private final AiCopilotSessionMapper sessionMapper;
     private final AiCopilotMessageMapper messageMapper;
+    private final AiQuotaService aiQuotaService;
 
     public AiExplainResponse explain(AiExplainRequest request) {
         requireCopilotEnabled();
@@ -282,6 +283,7 @@ public class AiCopilotService {
         if (!tenantAiConfigService.isCopilotEnabledForTenant(tenantId)) {
             throw new BizException(ErrorCode.AI_COPILOT_DISABLED);
         }
+        aiQuotaService.ensureWithinQuota(tenantId);
     }
 
     private String chat(EffectiveAiConfig config, String system, String user, boolean jsonMode,

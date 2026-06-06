@@ -2,7 +2,9 @@
 param(
     [string]$BaseAdmin = "http://127.0.0.1:8080",
     [switch]$AllowSkip,
-    [switch]$AllowLlmSkip
+    [switch]$AllowLlmSkip,
+    [switch]$UseMockLlm,
+    [int]$MockLlmPort = 18765
 )
 
 $ErrorActionPreference = "Continue"
@@ -20,9 +22,9 @@ function Save-Report {
     Write-Host "Saved: $ReportJson"
 }
 
-function Invoke-Api($method, $url, $body, $headers) {
+function Invoke-Api($method, $url, $body, $headers, [int]$TimeoutSec = 30) {
     try {
-        $p = @{ Uri=$url; Method=$method; TimeoutSec=30; UseBasicParsing=$true }
+        $p = @{ Uri=$url; Method=$method; TimeoutSec=$TimeoutSec; UseBasicParsing=$true }
         if ($headers) { $p.Headers = $headers }
         if ($null -ne $body) { $p.Body = $body; $p.ContentType = "application/json" }
         $r = Invoke-WebRequest @p
@@ -38,6 +40,16 @@ function Invoke-Api($method, $url, $body, $headers) {
 }
 
 Write-Host "=== AI Copilot E2E ===" -ForegroundColor Cyan
+
+$mockProc = $null
+if ($UseMockLlm) {
+    $mockProc = Start-Process powershell -ArgumentList @(
+        "-NoProfile", "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $PSScriptRoot "mock-llm-server.ps1"),
+        "-Port", $MockLlmPort
+    ) -PassThru -WindowStyle Hidden
+    Start-Sleep -Seconds 2
+}
 
 $login = Invoke-Api POST "$BaseAdmin/api/zestflow/auth/login" '{"username":"admin","password":"admin123"}' $null
 $token = $null
@@ -71,7 +83,18 @@ if ($providers.ok) {
 }
 Add-Check "ai-providers-list" ($providerCount -ge 20) "count=$providerCount"
 
-$saveCfg = Invoke-Api PUT "$BaseAdmin/api/zestflow/ai/tenant-config" '{"enabled":true,"preset":"ollama","model":"qwen2.5:7b","apiKey":"ollama"}' $h
+if ($UseMockLlm) {
+    $mockCfg = (@{
+        enabled = $true
+        preset  = 'custom'
+        baseUrl = "http://127.0.0.1:$MockLlmPort/v1"
+        apiKey  = 'mock-e2e'
+        model   = 'mock-e2e'
+    } | ConvertTo-Json -Compress)
+    $saveCfg = Invoke-Api PUT "$BaseAdmin/api/zestflow/ai/tenant-config" $mockCfg $h
+} else {
+    $saveCfg = Invoke-Api PUT "$BaseAdmin/api/zestflow/ai/tenant-config" '{"enabled":true,"preset":"ollama","model":"qwen2.5:7b","apiKey":"ollama"}' $h
+}
 Add-Check "ai-tenant-config-save" ($saveCfg.ok -and $saveCfg.status -eq 200) "status=$($saveCfg.status)"
 
 $validateBody = '{"appCode":"demo-app","chainCode":"CHN_TEST","chainData":"{\"code\":\"CHN_TEST\",\"version\":1,\"nodes\":[{\"id\":\"n1\",\"label\":\"test\",\"type\":\"TASK\",\"component\":\"validateUser\"}],\"edges\":[]}"}'
@@ -227,7 +250,7 @@ $explainPayload = @{
     chainData = $chainCtx
     userMessage = "explain this chain"
 } | ConvertTo-Json -Compress -Depth 6
-$explain = Invoke-Api POST "$BaseAdmin/api/zestflow/ai/design/explain" $explainPayload $h
+$explain = Invoke-Api POST "$BaseAdmin/api/zestflow/ai/design/explain" $explainPayload $h 120
 $explainOk = $false
 $explainBizOk = $false
 if ($explain.ok) {
@@ -251,7 +274,7 @@ $suggestPayload = @{
     userMessage = "add validate user node"
     mode = "generate"
 } | ConvertTo-Json -Compress -Depth 6
-$suggest = Invoke-Api POST "$BaseAdmin/api/zestflow/ai/design/suggest" $suggestPayload $h
+$suggest = Invoke-Api POST "$BaseAdmin/api/zestflow/ai/design/suggest" $suggestPayload $h 120
 $suggestOk = $false
 if ($suggest.ok) {
     try {
@@ -269,7 +292,7 @@ if (-not $suggestOk -and $AllowLlmSkip) {
 }
 
 $exprBody = '{"appCode":"demo-app","chainCode":"CHN_TEST","currentExpression":"1+1","userMessage":"use chainCtx get userId"}'
-$expr = Invoke-Api POST "$BaseAdmin/api/zestflow/ai/expression/suggest" $exprBody $h
+$expr = Invoke-Api POST "$BaseAdmin/api/zestflow/ai/expression/suggest" $exprBody $h 120
 $exprOk = $false
 if ($expr.ok) {
     try {
@@ -302,6 +325,32 @@ if ($mainIndex.ok -and ($mainIndex.body -match 'SettingsAiPage-[A-Za-z0-9_-]+\.j
 }
 Add-Check "ai-settings-ui-bundle" $settingsBundleOk "three-tabs-bundled"
 
+# --- P6：RAG 导入导出 + 用量配额字段 ---
+$ragExport = Invoke-Api GET "$BaseAdmin/api/zestflow/ai/rag/documents/export?appCode=demo-app" $null $h
+$exportOk = $false
+if ($ragExport.ok) {
+    try { $exportOk = $null -ne (ConvertFrom-Json $ragExport.body).data.documents } catch {}
+}
+Add-Check "ai-rag-documents-export" ($ragExport.ok -and $exportOk) "status=$($ragExport.status)"
+
+$importBody = '{"documents":[{"title":"E2E-IMPORT","appCode":"demo-app","content":"## Import\n\nbulk import test","enabled":true}],"replaceByTitle":false}'
+$ragImport = Invoke-Api POST "$BaseAdmin/api/zestflow/ai/rag/documents/import" $importBody $h
+$importCount = 0
+if ($ragImport.ok) {
+    try { $importCount = (ConvertFrom-Json $ragImport.body).data.imported } catch {}
+}
+Add-Check "ai-rag-documents-import" ($ragImport.ok -and $importCount -gt 0) "imported=$importCount"
+
+$usage2 = Invoke-Api GET "$BaseAdmin/api/zestflow/ai/usage/overview?days=30" $null $h
+$quotaFieldsOk = $false
+if ($usage2.ok) {
+    try {
+        $u2 = (ConvertFrom-Json $usage2.body).data
+        $quotaFieldsOk = ($null -ne $u2.monthlyTokenUsed)
+    } catch {}
+}
+Add-Check "ai-usage-quota-fields" ($usage2.ok -and $quotaFieldsOk) "status=$($usage2.status)"
+
 if ($ragDocId) {
     $ragDocDel = Invoke-Api DELETE "$BaseAdmin/api/zestflow/ai/rag/documents/$ragDocId" $null $h
     Add-Check "ai-rag-documents-delete" ($ragDocDel.ok -and $ragDocDel.status -eq 200) "status=$($ragDocDel.status)"
@@ -312,5 +361,8 @@ if ($ragDocId) {
 $fail = @($checks | Where-Object { -not $_.ok }).Count
 Write-Host "Checks: $($checks.Count - $fail)/$($checks.Count) passed" -ForegroundColor $(if ($fail -eq 0) { 'Green' } else { 'Red' })
 Save-Report
+if ($mockProc -and -not $mockProc.HasExited) {
+    Stop-Process -Id $mockProc.Id -Force -ErrorAction SilentlyContinue
+}
 if ($fail -gt 0) { exit 1 }
 exit 0

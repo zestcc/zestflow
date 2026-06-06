@@ -21,4 +21,7 @@ public class AiUsageOverviewVO {
     private double adoptedRate;
     private Map<String, Long> sessionsByMode;
     private List<AiUsageDailyVO> dailyTrend;
+    private Integer monthlyTokenQuota;
+    private Long monthlyTokenUsed;
+    private Double quotaUsageRate;
 }

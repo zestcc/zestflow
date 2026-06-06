@@ -170,6 +170,19 @@ public class AiCopilotController {
         return Result.success();
     }
 
+    @GetMapping("/rag/documents/export")
+    public Result<AiRagDocumentExportVO> exportRagDocuments(@RequestParam(required = false) String appCode) {
+        requireSuperAdminOrTenantAdmin();
+        return Result.success(ragDocumentService.exportDocuments(appCode));
+    }
+
+    @PostMapping("/rag/documents/import")
+    public Result<java.util.Map<String, Object>> importRagDocuments(@RequestBody AiRagDocumentImportDTO dto) {
+        requireSuperAdminOrTenantAdmin();
+        int count = ragDocumentService.importDocuments(dto);
+        return Result.success(java.util.Map.of("imported", count));
+    }
+
     @GetMapping("/usage/overview")
     public Result<AiUsageOverviewVO> usageOverview(@RequestParam(defaultValue = "30") int days) {
         requireSuperAdminOrTenantAdmin();

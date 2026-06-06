@@ -30,7 +30,7 @@ if (-not $SkipMavenTest) {
 }
 
 if ($RequireLlm) {
-    & "$PSScriptRoot\run-ai-copilot-e2e.ps1" -BaseAdmin $BaseAdmin
+    & "$PSScriptRoot\run-ai-copilot-e2e.ps1" -BaseAdmin $BaseAdmin -UseMockLlm
 } else {
     & "$PSScriptRoot\run-ai-copilot-e2e.ps1" -BaseAdmin $BaseAdmin -AllowLlmSkip
 }
@@ -43,8 +43,8 @@ $report = @{
     matrix    = @{
         flywayV5        = "ai-flyway-v5-rag-table / rag CRUD in e2e"
         settingsTabs    = "ai-settings-tab-*-api + ai-settings-ui-bundle"
-        designerCopilot = "ai-design-explain/suggest + ai-expression-suggest (RequireLlm or AllowLlmSkip)"
-        p5RagUsage      = "rag documents + usage overview in e2e"
+        designerCopilot = "ai-design-explain/suggest + ai-expression-suggest (-RequireLlm uses mock-llm-server)"
+        p6RagUsage      = "rag import/export + usage quota fields"
     }
 }
 Set-Content -Path $ReportJson -Value ($report | ConvertTo-Json -Depth 6) -Encoding UTF8

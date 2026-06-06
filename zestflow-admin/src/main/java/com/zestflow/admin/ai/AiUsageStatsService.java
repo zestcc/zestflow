@@ -25,6 +25,7 @@ public class AiUsageStatsService {
     private final AiCopilotSessionMapper sessionMapper;
     private final AiCopilotMessageMapper messageMapper;
     private final TenantAiConfigService tenantAiConfigService;
+    private final AiQuotaService quotaService;
 
     public AiUsageOverviewVO overview(int days) {
         int windowDays = Math.max(1, Math.min(days, 90));
@@ -73,6 +74,13 @@ public class AiUsageStatsService {
 
         List<AiUsageDailyVO> daily = buildDailyTrend(sessions, windowDays);
 
+        Integer monthlyQuota = quotaService.resolveMonthlyQuota(tenantId);
+        long monthlyUsed = quotaService.sumMonthlyTokenEstimate(tenantId);
+        Double quotaRate = null;
+        if (monthlyQuota != null && monthlyQuota > 0) {
+            quotaRate = Math.round(monthlyUsed * 1000.0 / monthlyQuota) / 10.0;
+        }
+
         return AiUsageOverviewVO.builder()
                 .days(windowDays)
                 .totalSessions(total)
@@ -85,6 +93,9 @@ public class AiUsageStatsService {
                 .adoptedRate(feedback == 0 ? 0 : roundRate(adopted, feedback))
                 .sessionsByMode(byMode)
                 .dailyTrend(daily)
+                .monthlyTokenQuota(monthlyQuota)
+                .monthlyTokenUsed(monthlyUsed)
+                .quotaUsageRate(quotaRate)
                 .build();
     }
 

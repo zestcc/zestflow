@@ -13,4 +13,6 @@ public class AiTenantConfigSaveDTO {
     private String apiKey;
     private String model;
     private List<String> allowedPresets;
+    /** 月 Token 估算上限，null=不限 */
+    private Integer monthlyTokenQuota;
 }

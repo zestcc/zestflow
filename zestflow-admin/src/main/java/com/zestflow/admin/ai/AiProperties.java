@@ -66,4 +66,7 @@ public class AiProperties {
 
     /** 单文档最大字节 */
     private int ragTenantMaxContentBytes = 524_288;
+
+    /** 默认月 Token 配额（0=不限，可被租户配置覆盖） */
+    private int defaultMonthlyTokenQuota = 0;
 }

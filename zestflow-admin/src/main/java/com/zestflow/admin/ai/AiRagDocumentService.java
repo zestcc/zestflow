@@ -1,8 +1,10 @@
 package com.zestflow.admin.ai;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.zestflow.admin.ai.model.dto.AiRagDocumentImportDTO;
 import com.zestflow.admin.ai.model.dto.AiRagDocumentSaveDTO;
 import com.zestflow.admin.ai.model.entity.AiRagDocumentPO;
+import com.zestflow.admin.ai.model.vo.AiRagDocumentExportVO;
 import com.zestflow.admin.ai.model.vo.AiRagDocumentVO;
 import com.zestflow.admin.ai.repository.AiRagDocumentMapper;
 import com.zestflow.admin.constant.ErrorCode;
@@ -102,6 +104,40 @@ public class AiRagDocumentService {
         Long tenantId = tenantAiConfigService.getCurrentTenantId();
         aiRagService.invalidateTenantIndex(tenantId);
         aiRagService.warmTenantIndex(tenantId);
+    }
+
+    public AiRagDocumentExportVO exportDocuments(String appCode) {
+        List<AiRagDocumentVO> docs = list(appCode);
+        return AiRagDocumentExportVO.builder()
+                .count(docs.size())
+                .documents(docs)
+                .build();
+    }
+
+    public int importDocuments(AiRagDocumentImportDTO dto) {
+        if (dto == null || dto.getDocuments() == null || dto.getDocuments().isEmpty()) {
+            throw new BizException(ErrorCode.VALIDATION_ERROR);
+        }
+        Long tenantId = tenantAiConfigService.getCurrentTenantId();
+        if (Boolean.TRUE.equals(dto.getReplaceByTitle())) {
+            for (AiRagDocumentSaveDTO item : dto.getDocuments()) {
+                if (!StringUtils.hasText(item.getTitle())) {
+                    continue;
+                }
+                documentMapper.selectList(baseQuery(tenantId).eq(AiRagDocumentPO::getTitle, item.getTitle().trim()))
+                        .forEach(old -> {
+                            old.setIsDeleted(1);
+                            documentMapper.updateById(old);
+                        });
+            }
+        }
+        int imported = 0;
+        for (AiRagDocumentSaveDTO item : dto.getDocuments()) {
+            save(item);
+            imported++;
+        }
+        rebuildIndex();
+        return imported;
     }
 
     List<AiRagService.IndexedChunk> loadTenantChunks(Long tenantId, String appCode) {

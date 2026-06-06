@@ -69,6 +69,9 @@ public class TenantAiConfigService {
                 throw new BizException(ErrorCode.VALIDATION_ERROR);
             }
         }
+        if (dto.getMonthlyTokenQuota() != null) {
+            po.setMonthlyTokenQuota(dto.getMonthlyTokenQuota() <= 0 ? null : dto.getMonthlyTokenQuota());
+        }
         if (existing == null) {
             if (po.getPreset() == null) {
                 po.setPreset(aiProperties.getDefaultPreset());
@@ -237,6 +240,7 @@ public class TenantAiConfigService {
                 .apiKeyMasked(masked)
                 .apiKeyConfigured(StringUtils.hasText(po.getApiKeyEnc()))
                 .allowedPresets(allowed)
+                .monthlyTokenQuota(po.getMonthlyTokenQuota())
                 .build();
     }
 

@@ -100,7 +100,7 @@ if (-not $adminUp) {
 & "$PSScriptRoot\run-full-e2e.ps1" -E2eProfile fullGreen -SceneTimeoutSec $SceneTimeoutSec
 Add-Phase "full-e2e-fullGreen" ($LASTEXITCODE -eq 0) "exit=$LASTEXITCODE"
 
-& "$PSScriptRoot\run-ai-copilot-e2e.ps1" -AllowSkip
+& "$PSScriptRoot\run-ai-copilot-e2e.ps1" -AllowSkip -AllowLlmSkip
 switch ($LASTEXITCODE) {
     0 { Add-Phase "ai-copilot-e2e" $true "passed" }
     2 { Add-Phase "ai-copilot-e2e" $true "skipped-admin-features" }

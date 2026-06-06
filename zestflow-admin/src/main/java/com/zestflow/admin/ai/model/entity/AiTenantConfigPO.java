@@ -40,6 +40,9 @@ public class AiTenantConfigPO {
     /** 允许的预设 JSON 数组 */
     private String allowedPresets;
 
+    /** 月 Token 估算上限，null=不限 */
+    private Integer monthlyTokenQuota;
+
     @TableField(fill = FieldFill.INSERT)
     private String createdBy;
 

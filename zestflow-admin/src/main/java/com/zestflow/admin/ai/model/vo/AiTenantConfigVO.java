@@ -17,4 +17,5 @@ public class AiTenantConfigVO {
     private String apiKeyMasked;
     private boolean apiKeyConfigured;
     private List<String> allowedPresets;
+    private Integer monthlyTokenQuota;
 }
