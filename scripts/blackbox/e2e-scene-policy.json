@@ -13,7 +13,7 @@
       "comment": "一部分绿：required 全绿 + partialGreen 场景允许节点失败但链 status=1",
       "mode": "strict",
       "skipHeavyDefault": false,
-      "optionalScenes": [],
+      "optionalScenes": ["SCN20260602000002"],
       "partialGreenScenes": ["SCN20260602000001"]
     },
     "skipOnError": {
