@@ -2519,6 +2519,19 @@ onBeforeUnmount(() => {
 .panel-header { padding: 12px 16px; font-weight: 600; font-size: 13px; color: #475569; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; }
 .panel-body { padding: 16px; }
 .panel-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 16px; color: #94a3b8; font-size: 13px; }
+
+@media (max-width: 767px) {
+  .editor-page {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 767px) {
+  .canvas-wrapper {
+    flex: 1;
+    min-height: 300px;
+  }
+}
 </style>
 
 <style>

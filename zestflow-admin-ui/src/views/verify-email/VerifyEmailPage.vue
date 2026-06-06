@@ -102,4 +102,11 @@ onMounted(async () => {
   color: #fff; text-decoration: none; border-radius: 6px; font-size: 14px;
 }
 .btn-link:hover { opacity: 0.9; }
+
+@media (max-width: 767px) {
+  .auth-card {
+    width: 100%;
+    padding: 28px 20px 24px;
+  }
+}
 </style>

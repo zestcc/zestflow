@@ -632,4 +632,17 @@ onMounted(async () => {
 .detail-json { margin: 0; font-family: monospace; font-size: 12px; white-space: pre-wrap; max-height: 200px; overflow-y: auto; background: #f5f7fa; padding: 8px; border-radius: 4px; }
 .action-btn { padding: 2px 4px; margin-left: 0; }
 .endpoint-json { margin: 0; font-family: 'SF Mono', 'Cascadia Code', monospace; font-size: 12px; line-height: 1.6; white-space: pre-wrap; background: #1e1e1e; color: #d4d4d4; padding: 16px; border-radius: 6px; max-height: 360px; overflow-y: auto; }
+
+@media (max-width: 767px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .stats-summary {
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+}
 </style>

@@ -629,4 +629,16 @@ onMounted(fetchList)
   box-shadow: 0 0 0 1000px #fff inset !important;
   -webkit-text-fill-color: #333 !important;
 }
+
+@media (max-width: 767px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .page-header h2 {
+    font-size: 18px;
+  }
+}
 </style>

@@ -490,4 +490,17 @@ onMounted(async () => {
   display: flex; align-items: center; font-size: 14px;
 }
 .action-btn.action-btn { padding: 2px 4px; margin-left: 0; }
+
+@media (max-width: 767px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .stats-summary {
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+}
 </style>

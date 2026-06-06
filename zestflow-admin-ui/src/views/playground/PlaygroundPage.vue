@@ -826,4 +826,10 @@ onMounted(async () => {
 .pg-detail-item label { font-size: 12px; color: #909399; margin-right: 6px; }
 .pg-detail-item span { font-size: 13px; }
 .pg-detail-json { margin: 4px 0 0; font-family: monospace; font-size: 12px; background: #f5f7fa; padding: 6px 8px; border-radius: 4px; white-space: pre-wrap; }
+
+@media (max-width: 767px) {
+  .pg-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

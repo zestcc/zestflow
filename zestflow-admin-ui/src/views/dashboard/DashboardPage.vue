@@ -25,7 +25,7 @@
     <!-- 执行器概览 -->
     <h3 class="section-title">执行器</h3>
     <el-row :gutter="20" class="cards">
-      <el-col :span="6">
+      <el-col :xs="12" :sm="12" :md="6">
         <el-card shadow="hover">
           <div class="card-item">
             <div class="card-value">{{ stats.totalExecutors }}</div>
@@ -33,7 +33,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="12" :sm="12" :md="6">
         <el-card shadow="hover">
           <div class="card-item card-success">
             <div class="card-value">{{ stats.healthyExecutors }}</div>
@@ -41,7 +41,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="12" :sm="12" :md="6">
         <el-card shadow="hover">
           <div class="card-item card-danger">
             <div class="card-value">{{ stats.errorExecutors }}</div>
@@ -49,7 +49,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="12" :sm="12" :md="6">
         <el-card shadow="hover">
           <div class="card-item card-warning">
             <div class="card-value">{{ stats.offlineExecutors }}</div>
@@ -62,7 +62,7 @@
     <!-- 应用 & 链 & 设计概览 -->
     <h3 class="section-title">{{ $t('dashboard.apps') }}</h3>
     <el-row :gutter="20" class="cards">
-      <el-col :span="6">
+      <el-col :xs="12" :sm="12" :md="6">
         <el-card shadow="hover">
           <div class="card-item">
             <div class="card-value">{{ stats.totalApps }}</div>
@@ -70,7 +70,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="12" :sm="12" :md="6">
         <el-card shadow="hover">
           <div class="card-item">
             <div class="card-value">{{ stats.totalChains }}</div>
@@ -78,7 +78,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="12" :sm="12" :md="6">
         <el-card shadow="hover">
           <div class="card-item">
             <div class="card-value">{{ stats.enabledChains }}</div>
@@ -86,7 +86,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="12" :sm="12" :md="6">
         <el-card shadow="hover">
           <div class="card-item">
             <div class="card-value">{{ stats.totalDesigns }}</div>
@@ -99,7 +99,7 @@
     <!-- 执行统计 -->
     <h3 class="section-title">{{ $t('dashboard.executionStats') }}</h3>
     <el-row :gutter="20" class="cards">
-      <el-col :span="8">
+      <el-col :xs="24" :sm="8" :md="8">
         <el-card shadow="hover">
           <div class="card-item">
             <div class="card-value">{{ stats.todayExecutions }}</div>
@@ -107,7 +107,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="8">
+      <el-col :xs="24" :sm="8" :md="8">
         <el-card shadow="hover">
           <div class="card-item">
             <div class="card-value">{{ formatMs(stats.avgExecutionMs) }}</div>
@@ -115,7 +115,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="8">
+      <el-col :xs="24" :sm="8" :md="8">
         <el-card shadow="hover">
           <div class="card-item" :class="stats.successRate >= 80 ? 'card-success' : 'card-danger'">
             <div class="card-value">{{ formatRate(stats.successRate) }}</div>
@@ -127,42 +127,21 @@
 
     <!-- 最近执行记录 -->
     <h3 class="section-title">{{ $t('dashboard.recentExecutions') }}</h3>
-    <el-table
+    <ResponsiveTable
       :data="recentExecutions"
-      :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"
-      stripe
-      empty-text="暂无执行记录"
-    >
-      <el-table-column prop="executionId" :label="$t('logs.executionId')" min-width="200" show-overflow-tooltip />
-      <el-table-column prop="chainName" :label="$t('logs.chainName')" min-width="140" show-overflow-tooltip />
-      <el-table-column prop="executorId" :label="$t('logs.executorId')" min-width="140" show-overflow-tooltip />
-      <el-table-column :label="$t('schedules.logStatus')" width="100">
-        <template #default="{ row }">
-          <el-tag :type="row.status === 1 ? 'success' : row.status === 0 ? 'danger' : 'info'" size="small">
-            {{ row.status === 1 ? $t('schedules.success') : row.status === 0 ? $t('schedules.failed') : '-' }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column :label="$t('schedules.costMs')" width="110">
-        <template #default="{ row }">
-          {{ row.costMs != null ? row.costMs + ' ms' : '-' }}
-        </template>
-      </el-table-column>
-      <el-table-column :label="$t('logs.timestamp')" width="180">
-        <template #default="{ row }">
-          {{ formatTime(row.startTime) }}
-        </template>
-      </el-table-column>
-    </el-table>
+      :columns="executionColumns"
+      :row-key="'executionId'"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { dashboardApi } from '@/api/dashboard'
 import { queryExecutionTraces } from '@/api/logs'
 import { getFeatures, type Features } from '@/api/system'
 import type { DashboardStatsVO } from '@/api/dashboard'
+import ResponsiveTable from '@/components/ResponsiveTable.vue'
 
 const features = ref<Features | null>(null)
 
@@ -205,6 +184,37 @@ function formatTime(ts: number): string {
   const d = new Date(ts)
   return d.toLocaleString()
 }
+
+const executionColumns = computed(() => [
+  {
+    prop: 'executionId',
+    label: $t('logs.executionId'),
+    formatter: (row: any) => row.executionId?.substring(0, 12) + '...' || '-',
+  },
+  {
+    prop: 'chainName',
+    label: $t('logs.chainName'),
+  },
+  {
+    prop: 'status',
+    label: $t('schedules.logStatus'),
+    formatter: (row: any) => {
+      if (row.status === 1) return '成功'
+      if (row.status === 0) return '失败'
+      return '-'
+    },
+  },
+  {
+    prop: 'costMs',
+    label: $t('schedules.costMs'),
+    formatter: (row: any) => row.costMs != null ? row.costMs + ' ms' : '-',
+  },
+  {
+    prop: 'startTime',
+    label: $t('logs.timestamp'),
+    formatter: (row: any) => formatTime(row.startTime),
+  },
+])
 
 async function fetchStats() {
   try {
@@ -291,5 +301,30 @@ onMounted(() => {
   font-size: 14px;
   color: #909399;
   margin-top: 8px;
+}
+
+@media (max-width: 767px) {
+  .dashboard h2 {
+    font-size: 18px;
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    margin: 16px 0 12px;
+    font-size: 14px;
+  }
+
+  .card-value {
+    font-size: 24px;
+  }
+
+  .card-item {
+    padding: 6px 0;
+  }
+
+  .card-label {
+    font-size: 12px;
+    margin-top: 4px;
+  }
 }
 </style>

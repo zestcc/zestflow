@@ -76,4 +76,18 @@ async function handleSubmit() {
 .page-header { margin-bottom: 20px; }
 .page-header h2 { margin: 0; font-size: 18px; color: #303133; }
 .form-wrapper { padding: 0 20px; }
+
+@media (max-width: 767px) {
+  .chain-create {
+    padding: 12px;
+  }
+
+  .form-wrapper {
+    padding: 0;
+  }
+
+  .page-header h2 {
+    font-size: 16px;
+  }
+}
 </style>

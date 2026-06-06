@@ -31,67 +31,21 @@
       <el-button type="primary" @click="openCreate">{{ $t('chains.createChain') }}</el-button>
     </div>
 
-    <el-table
+    <ResponsiveTable
       :data="chainList"
-      v-loading="loading"
-      stripe border
-      style="width:100%"
-      :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"
+      :columns="chainColumns"
+      :row-key="'code'"
+      :show-actions="true"
     >
-      <el-table-column prop="code" :label="$t('chains.code')" width="160" show-overflow-tooltip>
-        <template #default="{ row }">
-          <span class="code-link" @click="openChainDetail(row)">{{ row.code }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="chainKey" :label="$t('chains.chainKey')" width="180" show-overflow-tooltip>
-        <template #default="{ row }">
-          <span v-if="!row.chainKey" style="color:#c0c4cc">-</span>
-          <span v-else>{{ row.chainKey }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column :label="$t('chains.appDeclared')" width="100" align="center">
-        <template #default="{ row }">
-          <el-tag v-if="row.appDeclared" type="warning" size="small">{{ $t('chains.appDeclaredTag') }}</el-tag>
-          <span v-else style="color:#c0c4cc">-</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="name" :label="$t('chains.name')" show-overflow-tooltip min-width="140" />
-      <el-table-column :label="$t('common.status')" width="80" align="center">
-        <template #default="{ row }">
-          <el-tag :type="statusTagType(row.status)" size="small">
-            {{ statusLabel(row.status) }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="进度" width="100" align="center">
-        <template #default="{ row }">
-          <span :style="{ color: row.status === 4 ? '#67c23a' : row.status === 0 ? '#f56c6c' : '#909399' }">
-            {{ row.publishedCount || 0 }}/{{ row.totalExecutors || 0 }}
-          </span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="designCode" label="设计编码" width="160" show-overflow-tooltip>
-        <template #default="{ row }">
-          <span v-if="!row.designCode" style="color:#c0c4cc">-</span>
-          <span v-else class="code-link" @click="openDesignDetail(row.designCode, row.appCode)">{{ row.designCode }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="description" :label="$t('chains.description')" show-overflow-tooltip min-width="140" />
-      <el-table-column prop="updatedBy" :label="$t('common.updatedBy')" width="120" show-overflow-tooltip />
-      <el-table-column prop="updatedAt" :label="$t('chains.updatedAt')" width="160" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.updatedAt?.replace('T', ' ') }}</template>
-      </el-table-column>
-      <el-table-column :label="$t('common.actions')" width="240" fixed="right">
-        <template #default="{ row }">
-          <el-button v-if="row.status === 2 && row.designCode" text type="primary" size="small" class="action-btn" @click="handlePublish(row)">{{ $t('chains.publish') }}</el-button>
-          <el-button text type="primary" size="small" class="action-btn" @click="openDesignDialog(row)">{{ $t('chains.design') }}</el-button>
-          <el-button text type="primary" size="small" class="action-btn" @click="openEdit(row)">{{ $t('common.edit') }}</el-button>
-          <el-button v-if="row.status !== 0" text type="primary" size="small" class="action-btn" @click="handleToggleStatus(row)">{{ $t('chains.disable') }}</el-button>
-          <el-button v-else text type="primary" size="small" class="action-btn" @click="handleToggleStatus(row)">{{ $t('chains.enable') }}</el-button>
-          <el-button text type="danger" size="small" class="action-btn" @click="handleDelete(row)">{{ $t('common.delete') }}</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+      <template #actions="{ row }">
+        <el-button v-if="row.status === 2 && row.designCode" text type="primary" size="small" @click="handlePublish(row)">{{ $t('chains.publish') }}</el-button>
+        <el-button text type="primary" size="small" @click="openDesignDialog(row)">{{ $t('chains.design') }}</el-button>
+        <el-button text type="primary" size="small" @click="openEdit(row)">{{ $t('common.edit') }}</el-button>
+        <el-button v-if="row.status !== 0" text type="primary" size="small" @click="handleToggleStatus(row)">{{ $t('chains.disable') }}</el-button>
+        <el-button v-else text type="primary" size="small" @click="handleToggleStatus(row)">{{ $t('chains.enable') }}</el-button>
+        <el-button text type="danger" size="small" @click="handleDelete(row)">{{ $t('common.delete') }}</el-button>
+      </template>
+    </ResponsiveTable>
 
     <div style="display:flex;justify-content:flex-end;margin-top:12px">
       <el-pagination
@@ -308,6 +262,7 @@ import { chainApi, type ChainCreateDTO } from '@/api/chain'
 import { executorApi, type AppOption } from '@/api/executor'
 import { designApi, type DesignVO } from '@/api/design'
 import CreateDesignDialog from '@/components/CreateDesignDialog.vue'
+import ResponsiveTable from '@/components/ResponsiveTable.vue'
 import { useCurrentApp } from '@/composables/useCurrentApp'
 
 const { t } = useI18n()
@@ -348,6 +303,36 @@ const appNameMap = computed(() => {
   return map
 })
 
+const chainColumns = computed(() => [
+  {
+    prop: 'code',
+    label: t('chains.code'),
+  },
+  {
+    prop: 'name',
+    label: t('chains.name'),
+  },
+  {
+    prop: 'status',
+    label: t('common.status'),
+    formatter: (row: any) => statusLabel(row.status),
+  },
+  {
+    prop: 'designCode',
+    label: '设计编码',
+    formatter: (row: any) => row.designCode || '-',
+  },
+  {
+    prop: 'description',
+    label: t('chains.description'),
+    formatter: (row: any) => row.description || '-',
+  },
+  {
+    prop: 'updatedAt',
+    label: t('chains.updatedAt'),
+    formatter: (row: any) => row.updatedAt?.replace('T', ' ') || '-',
+  },
+])
 
 // 链详情抽屉
 const chainDrawerVisible = ref(false)
@@ -650,4 +635,17 @@ onMounted(async () => {
   display: flex; align-items: center; font-size: 14px;
 }
 .action-btn.action-btn { padding: 2px 4px; margin-left: 0; }
+
+@media (max-width: 767px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .stats-summary {
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+}
 </style>

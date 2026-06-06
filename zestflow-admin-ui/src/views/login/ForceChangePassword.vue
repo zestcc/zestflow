@@ -283,4 +283,12 @@ async function handleSubmit() {
   font-size: 16px;
   border-radius: 8px;
 }
+
+@media (max-width: 767px) {
+  .force-card {
+    width: 100%;
+    padding: 28px 20px 24px;
+    border-radius: 12px;
+  }
+}
 </style>

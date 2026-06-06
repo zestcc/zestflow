@@ -419,4 +419,38 @@ async function handleLogin() {
 .links a:hover {
   color: #5a6fd6;
 }
+
+/* 移动端 */
+@media (max-width: 767px) {
+  .login-page {
+    padding: 20px;
+  }
+
+  .login-card {
+    width: 100%;
+    padding: 28px 20px 24px;
+    border-radius: 12px;
+  }
+
+  .card-title {
+    font-size: 20px;
+  }
+
+  .card-subtitle {
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+
+  .lang-bar {
+    top: 16px;
+    right: 16px;
+  }
+
+  .bg-flow.tl { top: 20px; left: 10px; width: 60px; }
+  .bg-flow.tr { top: 80px; right: 20px; width: 55px; }
+  .bg-flow.ml { display: none; }
+  .bg-flow.mr { display: none; }
+  .bg-flow.bl { bottom: 20px; left: 10px; width: 70px; }
+  .bg-flow.br { bottom: 10px; right: 30px; width: 80px; }
+}
 </style>

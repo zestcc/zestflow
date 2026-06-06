@@ -320,4 +320,17 @@ onMounted(() => {
 .pagination-wrap { margin-top: 16px; display: flex; justify-content: flex-end; }
 .detail-json { margin: 0; font-family: monospace; font-size: 12px; white-space: pre-wrap; max-height: 200px; overflow-y: auto; background: #f5f7fa; padding: 8px; border-radius: 4px; }
 .action-btn { padding: 2px 4px; margin-left: 0; }
+
+@media (max-width: 767px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .stats-summary {
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+}
 </style>

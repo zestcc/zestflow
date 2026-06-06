@@ -189,4 +189,17 @@ onMounted(fetchList)
 .summary-error { font-weight: 600; color: #f56c6c; }
 .summary-offline { font-weight: 600; color: #c0c4cc; }
 .action-btn.action-btn { padding: 2px 4px; margin-left: 0; }
+
+@media (max-width: 767px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .stats-summary {
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+}
 </style>

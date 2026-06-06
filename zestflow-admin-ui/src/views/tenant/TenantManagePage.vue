@@ -343,4 +343,16 @@ function openDetail(row: TenantVO) {
   padding: 2px 4px;
   margin-left: 0;
 }
+
+@media (max-width: 767px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .page-header h2 {
+    font-size: 18px;
+  }
+}
 </style>

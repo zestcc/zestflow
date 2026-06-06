@@ -294,4 +294,12 @@ async function handleSubmit() {
 .links { text-align: center; font-size: 14px; margin-top: 16px; }
 .links a { color: #667eea; text-decoration: none; }
 .links a:hover { color: #5a6fd6; }
+
+@media (max-width: 767px) {
+  .auth-card {
+    width: 100%;
+    padding: 28px 20px 24px;
+    border-radius: 12px;
+  }
+}
 </style>

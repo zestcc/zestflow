@@ -314,4 +314,12 @@ async function handleRegister() {
 }
 .links a { color: #667eea; text-decoration: none; margin-left: 4px; }
 .links a:hover { color: #5a6fd6; }
+
+@media (max-width: 767px) {
+  .auth-card {
+    width: 100%;
+    padding: 28px 20px 24px;
+    border-radius: 12px;
+  }
+}
 </style>

@@ -1,3 +1,21 @@
+/* ============================================================
+   CSS 变量 & 响应式基础
+   ============================================================ */
+:root {
+  --bp-mobile: 768px;
+  --bp-tablet: 1024px;
+  --bp-desktop: 1280px;
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 18px;
+}
+
 body {
   margin: 0;
   padding: 0;
@@ -5,6 +23,7 @@ body {
     'Noto Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-size: var(--font-size-base);
 }
 
 html, body, #app {
@@ -31,4 +50,87 @@ html, body, #app {
 
 .code-link:hover {
   text-decoration: underline;
+}
+
+/* ============================================================
+   响应式工具类
+   ============================================================ */
+
+/* 表格横向滚动包裹 */
+.responsive-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 卡片网格 */
+.responsive-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-md);
+}
+
+/* 响应式隐藏 */
+@media (max-width: 767px) {
+  .hide-on-mobile {
+    display: none !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .hide-on-desktop {
+    display: none !important;
+  }
+}
+
+/* ============================================================
+   移动端 (< 768px)
+   ============================================================ */
+@media (max-width: 767px) {
+  .responsive-card-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-sm);
+  }
+
+  .el-form-item {
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .el-dialog {
+    width: 90% !important;
+  }
+
+  .el-message-box {
+    width: 90% !important;
+  }
+
+  .el-pagination {
+    justify-content: center;
+  }
+
+  .el-table {
+    overflow-x: auto;
+  }
+
+  .el-table__body-wrapper {
+    overflow-x: auto;
+  }
+}
+
+/* ============================================================
+   平板 (768px - 1023px)
+   ============================================================ */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .responsive-card-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ============================================================
+   桌面端 (>= 1024px)
+   ============================================================ */
+@media (min-width: 1024px) {
+  .responsive-card-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }

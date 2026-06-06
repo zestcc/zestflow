@@ -16,7 +16,7 @@
       >
         <span class="tenant-trigger">
           <el-icon><HomeFilled /></el-icon>
-          <span>{{ tenantStore.currentTenant?.name || $t('tenant.select') }}</span>
+          <span class="hide-on-mobile">{{ tenantStore.currentTenant?.name || $t('tenant.select') }}</span>
         </span>
         <template #dropdown>
           <el-dropdown-menu>
@@ -59,7 +59,7 @@
           <el-avatar :size="32" :src="avatarUrl" class="user-avatar">
             {{ userStore.user?.username?.charAt(0)?.toUpperCase() }}
           </el-avatar>
-          <span class="user-name">{{ userStore.user?.username || $t('layout.userMenu') }}</span>
+          <span class="user-name hide-on-mobile">{{ userStore.user?.username || $t('layout.userMenu') }}</span>
           <el-icon><ArrowDown /></el-icon>
         </span>
         <template #dropdown>
@@ -105,7 +105,6 @@ async function handleSwitchTenant(tenantId: number) {
   try {
     await tenantStore.switchTenant(tenantId)
     ElMessage.success('租户已切换')
-    // 刷新页面以重新加载所有数据
     window.location.reload()
   } catch {
     ElMessage.error('租户切换失败')
@@ -149,7 +148,7 @@ function switchLang(lang: string) {
   align-items: center;
   gap: 4px;
   color: #606266;
-  font-size: 14px;
+  font-size: var(--font-size-base);
 }
 
 .tenant-switch {
@@ -161,7 +160,7 @@ function switchLang(lang: string) {
   align-items: center;
   gap: 4px;
   color: #606266;
-  font-size: 14px;
+  font-size: var(--font-size-base);
   padding: 4px 8px;
   border: 1px solid #dcdfe6;
   border-radius: 4px;
@@ -211,5 +210,26 @@ function switchLang(lang: string) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 移动端 */
+@media (max-width: 767px) {
+  .header-right {
+    gap: 8px;
+  }
+
+  .lang-trigger {
+    font-size: var(--font-size-sm);
+  }
+
+  .tenant-trigger {
+    font-size: var(--font-size-sm);
+    padding: 2px 6px;
+  }
+
+  .user-info {
+    padding: 2px;
+    gap: 4px;
+  }
 }
 </style>

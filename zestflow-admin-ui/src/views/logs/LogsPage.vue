@@ -29,71 +29,18 @@
       </div>
     </div>
 
-    <el-table
+    <ResponsiveTable
       :data="list"
-      v-loading="loading"
-      stripe border
-      style="width:100%"
-      :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"
+      :columns="logColumns"
+      :row-key="'executionId'"
+      :show-actions="true"
     >
-      <el-table-column prop="executionId" :label="$t('logs.executionId')" width="200" show-overflow-tooltip />
-      <el-table-column :label="$t('logs.chainCode')" min-width="140" show-overflow-tooltip>
-        <template #default="{ row }">
-          <span
-            v-if="resolveChainCode(row)"
-            class="code-link"
-            @click.stop="openChainDetail(resolveChainCode(row)!, row.appCode)"
-          >{{ resolveChainCode(row) }}</span>
-          <span v-else>-</span>
-        </template>
-      </el-table-column>
-      <el-table-column :label="$t('logs.chainName')" min-width="140" show-overflow-tooltip>
-        <template #default="{ row }">
-          {{ displayChainName(row) }}
-        </template>
-      </el-table-column>
-      <el-table-column prop="appName" :label="$t('logs.appName')" width="120" show-overflow-tooltip />
-      <el-table-column :label="$t('logs.nodeCount')" width="80" align="center">
-        <template #default="{ row }">
-          <span>{{ row.nodeCount != null ? row.nodeCount : '-' }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column :label="$t('logs.successCount')" width="80" align="center">
-        <template #default="{ row }">
-          <el-tag size="small" type="success">{{ row.successCount || 0 }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column :label="$t('logs.failedCount')" width="80" align="center">
-        <template #default="{ row }">
-          <el-tag size="small" type="danger" v-if="(row.failedCount || 0) > 0">{{ row.failedCount }}</el-tag>
-          <span v-else>0</span>
-        </template>
-      </el-table-column>
-      <el-table-column :label="$t('logs.costMs')" width="100" align="center">
-        <template #default="{ row }">
-          <span>{{ row.costMs != null ? row.costMs + 'ms' : '-' }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column :label="$t('common.status')" width="90" align="center">
-        <template #default="{ row }">
-          <el-tag v-if="row.status === 1" type="success" size="small">{{ $t('logs.success') }}</el-tag>
-          <el-tag v-else-if="row.status === 0" type="danger" size="small">{{ $t('logs.failure') }}</el-tag>
-          <el-tag v-else type="info" size="small">{{ $t('logs.inProgress') }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column :label="$t('logs.timestamp')" width="170">
-        <template #default="{ row }">
-          {{ formatTime(row.startTime) }}
-        </template>
-      </el-table-column>
-      <el-table-column :label="$t('common.actions')" width="110" fixed="right">
-        <template #default="{ row }">
-          <el-button text size="small" type="primary" class="action-btn" @click.stop="showDetail(row)">
-            {{ $t('logs.detail') }}
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+      <template #actions="{ row }">
+        <el-button text size="small" type="primary" @click.stop="showDetail(row)">
+          {{ $t('logs.detail') }}
+        </el-button>
+      </template>
+    </ResponsiveTable>
 
     <div style="display:flex;justify-content:flex-end;margin-top:12px">
       <el-pagination
@@ -243,6 +190,7 @@ import { queryExecutionTraces, getExecutionTrace, getSnapshot, getNodeExecutionD
 import { executorApi, type AppOption } from '@/api/executor'
 import { chainApi, type ChainVO } from '@/api/chain'
 import ChainDetailDrawer from '@/components/ChainDetailDrawer.vue'
+import ResponsiveTable from '@/components/ResponsiveTable.vue'
 import { useCurrentApp } from '@/composables/useCurrentApp'
 
 const { t } = useI18n()
@@ -274,6 +222,43 @@ const stats = computed(() => {
   const inProgress = list.value.filter(r => r.status !== 0 && r.status !== 1).length
   return { success, failure, inProgress }
 })
+
+const logColumns = computed(() => [
+  {
+    prop: 'executionId',
+    label: t('logs.executionId'),
+    formatter: (row: any) => row.executionId?.substring(0, 12) + '...' || '-',
+  },
+  {
+    prop: 'chainName',
+    label: t('logs.chainName'),
+    formatter: (row: any) => displayChainName(row),
+  },
+  {
+    prop: 'appName',
+    label: t('logs.appName'),
+    formatter: (row: any) => row.appName || '-',
+  },
+  {
+    prop: 'status',
+    label: t('common.status'),
+    formatter: (row: any) => {
+      if (row.status === 1) return t('logs.success')
+      if (row.status === 0) return t('logs.failure')
+      return t('logs.inProgress')
+    },
+  },
+  {
+    prop: 'costMs',
+    label: t('logs.costMs'),
+    formatter: (row: any) => row.costMs != null ? row.costMs + 'ms' : '-',
+  },
+  {
+    prop: 'startTime',
+    label: t('logs.timestamp'),
+    formatter: (row: any) => formatTime(row.startTime),
+  },
+])
 
 // 详情抽屉
 const detailVisible = ref(false)
@@ -901,5 +886,18 @@ function destroyFullscreenGraph() {
   background: #f5f7fa; border: 1px solid #e4e7ed; border-radius: 4px;
   padding: 12px; font-size: 12px; line-height: 1.5; max-height: 240px;
   overflow: auto; white-space: pre-wrap; word-break: break-all; margin: 0;
+}
+
+@media (max-width: 767px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .stats-summary {
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
 }
 </style>

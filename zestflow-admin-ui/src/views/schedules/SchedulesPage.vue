@@ -362,4 +362,21 @@ onMounted(async () => {
 .stat-item b { font-size: 16px; }
 .stat-item.total b { color: #409eff; }
 .action-btn.action-btn { padding: 2px 4px; margin-left: 0; }
+
+@media (max-width: 767px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .page-header h2 {
+    font-size: 18px;
+  }
+
+  .stats-row {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+}
 </style>
