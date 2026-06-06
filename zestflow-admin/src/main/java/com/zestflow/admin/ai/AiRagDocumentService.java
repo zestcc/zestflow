@@ -8,9 +8,7 @@ import com.zestflow.admin.ai.repository.AiRagDocumentMapper;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.util.SecurityUtils;
 import com.zestflow.common.exception.BizException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -24,14 +22,22 @@ import java.util.stream.Stream;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class AiRagDocumentService {
 
     private final AiRagDocumentMapper documentMapper;
     private final TenantAiConfigService tenantAiConfigService;
     private final AiProperties aiProperties;
-    @Lazy
     private final AiRagService aiRagService;
+
+    public AiRagDocumentService(AiRagDocumentMapper documentMapper,
+                                TenantAiConfigService tenantAiConfigService,
+                                AiProperties aiProperties,
+                                AiRagService aiRagService) {
+        this.documentMapper = documentMapper;
+        this.tenantAiConfigService = tenantAiConfigService;
+        this.aiProperties = aiProperties;
+        this.aiRagService = aiRagService;
+    }
 
     public List<AiRagDocumentVO> list(String appCode) {
         Long tenantId = tenantAiConfigService.getCurrentTenantId();

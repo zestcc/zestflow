@@ -1,7 +1,6 @@
 package com.zestflow.admin.ai;
 
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.io.Resource;
@@ -23,17 +22,25 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class AiRagService {
 
     private final AiProperties aiProperties;
     private final AiEmbeddingClient embeddingClient;
     private final TenantAiConfigService tenantAiConfigService;
-    @Lazy
     private final AiRagDocumentService ragDocumentService;
 
     private final AiRagIndexEngine globalIndex = new AiRagIndexEngine();
     private final Map<Long, AiRagIndexEngine> tenantIndexes = new ConcurrentHashMap<>();
+
+    public AiRagService(AiProperties aiProperties,
+                        AiEmbeddingClient embeddingClient,
+                        TenantAiConfigService tenantAiConfigService,
+                        @Lazy AiRagDocumentService ragDocumentService) {
+        this.aiProperties = aiProperties;
+        this.embeddingClient = embeddingClient;
+        this.tenantAiConfigService = tenantAiConfigService;
+        this.ragDocumentService = ragDocumentService;
+    }
 
     @PostConstruct
     void loadGlobalIndex() {
