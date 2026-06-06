@@ -2,92 +2,73 @@
   <div class="user-manage">
     <div v-if="userStore.user?.isSuperAdmin === 1">
     <div class="page-header">
-      <div class="stats-summary">
-        <span class="summary-total" style="font-weight:600;color:#409eff">{{ $t('settings.userManage') }} {{ total }}</span>
+      <div class="page-header-row">
+        <div class="page-stats-row">
+          <span class="summary-total" style="font-weight:600;color:#409eff">{{ $t('settings.userManage') }} {{ total }}</span>
+        </div>
+        <el-button type="primary" @click="openCreate">{{ $t('settings.createUser') }}</el-button>
       </div>
-      <el-button type="primary" @click="openCreate">
-        {{ $t('settings.createUser') }}
-      </el-button>
     </div>
 
-    <!-- 筛选条件 -->
-    <el-form :model="filter" inline size="default" style="margin-bottom:12px">
+    <el-form :model="filter" inline size="default" class="responsive-filter-form" style="margin-bottom:12px">
       <el-form-item :label="$t('common.username')">
-        <el-input v-model="filter.username" :placeholder="$t('common.username')" clearable style="width:140px" />
+        <el-input v-model="filter.username" :placeholder="$t('common.username')" clearable class="page-filter-control--xs" />
       </el-form-item>
       <el-form-item :label="$t('common.email')">
-        <el-input v-model="filter.email" :placeholder="$t('common.email')" clearable style="width:180px" />
+        <el-input v-model="filter.email" :placeholder="$t('common.email')" clearable class="page-filter-control" />
       </el-form-item>
       <el-form-item :label="$t('common.status')">
-        <el-select v-model="filter.status" :placeholder="$t('common.all')" clearable style="width:100px">
+        <el-select v-model="filter.status" :placeholder="$t('common.all')" clearable class="page-filter-control--sm">
           <el-option :label="$t('settings.enabled')" :value="1" />
           <el-option :label="$t('settings.disabled')" :value="0" />
         </el-select>
       </el-form-item>
       <el-form-item :label="$t('settings.isSuperAdmin')">
-        <el-select v-model="filter.isSuperAdmin" :placeholder="$t('common.all')" clearable style="width:100px">
+        <el-select v-model="filter.isSuperAdmin" :placeholder="$t('common.all')" clearable class="page-filter-control--sm">
           <el-option :label="$t('settings.yes')" :value="1" />
           <el-option :label="$t('settings.no')" :value="0" />
         </el-select>
       </el-form-item>
-      <el-form-item>
+      <el-form-item class="filter-actions-item">
         <el-button type="primary" @click="handleSearch">{{ $t('common.search') }}</el-button>
         <el-button @click="handleReset">{{ $t('common.reset') }}</el-button>
       </el-form-item>
     </el-form>
 
-    <el-table
+    <ResponsiveTable
       :data="userList"
-      v-loading="loading"
-      stripe border
-      style="width: 100%"
-      :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"
+      :columns="userColumns"
+      :loading="loading"
+      row-key="id"
+      :show-actions="true"
+      :actions-label="$t('common.actions')"
+      :actions-width="230"
     >
-      <el-table-column prop="username" :label="$t('common.username')" show-overflow-tooltip />
-      <el-table-column prop="email" :label="$t('common.email')" show-overflow-tooltip />
-      <el-table-column prop="status" :label="$t('common.status')" width="90" align="center">
-        <template #default="{ row }">
-          <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
-            {{ row.status === 1 ? $t('settings.enabled') : $t('settings.disabled') }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column :label="$t('settings.isSuperAdmin')" width="100" align="center">
-        <template #default="{ row }">
-          <el-tag :type="row.isSuperAdmin === 1 ? 'warning' : 'info'" size="small">
-            {{ row.isSuperAdmin === 1 ? $t('settings.yes') : $t('settings.no') }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column :label="$t('settings.assignedApps')" width="120" align="center">
-        <template #default="{ row }">
-          {{ row.appRoles?.length || 0 }}
-        </template>
-      </el-table-column>
-      <el-table-column :label="$t('common.actions')" width="230" fixed="right">
-        <template #default="{ row }">
-          <el-button text type="primary" size="small" class="action-btn" @click="openEdit(row)">
-            {{ $t('common.edit') }}
-          </el-button>
-          <el-button text type="primary" size="small" class="action-btn" @click="openAssignApps(row)">
-            {{ $t('settings.assignApps') }}
-          </el-button>
-          <el-button text type="primary" size="small" class="action-btn" @click="handleResetPassword(row)">
-            {{ $t('settings.resetPassword') }}
-          </el-button>
-          <el-button text type="danger" size="small" class="action-btn" @click="handleDelete(row)">
-            {{ $t('common.delete') }}
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
-    <div style="display:flex;justify-content:flex-end;margin-top:12px">
+      <template #status="{ row }">
+        <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
+          {{ row.status === 1 ? $t('settings.enabled') : $t('settings.disabled') }}
+        </el-tag>
+      </template>
+      <template #isSuperAdmin="{ row }">
+        <el-tag :type="row.isSuperAdmin === 1 ? 'warning' : 'info'" size="small">
+          {{ row.isSuperAdmin === 1 ? $t('settings.yes') : $t('settings.no') }}
+        </el-tag>
+      </template>
+      <template #appRoles="{ row }">{{ row.appRoles?.length || 0 }}</template>
+      <template #actions="{ row }">
+        <el-button text type="primary" size="small" class="action-btn" @click="openEdit(row)">{{ $t('common.edit') }}</el-button>
+        <el-button text type="primary" size="small" class="action-btn" @click="openAssignApps(row)">{{ $t('settings.assignApps') }}</el-button>
+        <el-button text type="primary" size="small" class="action-btn" @click="handleResetPassword(row)">{{ $t('settings.resetPassword') }}</el-button>
+        <el-button text type="danger" size="small" class="action-btn" @click="handleDelete(row)">{{ $t('common.delete') }}</el-button>
+      </template>
+    </ResponsiveTable>
+    <div class="page-pagination-wrap">
       <el-pagination
         v-model:current-page="page"
         v-model:page-size="pageSize"
         :total="total"
         :page-sizes="[10, 20, 50]"
-        layout="total, sizes, prev, pager, next, jumper"
+        :layout="paginationLayout"
         @current-change="fetchList"
         @size-change="fetchList"
       />
@@ -189,17 +170,21 @@
           {{ assignTargetUser.email }}
         </el-tag>
       </div>
-      <el-table :data="assignApps" stripe border style="width: 100%; margin-top: 12px" :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}">
-        <el-table-column prop="appName" :label="$t('settings.appName')" show-overflow-tooltip />
-        <el-table-column prop="roleName" :label="$t('settings.appRole')" />
-        <el-table-column :label="$t('common.actions')" width="80" align="center">
-          <template #default="{ row, $index }">
-            <el-button text type="danger" size="small" @click="handleRemoveAssignment($index)">
-              {{ $t('common.delete') }}
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <ResponsiveTable
+        :data="assignApps"
+        :columns="assignAppColumns"
+        row-key="appCode"
+        :show-actions="true"
+        :actions-label="$t('common.actions')"
+        :actions-width="80"
+        style="margin-top: 12px"
+      >
+        <template #actions="{ row }">
+          <el-button text type="danger" size="small" @click="handleRemoveAssignment(assignApps.findIndex(a => a.appCode === row.appCode))">
+            {{ $t('common.delete') }}
+          </el-button>
+        </template>
+      </ResponsiveTable>
       <template #footer>
         <el-button type="primary" @click="openAddAssignment">
           {{ $t('settings.addAssignment') }}
@@ -252,18 +237,33 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
-
-const userStore = useUserStore()
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { userManageApi, roleApi } from '@/api/user-manage'
 import { executorApi } from '@/api/executor'
 import type { UserManageVO, UserUpdateDTO, RoleVO } from '@/api/user-manage'
 import type { AppOption } from '@/api/executor'
+import ResponsiveTable from '@/components/ResponsiveTable.vue'
+import { useResponsivePagination } from '@/composables/useResponsivePagination'
 
+const userStore = useUserStore()
 const { t } = useI18n()
+const { paginationLayout } = useResponsivePagination()
+
+const userColumns = computed(() => [
+  { prop: 'username', label: t('common.username'), showOverflowTooltip: true },
+  { prop: 'email', label: t('common.email'), showOverflowTooltip: true },
+  { prop: 'status', label: t('common.status'), width: 90, align: 'center' as const },
+  { prop: 'isSuperAdmin', label: t('settings.isSuperAdmin'), width: 100, align: 'center' as const },
+  { prop: 'appRoles', label: t('settings.assignedApps'), width: 120, align: 'center' as const },
+])
+
+const assignAppColumns = computed(() => [
+  { prop: 'appName', label: t('settings.appName'), showOverflowTooltip: true },
+  { prop: 'roleName', label: t('settings.appRole'), showOverflowTooltip: true },
+])
 
 const loading = ref(false)
 const userList = ref<UserManageVO[]>([])
@@ -563,20 +563,6 @@ onMounted(fetchList)
 </script>
 
 <style scoped>
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-
-.stats-summary {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 14px;
-}
-
 .assign-info {
   display: flex;
   align-items: center;
@@ -628,17 +614,5 @@ onMounted(fetchList)
   -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
   box-shadow: 0 0 0 1000px #fff inset !important;
   -webkit-text-fill-color: #333 !important;
-}
-
-@media (max-width: 767px) {
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .page-header h2 {
-    font-size: 18px;
-  }
 }
 </style>

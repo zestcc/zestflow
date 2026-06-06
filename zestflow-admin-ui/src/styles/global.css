@@ -52,6 +52,88 @@ html, body, #app {
   text-decoration: underline;
 }
 
+/* ========== 列表页通用布局（与 ChainsPage 对齐） ========== */
+.page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.page-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.page-stats-row,
+.stats-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  font-size: 14px;
+}
+
+.page-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.page-filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.page-filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.page-filter-control {
+  width: 200px;
+}
+
+.page-filter-control--sm {
+  width: 110px;
+}
+
+.page-filter-control--md {
+  width: 160px;
+}
+
+.page-filter-control--xs {
+  width: 140px;
+}
+
+.page-filter-control--wide {
+  width: 340px;
+}
+
+.page-pagination-wrap {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.action-btn.action-btn {
+  padding: 2px 2px;
+  margin-left: 0;
+}
+
 /* ============================================================
    响应式工具类
    ============================================================ */
@@ -100,6 +182,27 @@ html, body, #app {
     width: 90% !important;
   }
 
+  .el-dialog__footer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .el-dialog__footer .el-button {
+    width: 100%;
+    margin: 0 !important;
+  }
+
+  .el-dialog .el-row .el-col {
+    max-width: 100%;
+    flex: 0 0 100%;
+  }
+
+  .el-dialog .el-form-item__label {
+    width: auto !important;
+    text-align: left;
+  }
+
   .el-message-box {
     width: 90% !important;
   }
@@ -114,6 +217,173 @@ html, body, #app {
 
   .el-table__body-wrapper {
     overflow-x: auto;
+  }
+
+  /* 详情抽屉：窄屏全宽 + 描述列表可读 */
+  .detail-drawer.el-drawer {
+    max-width: 100vw;
+  }
+
+  .detail-drawer .el-drawer__body {
+    padding: 12px 16px 24px;
+  }
+
+  .detail-drawer-body .detail-drawer-title {
+    font-size: 17px;
+    line-height: 1.4;
+    word-break: break-word;
+  }
+
+  .detail-drawer-body .detail-drawer-header {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 10px;
+  }
+
+  .detail-drawer-body .detail-drawer-header .el-button {
+    width: 100%;
+    margin: 0;
+  }
+
+  .detail-drawer-body .el-descriptions__label {
+    width: 92px !important;
+    min-width: 92px !important;
+    font-size: 12px;
+  }
+
+  .detail-drawer-body .el-descriptions__content {
+    font-size: 13px;
+    word-break: break-word;
+  }
+
+  .detail-drawer-body .el-tag {
+    max-width: 100%;
+    height: auto;
+    white-space: normal;
+    line-height: 1.4;
+  }
+
+  .page-stats-row,
+  .stats-summary {
+    font-size: 12px;
+  }
+
+  .stats-summary .el-divider--vertical {
+    display: none;
+  }
+
+  .page-header-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-filters {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .page-filter-control,
+  .page-filter-control--sm,
+  .page-filter-control--md,
+  .page-filter-control--xs,
+  .page-filter-control--wide {
+    width: 100% !important;
+  }
+
+  .page-filter-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .page-filter-actions > .el-button {
+    width: 100%;
+    margin: 0;
+  }
+
+  .page-filter-actions > .page-primary-action {
+    grid-column: 1 / -1;
+  }
+
+  .page-pagination-wrap {
+    justify-content: center;
+  }
+
+  .responsive-filter-form.el-form--inline {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .responsive-filter-form.el-form--inline .el-form-item {
+    width: 100%;
+    margin-right: 0;
+  }
+
+  .responsive-filter-form.el-form--inline .el-form-item__content {
+    width: 100%;
+  }
+
+  .responsive-filter-form.el-form--inline .el-form-item__content > .el-input,
+  .responsive-filter-form.el-form--inline .el-form-item__content > .el-select,
+  .responsive-filter-form.el-form--inline .el-form-item__content > .el-date-editor {
+    width: 100% !important;
+  }
+
+  .responsive-filter-form.el-form--inline .filter-actions-item .el-form-item__content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .responsive-filter-form.el-form--inline .filter-actions-item .el-button {
+    width: 100%;
+    margin: 0;
+  }
+
+  .trace-detail-panel .execution-graph {
+    height: 260px !important;
+  }
+
+  .trace-detail-panel .graph-legend {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* 移动端侧边栏 drawer */
+  .mobile-sidebar-drawer.el-drawer {
+    max-width: 100vw;
+    height: 100% !important;
+  }
+
+  .mobile-sidebar-drawer .el-drawer__body {
+    padding: 0;
+    background: #304156;
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mobile-sidebar-drawer .sidebar {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .mobile-sidebar-drawer .sidebar .el-menu {
+    overscroll-behavior: contain;
+  }
+
+  .mobile-sidebar-drawer .el-menu-item,
+  .mobile-sidebar-drawer .el-sub-menu__title {
+    min-height: 48px;
+    line-height: 48px;
   }
 }
 

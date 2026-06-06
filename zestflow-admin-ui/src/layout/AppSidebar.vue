@@ -11,6 +11,7 @@
       text-color="#bfcbd9"
       active-text-color="#409eff"
       router
+      @select="handleMenuSelect"
     >
       <el-menu-item index="/dashboard">
         <el-icon><Odometer /></el-icon>
@@ -97,9 +98,14 @@ import {
 } from '@element-plus/icons-vue'
 
 defineProps<{ collapsed: boolean }>()
+const emit = defineEmits<{ navigate: [index: string] }>()
 
 const route = useRoute()
 const appStore = useAppStore()
+
+function handleMenuSelect(index: string) {
+  emit('navigate', index)
+}
 
 onMounted(() => {
   appStore.fetchFeatures()
@@ -111,10 +117,12 @@ onMounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .logo {
   height: 60px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -131,5 +139,9 @@ onMounted(() => {
 
 .el-menu {
   border-right: none;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 </style>

@@ -9,76 +9,57 @@
       </template>
 
       <!-- 筛选栏 -->
-      <el-form :inline="true" size="small">
+      <el-form :inline="true" size="default" class="responsive-filter-form">
         <el-form-item :label="$t('common.keyword')">
           <el-input
             v-model="filter.keyword"
             :placeholder="$t('tenant.keywordPlaceholder')"
             clearable
+            class="page-filter-control"
             @keyup.enter="handleSearch"
           />
         </el-form-item>
-        <el-form-item>
+        <el-form-item class="filter-actions-item">
           <el-button type="primary" @click="handleSearch">{{ $t('common.search') }}</el-button>
           <el-button @click="handleReset">{{ $t('common.reset') }}</el-button>
         </el-form-item>
       </el-form>
 
-      <!-- 表格 -->
-      <el-table
+      <ResponsiveTable
         :data="tableData"
-        v-loading="loading"
-        border
-        stripe
-        :header-cell-style="{ background: '#f5f7fa', color: '#303133', fontWeight: 600 }"
+        :columns="tenantColumns"
+        :loading="loading"
+        row-key="id"
+        :show-actions="true"
+        :actions-label="$t('common.actions')"
+        :actions-width="180"
       >
-        <el-table-column prop="code" :label="$t('tenant.code')" min-width="160" show-overflow-tooltip>
-          <template #default="{ row }">
-            <el-button type="primary" link @click="openDetail(row)">
-              {{ row.code }}
-            </el-button>
-          </template>
-        </el-table-column>
-        <el-table-column prop="name" :label="$t('tenant.name')" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="description" :label="$t('tenant.description')" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="status" :label="$t('common.status')" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
-              {{ row.status === 1 ? $t('tenant.active') : $t('tenant.inactive') }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createdBy" :label="$t('common.createdBy')" width="120" show-overflow-tooltip />
-        <el-table-column prop="createdAt" :label="$t('common.createdAt')" width="160" show-overflow-tooltip />
-        <el-table-column :label="$t('common.actions')" width="180" fixed="right" class-name="action-btn">
-          <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="openEdit(row)">
-              {{ $t('common.edit') }}
-            </el-button>
-            <el-button
-              type="danger"
-              link
-              size="small"
-              :disabled="row.id === 1"
-              @click="handleDelete(row)"
-            >
-              {{ $t('common.delete') }}
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+        <template #code="{ row }">
+          <el-button type="primary" link @click="openDetail(row)">{{ row.code }}</el-button>
+        </template>
+        <template #status="{ row }">
+          <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
+            {{ row.status === 1 ? $t('tenant.active') : $t('tenant.inactive') }}
+          </el-tag>
+        </template>
+        <template #actions="{ row }">
+          <el-button type="primary" link size="small" @click="openEdit(row)">{{ $t('common.edit') }}</el-button>
+          <el-button type="danger" link size="small" :disabled="row.id === 1" @click="handleDelete(row)">{{ $t('common.delete') }}</el-button>
+        </template>
+      </ResponsiveTable>
 
       <!-- 分页 -->
-      <el-pagination
-        v-if="total > 0"
-        v-model:current-page="page"
-        :page-size="size"
-        :total="total"
-        layout="total, prev, pager, next"
-        background
-        style="margin-top: 16px; justify-content: flex-end"
-        @current-change="fetchData"
-      />
+      <div class="page-pagination-wrap">
+        <el-pagination
+          v-if="total > 0"
+          v-model:current-page="page"
+          :page-size="size"
+          :total="total"
+          :layout="paginationLayout"
+          background
+          @current-change="fetchData"
+        />
+      </div>
     </el-card>
 
     <!-- 新建/编辑弹窗 -->
@@ -123,58 +104,53 @@
     <el-drawer
       v-model="drawerVisible"
       :title="$t('tenant.detail')"
-      :size="400"
+      :size="drawerSize"
+      class="detail-drawer"
       @closed="currentTenant = null"
     >
-      <template v-if="currentTenant">
-        <div class="detail-item">
-          <label>{{ $t('tenant.code') }}</label>
-          <span>{{ currentTenant.code }}</span>
-        </div>
-        <div class="detail-item">
-          <label>{{ $t('tenant.name') }}</label>
-          <span>{{ currentTenant.name }}</span>
-        </div>
-        <div class="detail-item">
-          <label>{{ $t('tenant.description') }}</label>
-          <span>{{ currentTenant.description || '-' }}</span>
-        </div>
-        <div class="detail-item">
-          <label>{{ $t('common.status') }}</label>
-          <el-tag :type="currentTenant.status === 1 ? 'success' : 'info'" size="small">
-            {{ currentTenant.status === 1 ? $t('tenant.active') : $t('tenant.inactive') }}
-          </el-tag>
-        </div>
-        <div class="detail-item">
-          <label>{{ $t('common.createdBy') }}</label>
-          <span>{{ currentTenant.createdBy || '-' }}</span>
-        </div>
-        <div class="detail-item">
-          <label>{{ $t('common.updatedBy') }}</label>
-          <span>{{ currentTenant.updatedBy || '-' }}</span>
-        </div>
-        <div class="detail-item">
-          <label>{{ $t('common.createdAt') }}</label>
-          <span>{{ currentTenant.createdAt }}</span>
-        </div>
-        <div class="detail-item">
-          <label>{{ $t('common.updatedAt') }}</label>
-          <span>{{ currentTenant.updatedAt }}</span>
-        </div>
-      </template>
+      <div v-if="currentTenant" class="detail-drawer-body">
+        <el-descriptions :column="1" border size="small">
+          <el-descriptions-item :label="$t('tenant.code')">{{ currentTenant.code }}</el-descriptions-item>
+          <el-descriptions-item :label="$t('tenant.name')">{{ currentTenant.name }}</el-descriptions-item>
+          <el-descriptions-item :label="$t('tenant.description')">{{ currentTenant.description || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="$t('common.status')">
+            <el-tag :type="currentTenant.status === 1 ? 'success' : 'info'" size="small">
+              {{ currentTenant.status === 1 ? $t('tenant.active') : $t('tenant.inactive') }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item :label="$t('common.createdBy')">{{ currentTenant.createdBy || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="$t('common.updatedBy')">{{ currentTenant.updatedBy || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="$t('common.createdAt')">{{ currentTenant.createdAt }}</el-descriptions-item>
+          <el-descriptions-item :label="$t('common.updatedAt')">{{ currentTenant.updatedAt }}</el-descriptions-item>
+        </el-descriptions>
+      </div>
     </el-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { TenantVO } from '@/api/tenant'
 import { tenantApi } from '@/api/tenant'
+import ResponsiveTable from '@/components/ResponsiveTable.vue'
+import { useResponsiveDrawerSize } from '@/composables/useResponsiveDrawerSize'
+import { useResponsivePagination } from '@/composables/useResponsivePagination'
 
 const { t } = useI18n()
+const { drawerSize } = useResponsiveDrawerSize(400)
+const { paginationLayout } = useResponsivePagination()
+
+const tenantColumns = computed(() => [
+  { prop: 'code', label: t('tenant.code'), minWidth: 160, showOverflowTooltip: true },
+  { prop: 'name', label: t('tenant.name'), minWidth: 160, showOverflowTooltip: true },
+  { prop: 'description', label: t('tenant.description'), minWidth: 200, showOverflowTooltip: true },
+  { prop: 'status', label: t('common.status'), width: 100, align: 'center' as const },
+  { prop: 'createdBy', label: t('common.createdBy'), width: 120, showOverflowTooltip: true },
+  { prop: 'createdAt', label: t('common.createdAt'), width: 160, showOverflowTooltip: true },
+])
 
 const loading = ref(false)
 const saving = ref(false)
@@ -319,40 +295,7 @@ function openDetail(row: TenantVO) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-.detail-item {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 16px;
-  padding: 0 16px;
-}
-
-.detail-item label {
-  font-size: 12px;
-  color: #909399;
-  margin-bottom: 4px;
-}
-
-.detail-item span {
-  font-size: 14px;
-  color: #303133;
-}
-
-:deep(.action-btn) .el-button {
-  padding: 2px 4px;
-  margin-left: 0;
-}
-
-@media (max-width: 767px) {
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .page-header h2 {
-    font-size: 18px;
-  }
+  flex-wrap: wrap;
+  gap: 8px;
 }
 </style>

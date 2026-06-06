@@ -1,7 +1,7 @@
 <template>
   <div class="design-editor-x6">
     <!-- 顶部工具栏 -->
-    <div class="editor-toolbar">
+    <div class="editor-toolbar" :class="{ 'editor-toolbar--mobile': isMobileView }">
       <div class="toolbar-left">
         <el-button text @click="goBack">
           <el-icon><ArrowLeft /></el-icon> {{ $t('design.back') }}
@@ -109,33 +109,58 @@
         <el-tag v-if="selectedCount > 0" type="info" size="small" style="margin-right:8px">
           {{ $t('design.selected') }} {{ selectedCount }}
         </el-tag>
-        <el-button type="primary" :loading="saving" @click="handleSave">
+        <el-button class="toolbar-save-btn" type="primary" :loading="saving" @click="handleSave">
           <el-icon><Check /></el-icon> {{ $t('design.saveGraph') }}
         </el-button>
       </div>
     </div>
 
     <!-- 编辑器主体 -->
-    <div class="editor-body" @contextmenu.prevent="onCanvasContextMenu">
-      <!-- 左侧节点面板 -->
-      <div class="node-palette">
-        <div class="palette-header">{{ $t('design.nodes') }}</div>
+    <div
+      class="editor-body"
+      :class="{ 'editor-body--compact': isCompactEditor, 'editor-body--tablet': isTabletEditor }"
+      @contextmenu.prevent="onCanvasContextMenu"
+    >
+      <!-- 左侧节点面板（桌面/平板常驻；手机为底部抽屉） -->
+      <div
+        class="node-palette"
+        :class="{
+          'node-palette--compact': isCompactEditor,
+          'node-palette--tablet': isTabletEditor,
+          'node-palette--sheet-open': isCompactEditor && nodeSheetOpen,
+        }"
+      >
+        <div class="palette-header">
+          <span>{{ $t('design.nodes') }}</span>
+          <el-button v-if="isCompactEditor" text size="small" @click="nodeSheetOpen = false">
+            <el-icon><Close /></el-icon>
+          </el-button>
+        </div>
         <div class="palette-list">
           <div
               v-for="nt in nodeTypes"
               :key="nt.type"
               class="palette-item"
-              draggable="true"
+              :class="{ 'palette-item--pending': pendingPlaceNode?.type === nt.type }"
+              :draggable="!isTouchPalette"
               @dragstart="onDragStart($event, nt)"
+              @click="onPaletteItemTap(nt)"
           >
             <div class="palette-icon" :style="{ background: nt.color }" v-html="nt.icon" />
             <div class="palette-label">{{ typeLabel(nt.type) }}</div>
+            <span v-if="isTouchPalette && isCompactEditor" class="palette-tap-hint">{{ $t('design.tapToAdd') }}</span>
           </div>
         </div>
       </div>
 
       <!-- 中间画布 -->
-      <div class="canvas-area" ref="canvasContainerRef" @dragover.prevent="onDragOver" @drop.prevent="onDrop">
+      <div
+        class="canvas-area"
+        :class="{ 'canvas-area--placing': !!pendingPlaceNode }"
+        ref="canvasContainerRef"
+        @dragover.prevent="onDragOver"
+        @drop.prevent="onDrop"
+      >
         <div ref="graphContainerRef" class="graph-container" />
         <div ref="minimapContainerRef" class="minimap-container" />
         <!-- 连线端点拖拽手柄 -->
@@ -145,12 +170,44 @@
             :style="{ left: ep.x + 'px', top: ep.y + 'px' }"
             @mousedown.prevent="onEpDragStart($event, ep.side)"
         />
+        <!-- 触摸端放置提示 -->
+        <div v-if="pendingPlaceNode" class="place-node-banner">
+          <span>{{ $t('design.tapCanvasToPlace', { label: typeLabel(pendingPlaceNode.type) }) }}</span>
+          <el-button size="small" text @click="cancelPlaceMode">{{ $t('design.cancelPlace') }}</el-button>
+        </div>
+        <!-- 触摸端浮动操作（手机：节点+属性；平板：仅属性） -->
+        <div v-if="isOverlayEditor" class="canvas-fab-bar" :class="{ 'canvas-fab-bar--tablet': isTabletEditor }">
+          <el-button
+            v-if="isCompactEditor"
+            round
+            type="primary"
+            :class="{ 'fab-btn--active': nodeSheetOpen }"
+            @click="toggleNodeSheet"
+          >
+            <el-icon><Plus /></el-icon>
+            {{ $t('design.addNode') }}
+          </el-button>
+          <el-button
+            round
+            :type="propertySheetOpen ? 'primary' : 'default'"
+            @click="togglePropertySheet"
+          >
+            <el-icon><Setting /></el-icon>
+            {{ $t('design.properties') }}
+          </el-button>
+        </div>
       </div>
 
-      <!-- 右侧属性面板 -->
-      <div class="property-panel">
+      <!-- 属性面板（桌面内联；手机/平板为底部抽屉） -->
+      <div
+        class="property-panel"
+        :class="{
+          'property-panel--overlay': isOverlayEditor,
+          'property-panel--sheet-open': isOverlayEditor && propertySheetOpen,
+        }"
+      >
         <div class="panel-header">
-          <span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1;min-width:0">
             {{ selectedEdgeData ? $t('design.selectedEdge') : selectedNodeData ? $t('design.selectedNode') : $t('design.properties') }}
             <el-tag v-if="selectedNodeData" size="small" :color="nodeColor(selectedNodeData.nodeType)" style="color:#fff;border:none;margin-left:6px">
               {{ typeLabel(selectedNodeData.nodeType) }}
@@ -159,6 +216,9 @@
               {{ $t('design.bindComponent') }}
             </el-button>
           </span>
+          <el-button v-if="isOverlayEditor" text size="small" @click="propertySheetOpen = false">
+            <el-icon><Close /></el-icon>
+          </el-button>
         </div>
         <!-- 节点属性 -->
         <div v-if="selectedNodeData" class="panel-body">
@@ -334,6 +394,19 @@
           </el-form>
         </div>
       </div>
+
+      <div
+        v-if="isOverlayEditor && ((isCompactEditor && nodeSheetOpen) || propertySheetOpen)"
+        class="editor-sheet-backdrop"
+        @click="closeCompactSheets"
+      />
+    </div>
+
+    <!-- 手机端底部保存栏（拇指区，比顶栏更好点） -->
+    <div v-if="isCompactEditor" class="editor-mobile-save-bar">
+      <el-button type="primary" :loading="saving" @click="handleSave">
+        <el-icon><Check /></el-icon> {{ $t('design.saveGraph') }}
+      </el-button>
     </div>
 
     <!-- 右键菜单 -->
@@ -392,70 +465,61 @@
 
     <!-- 绑定元件弹窗 -->
     <el-dialog v-model="bindDialog.visible" :title="bindDialog.target === 'main' ? $t('design.bindTitle', { label: bindDialog.typeLabel }) : $t('design.addTitle', { target: bindTypeTargetLabel(bindDialog.target) })" width="1060px" @close="bindDialog.loading=false">
-      <div style="margin-bottom:12px;display:flex;gap:8px">
-        <el-input v-model="bindDialog.keyword" :placeholder="$t('design.searchComponent')" clearable style="width:200px" @keyup.enter="fetchBindList" />
-        <el-select v-model="bindDialog.groupFilter" :placeholder="$t('design.allGroups')" clearable style="width:150px" @change="fetchBindList">
-          <el-option v-for="g in bindGroupOptions" :key="g" :label="g" :value="g" />
-        </el-select>
-        <el-button type="primary" @click="fetchBindList">{{ $t('design.search') }}</el-button>
-      </div>
-      <el-table :data="bindFilteredList" v-loading="bindDialog.loading" stripe border height="250" style="width:100%"
-                :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}"
-                @row-click="onBindSelect"
+      <el-form inline size="default" class="responsive-filter-form" style="margin-bottom:12px">
+        <el-form-item>
+          <el-input v-model="bindDialog.keyword" :placeholder="$t('design.searchComponent')" clearable class="page-filter-control" @keyup.enter="fetchBindList" />
+        </el-form-item>
+        <el-form-item>
+          <el-select v-model="bindDialog.groupFilter" :placeholder="$t('design.allGroups')" clearable class="page-filter-control--sm" @change="fetchBindList">
+            <el-option v-for="g in bindGroupOptions" :key="g" :label="g" :value="g" />
+          </el-select>
+        </el-form-item>
+        <el-form-item class="filter-actions-item">
+          <el-button type="primary" @click="fetchBindList">{{ $t('design.search') }}</el-button>
+        </el-form-item>
+      </el-form>
+      <ResponsiveTable
+        :data="bindFilteredList"
+        :columns="bindColumns"
+        :loading="bindDialog.loading"
+        row-key="componentId"
+        @row-click="onBindSelect"
       >
-        <el-table-column prop="componentId" :label="$t('design.colComponentId')" width="170" show-overflow-tooltip>
-          <template #default="{ row }">
-            <el-link type="primary" :underline="'never'" style="font-family:monospace;font-weight:500;cursor:pointer" @click.stop="openCompDetail(row)">
-              {{ row.componentId }}
-            </el-link>
-          </template>
-        </el-table-column>
-        <el-table-column prop="componentName" :label="$t('design.colName')" show-overflow-tooltip min-width="80" />
-        <el-table-column :label="$t('design.colType')" width="80" align="center">
-          <template #default="{ row }">
-            <el-tag :type="bindTypeTagType(row.componentType)" size="small">
-              {{ bindTypeLabel(row.componentType) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="groupName" :label="$t('design.colGroup')" width="90" show-overflow-tooltip />
-        <el-table-column prop="executorSource" :label="$t('design.colSource')" width="140" show-overflow-tooltip />
-        <el-table-column :label="$t('design.colTimeout')" width="70" align="center">
-          <template #default="{ row }">{{ row.timeout === -1 ? '-' : row.timeout }}</template>
-        </el-table-column>
-        <el-table-column :label="$t('design.colAsync')" width="55" align="center">
-          <template #default="{ row }">
-            <el-tag :type="row.async ? 'warning' : 'info'" size="small">
-              {{ row.async ? $t('components.yes') : $t('components.no') }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column :label="$t('design.colStatus')" width="70" align="center">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
-              {{ row.status === 1 ? $t('components.online') : $t('components.offline') }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="cachedAt" :label="$t('design.colCachedAt')" width="140" show-overflow-tooltip />
-        <el-table-column :label="$t('design.colSelected')" width="55" align="center">
-          <template #default="{ row }">
-            <el-tag v-if="bindDialog.selectedIds.includes(row.componentId)" type="success" size="small">{{ $t('design.selected') }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column :label="$t('design.colTags')" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag v-if="row.tagDefs && row.tagDefs.length" size="small" type="info">{{ row.tagDefs.length }}</el-tag>
-          </template>
-        </el-table-column>
-      </el-table>
-      <div style="display:flex;justify-content:flex-end;margin-top:12px">
+        <template #componentId="{ row }">
+          <el-link type="primary" :underline="'never'" style="font-family:monospace;font-weight:500;cursor:pointer" @click.stop="openCompDetail(row)">
+            {{ row.componentId }}
+          </el-link>
+        </template>
+        <template #componentType="{ row }">
+          <el-tag :type="bindTypeTagType(row.componentType)" size="small">
+            {{ bindTypeLabel(row.componentType) }}
+          </el-tag>
+        </template>
+        <template #timeout="{ row }">{{ row.timeout === -1 ? '-' : row.timeout }}</template>
+        <template #async="{ row }">
+          <el-tag :type="row.async ? 'warning' : 'info'" size="small">
+            {{ row.async ? $t('components.yes') : $t('components.no') }}
+          </el-tag>
+        </template>
+        <template #status="{ row }">
+          <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
+            {{ row.status === 1 ? $t('components.online') : $t('components.offline') }}
+          </el-tag>
+        </template>
+        <template #selected="{ row }">
+          <el-tag v-if="bindDialog.selectedIds.includes(row.componentId)" type="success" size="small">{{ $t('design.selected') }}</el-tag>
+        </template>
+        <template #tags="{ row }">
+          <el-tag v-if="row.tagDefs && row.tagDefs.length" size="small" type="info">{{ row.tagDefs.length }}</el-tag>
+        </template>
+      </ResponsiveTable>
+      <div class="page-pagination-wrap">
         <el-pagination
             v-model:current-page="bindDialog.page"
             v-model:page-size="bindDialog.pageSize"
             :total="bindDialog.total"
             :page-sizes="[5, 10, 20]"
-            layout="total, sizes, prev, pager, next"
+            :layout="paginationLayout"
             @current-change="fetchBindList"
             @size-change="fetchBindList"
         />
@@ -467,8 +531,8 @@
     </el-dialog>
 
     <!-- 元件详情抽屉 -->
-    <el-drawer v-model="compDrawer.visible" :title="$t('design.componentDetail')" size="500px" destroy-on-close>
-      <template v-if="compDrawer.data">
+    <el-drawer v-model="compDrawer.visible" :title="$t('design.componentDetail')" :size="compDrawerSize" class="detail-drawer" destroy-on-close>
+      <div v-if="compDrawer.data" class="detail-drawer-body">
         <el-descriptions :column="1" border style="margin-bottom:16px">
           <el-descriptions-item :label="$t('design.detailComponentId')">
             <span style="font-family:monospace">{{ compDrawer.data.componentId }}</span>
@@ -508,17 +572,18 @@
 
         <el-descriptions :column="1" border v-if="compDrawer.data.tagDefs && compDrawer.data.tagDefs.length > 0">
           <el-descriptions-item :label="$t('design.detailTags')">
-            <el-table :data="compDrawer.data.tagDefs" border size="small" style="width:100%">
-              <el-table-column :label="$t('design.detailTagName')" prop="name" show-overflow-tooltip />
-              <el-table-column :label="$t('design.detailTagValue')" prop="value" show-overflow-tooltip width="140">
-                <template #default="{ row }">
-                  <el-tag size="small" type="info">{{ row.value }}</el-tag>
-                </template>
-              </el-table-column>
-            </el-table>
+            <ResponsiveTable
+              :data="compDrawer.data.tagDefs"
+              :columns="compTagColumns"
+              :row-key="compTagRowKey"
+            >
+              <template #value="{ row }">
+                <el-tag size="small" type="info">{{ row.value }}</el-tag>
+              </template>
+            </ResponsiveTable>
           </el-descriptions-item>
         </el-descriptions>
-      </template>
+      </div>
     </el-drawer>
 
     <!-- 链数据预览弹窗 -->
@@ -548,7 +613,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, nextTick, reactive, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick, reactive, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -562,6 +627,9 @@ import { Clipboard } from '@antv/x6-plugin-clipboard'
 import { Export } from '@antv/x6-plugin-export'
 import { designApi } from '@/api/design'
 import { useDict } from '@/composables/useDict'
+import { useResponsiveDrawerSize } from '@/composables/useResponsiveDrawerSize'
+import { useResponsivePagination } from '@/composables/useResponsivePagination'
+import ResponsiveTable from '@/components/ResponsiveTable.vue'
 import { componentApi } from '@/api/component'
 import { executorApi } from '@/api/executor'
 import {
@@ -569,10 +637,35 @@ import {
   CopyDocument, DocumentAdd,
   ZoomIn, ZoomOut, FullScreen, ScaleToOriginal,
   Delete, Select, Edit, Picture,
-  ArrowRight, ArrowDown, Sort, Rank,
+  ArrowRight, ArrowDown, Sort, Rank, Plus, Setting, Close,
 } from '@element-plus/icons-vue'
 
 const { t } = useI18n()
+const { drawerSize: compDrawerSize } = useResponsiveDrawerSize(500)
+const { paginationLayout } = useResponsivePagination()
+
+const bindColumns = computed(() => [
+  { prop: 'componentId', label: t('design.colComponentId'), width: 170, showOverflowTooltip: true },
+  { prop: 'componentName', label: t('design.colName'), minWidth: 80, showOverflowTooltip: true },
+  { prop: 'componentType', label: t('design.colType'), width: 80, align: 'center' as const },
+  { prop: 'groupName', label: t('design.colGroup'), width: 90, showOverflowTooltip: true },
+  { prop: 'executorSource', label: t('design.colSource'), width: 140, showOverflowTooltip: true },
+  { prop: 'timeout', label: t('design.colTimeout'), width: 70, align: 'center' as const },
+  { prop: 'async', label: t('design.colAsync'), width: 55, align: 'center' as const },
+  { prop: 'status', label: t('design.colStatus'), width: 70, align: 'center' as const },
+  { prop: 'cachedAt', label: t('design.colCachedAt'), width: 140, showOverflowTooltip: true },
+  { prop: 'selected', label: t('design.colSelected'), width: 55, align: 'center' as const },
+  { prop: 'tags', label: t('design.colTags'), width: 100, align: 'center' as const },
+])
+
+const compTagColumns = computed(() => [
+  { prop: 'name', label: t('design.detailTagName'), showOverflowTooltip: true },
+  { prop: 'value', label: t('design.detailTagValue'), width: 140, showOverflowTooltip: true },
+])
+
+function compTagRowKey(row: { name: string }) {
+  return row.name
+}
 const route = useRoute()
 const router = useRouter()
 const designCode = route.params.id as string
@@ -597,7 +690,65 @@ const defaultEdgeStyle = ref<'straight' | 'polyline' | 'curve'>('straight')
 const gridSnapEnabled = ref(false)
 const panModeEnabled = ref(false)
 const endpointHandles = ref<{ side: 'source' | 'target'; x: number; y: number }[]>([])
+const TABLET_BREAKPOINT = 768
+const COMPACT_EDITOR_BREAKPOINT = 1024
+const isMobileView = ref(false)
+const isCompactEditor = ref(false)
+const isTabletEditor = ref(false)
+const nodeSheetOpen = ref(false)
+const propertySheetOpen = ref(false)
+const pendingPlaceNode = ref<{ type: string; label: string } | null>(null)
 let draggingEp: { side: 'source' | 'target' } | null = null
+
+const isOverlayEditor = computed(() => isCompactEditor.value || isTabletEditor.value)
+const isTouchPalette = computed(() => isOverlayEditor.value)
+
+function checkViewport() {
+  const width = window.innerWidth
+  isMobileView.value = width < TABLET_BREAKPOINT
+  const nextCompact = width < TABLET_BREAKPOINT
+  const nextTablet = width >= TABLET_BREAKPOINT && width < COMPACT_EDITOR_BREAKPOINT
+  if ((isCompactEditor.value || isTabletEditor.value) && !nextCompact && !nextTablet) {
+    nodeSheetOpen.value = false
+    propertySheetOpen.value = false
+    pendingPlaceNode.value = null
+  }
+  isCompactEditor.value = nextCompact
+  isTabletEditor.value = nextTablet
+}
+
+function toggleNodeSheet() {
+  propertySheetOpen.value = false
+  nodeSheetOpen.value = !nodeSheetOpen.value
+}
+
+function togglePropertySheet() {
+  nodeSheetOpen.value = false
+  propertySheetOpen.value = !propertySheetOpen.value
+}
+
+function closeCompactSheets() {
+  nodeSheetOpen.value = false
+  propertySheetOpen.value = false
+}
+
+function cancelPlaceMode() {
+  pendingPlaceNode.value = null
+}
+
+function onPaletteItemTap(nt: typeof nodeTypes[0]) {
+  if (!isTouchPalette.value) return
+  pendingPlaceNode.value = { type: nt.type, label: nt.label }
+  if (isCompactEditor.value) nodeSheetOpen.value = false
+  ElMessage.info(t('design.tapToPlace'))
+}
+
+watch([selectedNodeData, selectedEdgeData], ([node, edge]) => {
+  if (isOverlayEditor.value && (node || edge)) {
+    if (isCompactEditor.value) nodeSheetOpen.value = false
+    propertySheetOpen.value = true
+  }
+})
 
 const executeStrategyOptions = computed(() => [
   { value: 'NORMAL', label: t('design.strategyNormal') },
@@ -1603,7 +1754,17 @@ function initGraph() {
     triggerEdgeLabelEdit(edge, e)
   })
 
-  graph.on('blank:click', () => {
+  graph.on('blank:click', ({ e, x, y }) => {
+    if (pendingPlaceNode.value) {
+      const pn = pendingPlaceNode.value
+      pendingPlaceNode.value = null
+      if (e && typeof e.clientX === 'number' && typeof e.clientY === 'number') {
+        addNodeAtClient(pn.type, pn.label, e.clientX, e.clientY)
+      } else {
+        addNodeAtLocal(pn.type, pn.label, x, y)
+      }
+      return
+    }
     graph?.cleanSelection(); selectedCell = null; selectedNodeData.value = null; selectedEdgeData.value = null
     hideEndpointHandles()
   })
@@ -1704,34 +1865,52 @@ function onDragOver(event: DragEvent) {
   if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
 }
 
+const NODE_SIZES: Record<string, [number, number]> = {
+  start: [148, 40], task: [160, 46], condition: [100, 80], multicondition: [120, 80],
+  loader: [160, 46], parser: [160, 46], script: [160, 46], subchain: [160, 46], iterator: [160, 46], end: [148, 40],
+}
+
+function buildNodeData(type: string, label: string) {
+  return ensureConditionDefaults({
+    label, nodeType: type, description: '', preComponents: [], postComponents: [], paramResolvers: [],
+    paramValidatorId: '', paramValidatorName: '', executeStrategy: 'NORMAL',
+    transactionPropagation: 'INHERIT', script: '', subChainCode: '',
+    iteratorDataSource: '', iteratorItemName: 'item',
+    predicateMode: type === 'condition' ? 'script' : undefined,
+    predicateScript: type === 'condition' ? '' : undefined,
+    trueLabel: type === 'condition' ? 'True' : undefined,
+    falseLabel: type === 'condition' ? 'False' : undefined,
+    componentId: type === 'condition' ? generateInlinePredId() : '',
+  })
+}
+
+function addNodeAtLocal(type: string, label: string, localX: number, localY: number) {
+  if (!graph) return null
+  const shape = getShapeForType(type)
+  const [w, h] = NODE_SIZES[type] || [160, 46]
+  const node = graph.addNode({
+    shape,
+    x: localX - w / 2,
+    y: localY - h / 2,
+    width: w,
+    height: h,
+    data: buildNodeData(type, label),
+  })
+  updateNodeVisual(node)
+  return node
+}
+
+function addNodeAtClient(type: string, label: string, clientX: number, clientY: number) {
+  if (!graph) return null
+  const pos = graph.clientToLocal(clientX, clientY)
+  return addNodeAtLocal(type, label, pos.x, pos.y)
+}
+
 function onDrop(event: DragEvent) {
-  if (!graph) return
   const raw = event.dataTransfer?.getData('text/plain')
   if (!raw) return
   const { type, label } = JSON.parse(raw)
-  const shape = getShapeForType(type)
-  const pos = graph.clientToLocal(event.clientX, event.clientY)
-  const sizes: Record<string, [number, number]> = { start: [148, 40], task: [160, 46], condition: [100, 80], multicondition: [120, 80], loader: [160, 46], parser: [160, 46], script: [160, 46], subchain: [160, 46], iterator: [160, 46], end: [148, 40] }
-  const [w, h] = sizes[type] || [160, 46]
-  const node = graph.addNode({
-    shape,
-    x: pos.x - w / 2,
-    y: pos.y - h / 2,
-    width: w,
-    height: h,
-    data: ensureConditionDefaults({
-      label, nodeType: type, description: '', preComponents: [], postComponents: [], paramResolvers: [],
-      paramValidatorId: '', paramValidatorName: '', executeStrategy: 'NORMAL',
-      transactionPropagation: 'INHERIT', script: '', subChainCode: '',
-      iteratorDataSource: '', iteratorItemName: 'item',
-      predicateMode: type === 'condition' ? 'script' : undefined,
-      predicateScript: type === 'condition' ? '' : undefined,
-      trueLabel: type === 'condition' ? 'True' : undefined,
-      falseLabel: type === 'condition' ? 'False' : undefined,
-      componentId: type === 'condition' ? generateInlinePredId() : '',
-    }),
-  })
-  updateNodeVisual(node)
+  addNodeAtClient(type, label, event.clientX, event.clientY)
 }
 
 // ====== 数据变更 ======
@@ -2484,6 +2663,8 @@ function goBack() { router.push('/design') }
 
 // ====== 生命周期 ======
 onMounted(async () => {
+  checkViewport()
+  window.addEventListener('resize', checkViewport)
   registerShapes()
   await nextTick()
   initGraph()
@@ -2491,6 +2672,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', checkViewport)
   closeContextMenu()
   inlineEditor.show = false
   document.removeEventListener('click', inlineEditorOutsideClick)
@@ -2538,7 +2720,11 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
-.editor-body { display: flex; flex: 1; overflow: hidden; position: relative; }
+.editor-body { display: flex; flex: 1; overflow: hidden; position: relative; min-height: 0; }
+
+.editor-mobile-save-bar {
+  display: none;
+}
 
 .node-palette { width: 180px; border-right: 1px solid #e2e8f0; background: #f8fafc; flex-shrink: 0; overflow-y: auto; }
 .palette-header { padding: 12px 16px; font-weight: 600; font-size: 13px; color: #475569; border-bottom: 1px solid #e2e8f0; }
@@ -2577,16 +2763,349 @@ onBeforeUnmount(() => {
 .panel-body { padding: 16px; }
 .panel-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 16px; color: #94a3b8; font-size: 13px; }
 
-@media (max-width: 767px) {
-  .editor-page {
+.palette-tap-hint {
+  display: none;
+  margin-left: auto;
+  font-size: 11px;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.place-node-banner {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 24px);
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.88);
+  color: #fff;
+  font-size: 12px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25);
+  pointer-events: auto;
+}
+
+.canvas-area--placing .graph-container {
+  cursor: crosshair;
+}
+
+.canvas-fab-bar {
+  display: none;
+}
+
+.editor-sheet-backdrop {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .design-editor-x6 {
+    height: calc(100vh - 52px);
+    height: calc(100dvh - 52px);
+  }
+
+  .editor-body--tablet .minimap-container,
+  .editor-body--compact .minimap-container {
+    display: none;
+  }
+
+  .property-panel--overlay {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-height: min(62vh, 520px);
+    z-index: 210;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -10px 40px rgba(15, 23, 42, 0.18);
+    transform: translateY(100%);
+    transition: transform 0.24s ease;
+    border: none;
+    overflow: hidden;
+    display: flex;
     flex-direction: column;
+    pointer-events: none;
+  }
+
+  .property-panel--overlay.property-panel--sheet-open {
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  .property-panel--overlay .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .property-panel--overlay .panel-body {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .palette-item--pending {
+    box-shadow: 0 0 0 2px #3b82f6;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .editor-body--tablet {
+    flex-direction: row;
+  }
+
+  .editor-body--tablet .node-palette--tablet {
+    width: 120px;
+    flex-shrink: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    border-right: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .editor-body--tablet .palette-header {
+    padding: 8px 10px;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+
+  .editor-body--tablet .palette-list {
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .editor-body--tablet .palette-item {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 8px 4px;
+    margin-bottom: 0;
+    cursor: pointer;
+    gap: 4px;
+  }
+
+  .editor-body--tablet .palette-label {
+    font-size: 10px;
+    line-height: 1.2;
+    word-break: break-all;
+  }
+
+  .editor-body--tablet .canvas-area {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .canvas-fab-bar {
+    display: flex;
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    left: auto;
+    z-index: 55;
+    gap: 8px;
+    pointer-events: none;
+  }
+
+  .canvas-fab-bar--tablet .el-button {
+    pointer-events: auto;
+    flex: none;
+    margin: 0;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  }
+
+  .editor-sheet-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(15, 23, 42, 0.35);
   }
 }
 
 @media (max-width: 767px) {
-  .canvas-wrapper {
+  .editor-body--compact {
+    flex-direction: column;
+  }
+
+  .editor-body--compact .canvas-area {
     flex: 1;
-    min-height: 300px;
+    width: 100%;
+    min-height: 0;
+  }
+
+  .editor-body--compact .node-palette--compact {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-height: min(62vh, 520px);
+    z-index: 210;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -10px 40px rgba(15, 23, 42, 0.18);
+    transform: translateY(100%);
+    transition: transform 0.24s ease;
+    border: none;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    pointer-events: none;
+  }
+
+  .editor-body--compact .node-palette--compact.node-palette--sheet-open {
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  .editor-body--compact .palette-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .editor-body--compact .palette-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px 12px 16px;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .editor-body--compact .palette-item {
+    margin-bottom: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .editor-body--compact .palette-tap-hint {
+    display: inline;
+  }
+
+  .canvas-fab-bar {
+    display: flex;
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    z-index: 55;
+    gap: 8px;
+    pointer-events: none;
+  }
+
+  .canvas-fab-bar .el-button {
+    pointer-events: auto;
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  }
+
+  .canvas-fab-bar .fab-btn--active {
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.35);
+  }
+
+  .editor-sheet-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(15, 23, 42, 0.35);
+  }
+}
+
+@media (max-width: 767px) {
+  .design-editor-x6 {
+    border-radius: 0;
+    margin: 0 -12px;
+    width: calc(100% + 24px);
+  }
+
+  .editor-toolbar,
+  .editor-toolbar--mobile {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    padding: 6px 8px;
+    gap: 6px;
+  }
+
+  .toolbar-left {
+    flex: 1 1 100%;
+    min-width: 0;
+    gap: 4px;
+  }
+
+  .toolbar-left .el-button {
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+
+  .toolbar-title {
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .app-prefix {
+    display: none;
+  }
+
+  .toolbar-center {
+    flex: 1 1 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    padding-bottom: 2px;
+  }
+
+  .toolbar-center .el-dropdown,
+  .toolbar-center .el-select {
+    display: none;
+  }
+
+  .toolbar-right {
+    flex: 1 1 100%;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .toolbar-save-btn {
+    display: none;
+  }
+
+  .editor-mobile-save-bar {
+    display: block;
+    flex-shrink: 0;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid #e2e8f0;
+    background: #fff;
+    z-index: 60;
+  }
+
+  .editor-mobile-save-bar .el-button {
+    width: 100%;
+    margin: 0;
   }
 }
 </style>

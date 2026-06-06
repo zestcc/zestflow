@@ -1,29 +1,31 @@
 <template>
   <div class="schedules-page">
     <div class="page-header">
-      <h2>{{ $t('schedules.title') }}</h2>
-      <el-button type="primary" @click="showCreate">{{ $t('schedules.create') }}</el-button>
+      <div class="page-header-row">
+        <h2>{{ $t('schedules.title') }}</h2>
+        <el-button type="primary" @click="showCreate">{{ $t('schedules.create') }}</el-button>
+      </div>
     </div>
 
     <!-- 筛选栏 -->
     <el-card shadow="never" class="filter-card">
-      <el-form :inline="true" :model="query" size="default">
+      <el-form :inline="true" :model="query" size="default" class="responsive-filter-form">
         <el-form-item :label="$t('schedules.app')">
-          <el-select v-model="query.appCode" :placeholder="$t('schedules.app')" clearable style="width:200px" @change="onAppFilterChange">
+          <el-select v-model="query.appCode" :placeholder="$t('schedules.app')" clearable class="page-filter-control" @change="onAppFilterChange">
             <el-option v-for="m in modules" :key="m.appCode" :label="m.appName || m.appCode" :value="m.appCode" />
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('schedules.keyword')">
-          <el-input v-model="query.keyword" :placeholder="$t('schedules.keyword')" clearable />
+          <el-input v-model="query.keyword" :placeholder="$t('schedules.keyword')" clearable class="page-filter-control" />
         </el-form-item>
         <el-form-item :label="$t('common.status')">
-          <el-select v-model="query.status" :placeholder="$t('common.status')" clearable style="width:120px">
+          <el-select v-model="query.status" :placeholder="$t('common.status')" clearable class="page-filter-control--sm">
             <el-option :label="$t('schedules.total')" :value="undefined" />
             <el-option :label="$t('schedules.enabled')" :value="1" />
             <el-option :label="$t('schedules.disabled')" :value="0" />
           </el-select>
         </el-form-item>
-        <el-form-item>
+        <el-form-item class="filter-actions-item">
           <el-button type="primary" @click="search">{{ $t('schedules.search') }}</el-button>
           <el-button @click="resetSearch">{{ $t('schedules.reset') }}</el-button>
         </el-form-item>
@@ -41,45 +43,42 @@
 
     <!-- 表格 -->
     <el-card shadow="never">
-      <el-table :data="list" :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}" stripe>
-        <el-table-column prop="chainCode" :label="$t('schedules.chainCode')" show-overflow-tooltip />
-        <el-table-column prop="chainName" :label="$t('schedules.chainName')" show-overflow-tooltip />
-        <el-table-column prop="cron" :label="$t('schedules.cron')" width="160" />
-        <el-table-column :label="$t('schedules.routeStrategy')" width="120">
-          <template #default="{ row }">
-            <el-tag size="small">{{ $t('schedules.' + (row.routeStrategy || 'round_robin')) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createdBy" :label="$t('common.createdBy')" width="120" show-overflow-tooltip />
-        <el-table-column :label="$t('common.status')" width="80">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
-              {{ row.status === 1 ? $t('schedules.enabled') : $t('schedules.disabled') }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="updatedAt" :label="$t('common.updatedAt')" width="170" show-overflow-tooltip />
-        <el-table-column :label="$t('common.actions')" width="240" fixed="right">
-          <template #default="{ row }">
-            <el-button text size="small" type="primary" class="action-btn" @click="showEdit(row)">{{ $t('common.edit') }}</el-button>
-            <el-button text size="small" :type="row.status === 1 ? 'warning' : 'success'" class="action-btn" @click="toggleStatus(row)">
-              {{ row.status === 1 ? $t('schedules.disable') : $t('schedules.enable') }}
-            </el-button>
-            <el-button text size="small" type="success" class="action-btn" @click="handleTrigger(row)">{{ $t('schedules.manualTrigger') }}</el-button>
-            <el-button text size="small" type="primary" class="action-btn" @click="showLogs(row)">{{ $t('schedules.viewLogs') }}</el-button>
-            <el-button text size="small" type="danger" class="action-btn" @click="handleDelete(row)">{{ $t('common.delete') }}</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      <el-pagination
-        v-if="total > 0"
-        v-model:current-page="query.page"
-        v-model:page-size="query.size"
-        :total="total"
-        :page-sizes="[10, 20, 50]"
-        layout="total, sizes, prev, pager, next"
-        @change="fetchList"
-      />
+      <ResponsiveTable
+        :data="list"
+        :columns="scheduleColumns"
+        :show-actions="true"
+        :actions-label="$t('common.actions')"
+        :actions-width="240"
+      >
+        <template #routeStrategy="{ row }">
+          <el-tag size="small">{{ $t('schedules.' + (row.routeStrategy || 'round_robin')) }}</el-tag>
+        </template>
+        <template #status="{ row }">
+          <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
+            {{ row.status === 1 ? $t('schedules.enabled') : $t('schedules.disabled') }}
+          </el-tag>
+        </template>
+        <template #actions="{ row }">
+          <el-button text size="small" type="primary" class="action-btn" @click="showEdit(row)">{{ $t('common.edit') }}</el-button>
+          <el-button text size="small" :type="row.status === 1 ? 'warning' : 'success'" class="action-btn" @click="toggleStatus(row)">
+            {{ row.status === 1 ? $t('schedules.disable') : $t('schedules.enable') }}
+          </el-button>
+          <el-button text size="small" type="success" class="action-btn" @click="handleTrigger(row)">{{ $t('schedules.manualTrigger') }}</el-button>
+          <el-button text size="small" type="primary" class="action-btn" @click="showLogs(row)">{{ $t('schedules.viewLogs') }}</el-button>
+          <el-button text size="small" type="danger" class="action-btn" @click="handleDelete(row)">{{ $t('common.delete') }}</el-button>
+        </template>
+      </ResponsiveTable>
+      <div class="page-pagination-wrap">
+        <el-pagination
+          v-if="total > 0"
+          v-model:current-page="query.page"
+          v-model:page-size="query.size"
+          :total="total"
+          :page-sizes="[10, 20, 50]"
+          :layout="paginationLayout"
+          @change="fetchList"
+        />
+      </div>
     </el-card>
 
     <!-- 新建/编辑弹窗 -->
@@ -131,39 +130,34 @@
       <template v-if="currentSchedule">
         <el-alert :title="currentSchedule.chainCode + ' - ' + currentSchedule.cron" type="info" :closable="false" show-icon style="margin-bottom:16px" />
       </template>
-      <el-table :data="logList" :header-cell-style="{background:'#f5f7fa',color:'#303133',fontWeight:600}" stripe>
-        <el-table-column :label="$t('schedules.triggerType')" width="80">
-          <template #default="{ row }">
-            <el-tag size="small" :type="row.triggerType === 'cron' ? '' : 'warning'">
-              {{ row.triggerType === 'cron' ? $t('schedules.cronTrigger') : $t('schedules.manual') }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="executorAddress" :label="$t('schedules.executorAddress')" width="160" />
-        <el-table-column prop="routeStrategy" :label="$t('schedules.routeStrategy')" width="100">
-          <template #default="{ row }">
-            {{ row.routeStrategy ? $t('schedules.' + row.routeStrategy) : '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column :label="$t('schedules.logStatus')" width="80">
-          <template #default="{ row }">
-            <el-tag :type="statusTagType(row.status)" size="small">
-              {{ statusText(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="costMs" :label="$t('schedules.costMs')" width="80" />
-        <el-table-column prop="errorMessage" :label="$t('schedules.errorMessage')" show-overflow-tooltip min-width="150" />
-        <el-table-column prop="triggeredAt" :label="$t('schedules.triggerTime')" width="170" />
-      </el-table>
-      <el-pagination
-        v-if="logTotal > 0"
-        v-model:current-page="logQuery.page"
-        v-model:page-size="logQuery.size"
-        :total="logTotal"
-        layout="total, sizes, prev, pager, next"
-        @change="fetchLogs"
-      />
+      <ResponsiveTable
+        :data="logList"
+        :columns="logColumns"
+      >
+        <template #triggerType="{ row }">
+          <el-tag size="small" :type="row.triggerType === 'cron' ? '' : 'warning'">
+            {{ row.triggerType === 'cron' ? $t('schedules.cronTrigger') : $t('schedules.manual') }}
+          </el-tag>
+        </template>
+        <template #routeStrategy="{ row }">
+          {{ row.routeStrategy ? $t('schedules.' + row.routeStrategy) : '-' }}
+        </template>
+        <template #status="{ row }">
+          <el-tag :type="statusTagType(row.status)" size="small">
+            {{ statusText(row.status) }}
+          </el-tag>
+        </template>
+      </ResponsiveTable>
+      <div class="page-pagination-wrap">
+        <el-pagination
+          v-if="logTotal > 0"
+          v-model:current-page="logQuery.page"
+          v-model:page-size="logQuery.size"
+          :total="logTotal"
+          :layout="paginationLayout"
+          @change="fetchLogs"
+        />
+      </div>
     </el-dialog>
   </div>
 </template>
@@ -177,9 +171,32 @@ import { chainApi, type ChainVO } from '@/api/chain'
 import { executorApi, type AppOption } from '@/api/executor'
 import { useDict } from '@/composables/useDict'
 import { useCurrentApp } from '@/composables/useCurrentApp'
+import ResponsiveTable from '@/components/ResponsiveTable.vue'
+import { useResponsivePagination } from '@/composables/useResponsivePagination'
 
 const { t } = useI18n()
 const { syncFromApps, setCurrentAppCode } = useCurrentApp()
+const { paginationLayout } = useResponsivePagination()
+
+const scheduleColumns = computed(() => [
+  { prop: 'chainCode', label: t('schedules.chainCode'), showOverflowTooltip: true },
+  { prop: 'chainName', label: t('schedules.chainName'), showOverflowTooltip: true },
+  { prop: 'cron', label: t('schedules.cron'), width: 160 },
+  { prop: 'routeStrategy', label: t('schedules.routeStrategy'), width: 120 },
+  { prop: 'createdBy', label: t('common.createdBy'), width: 120, showOverflowTooltip: true },
+  { prop: 'status', label: t('common.status'), width: 80 },
+  { prop: 'updatedAt', label: t('common.updatedAt'), width: 170, showOverflowTooltip: true },
+])
+
+const logColumns = computed(() => [
+  { prop: 'triggerType', label: t('schedules.triggerType'), width: 80 },
+  { prop: 'executorAddress', label: t('schedules.executorAddress'), width: 160 },
+  { prop: 'routeStrategy', label: t('schedules.routeStrategy'), width: 100 },
+  { prop: 'status', label: t('schedules.logStatus'), width: 80 },
+  { prop: 'costMs', label: t('schedules.costMs'), width: 80 },
+  { prop: 'errorMessage', label: t('schedules.errorMessage'), minWidth: 150, showOverflowTooltip: true },
+  { prop: 'triggeredAt', label: t('schedules.triggerTime'), width: 170 },
+])
 
 const { options: routeStrategyOptions } = useDict('route_strategy')
 
@@ -354,29 +371,11 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h2 { margin: 0; font-size: 20px; }
 .filter-card { margin-bottom: 16px; }
 .stats-card { margin-bottom: 16px; }
-.stats-row { display: flex; gap: 24px; align-items: center; }
+.stats-row { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
 .stat-item b { font-size: 16px; }
 .stat-item.total b { color: #409eff; }
 .action-btn.action-btn { padding: 2px 4px; margin-left: 0; }
-
-@media (max-width: 767px) {
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .page-header h2 {
-    font-size: 18px;
-  }
-
-  .stats-row {
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-}
 </style>

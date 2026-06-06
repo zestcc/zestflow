@@ -1,78 +1,121 @@
 <template>
-  <!-- 移动端：卡片列表 -->
-  <div class="responsive-table-cards" v-if="isMobile">
-    <div
-      v-for="item in data"
-      :key="getRowKey(item)"
-      class="responsive-card"
-      @click="handleCardClick(item)"
-    >
-      <div
-        v-for="column in columns"
-        :key="column.prop"
-        class="card-row"
-      >
-        <span class="card-label">{{ column.label }}</span>
-        <span class="card-value">{{ formatValue(item, column) }}</span>
-      </div>
-      <div v-if="showActions" class="card-actions">
-        <slot name="actions" :row="item"></slot>
-      </div>
+  <div v-loading="loading" class="responsive-table-root">
+    <!-- 移动端：卡片列表 -->
+    <div v-if="isMobile" class="responsive-table-cards">
+      <el-empty v-if="!data.length" :description="emptyText" />
+      <template v-else>
+        <div
+          v-for="item in data"
+          :key="getRowKey(item)"
+          class="responsive-card"
+          @click="handleCardClick(item)"
+        >
+          <div
+            v-for="column in columns"
+            :key="column.prop"
+            class="card-row"
+          >
+            <span class="card-label">{{ column.label }}</span>
+            <span class="card-value">
+              <slot :name="column.prop" :row="item">
+                {{ formatValue(item, column) }}
+              </slot>
+            </span>
+          </div>
+          <div v-if="showActions" class="card-actions">
+            <slot name="actions" :row="item" />
+          </div>
+        </div>
+      </template>
     </div>
-  </div>
 
-  <!-- 桌面端：表格 -->
-  <div class="responsive-table-wrapper" v-else>
-    <el-table
-      :data="data"
-      :stripe="stripe"
-      :border="border"
-      :empty-text="emptyText"
-      :row-key="rowKey"
-      @row-click="handleRowClick"
-      v-bind="$attrs"
-    >
-      <el-table-column
-        v-for="column in columns"
-        :key="column.prop"
-        :prop="column.prop"
-        :label="column.label"
-        :width="column.width"
-        :sortable="column.sortable"
-        :align="column.align || 'left'"
+    <!-- 桌面端：表格 -->
+    <div v-else class="responsive-table-wrapper">
+      <el-table
+        :data="data"
+        :stripe="stripe"
+        :border="border"
+        :empty-text="emptyText"
+        :row-key="rowKey"
+        style="width: 100%"
+        :header-cell-style="headerCellStyle"
+        @row-click="handleRowClick"
+        v-bind="$attrs"
       >
-        <template #default="scope">
-          <slot :name="column.prop" :row="scope.row">
-            {{ formatValue(scope.row, column) }}
-          </slot>
-        </template>
-      </el-table-column>
-      <slot name="extra-columns"></slot>
-    </el-table>
+        <el-table-column
+          v-for="column in columns"
+          :key="column.prop"
+          :prop="column.prop"
+          :label="column.label"
+          :width="column.width"
+          :min-width="column.minWidth"
+          :sortable="column.sortable"
+          :align="column.align || 'left'"
+          :fixed="column.fixed"
+          :show-overflow-tooltip="column.showOverflowTooltip"
+        >
+          <template #default="scope">
+            <slot :name="column.prop" :row="scope.row">
+              {{ formatValue(scope.row, column) }}
+            </slot>
+          </template>
+        </el-table-column>
+        <el-table-column
+          v-if="showActions"
+          :label="actionsLabel"
+          :width="actionsWidth"
+          :min-width="actionsMinWidth"
+          fixed="right"
+          align="left"
+        >
+          <template #default="scope">
+            <slot name="actions" :row="scope.row" />
+          </template>
+        </el-table-column>
+        <slot name="extra-columns" />
+      </el-table>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 
-interface Column {
+export interface ResponsiveTableColumn {
   prop: string
   label: string
   width?: string | number
-  sortable?: boolean
-  align?: string
-  formatter?: (row: any, column: Column) => string
+  minWidth?: string | number
+  sortable?: boolean | 'custom'
+  align?: 'left' | 'center' | 'right'
+  fixed?: boolean | 'left' | 'right'
+  showOverflowTooltip?: boolean
+  formatter?: (row: any, column: ResponsiveTableColumn) => string
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   data: any[]
-  columns: Column[]
+  columns: ResponsiveTableColumn[]
+  loading?: boolean
   stripe?: boolean
   border?: boolean
   emptyText?: string
   rowKey?: string | ((row: any) => string)
   showActions?: boolean
-}>()
+  actionsLabel?: string
+  actionsWidth?: string | number
+  actionsMinWidth?: string | number
+  headerCellStyle?: Record<string, string | number>
+}>(), {
+  loading: false,
+  stripe: true,
+  border: true,
+  emptyText: '暂无数据',
+  showActions: false,
+  actionsLabel: '操作',
+  actionsWidth: 120,
+  headerCellStyle: () => ({ background: '#f5f7fa', color: '#303133', fontWeight: 600 }),
+})
 
 const emit = defineEmits<{
   (e: 'row-click', row: any): void
@@ -94,12 +137,12 @@ function getRowKey(row: any): string {
   return String(row.id) || String(row._id) || String(Math.random())
 }
 
-function formatValue(row: any, column: Column): string {
+function formatValue(row: any, column: ResponsiveTableColumn): string {
   if (column.formatter) {
     return column.formatter(row, column)
   }
   const value = row[column.prop]
-  if (value === null || value === undefined) return '-'
+  if (value === null || value === undefined || value === '') return '-'
   return String(value)
 }
 
@@ -122,6 +165,10 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.responsive-table-root {
+  width: 100%;
+}
+
 .responsive-table-wrapper {
   width: 100%;
   overflow-x: auto;
@@ -150,7 +197,8 @@ onUnmounted(() => {
 .card-row {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 12px;
   padding: 8px 0;
   border-bottom: 1px solid #f0f0f0;
 }
@@ -160,33 +208,36 @@ onUnmounted(() => {
 }
 
 .card-label {
+  flex-shrink: 0;
   font-size: 12px;
   color: #909399;
   font-weight: 500;
 }
 
 .card-value {
+  flex: 1;
   font-size: 14px;
   color: #303133;
   font-weight: 500;
   text-align: right;
-  max-width: 60%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  word-break: break-word;
 }
 
 .card-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px dashed #e8e8e8;
 }
 
-.card-actions .el-button {
-  flex: 1;
-  height: 36px;
+.card-actions :deep(.el-button) {
+  flex: 1 1 calc(50% - 4px);
+  min-width: calc(50% - 4px);
+  min-height: 36px;
   font-size: 13px;
+  margin: 0;
 }
 </style>

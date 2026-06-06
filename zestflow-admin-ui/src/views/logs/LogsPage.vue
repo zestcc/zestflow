@@ -1,55 +1,102 @@
 <template>
   <div class="logs-page">
     <div class="page-header">
-      <div class="stats-summary">
+      <div class="page-stats-row">
         <span style="font-weight:600;color:#409eff">{{ $t('logs.total', { total: list.length }) }}</span>
-        <el-tag type="success" size="small" style="margin-left:8px">{{ $t('logs.success') }} {{ stats.success }}</el-tag>
+        <el-tag type="success" size="small">{{ $t('logs.success') }} {{ stats.success }}</el-tag>
         <el-tag type="danger" size="small">{{ $t('logs.failure') }} {{ stats.failure }}</el-tag>
-        <el-select v-model="currentAppCode" filterable style="width:200px;margin-left:16px" :placeholder="$t('design.selectApp')" @change="handleAppChange">
-          <el-option v-for="a in apps" :key="a.appCode" :label="a.appName || a.appCode" :value="a.appCode" />
-        </el-select>
-        <el-input v-model="query.executionId" :placeholder="$t('logs.executionId')" clearable style="width:160px;margin-left:16px" @keyup.enter="search" />
-        <el-input v-model="query.keyword" :placeholder="$t('logs.keyword')" clearable style="width:160px;margin-left:8px" @keyup.enter="search" />
-        <el-select v-model="query.status" :placeholder="$t('common.status')" clearable style="width:100px;margin-left:8px">
-          <el-option :label="$t('common.all')" :value="undefined" />
-          <el-option :label="$t('logs.success')" :value="1" />
-          <el-option :label="$t('logs.failure')" :value="0" />
-        </el-select>
-        <el-select v-model="query.eventTypes" :placeholder="$t('logs.allTypes')" clearable multiple collapse-tags style="width:160px;margin-left:8px">
-          <el-option label="CHAIN_STARTED" value="CHAIN_STARTED" />
-          <el-option label="CHAIN_COMPLETED" value="CHAIN_COMPLETED" />
-          <el-option label="CHAIN_FAILED" value="CHAIN_FAILED" />
-          <el-option label="CHAIN_TIMEOUT" value="CHAIN_TIMEOUT" />
-          <el-option label="NODE_STARTED" value="NODE_STARTED" />
-          <el-option label="NODE_COMPLETED" value="NODE_COMPLETED" />
-          <el-option label="NODE_FAILED" value="NODE_FAILED" />
-        </el-select>
-        <el-button type="primary" style="margin-left:8px" @click="search">{{ $t('logs.search') }}</el-button>
-        <el-button @click="resetSearch">{{ $t('logs.reset') }}</el-button>
+      </div>
+      <div class="page-toolbar">
+        <div class="page-filters">
+          <el-select v-model="currentAppCode" filterable class="page-filter-control" :placeholder="$t('design.selectApp')" @change="handleAppChange">
+            <el-option v-for="a in apps" :key="a.appCode" :label="a.appName || a.appCode" :value="a.appCode" />
+          </el-select>
+          <el-input v-model="query.executionId" class="page-filter-control--md" :placeholder="$t('logs.executionId')" clearable @keyup.enter="search" />
+          <el-input v-model="query.keyword" class="page-filter-control--md" :placeholder="$t('logs.keyword')" clearable @keyup.enter="search" />
+          <el-select v-model="query.status" class="page-filter-control--sm" :placeholder="$t('common.status')" clearable>
+            <el-option :label="$t('common.all')" :value="undefined" />
+            <el-option :label="$t('logs.success')" :value="1" />
+            <el-option :label="$t('logs.failure')" :value="0" />
+          </el-select>
+          <el-select v-model="query.eventTypes" class="page-filter-control" :placeholder="$t('logs.allTypes')" clearable multiple collapse-tags>
+            <el-option label="CHAIN_STARTED" value="CHAIN_STARTED" />
+            <el-option label="CHAIN_COMPLETED" value="CHAIN_COMPLETED" />
+            <el-option label="CHAIN_FAILED" value="CHAIN_FAILED" />
+            <el-option label="CHAIN_TIMEOUT" value="CHAIN_TIMEOUT" />
+            <el-option label="NODE_STARTED" value="NODE_STARTED" />
+            <el-option label="NODE_COMPLETED" value="NODE_COMPLETED" />
+            <el-option label="NODE_FAILED" value="NODE_FAILED" />
+          </el-select>
+        </div>
+        <div class="page-filter-actions">
+          <el-button type="primary" @click="search">{{ $t('logs.search') }}</el-button>
+          <el-button @click="resetSearch">{{ $t('logs.reset') }}</el-button>
+        </div>
       </div>
     </div>
 
     <ResponsiveTable
       :data="list"
       :columns="logColumns"
+      :loading="loading"
       :row-key="'executionId'"
       :show-actions="true"
+      :actions-label="$t('common.actions')"
+      :actions-width="110"
     >
+      <template #executionId="{ row }">
+        {{ row.executionId }}
+      </template>
+      <template #chainCode="{ row }">
+        <span
+          v-if="resolveChainCode(row)"
+          class="code-link"
+          @click.stop="openChainDetail(resolveChainCode(row)!, row.appCode)"
+        >{{ resolveChainCode(row) }}</span>
+        <span v-else>-</span>
+      </template>
+      <template #chainName="{ row }">
+        {{ displayChainName(row) }}
+      </template>
+      <template #appName="{ row }">
+        {{ row.appName || '-' }}
+      </template>
+      <template #nodeCount="{ row }">
+        {{ row.nodeCount != null ? row.nodeCount : '-' }}
+      </template>
+      <template #successCount="{ row }">
+        <el-tag size="small" type="success">{{ row.successCount || 0 }}</el-tag>
+      </template>
+      <template #failedCount="{ row }">
+        <el-tag size="small" type="danger" v-if="(row.failedCount || 0) > 0">{{ row.failedCount }}</el-tag>
+        <span v-else>0</span>
+      </template>
+      <template #costMs="{ row }">
+        {{ row.costMs != null ? row.costMs + 'ms' : '-' }}
+      </template>
+      <template #status="{ row }">
+        <el-tag v-if="row.status === 1" type="success" size="small">{{ $t('logs.success') }}</el-tag>
+        <el-tag v-else-if="row.status === 0" type="danger" size="small">{{ $t('logs.failure') }}</el-tag>
+        <el-tag v-else type="info" size="small">{{ $t('logs.inProgress') }}</el-tag>
+      </template>
+      <template #startTime="{ row }">
+        {{ formatTime(row.startTime) }}
+      </template>
       <template #actions="{ row }">
-        <el-button text size="small" type="primary" @click.stop="showDetail(row)">
+        <el-button text size="small" type="primary" class="action-btn" @click.stop="showDetail(row)">
           {{ $t('logs.detail') }}
         </el-button>
       </template>
     </ResponsiveTable>
 
-    <div style="display:flex;justify-content:flex-end;margin-top:12px">
+    <div class="page-pagination-wrap">
       <el-pagination
         v-if="total > 0"
         v-model:current-page="query.page"
         v-model:page-size="query.pageSize"
         :total="total"
         :page-sizes="[10, 20, 50]"
-        layout="total, sizes, prev, pager, next, jumper"
+        :layout="paginationLayout"
         @current-change="fetchList"
         @size-change="fetchList"
       />
@@ -60,11 +107,13 @@
     <el-drawer
       v-model="detailVisible"
       :title="$t('logs.traceDetail')"
-      :size="720"
+      :size="traceDrawerSize"
+      class="detail-drawer"
+      append-to-body
       :close-on-click-modal="false"
     >
-      <template v-if="traceDetail">
-        <el-descriptions :column="2" border size="small">
+      <div v-if="traceDetail" class="detail-drawer-body trace-detail-panel">
+        <el-descriptions :column="detailDescColumns" border size="small">
           <el-descriptions-item :label="$t('logs.executionId')" :span="2">{{ traceDetail.executionId }}</el-descriptions-item>
           <el-descriptions-item :label="$t('logs.chainCode')">
             <span
@@ -127,7 +176,7 @@
         <!-- X6 画布 -->
         <p style="font-size:12px;color:#909399;margin:0 0 8px">{{ $t('logs.clickNodeHint') }}</p>
         <div ref="graphContainer" class="execution-graph" style="width:100%;height:360px;border:1px solid #e8e8e8;border-radius:6px;background:#fafafa" />
-      </template>
+      </div>
       <div v-else-if="detailLoading" style="text-align:center;padding:40px">
         <el-icon class="is-loading" :size="24"><Loading /></el-icon>
       </div>
@@ -149,13 +198,14 @@
     <el-drawer
       v-model="nodeDetailVisible"
       :title="$t('logs.nodeDetail')"
-      :size="560"
+      :size="nodeDrawerSize"
+      class="detail-drawer"
       append-to-body
     >
       <div v-if="nodeDetailLoading" style="text-align:center;padding:40px">
         <el-icon class="is-loading" :size="24"><Loading /></el-icon>
       </div>
-      <template v-else-if="nodeDetail">
+      <div v-else-if="nodeDetail" class="detail-drawer-body">
         <el-descriptions :column="1" border size="small">
           <el-descriptions-item :label="$t('logs.nodeName')">{{ nodeDetail.nodeName || nodeDetail.nodeId || '-' }}</el-descriptions-item>
           <el-descriptions-item :label="$t('logs.costMs')">{{ nodeDetail.costMs != null ? nodeDetail.costMs + 'ms' : '-' }}</el-descriptions-item>
@@ -172,7 +222,7 @@
         <pre class="payload-block">{{ formatPayload(nodeDetail.params) }}</pre>
         <h4 style="margin:16px 0 8px">{{ $t('logs.nodeOutput') }}</h4>
         <pre class="payload-block">{{ formatPayload(nodeDetail.result) }}</pre>
-      </template>
+      </div>
       <el-empty v-else :description="$t('logs.noNodeDetail')" />
     </el-drawer>
   </div>
@@ -192,10 +242,17 @@ import { chainApi, type ChainVO } from '@/api/chain'
 import ChainDetailDrawer from '@/components/ChainDetailDrawer.vue'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
 import { useCurrentApp } from '@/composables/useCurrentApp'
+import { useResponsiveDrawerSize } from '@/composables/useResponsiveDrawerSize'
+import { useResponsivePagination } from '@/composables/useResponsivePagination'
 
 const { t } = useI18n()
 const route = useRoute()
 const { currentAppCode, syncFromApps } = useCurrentApp()
+const { drawerSize: traceDrawerSize, isMobile: isMobileView } = useResponsiveDrawerSize(720)
+const { drawerSize: nodeDrawerSize } = useResponsiveDrawerSize(560)
+const { paginationLayout } = useResponsivePagination()
+
+const detailDescColumns = computed(() => (isMobileView.value ? 1 : 2))
 
 const query = reactive<EventQueryParams>({
   executionId: undefined,
@@ -224,40 +281,16 @@ const stats = computed(() => {
 })
 
 const logColumns = computed(() => [
-  {
-    prop: 'executionId',
-    label: t('logs.executionId'),
-    formatter: (row: any) => row.executionId?.substring(0, 12) + '...' || '-',
-  },
-  {
-    prop: 'chainName',
-    label: t('logs.chainName'),
-    formatter: (row: any) => displayChainName(row),
-  },
-  {
-    prop: 'appName',
-    label: t('logs.appName'),
-    formatter: (row: any) => row.appName || '-',
-  },
-  {
-    prop: 'status',
-    label: t('common.status'),
-    formatter: (row: any) => {
-      if (row.status === 1) return t('logs.success')
-      if (row.status === 0) return t('logs.failure')
-      return t('logs.inProgress')
-    },
-  },
-  {
-    prop: 'costMs',
-    label: t('logs.costMs'),
-    formatter: (row: any) => row.costMs != null ? row.costMs + 'ms' : '-',
-  },
-  {
-    prop: 'startTime',
-    label: t('logs.timestamp'),
-    formatter: (row: any) => formatTime(row.startTime),
-  },
+  { prop: 'executionId', label: t('logs.executionId'), width: 200, showOverflowTooltip: true },
+  { prop: 'chainCode', label: t('logs.chainCode'), minWidth: 140, showOverflowTooltip: true },
+  { prop: 'chainName', label: t('logs.chainName'), minWidth: 140, showOverflowTooltip: true },
+  { prop: 'appName', label: t('logs.appName'), width: 120, showOverflowTooltip: true },
+  { prop: 'nodeCount', label: t('logs.nodeCount'), width: 80, align: 'center' as const },
+  { prop: 'successCount', label: t('logs.successCount'), width: 80, align: 'center' as const },
+  { prop: 'failedCount', label: t('logs.failedCount'), width: 80, align: 'center' as const },
+  { prop: 'costMs', label: t('logs.costMs'), width: 100, align: 'center' as const },
+  { prop: 'status', label: t('common.status'), width: 90, align: 'center' as const },
+  { prop: 'startTime', label: t('logs.timestamp'), width: 170 },
 ])
 
 // 详情抽屉
@@ -856,12 +889,6 @@ function destroyFullscreenGraph() {
 </script>
 
 <style scoped>
-.page-header {
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
-}
-.stats-summary {
-  display: flex; align-items: center; font-size: 14px;
-}
 .action-btn.action-btn { padding: 2px 4px; margin-left: 0; }
 
 /* X6 执行状态图 */
@@ -886,18 +913,5 @@ function destroyFullscreenGraph() {
   background: #f5f7fa; border: 1px solid #e4e7ed; border-radius: 4px;
   padding: 12px; font-size: 12px; line-height: 1.5; max-height: 240px;
   overflow: auto; white-space: pre-wrap; word-break: break-all; margin: 0;
-}
-
-@media (max-width: 767px) {
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .stats-summary {
-    flex-wrap: wrap;
-    font-size: 12px;
-  }
 }
 </style>

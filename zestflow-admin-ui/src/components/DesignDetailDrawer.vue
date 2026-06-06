@@ -1,12 +1,19 @@
 <template>
-  <el-drawer v-model="visible" :title="$t('design.detail')" :size="520" destroy-on-close append-to-body>
+  <el-drawer
+    v-model="visible"
+    :title="$t('design.detail')"
+    :size="drawerSize"
+    class="detail-drawer"
+    destroy-on-close
+    append-to-body
+  >
     <div v-if="loading" style="text-align:center;padding:40px">
       <el-icon class="is-loading" :size="24"><Loading /></el-icon>
     </div>
     <template v-else-if="detail">
-      <div style="padding:0 8px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <div style="font-size:20px;font-weight:600;color:#303133">{{ detail.name }}</div>
+      <div class="detail-drawer-body">
+        <div class="detail-drawer-header">
+          <div class="detail-drawer-title">{{ detail.name }}</div>
           <el-button type="primary" size="small" @click="goEdit">
             {{ $t('design.editDesign') }}
           </el-button>
@@ -58,8 +65,10 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Loading } from '@element-plus/icons-vue'
 import { designApi, type DesignVO } from '@/api/design'
+import { useResponsiveDrawerSize } from '@/composables/useResponsiveDrawerSize'
 
 const router = useRouter()
+const { drawerSize } = useResponsiveDrawerSize(520)
 
 const visible = ref(false)
 const loading = ref(false)
@@ -90,3 +99,23 @@ function goEdit() {
 
 defineExpose({ open })
 </script>
+
+<style scoped>
+.detail-drawer-body {
+  padding: 0 4px;
+}
+
+.detail-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.detail-drawer-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #303133;
+}
+</style>

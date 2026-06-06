@@ -2,7 +2,7 @@
   <div class="header">
     <el-button text @click="$emit('toggle-sidebar')">
       <el-icon :size="20">
-        <Fold v-if="!collapsed" />
+        <Fold v-if="showFoldIcon" />
         <Expand v-else />
       </el-icon>
     </el-button>
@@ -90,8 +90,19 @@ import { useTenantStore } from '@/stores/tenant'
 import { useLocale } from '@/i18n/useLocale'
 import { Fold, Expand, ArrowDown, HomeFilled } from '@element-plus/icons-vue'
 
-defineProps<{ collapsed?: boolean }>()
+const props = defineProps<{
+  collapsed?: boolean
+  isMobile?: boolean
+  sidebarOpen?: boolean
+}>()
 defineEmits<{ 'toggle-sidebar': [] }>()
+
+const showFoldIcon = computed(() => {
+  if (props.isMobile) {
+    return props.sidebarOpen
+  }
+  return !props.collapsed
+})
 
 const router = useRouter()
 const userStore = useUserStore()

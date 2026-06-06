@@ -4,12 +4,14 @@
     <el-drawer
       v-if="isMobile"
       v-model="sidebarOpen"
-      :size="260"
+      :size="mobileSidebarSize"
       :with-header="false"
       :close-on-click-modal="true"
       direction="ltr"
+      class="mobile-sidebar-drawer"
+      append-to-body
     >
-      <AppSidebar :collapsed="false" />
+      <AppSidebar :collapsed="false" @navigate="closeMobileSidebar" />
     </el-drawer>
 
     <!-- 桌面端：固定侧边栏 -->
@@ -21,6 +23,8 @@
       <el-header>
         <AppHeader
           :is-mobile="isMobile"
+          :sidebar-open="sidebarOpen"
+          :collapsed="appStore.sidebarCollapsed"
           @toggle-sidebar="toggleMobileSidebar"
         />
       </el-header>
@@ -36,27 +40,32 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { useUserStore } from '@/stores/user'
 import NoAppEmpty from '@/components/NoAppEmpty.vue'
-
-const route = useRoute()
 import AppSidebar from './AppSidebar.vue'
 import AppHeader from './AppHeader.vue'
 
+const route = useRoute()
 const appStore = useAppStore()
 const userStore = useUserStore()
 
 const isMobile = ref(false)
 const sidebarOpen = ref(false)
 
+const mobileSidebarSize = computed(() => (isMobile.value ? 'min(280px, 85vw)' : 260))
+
 function checkMobile() {
   isMobile.value = window.innerWidth < 768
   if (!isMobile.value) {
     sidebarOpen.value = false
   }
+}
+
+function closeMobileSidebar() {
+  sidebarOpen.value = false
 }
 
 function toggleMobileSidebar() {
@@ -66,6 +75,15 @@ function toggleMobileSidebar() {
     appStore.toggleSidebar()
   }
 }
+
+watch(
+  () => route.path,
+  () => {
+    if (isMobile.value) {
+      closeMobileSidebar()
+    }
+  },
+)
 
 onMounted(() => {
   checkMobile()
@@ -88,6 +106,9 @@ onUnmounted(() => {
   background-color: #304156;
   transition: width 0.3s;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .el-header {
