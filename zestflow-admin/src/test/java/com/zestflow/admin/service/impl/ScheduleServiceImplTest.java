@@ -53,7 +53,6 @@ class ScheduleServiceImplTest {
     @Mock private RouteStrategy routeStrategy;
     @Mock private PlatformJobRunner platformJobRunner;
     @Mock private TenantAppContext tenantAppContext;
-    @Mock private PlatformJobRunner platformJobRunner;
 
     private RegistryLiveStore liveStore;
     private ScheduleServiceImpl scheduleService;
