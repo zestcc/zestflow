@@ -1,0 +1,3 @@
+2026-06-06 19:35:16.735417+08:00 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "ZF_CHAIN" not found (this database is empty); SQL statement:
+SELECT c.*, b.design_code FROM zf_chain c LEFT JOIN zf_design_binding b ON c.code = b.chain_code WHERE c.is_deleted = 0 AND c.tenant_id = ? ORDER BY c.updated_at DESC [42104-224]

@@ -1,6 +1,11 @@
 server:
   port: 8081
 
+logging:
+  level:
+    com.zestflow: DEBUG
+    root: INFO
+
 spring:
   application:
     name: demo-app
@@ -8,9 +13,9 @@ spring:
     init:
       mode: always
       schema-locations: classpath:schema.sql
-  # 主数据源 — 业务数据库（H2 内存模式）
+  # 主数据源 — 业务数据库（H2 文件模式）
   datasource:
-    url: jdbc:h2:mem:test_business;DB_CLOSE_DELAY=-1;MODE=MySQL
+    url: jdbc:h2:file:./test-db/test_business;DB_CLOSE_DELAY=-1;MODE=MySQL
     username: sa
     password:
     driver-class-name: org.h2.Driver
@@ -29,7 +34,7 @@ spring:
 zestflow:
   executor:
     datasource:
-      url: jdbc:h2:mem:test_business;DB_CLOSE_DELAY=-1;MODE=MySQL
+      url: jdbc:h2:file:./test-db/test_business;DB_CLOSE_DELAY=-1;MODE=MySQL
       username: sa
       password:
       driver-class-name: org.h2.Driver
@@ -44,6 +49,7 @@ zestflow:
     chain:
       declaration-sync-enabled: true
       declaration-delete-guard-enabled: true
+      reload-polling-enabled: false
     execute-pool-queue-capacity: 64
     event:
       queue-capacity: 8192

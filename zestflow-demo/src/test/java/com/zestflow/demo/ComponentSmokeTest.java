@@ -10,12 +10,14 @@ import com.zestflow.executor.engine.ChainExecutionEngine;
 import com.zestflow.executor.lifecycle.LifecycleExecutor;
 import com.zestflow.executor.scanner.ComponentScanner;
 import com.zestflow.executor.scanner.ComponentScanner.ComponentMeta;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
@@ -34,6 +36,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(classes = DemoApplication.class)
 @ActiveProfiles("test")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@org.springframework.test.context.jdbc.Sql(value = "classpath:schema.sql", executionPhase = org.springframework.test.context.jdbc.Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 class ComponentSmokeTest {
 
     private static final Set<String> SKIP_IDS = Set.of(
@@ -63,6 +66,22 @@ class ComponentSmokeTest {
     private ChainDefinitionBuilder chainDefinitionBuilder;
     @Autowired
     private LifecycleExecutor lifecycleExecutor;
+    @Autowired
+    @Qualifier("executorDataSource")
+    private javax.sql.DataSource executorDataSource;
+    @Autowired
+    private com.zestflow.executor.chain.ChainRepository chainRepository;
+
+    @BeforeAll
+    void setupDatabase() {
+        System.out.println("=== setupDatabase START ===");
+        org.springframework.core.io.ClassPathResource resource = new org.springframework.core.io.ClassPathResource("schema.sql");
+        org.springframework.jdbc.datasource.init.ResourceDatabasePopulator populator = new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator();
+        populator.addScript(resource);
+        populator.setContinueOnError(true);
+        populator.execute(executorDataSource);
+        System.out.println("=== setupDatabase END ===");
+    }
 
     @Test
     void registryShouldContainAllDemoComponents() {
@@ -96,7 +115,12 @@ class ComponentSmokeTest {
             return;
         }
 
-        ChainExecuteResultDTO result = runChain(componentId, type, params, componentId);
+        // 生成唯一链编码（与 runChain 方法一致）
+        String chainCode = "smoke-" + componentId + "-" + System.nanoTime();
+        ChainExecuteResultDTO result = runChainWithCode(componentId, type, params, componentId, chainCode);
+        
+        // 调试信息已移除
+        
         assertThat(result.getStatus())
                 .as("元件 %s 冒烟应成功", componentId)
                 .isEqualTo(ChainConstants.CHAIN_SUCCESS);
@@ -119,6 +143,11 @@ class ComponentSmokeTest {
 
     private ChainExecuteResultDTO runChain(String componentId, ComponentType type,
                                            Map<String, Object> params, String chainSuffix) {
+        return runChainWithCode(componentId, type, params, chainSuffix, "smoke-" + chainSuffix + "-" + System.nanoTime());
+    }
+
+    private ChainExecuteResultDTO runChainWithCode(String componentId, ComponentType type,
+                                                   Map<String, Object> params, String chainSuffix, String chainCode) {
         List<String> sequence = MULTI_NODE_CHAINS.getOrDefault(componentId, List.of(componentId));
         List<ChainNodeDTO> nodes = new ArrayList<>();
         List<ChainEdgeDTO> edges = new ArrayList<>();
@@ -131,19 +160,55 @@ class ComponentSmokeTest {
                 edges.add(ChainEdgeDTO.builder().source("n" + (i - 1)).target(nodeId).build());
             }
         }
-        String chainCode = "smoke-" + chainSuffix + "-" + System.nanoTime();
         ChainDefinitionDTO dto = ChainDefinitionDTO.builder()
                 .code(chainCode).version(1).nodes(nodes).edges(edges)
                 .config(Map.of("errorStrategy", ChainConstants.ERROR_STRATEGY_STOP))
                 .build();
         chainManager.load(chainDefinitionBuilder.build(dto));
+        
+        // 同时保存到数据库，以便 chainKeyResolver 能够找到链
+        saveChainToDatabase(chainCode);
+        
         return chainExecutionEngine.execute(chainCode, params);
+    }
+    
+    private void saveChainToDatabase(String chainCode) {
+        try {
+            // 使用 JdbcTemplate 直接插入链记录
+            org.springframework.jdbc.core.JdbcTemplate jdbcTemplate = new org.springframework.jdbc.core.JdbcTemplate(executorDataSource);
+            String sql = "INSERT INTO zf_chain (code, name, description, status, version, tenant_id, app_code, created_by, updated_by, created_at, updated_at, is_deleted) " +
+                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            jdbcTemplate.update(sql, 
+                    chainCode,
+                    chainCode,
+                    "Smoke test chain",
+                    4, // PUBLISHED status
+                    1,
+                    1L, // tenant_id
+                    "demo-app",
+                    "test",
+                    "test",
+                    java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                    java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                    0
+            );
+        } catch (Exception e) {
+            // 如果链已存在则忽略
+            if (!e.getMessage().contains("Duplicate entry")) {
+                System.err.println("Failed to save chain to database: " + e.getMessage());
+            }
+        }
     }
 
     private ChainNodeDTO buildNode(String nodeId, String componentId, ComponentType type) {
-        String nodeType = (type == ComponentType.PREDICATE || type == ComponentType.SELECTOR)
-                ? ChainConstants.NODE_TYPE_CONDITION
-                : ChainConstants.NODE_TYPE_NORMAL;
+        String nodeType;
+        if (type == ComponentType.SELECTOR) {
+            nodeType = ChainConstants.NODE_TYPE_SELECTOR;
+        } else if (type == ComponentType.PREDICATE) {
+            nodeType = ChainConstants.NODE_TYPE_CONDITION;
+        } else {
+            nodeType = ChainConstants.NODE_TYPE_NORMAL;
+        }
         return ChainNodeDTO.builder()
                 .id(nodeId).label(nodeId).type(nodeType).component(componentId)
                 .build();
@@ -174,9 +239,9 @@ class ComponentSmokeTest {
 
     private void invokeParamValidator(ComponentMeta meta, ChainContext ctx, Method method) {
         try {
-            Object[] execArgs = new Object[]{ctx};
-            Parameter[] execParams = new Parameter[0];
-            method.invoke(meta.getTargetBean(), execArgs, execParams);
+            Object[] args = new Object[]{ctx};
+            Parameter[] params = method.getParameters();
+            method.invoke(meta.getTargetBean(), new Object[]{args, params});
         } catch (Exception e) {
             Throwable cause = e.getCause() != null ? e.getCause() : e;
             throw new AssertionError("参数校验器冒烟失败: " + meta.getExecuteId() + ": " + cause.getMessage(), cause);
@@ -205,9 +270,39 @@ class ComponentSmokeTest {
         p.put("keyword", "smoke");
         p.put("name", "smoke");
         p.put("step", 0);
+        p.put("milliseconds", 10L);
+        p.put("seconds", 1);
+        p.put("cacheKey", "test-key");
+        p.put("cacheValue", "test-value");
+        p.put("exchangeType", "REFUND");
+        p.put("message", "test message");
+        p.put("topic", "test-topic");
+        p.put("queueName", "test-queue");
+        p.put("orderList", List.of(
+                Map.of("orderId", "ORD-001", "amount", 100),
+                Map.of("orderId", "ORD-002", "amount", 200)
+        ));
         p.put("deviceId", "DEV-SMOKE");
         p.put("clientIp", "127.0.0.1");
         p.put("msgId", "MSG-SMOKE");
+        // 添加缺失的参数
+        p.put("paymentId", "PAY-SMOKE");
+        p.put("refundId", "REF-SMOKE");
+        p.put("template", "default-template");
+        p.put("content", "test notification content");
+        p.put("userName", "Test User");
+        p.put("userStatus", "ACTIVE");
+        p.put("status", "PENDING");
+        p.put("configKey", "test-config");
+        p.put("configValue", "test-config-value");
+        // LogHandler 参数
+        p.put("businessType", "ORDER");
+        p.put("success", true);
+        p.put("costMs", 100L);
+        p.put("riskType", "FRAUD");
+        p.put("riskScore", 50);
+        p.put("nodeId", "node-001");
+        p.put("compensationType", "ROLLBACK");
         return p;
     }
 }

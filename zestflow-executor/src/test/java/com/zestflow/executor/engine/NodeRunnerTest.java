@@ -727,6 +727,68 @@ class NodeRunnerTest {
         assertThat(result.getErrorMessage()).contains("fail");
     }
 
+    // ==================== SELECTOR 节点测试 ====================
+
+    @Test
+    void selectorNodeWithComponentExecutesAndSetsBranch() {
+        NodeDefinition nodeDef = NodeDefinition.builder()
+                .id("n1").type(ChainConstants.NODE_TYPE_SELECTOR).component("selectorComp")
+                .build();
+        ChainContext ctx = context();
+        when(lifecycleExecutor.execute(nodeDef, ctx)).thenReturn("BRANCH_A");
+
+        NodeResultDTO result = nodeRunner.execute(nodeDef, ctx);
+
+        assertThat(result.getStatus()).isEqualTo(ChainConstants.NODE_SUCCESS);
+        assertThat(ctx.get("_branch")).isEqualTo("BRANCH_A");
+        verify(lifecycleExecutor).execute(nodeDef, ctx);
+    }
+
+    @Test
+    void selectorNodeWithoutComponentSkipsExecution() {
+        NodeDefinition nodeDef = NodeDefinition.builder()
+                .id("n1").type(ChainConstants.NODE_TYPE_SELECTOR)
+                .build();
+        ChainContext ctx = context();
+
+        NodeResultDTO result = nodeRunner.execute(nodeDef, ctx);
+
+        assertThat(result.getStatus()).isEqualTo(ChainConstants.NODE_SUCCESS);
+        verify(lifecycleExecutor, never()).execute(any(), any());
+    }
+
+    @Test
+    void selectorNodeWithPrePostProcessors() {
+        ComponentRef pre1 = new ComponentRef("pre1", "前处理");
+        ComponentRef post1 = new ComponentRef("post1", "后处理");
+        NodeDefinition nodeDef = NodeDefinition.builder()
+                .id("n1").type(ChainConstants.NODE_TYPE_SELECTOR).component("selectorComp")
+                .preComponents(List.of(pre1))
+                .postComponents(List.of(post1))
+                .build();
+        ChainContext ctx = context();
+        when(lifecycleExecutor.execute(nodeDef, ctx)).thenReturn("BRANCH_B");
+
+        nodeRunner.execute(nodeDef, ctx);
+
+        verify(lifecycleExecutor).executePreProcessors(List.of(pre1), ctx);
+        verify(lifecycleExecutor).execute(nodeDef, ctx);
+        verify(lifecycleExecutor).executePostProcessors(List.of(post1), ctx);
+    }
+
+    @Test
+    void selectorNodeNullResultDoesNotSetBranch() {
+        NodeDefinition nodeDef = NodeDefinition.builder()
+                .id("n1").type(ChainConstants.NODE_TYPE_SELECTOR).component("selectorComp")
+                .build();
+        ChainContext ctx = context();
+        when(lifecycleExecutor.execute(nodeDef, ctx)).thenReturn(null);
+
+        nodeRunner.execute(nodeDef, ctx);
+
+        assertThat(ctx.get("_branch")).isNull();
+    }
+
     // ==================== 辅助方法 ====================
 
     private static NodeDefinition nodeDef(String id, String type) {

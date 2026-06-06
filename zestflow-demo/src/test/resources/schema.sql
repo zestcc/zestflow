@@ -12,6 +12,7 @@ DROP TABLE IF EXISTS zf_chain;
 
 CREATE TABLE IF NOT EXISTS zf_chain (
     code        VARCHAR(64)  NOT NULL PRIMARY KEY,
+    chain_key   VARCHAR(128) DEFAULT NULL,
     name        VARCHAR(128) NOT NULL DEFAULT '',
     description VARCHAR(500) DEFAULT NULL,
     status      TINYINT      NOT NULL DEFAULT 1,

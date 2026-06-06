@@ -150,6 +150,10 @@ public class NodeDefinition {
         return ChainConstants.NODE_TYPE_CONDITION.equals(type);
     }
 
+    public boolean isSelector() {
+        return ChainConstants.NODE_TYPE_SELECTOR.equals(type);
+    }
+
     public boolean isScript() {
         return ChainConstants.NODE_TYPE_SCRIPT.equals(type);
     }

@@ -41,6 +41,8 @@ public final class ChainConstants {
     public static final String NODE_TYPE_NORMAL = "NORMAL";
     /** 条件节点 */
     public static final String NODE_TYPE_CONDITION = "CONDITION";
+    /** 选择器节点（多条件分支） */
+    public static final String NODE_TYPE_SELECTOR = "SELECTOR";
     /** 脚本节点 */
     public static final String NODE_TYPE_SCRIPT = "SCRIPT";
     /** 子链节点 */

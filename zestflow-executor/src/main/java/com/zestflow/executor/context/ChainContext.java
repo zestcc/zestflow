@@ -143,9 +143,15 @@ public class ChainContext {
 
     /**
      * 设置值
+     * <p>
+     * 注意：ConcurrentHashMap 不允许 null 值，因此 null 值会被移除该键
      */
     public void put(String key, Object value) {
-        data.put(key, value);
+        if (value == null) {
+            data.remove(key);
+        } else {
+            data.put(key, value);
+        }
     }
 
     /**

@@ -157,6 +157,7 @@ public class NodeRunner {
             Object result = switch (nodeDef.getType()) {
                 case ChainConstants.NODE_TYPE_NORMAL -> executeNormal(nodeDef, context, stateMachine);
                 case ChainConstants.NODE_TYPE_CONDITION -> executeCondition(nodeDef, context, stateMachine);
+                case ChainConstants.NODE_TYPE_SELECTOR -> executeSelector(nodeDef, context, stateMachine);
                 case ChainConstants.NODE_TYPE_SCRIPT -> executeScript(nodeDef, context, stateMachine);
                 case ChainConstants.NODE_TYPE_SUB_CHAIN -> executeSubChain(nodeDef, context, stateMachine);
                 case ChainConstants.NODE_TYPE_ITERATOR -> executeIterator(nodeDef, context, stateMachine);
@@ -699,6 +700,38 @@ public class NodeRunner {
     }
 
     // ==================== 新增节点类型执行方法 ====================
+
+    /**
+     * SELECTOR 节点执行：多条件分支选择，返回路由标识供引擎选择匹配的出边
+     */
+    private Object executeSelector(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
+        log.debug("SELECTOR 节点执行 nodeId={}", nodeDef.getId());
+        
+        executePreProcessors(nodeDef, context);
+        
+        String componentId = nodeDef.getComponent();
+        if (componentId == null || componentId.isEmpty()) {
+            log.warn("SELECTOR 节点未绑定元件，跳过执行 nodeId={}", nodeDef.getId());
+            executePostProcessors(nodeDef, context);
+            return null;
+        }
+        
+        Object result = lifecycleExecutor.execute(nodeDef, context);
+        publishResult(context, result, nodeDef);
+        
+        // 将路由决策写入上下文，供引擎选择匹配的出边
+        if (result != null) {
+            String branchLabel = resolveBranchLabel(nodeDef, result.toString());
+            if (branchLabel != null) {
+                context.put("_branch", branchLabel);
+                log.debug("SELECTOR 节点路由决策 nodeId={} result={} branch={}",
+                        nodeDef.getId(), result, branchLabel);
+            }
+        }
+        
+        executePostProcessors(nodeDef, context);
+        return result;
+    }
 
     private Object executeFork(NodeDefinition nodeDef, ChainContext context, NodeStateMachine stateMachine) {
         log.debug("FORK 节点执行 nodeId={}", nodeDef.getId());

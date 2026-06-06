@@ -8,18 +8,22 @@ import com.zestflow.executor.chain.ChainDefinitionBuilder;
 import com.zestflow.executor.chain.ChainManager;
 import com.zestflow.executor.engine.ChainExecutionEngine;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
+import javax.sql.DataSource;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -50,6 +54,10 @@ class ZestFlowE2ETest {
 
     @Autowired
     private InMemoryEventCollector eventCollector;
+
+    @Autowired
+    @Qualifier("executorDataSource")
+    private DataSource executorDataSource;
 
     @BeforeEach
     void setUp() {
@@ -362,8 +370,35 @@ class ZestFlowE2ETest {
                 .config(Map.of("errorStrategy", ChainConstants.ERROR_STRATEGY_STOP))
                 .build();
         chainManager.load(chainDefinitionBuilder.build(dto));
+        saveChainToDatabase(code);
         log.info("执行链 code={} nodes={}", code, nodes.size());
         return chainExecutionEngine.execute(code, params != null ? params : Map.of());
+    }
+
+    private void saveChainToDatabase(String chainCode) {
+        try {
+            JdbcTemplate jdbcTemplate = new JdbcTemplate(executorDataSource);
+            String sql = "INSERT INTO zf_chain (code, name, description, status, version, tenant_id, app_code, created_by, updated_by, created_at, updated_at, is_deleted) " +
+                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            jdbcTemplate.update(sql,
+                    chainCode,
+                    chainCode,
+                    "E2E test chain",
+                    4, // PUBLISHED status
+                    1,
+                    1L, // tenant_id
+                    "demo-app",
+                    "test",
+                    "test",
+                    java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                    java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                    0
+            );
+        } catch (Exception e) {
+            if (!e.getMessage().contains("Duplicate entry") && !e.getMessage().contains("unique constraint")) {
+                System.err.println("Failed to save chain to database: " + e.getMessage());
+            }
+        }
     }
 
     private static ChainNodeDTO node(String id, String type, String component) {
