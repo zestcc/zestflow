@@ -234,6 +234,10 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
         // /api/chains/{code} → ["", "api", "chains", "CODE"]
         // /api/chains/{code}/status → ["", "api", "chains", "CODE", "status"]
 
+        if (parts.length == 4 && "validate-definition".equals(parts[3]) && method == HttpMethod.POST) {
+            return handleValidateDefinition(ctx, body);
+        }
+
         if (parts.length == 3) {
             if (method == HttpMethod.GET) {
                 return handleListChains(ctx, uri);
@@ -689,6 +693,43 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
     }
 
     // ==================== 热加载（事件驱动） ====================
+
+    private boolean handleValidateDefinition(ChannelHandlerContext ctx, String body) throws Exception {
+        if (chainLoader == null) {
+            writeResponse(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                    "{\"code\":500,\"message\":\"ChainLoader 不可用\"}");
+            return true;
+        }
+        String chainCode = "";
+        Integer version = null;
+        String chainData = null;
+        String graphData = null;
+        if (body != null && !body.isBlank()) {
+            JsonNode json = MAPPER.readTree(body);
+            chainCode = json.path("chainCode").asText("");
+            if (json.has("version") && !json.get("version").isNull()) {
+                version = json.get("version").asInt();
+            }
+            if (json.has("chainData") && !json.get("chainData").isNull()) {
+                JsonNode cd = json.get("chainData");
+                chainData = cd.isTextual() ? cd.asText() : cd.toString();
+            }
+            if (json.has("graphData") && !json.get("graphData").isNull()) {
+                JsonNode gd = json.get("graphData");
+                graphData = gd.isTextual() ? gd.asText() : gd.toString();
+            }
+        }
+        ChainLoader.ChainValidationResult result =
+                chainLoader.validateDefinition(chainCode, version, chainData, graphData);
+        ObjectNode out = MAPPER.createObjectNode();
+        out.put("valid", result.isValid());
+        ArrayNode errors = out.putArray("errors");
+        if (result.getErrors() != null) {
+            result.getErrors().forEach(errors::add);
+        }
+        writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(out));
+        return true;
+    }
 
     private boolean handleReloadChain(ChannelHandlerContext ctx, String code, String body) throws Exception {
         if (chainLoader == null) {

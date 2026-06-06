@@ -86,6 +86,24 @@ zestflow:
     ip-demo-mode: disabled
     # IP 租户非活跃超时（分钟）
     ip-tenant-timeout-minutes: 60
+  ai:
+    enabled: true
+    # 默认免费本地 Ollama；有环境变量 Key 时初始化器优先选用云端免费额度预设
+    default-preset: ollama
+    tenant-auto-init: true
+    timeout-ms: 60000
+    max-tokens: 4096
+    temperature: 0.2
+    pii-mask: true
+    repair-max-rounds: 2
+    # 环境变量中的免费/试用 API Key（租户未单独配置时使用）
+    env-keys:
+      siliconflow: ${SILICONFLOW_API_KEY:}
+      deepseek: ${DEEPSEEK_API_KEY:}
+      groq: ${GROQ_API_KEY:}
+      dashscope: ${DASHSCOPE_API_KEY:}
+      gemini: ${GEMINI_API_KEY:}
+      github-models: ${GITHUB_TOKEN:}
   playground:
     # 开关：true 启用系统演示功能（含演示场景、演示记录、试验场）
     enabled: true

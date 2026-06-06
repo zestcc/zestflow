@@ -1,0 +1,404 @@
+version: "2026-06"
+presets:
+  deepseek:
+    tier: A
+    displayName: DeepSeek
+    displayNameEn: DeepSeek
+    region: cn
+    baseUrl: https://api.deepseek.com
+    defaultModel: deepseek-chat
+    models:
+      - deepseek-chat
+      - deepseek-reasoner
+    apiKeyRequired: true
+    docUrl: https://platform.deepseek.com/api_keys
+    tags: [free-tier, json-friendly, cn]
+    recommendedFor: [chain-suggest, explain, expression]
+    qualityTier: high
+    notes: 国内常用；请自行关注官方额度与限流政策。
+
+  dashscope:
+    tier: A
+    displayName: 通义千问
+    displayNameEn: Qwen (DashScope)
+    region: cn
+    baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
+    defaultModel: qwen-plus
+    models:
+      - qwen-plus
+      - qwen-turbo
+      - qwen-max
+    apiKeyRequired: true
+    docUrl: https://help.aliyun.com/zh/model-studio/developer-reference/get-api-key
+    tags: [json-friendly, cn]
+    recommendedFor: [chain-suggest, explain, expression]
+    qualityTier: high
+    notes: 阿里云 DashScope 兼容模式。
+
+  siliconflow:
+    tier: A
+    displayName: 硅基流动
+    displayNameEn: SiliconFlow
+    region: cn
+    baseUrl: https://api.siliconflow.cn/v1
+    defaultModel: deepseek-ai/DeepSeek-V3
+    models:
+      - deepseek-ai/DeepSeek-V3
+      - Qwen/Qwen2.5-72B-Instruct
+    apiKeyRequired: true
+    docUrl: https://cloud.siliconflow.cn/account/ak
+    tags: [free-tier, json-friendly, cn]
+    recommendedFor: [chain-suggest, explain]
+    qualityTier: high
+    notes: 国内多模型聚合。
+
+  zhipu:
+    tier: A
+    displayName: 智谱 AI
+    displayNameEn: Zhipu AI
+    region: cn
+    baseUrl: https://open.bigmodel.cn/api/paas/v4
+    defaultModel: glm-4-flash
+    models:
+      - glm-4-flash
+      - glm-4-plus
+    apiKeyRequired: true
+    docUrl: https://open.bigmodel.cn/usercenter/apikeys
+    tags: [cn, json-friendly]
+    recommendedFor: [explain, expression]
+    qualityTier: medium
+    notes: 兼容路径需测试连接验证。
+
+  moonshot:
+    tier: A
+    displayName: Moonshot / Kimi
+    displayNameEn: Moonshot / Kimi
+    region: cn
+    baseUrl: https://api.moonshot.cn/v1
+    defaultModel: moonshot-v1-8k
+    models:
+      - moonshot-v1-8k
+      - moonshot-v1-32k
+      - moonshot-v1-128k
+    apiKeyRequired: true
+    docUrl: https://platform.moonshot.cn/console/api-keys
+    tags: [cn, reasoning]
+    recommendedFor: [explain, chain-suggest]
+    qualityTier: high
+    notes: 长文本场景。
+
+  ollama:
+    tier: A
+    displayName: Ollama（本地免费）
+    displayNameEn: Ollama (Local)
+    region: local
+    baseUrl: http://127.0.0.1:11434/v1
+    defaultModel: qwen2.5:7b
+    models:
+      - qwen2.5:7b
+      - qwen2.5:14b
+      - deepseek-r1:8b
+    apiKeyRequired: false
+    apiKeyPlaceholder: ollama
+    docUrl: https://ollama.com
+    tags: [local, free, offline]
+    recommendedFor: [explain, expression]
+    qualityTier: dev-only
+    notes: 适合本地开发；小模型生成复杂链 JSON 质量有限。
+
+  groq:
+    tier: A
+    displayName: Groq
+    displayNameEn: Groq
+    region: global
+    baseUrl: https://api.groq.com/openai/v1
+    defaultModel: llama-3.3-70b-versatile
+    models:
+      - llama-3.3-70b-versatile
+      - llama-3.1-8b-instant
+    apiKeyRequired: true
+    docUrl: https://console.groq.com/keys
+    tags: [free-tier, fast]
+    recommendedFor: [explain, expression]
+    qualityTier: medium
+    notes: 免费 tier，速度快。
+
+  gemini:
+    tier: A
+    displayName: Google Gemini
+    displayNameEn: Google Gemini
+    region: global
+    baseUrl: https://generativelanguage.googleapis.com/v1beta/openai
+    defaultModel: gemini-2.0-flash
+    models:
+      - gemini-2.0-flash
+      - gemini-1.5-pro
+    apiKeyRequired: true
+    docUrl: https://aistudio.google.com/apikey
+    tags: [free-tier, json-friendly]
+    recommendedFor: [chain-suggest, explain]
+    qualityTier: high
+    notes: AI Studio 免费 tier。
+
+  openai:
+    tier: B
+    displayName: OpenAI
+    displayNameEn: OpenAI
+    region: global
+    baseUrl: https://api.openai.com/v1
+    defaultModel: gpt-4o-mini
+    models:
+      - gpt-4o-mini
+      - gpt-4o
+    apiKeyRequired: true
+    docUrl: https://platform.openai.com/api-keys
+    tags: [json-friendly]
+    recommendedFor: [chain-suggest, explain, expression]
+    qualityTier: high
+    notes: 国际标准。
+
+  azure-openai:
+    tier: B
+    displayName: Azure OpenAI
+    displayNameEn: Azure OpenAI
+    region: global
+    baseUrl: ""
+    defaultModel: gpt-4o
+    models:
+      - gpt-4o
+      - gpt-4o-mini
+    apiKeyRequired: true
+    docUrl: https://azure.microsoft.com/products/ai-services/openai-service
+    tags: [enterprise]
+    recommendedFor: [chain-suggest, explain]
+    qualityTier: high
+    notes: 填写 Azure deployment 对应的 baseUrl。
+
+  mistral:
+    tier: B
+    displayName: Mistral
+    displayNameEn: Mistral
+    region: global
+    baseUrl: https://api.mistral.ai/v1
+    defaultModel: mistral-small-latest
+    models:
+      - mistral-small-latest
+      - mistral-large-latest
+    apiKeyRequired: true
+    docUrl: https://console.mistral.ai/api-keys
+    tags: [json-friendly]
+    recommendedFor: [explain, expression]
+    qualityTier: high
+    notes: 欧洲 / 开源友好。
+
+  cohere:
+    tier: B
+    displayName: Cohere
+    displayNameEn: Cohere
+    region: global
+    baseUrl: https://api.cohere.com/compatibility/v1
+    defaultModel: command-r-plus
+    models:
+      - command-r-plus
+      - command-r
+    apiKeyRequired: true
+    docUrl: https://dashboard.cohere.com/api-keys
+    tags: []
+    recommendedFor: [explain]
+    qualityTier: medium
+    notes: 英文场景。
+
+  github-models:
+    tier: B
+    displayName: GitHub Models
+    displayNameEn: GitHub Models
+    region: global
+    baseUrl: https://models.inference.ai.azure.com
+    defaultModel: gpt-4o-mini
+    models:
+      - gpt-4o-mini
+    apiKeyRequired: true
+    docUrl: https://github.com/marketplace/models
+    tags: [free-tier]
+    recommendedFor: [explain, expression]
+    qualityTier: medium
+    notes: 开发者免费额度。
+
+  nvidia-nim:
+    tier: B
+    displayName: NVIDIA NIM
+    displayNameEn: NVIDIA NIM
+    region: global
+    baseUrl: https://integrate.api.nvidia.com/v1
+    defaultModel: meta/llama-3.1-8b-instruct
+    models:
+      - meta/llama-3.1-8b-instruct
+    apiKeyRequired: true
+    docUrl: https://build.nvidia.com/
+    tags: [free-tier]
+    recommendedFor: [explain]
+    qualityTier: medium
+    notes: 免费 tier。
+
+  cloudflare-ai:
+    tier: B
+    displayName: Cloudflare Workers AI
+    displayNameEn: Cloudflare Workers AI
+    region: global
+    baseUrl: ""
+    defaultModel: "@cf/meta/llama-3.1-8b-instruct"
+    models:
+      - "@cf/meta/llama-3.1-8b-instruct"
+    apiKeyRequired: true
+    docUrl: https://developers.cloudflare.com/workers-ai/
+    tags: [edge]
+    recommendedFor: [explain]
+    qualityTier: medium
+    notes: 填写账户对应的 Workers AI 兼容端点。
+
+  baidu-qianfan:
+    tier: B
+    displayName: 百度千帆
+    displayNameEn: Baidu Qianfan
+    region: cn
+    baseUrl: https://qianfan.baidubce.com/v2
+    defaultModel: ernie-4.0-8k
+    models:
+      - ernie-4.0-8k
+      - ernie-3.5-8k
+    apiKeyRequired: true
+    docUrl: https://console.bce.baidu.com/qianfan/ais/console/applicationConsole/application
+    tags: [cn]
+    recommendedFor: [explain, chain-suggest]
+    qualityTier: high
+    notes: 国内。
+
+  tencent-hunyuan:
+    tier: B
+    displayName: 腾讯混元
+    displayNameEn: Tencent Hunyuan
+    region: cn
+    baseUrl: https://api.hunyuan.cloud.tencent.com/v1
+    defaultModel: hunyuan-lite
+    models:
+      - hunyuan-lite
+      - hunyuan-standard
+    apiKeyRequired: true
+    docUrl: https://cloud.tencent.com/product/hunyuan
+    tags: [cn]
+    recommendedFor: [explain, chain-suggest]
+    qualityTier: high
+    notes: 国内。
+
+  volcengine-ark:
+    tier: B
+    displayName: 火山方舟
+    displayNameEn: Volcengine Ark
+    region: cn
+    baseUrl: https://ark.cn-beijing.volces.com/api/v3
+    defaultModel: doubao-pro-32k
+    models:
+      - doubao-pro-32k
+    apiKeyRequired: true
+    docUrl: https://console.volcengine.com/ark
+    tags: [cn]
+    recommendedFor: [chain-suggest, explain]
+    qualityTier: high
+    notes: 国内。
+
+  openrouter:
+    tier: B
+    displayName: OpenRouter
+    displayNameEn: OpenRouter
+    region: global
+    baseUrl: https://openrouter.ai/api/v1
+    defaultModel: deepseek/deepseek-chat
+    models:
+      - deepseek/deepseek-chat
+      - openai/gpt-4o-mini
+    apiKeyRequired: true
+    docUrl: https://openrouter.ai/keys
+    tags: [aggregator]
+    recommendedFor: [chain-suggest, explain, expression]
+    qualityTier: high
+    notes: 聚合，用户自备 Key。
+
+  together:
+    tier: B
+    displayName: Together AI
+    displayNameEn: Together AI
+    region: global
+    baseUrl: https://api.together.xyz/v1
+    defaultModel: meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo
+    models:
+      - meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo
+    apiKeyRequired: true
+    docUrl: https://api.together.xyz/settings/api-keys
+    tags: [open-source]
+    recommendedFor: [explain]
+    qualityTier: medium
+    notes: 开源托管。
+
+  fireworks:
+    tier: B
+    displayName: Fireworks AI
+    displayNameEn: Fireworks AI
+    region: global
+    baseUrl: https://api.fireworks.ai/inference/v1
+    defaultModel: accounts/fireworks/models/llama-v3p1-70b-instruct
+    models:
+      - accounts/fireworks/models/llama-v3p1-70b-instruct
+    apiKeyRequired: true
+    docUrl: https://fireworks.ai/account/api-keys
+    tags: []
+    recommendedFor: [chain-suggest, explain]
+    qualityTier: high
+    notes: 推理托管。
+
+  lmstudio:
+    tier: B
+    displayName: LM Studio
+    displayNameEn: LM Studio
+    region: local
+    baseUrl: http://127.0.0.1:1234/v1
+    defaultModel: local-model
+    models:
+      - local-model
+    apiKeyRequired: false
+    apiKeyPlaceholder: lm-studio
+    docUrl: https://lmstudio.ai
+    tags: [local, offline]
+    recommendedFor: [explain, expression]
+    qualityTier: dev-only
+    notes: 本地 GUI。
+
+  vllm:
+    tier: B
+    displayName: vLLM / 自建
+    displayNameEn: vLLM / Self-hosted
+    region: local
+    baseUrl: http://127.0.0.1:8000/v1
+    defaultModel: default
+    models:
+      - default
+    apiKeyRequired: false
+    docUrl: ""
+    tags: [local, enterprise]
+    recommendedFor: [chain-suggest, explain, expression]
+    qualityTier: high
+    notes: 内网 OpenAI 兼容网关。
+
+  custom:
+    tier: B
+    displayName: 自定义 OpenAI 兼容接口
+    displayNameEn: Custom OpenAI-compatible
+    region: global
+    baseUrl: ""
+    defaultModel: ""
+    models: []
+    apiKeyRequired: true
+    docUrl: ""
+    tags: [enterprise]
+    recommendedFor: [chain-suggest, explain, expression, diagnose]
+    qualityTier: high
+    notes: 填写企业内网 LLM 网关地址，如 vLLM / LocalAI。

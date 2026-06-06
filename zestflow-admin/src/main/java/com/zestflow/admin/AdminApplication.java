@@ -8,7 +8,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication(exclude = RedisAutoConfiguration.class)
 @EnableScheduling
-@MapperScan({"com.zestflow.admin.repository", "com.zestflow.admin.playground.repository"})
+@MapperScan({
+        "com.zestflow.admin.repository",
+        "com.zestflow.admin.playground.repository",
+        "com.zestflow.admin.ai.repository"
+})
 public class AdminApplication {
 
     public static void main(String[] args) {

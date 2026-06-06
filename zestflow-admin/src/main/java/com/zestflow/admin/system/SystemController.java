@@ -1,5 +1,6 @@
 package com.zestflow.admin.system;
 
+import com.zestflow.admin.ai.AiProperties;
 import com.zestflow.admin.config.AdminCacheProperties;
 import com.zestflow.admin.config.AdminRedisConditions;
 import com.zestflow.admin.config.TenantModeConfig;
@@ -25,6 +26,7 @@ public class SystemController {
     private final TenantModeConfig tenantModeConfig;
     private final AdminDeployProperties deployProperties;
     private final AdminCacheProperties cacheProperties;
+    private final AiProperties aiProperties;
 
     /**
      * 获取系统特性开关状态，前端/E2E 探测运行时配置
@@ -35,6 +37,7 @@ public class SystemController {
                 environment.getProperty("zestflow.playground.enabled", "false"));
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("playground", Map.of("enabled", playgroundEnabled));
+        out.put("copilot", Map.of("globallyEnabled", aiProperties.isEnabled()));
         out.put("tenant", Map.of(
                 "mode", tenantModeConfig.getMode() != null ? tenantModeConfig.getMode() : "single",
                 "ipDemoMode", tenantModeConfig.getIpDemoMode() != null ? tenantModeConfig.getIpDemoMode() : "disabled"
