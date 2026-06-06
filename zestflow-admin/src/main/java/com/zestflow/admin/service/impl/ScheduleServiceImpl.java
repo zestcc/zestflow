@@ -18,6 +18,8 @@ import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import com.zestflow.admin.repository.ScheduleLogMapper;
 import com.zestflow.admin.repository.ScheduleMapper;
 import com.zestflow.admin.schedule.ScheduleIdempotencyKeys;
+import com.zestflow.admin.schedule.platform.PlatformJobRunner;
+import com.zestflow.admin.schedule.platform.ScheduleJobType;
 import com.zestflow.admin.schedule.ExecutorClient;
 import com.zestflow.admin.schedule.RouteStrategy;
 import com.zestflow.admin.schedule.ScheduleExecutorFailover;
@@ -50,21 +52,28 @@ public class ScheduleServiceImpl implements ScheduleService {
     private final ExecutorClient executorClient;
     private final TenantAppContext tenantAppContext;
     private final List<RouteStrategy> routeStrategies;
+    private final PlatformJobRunner platformJobRunner;
 
     @Override
-    public IPage<ScheduleVO> list(String keyword, Integer status, Integer page, Integer size) {
+    public IPage<ScheduleVO> list(String keyword, String jobType, Integer status, Integer page, Integer size) {
         LambdaQueryWrapper<SchedulePO> wrapper = new LambdaQueryWrapper<>();
+        if (jobType != null && !jobType.isBlank()) {
+            wrapper.eq(SchedulePO::getJobType, jobType);
+        }
         if (status != null) {
             wrapper.eq(SchedulePO::getStatus, status);
         }
         if (keyword != null && !keyword.isBlank()) {
             wrapper.and(w -> w.like(SchedulePO::getChainCode, keyword)
-                    .or().like(SchedulePO::getChainName, keyword));
+                    .or().like(SchedulePO::getChainName, keyword)
+                    .or().like(SchedulePO::getJobKey, keyword));
         }
-        // 非超管按 appCode 过滤
+        // 非超管按 appCode 过滤（平台任务无 appCode，始终可见）
         Set<String> accessibleCodes = tenantAppContext.getCurrentUserAppCodes();
         if (accessibleCodes != null && !accessibleCodes.isEmpty()) {
-            wrapper.in(SchedulePO::getAppCode, accessibleCodes);
+            wrapper.and(w -> w.isNull(SchedulePO::getAppCode)
+                    .or().in(SchedulePO::getAppCode, accessibleCodes)
+                    .or().eq(SchedulePO::getJobType, ScheduleJobType.PLATFORM));
         }
         wrapper.orderByDesc(SchedulePO::getCreatedAt);
 
@@ -95,6 +104,10 @@ public class ScheduleServiceImpl implements ScheduleService {
         po.setStatus(1);
         po.setRemark(dto.getRemark());
         po.setCreatedBy(username);
+        po.setJobType(ScheduleJobType.CHAIN);
+        po.setScheduleKind("CRON");
+        po.setEditable(1);
+        po.setRemote(0);
         po.setTenantId(tenantAppContext.getCurrentTenantId());
         // 自动关联用户首个可访问应用（若无显式 appCode）
         Set<String> accessibleCodes = tenantAppContext.getCurrentUserAppCodes();
@@ -115,6 +128,9 @@ public class ScheduleServiceImpl implements ScheduleService {
         if (po == null) {
             throw new BizException(ErrorCode.SCHEDULE_NOT_FOUND);
         }
+        if (ScheduleJobType.PLATFORM.equals(po.getJobType())) {
+            throw new BizException(ErrorCode.SCHEDULE_NOT_FOUND, "平台内置任务不可编辑");
+        }
         if (dto.getCron() != null) po.setCron(dto.getCron());
         if (dto.getRouteStrategy() != null) po.setRouteStrategy(dto.getRouteStrategy());
         if (dto.getParams() != null) po.setParams(dto.getParams());
@@ -132,6 +148,9 @@ public class ScheduleServiceImpl implements ScheduleService {
         SchedulePO po = scheduleMapper.selectById(id);
         if (po == null) {
             throw new BizException(ErrorCode.SCHEDULE_NOT_FOUND);
+        }
+        if (ScheduleJobType.PLATFORM.equals(po.getJobType())) {
+            throw new BizException(ErrorCode.SCHEDULE_NOT_FOUND, "平台内置任务不可删除");
         }
         scheduleMapper.deleteById(id);
         log.info("调度删除成功 scheduleId={} chainCode={}", id, po.getChainCode());
@@ -157,15 +176,46 @@ public class ScheduleServiceImpl implements ScheduleService {
         if (schedule == null) {
             throw new BizException(ErrorCode.SCHEDULE_NOT_FOUND);
         }
+        if (ScheduleJobType.PLATFORM.equals(schedule.getJobType())) {
+            if (schedule.getRemote() != null && schedule.getRemote() == 1) {
+                throw new BizException(ErrorCode.SCHEDULE_NOT_FOUND, "节点本地任务请在对应节点查看执行状态");
+            }
+            try {
+                return platformJobRunner.runManual(schedule.getJobKey());
+            } catch (IllegalArgumentException | IllegalStateException e) {
+                throw new BizException(ErrorCode.SCHEDULE_NOT_FOUND, e.getMessage());
+            }
+        }
         return doTrigger(schedule, "manual");
     }
 
     @Override
-    public IPage<ScheduleLogVO> listLogs(Long scheduleId, Integer status, Integer page, Integer size) {
+    public IPage<ScheduleLogVO> listLogs(Long scheduleId, String jobType, String keyword, Integer status, Integer page, Integer size) {
         LambdaQueryWrapper<ScheduleLogPO> wrapper = new LambdaQueryWrapper<ScheduleLogPO>()
                 .eq(scheduleId != null, ScheduleLogPO::getScheduleId, scheduleId)
                 .eq(status != null, ScheduleLogPO::getStatus, status)
                 .orderByDesc(ScheduleLogPO::getTriggeredAt);
+
+        if (keyword != null && !keyword.isBlank()) {
+            wrapper.and(w -> w.like(ScheduleLogPO::getChainCode, keyword)
+                    .or().like(ScheduleLogPO::getJobKey, keyword)
+                    .or().like(ScheduleLogPO::getJobName, keyword));
+        }
+        if (jobType != null && !jobType.isBlank()) {
+            List<Long> scheduleIds = scheduleMapper.selectList(
+                            new LambdaQueryWrapper<SchedulePO>()
+                                    .eq(SchedulePO::getJobType, jobType)
+                                    .select(SchedulePO::getId))
+                    .stream()
+                    .map(SchedulePO::getId)
+                    .toList();
+            if (scheduleIds.isEmpty()) {
+                Page<ScheduleLogVO> empty = new Page<>(page, size, 0);
+                empty.setRecords(List.of());
+                return empty;
+            }
+            wrapper.in(ScheduleLogPO::getScheduleId, scheduleIds);
+        }
 
         IPage<ScheduleLogPO> poPage = scheduleLogMapper.selectPage(new Page<>(page, size), wrapper);
         Page<ScheduleLogVO> voPage = new Page<>(poPage.getCurrent(), poPage.getSize(), poPage.getTotal());
@@ -281,6 +331,14 @@ public class ScheduleServiceImpl implements ScheduleService {
                 .chainId(po.getChainId())
                 .chainCode(po.getChainCode())
                 .chainName(po.getChainName())
+                .jobType(po.getJobType() != null ? po.getJobType() : ScheduleJobType.CHAIN)
+                .jobKey(po.getJobKey())
+                .scheduleKind(po.getScheduleKind())
+                .fixedIntervalMs(po.getFixedIntervalMs())
+                .module(po.getModule())
+                .editable(po.getEditable() == null || po.getEditable() == 1)
+                .remote(po.getRemote() != null && po.getRemote() == 1)
+                .lastTriggerAt(po.getLastTriggerAt())
                 .cron(po.getCron())
                 .routeStrategy(po.getRouteStrategy())
                 .params(po.getParams())
@@ -297,6 +355,8 @@ public class ScheduleServiceImpl implements ScheduleService {
         return ScheduleLogVO.builder()
                 .id(po.getId())
                 .scheduleId(po.getScheduleId())
+                .jobKey(po.getJobKey())
+                .jobName(po.getJobName())
                 .chainCode(po.getChainCode())
                 .executorId(po.getExecutorId())
                 .executorAddress(po.getExecutorAddress())

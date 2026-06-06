@@ -1,24 +1,22 @@
 package com.zestflow.admin.schedule;
 
 import com.zestflow.admin.runtime.AdminDeployModeConditions;
+import com.zestflow.admin.schedule.platform.PlatformJobKeys;
+import com.zestflow.admin.schedule.platform.PlatformJobRunner;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/**
- * 单机部署租户清理 — {@code deploy-mode=standalone} 时启用，无 ShedLock。
- */
 @Component
 @Conditional(AdminDeployModeConditions.Standalone.class)
 @RequiredArgsConstructor
 public class StandaloneTenantCleanupMonitor {
 
-    private final TenantCleanupService tenantCleanupService;
+    private final PlatformJobRunner platformJobRunner;
 
     @Scheduled(fixedRate = 300_000)
     public void cleanupTrialTenants() {
-        tenantCleanupService.cleanupExpiredTrialTenants();
-        tenantCleanupService.cleanupOrphanIpMappings();
+        platformJobRunner.runScheduledByKey(PlatformJobKeys.TENANT_CLEANUP);
     }
 }

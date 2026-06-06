@@ -1,17 +1,14 @@
 package com.zestflow.admin.schedule.cluster;
 
 import com.zestflow.admin.runtime.AdminDeployModeConditions;
-import com.zestflow.admin.schedule.ScheduleScanService;
+import com.zestflow.admin.schedule.platform.PlatformJobKeys;
+import com.zestflow.admin.schedule.platform.PlatformJobRunner;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/**
- * 集群 Admin 调度轮询 — ShedLock + Redis，保证多副本仅一个节点执行 cron 扫描。
- */
 @Slf4j
 @Component
 @Conditional(AdminDeployModeConditions.Cluster.class)
@@ -20,7 +17,7 @@ public class ClusterScheduleMonitor {
 
     private static final String LOCK_NAME = "zestflow-admin-schedule-monitor-scan";
 
-    private final ScheduleScanService scheduleScanService;
+    private final PlatformJobRunner platformJobRunner;
 
     @Scheduled(fixedDelay = 15_000)
     @SchedulerLock(
@@ -29,6 +26,6 @@ public class ClusterScheduleMonitor {
             lockAtLeastFor = "PT10S"
     )
     public void scan() {
-        scheduleScanService.scanAndTriggerDueSchedules();
+        platformJobRunner.runScheduledByKey(PlatformJobKeys.SCHEDULE_SCAN);
     }
 }

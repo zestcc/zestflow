@@ -22,10 +22,11 @@ public class ScheduleController {
     @GetMapping
     public Result<IPage<ScheduleVO>> list(
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String jobType,
             @RequestParam(required = false) Integer status,
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer size) {
-        return Result.success(scheduleService.list(keyword, status, page, size));
+        return Result.success(scheduleService.list(keyword, jobType, status, page, size));
     }
 
     @GetMapping("/{id}")
@@ -64,9 +65,11 @@ public class ScheduleController {
     @GetMapping("/logs")
     public Result<IPage<ScheduleLogVO>> listLogs(
             @RequestParam(required = false) Long scheduleId,
+            @RequestParam(required = false) String jobType,
+            @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Integer status,
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer size) {
-        return Result.success(scheduleService.listLogs(scheduleId, status, page, size));
+        return Result.success(scheduleService.listLogs(scheduleId, jobType, keyword, status, page, size));
     }
 }

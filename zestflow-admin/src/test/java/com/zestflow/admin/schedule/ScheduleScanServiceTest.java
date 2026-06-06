@@ -44,6 +44,7 @@ class ScheduleScanServiceTest {
         dueSchedule.setId(1L);
         dueSchedule.setStatus(1);
         dueSchedule.setChainCode("demo-chain");
+        dueSchedule.setJobType("CHAIN");
         dueSchedule.setCron("* * * * * *");
     }
 

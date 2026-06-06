@@ -5,6 +5,7 @@ import com.zestflow.admin.model.entity.ScheduleLogPO;
 import com.zestflow.admin.model.entity.SchedulePO;
 import com.zestflow.admin.repository.ScheduleLogMapper;
 import com.zestflow.admin.repository.ScheduleMapper;
+import com.zestflow.admin.schedule.platform.ScheduleJobType;
 import com.zestflow.admin.service.impl.ScheduleServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,8 @@ public class ScheduleScanService {
         List<SchedulePO> enabledSchedules = scheduleMapper.selectList(
                 new LambdaQueryWrapper<SchedulePO>()
                         .eq(SchedulePO::getStatus, 1)
+                        .and(w -> w.eq(SchedulePO::getJobType, ScheduleJobType.CHAIN)
+                                .or().isNull(SchedulePO::getJobType))
         );
 
         if (enabledSchedules.isEmpty()) {

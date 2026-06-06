@@ -11,6 +11,8 @@ public class ScheduleLogVO {
 
     private Long id;
     private Long scheduleId;
+    private String jobKey;
+    private String jobName;
     private String chainCode;
     private String executorId;
     private String executorAddress;

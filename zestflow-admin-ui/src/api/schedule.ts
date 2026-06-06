@@ -1,9 +1,20 @@
 import http from './index'
 
+export type ScheduleJobType = 'CHAIN' | 'PLATFORM'
+
 export interface ScheduleVO {
   id: number
+  chainId?: number
   chainCode: string
   chainName: string
+  jobType?: ScheduleJobType
+  jobKey?: string
+  scheduleKind?: string
+  fixedIntervalMs?: number
+  module?: string
+  editable?: boolean
+  remote?: boolean
+  lastTriggerAt?: string
   cron: string
   routeStrategy: string
   params?: string
@@ -35,6 +46,8 @@ export interface ScheduleUpdateDTO {
 export interface ScheduleLogVO {
   id: number
   scheduleId: number
+  jobKey?: string
+  jobName?: string
   chainCode: string
   executorId?: string
   executorAddress?: string
@@ -50,7 +63,7 @@ export interface ScheduleLogVO {
 }
 
 export const scheduleApi = {
-  list(params: { keyword?: string; status?: number; page?: number; size?: number }) {
+  list(params: { keyword?: string; jobType?: ScheduleJobType; status?: number; page?: number; size?: number }) {
     return http.get<{ records: ScheduleVO[]; total: number; current: number; size: number }>('/schedules', { params })
   },
 
@@ -78,7 +91,7 @@ export const scheduleApi = {
     return http.post<ScheduleLogVO>(`/schedules/${id}/trigger`)
   },
 
-  listLogs(params: { scheduleId?: number; status?: number; page?: number; size?: number }) {
+  listLogs(params: { scheduleId?: number; jobType?: ScheduleJobType; keyword?: string; status?: number; page?: number; size?: number }) {
     return http.get<{ records: ScheduleLogVO[]; total: number; current: number; size: number }>('/schedules/logs', { params })
   },
 }

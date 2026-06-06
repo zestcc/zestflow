@@ -14,7 +14,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
@@ -48,7 +47,6 @@ public class ExecutorChainDriftMonitor {
 
     private volatile DriftSnapshot lastSnapshot = DriftSnapshot.clean();
 
-    @Scheduled(fixedDelayString = "${zestflow.admin.reconcile.interval-ms:120000}")
     public void reconcileActiveChains() {
         List<ExecutorRegistryPO> online = RegistryOnlineQuerySupport.listLiveOnlineExecutors(
                 executorRegistryMapper, liveStore, null);

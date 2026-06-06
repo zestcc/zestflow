@@ -1,5 +1,6 @@
 package com.zestflow.admin.schedule;
 
+import com.zestflow.admin.schedule.platform.PlatformJobRunner;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Configuration;
@@ -12,7 +13,7 @@ class StandaloneScheduleMonitorDeployModeTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withUserConfiguration(TestSchedulingConfiguration.class)
-            .withBean(ScheduleScanService.class, () -> mock(ScheduleScanService.class))
+            .withBean(PlatformJobRunner.class, () -> mock(PlatformJobRunner.class))
             .withUserConfiguration(TestSchedulingConfiguration.class, StandaloneScheduleMonitor.class);
 
     @Test

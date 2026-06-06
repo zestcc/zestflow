@@ -9,8 +9,7 @@ import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import com.zestflow.common.constant.RegistryConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -21,7 +20,7 @@ import java.util.OptionalLong;
  * 定时将内存心跳时间刷入 DB — 仅供控制台展示，不参与存活判定。
  */
 @Slf4j
-@Component
+@Service
 @RequiredArgsConstructor
 public class RegistryHeartbeatDbFlushMonitor {
 
@@ -29,7 +28,6 @@ public class RegistryHeartbeatDbFlushMonitor {
     private final ExecutorRegistryMapper executorRegistryMapper;
     private final CollectorRegistryMapper collectorRegistryMapper;
 
-    @Scheduled(fixedRate = RegistryConstants.HEARTBEAT_DB_FLUSH_INTERVAL_MS)
     public void flushLastHeartbeatToDb() {
         int executors = flushExecutors();
         int collectors = flushCollectors();

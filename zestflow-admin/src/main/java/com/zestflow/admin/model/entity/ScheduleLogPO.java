@@ -14,6 +14,10 @@ public class ScheduleLogPO {
 
     private Long scheduleId;
 
+    private String jobKey;
+
+    private String jobName;
+
     private String chainCode;
 
     private String executorId;

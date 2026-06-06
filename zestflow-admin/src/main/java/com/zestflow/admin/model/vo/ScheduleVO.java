@@ -13,6 +13,14 @@ public class ScheduleVO {
     private Long chainId;
     private String chainCode;
     private String chainName;
+    private String jobType;
+    private String jobKey;
+    private String scheduleKind;
+    private Long fixedIntervalMs;
+    private String module;
+    private Boolean editable;
+    private Boolean remote;
+    private LocalDateTime lastTriggerAt;
     private String cron;
     private String routeStrategy;
     private String params;

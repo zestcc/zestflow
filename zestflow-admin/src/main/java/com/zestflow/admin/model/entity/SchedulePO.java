@@ -18,7 +18,28 @@ public class SchedulePO {
 
     private String chainName;
 
+    /** CHAIN | PLATFORM */
+    private String jobType;
+
+    /** 平台任务唯一键 */
+    private String jobKey;
+
     private String cron;
+
+    /** CRON | FIXED_RATE | FIXED_DELAY */
+    private String scheduleKind;
+
+    private Long fixedIntervalMs;
+
+    private String module;
+
+    /** 0-不可编辑 1-可编辑 */
+    private Integer editable;
+
+    /** 0-Admin执行 1-节点本地 */
+    private Integer remote;
+
+    private LocalDateTime lastTriggerAt;
 
     private String routeStrategy;
 
