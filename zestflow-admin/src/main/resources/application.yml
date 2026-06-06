@@ -131,6 +131,19 @@ zestflow:
       subject: "ZestFlow - 密码重置"
     verify-email:
       subject: "ZestFlow - 邮箱验证"
+  alert:
+    # SLA 邮件告警 — 收件人由 user_app_role 动态解析，不在此配置
+    enabled: true
+    scan-interval-ms: 300000
+    cooldown-minutes: 30
+    window-minutes: 60
+    min-executions: 5
+    success-rate-threshold: 95.0
+    fail-count-threshold: 10
+    p95-cost-ms-threshold: 5000
+    schedule-fail-threshold: 3
+    alert-no-online-executor: true
+    subject-prefix: "[ZestFlow 告警]"
 
 mybatis-plus:
   mapper-locations: classpath:mapper/*.xml

@@ -1,6 +1,7 @@
 package com.zestflow.admin.schedule.platform;
 
 import com.zestflow.admin.config.OfflineMonitorService;
+import com.zestflow.admin.alert.ExecutionSlaAlertService;
 import com.zestflow.admin.registry.RegistryHeartbeatDbFlushMonitor;
 import com.zestflow.admin.runtime.ChainSyncCacheEvictor;
 import com.zestflow.admin.runtime.ExecutorChainDriftMonitor;
@@ -21,6 +22,7 @@ public class PlatformJobConfiguration {
     private final ChainSyncCacheEvictor chainSyncCacheEvictor;
     private final RegistryHeartbeatDbFlushMonitor heartbeatDbFlushMonitor;
     private final ExecutorChainDriftMonitor chainDriftMonitor;
+    private final ExecutionSlaAlertService executionSlaAlertService;
 
     @PostConstruct
     void registerHandlers() {
@@ -53,5 +55,7 @@ public class PlatformJobConfiguration {
             chainDriftMonitor.reconcileActiveChains();
             return null;
         });
+        registry.register(PlatformJobKeys.EXECUTION_SLA_ALERT, () ->
+                executionSlaAlertService.scan());
     }
 }

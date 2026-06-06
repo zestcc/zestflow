@@ -18,7 +18,7 @@ public class MybatisPlusConfig {
 
     /** 租户过滤排除表 — 这些表不自动注入 tenant_id 条件 */
     private static final Set<String> EXCLUDED_TABLES = Set.of(
-            "tenant", "user_tenant", "role", "tenant_ip_mapping"
+            "tenant", "user_tenant", "role", "tenant_ip_mapping", "alert_cooldown"
     );
 
     @Value("${zestflow.admin.tenant-id:1}")

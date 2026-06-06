@@ -3,7 +3,11 @@ package com.zestflow.collector.spi;
 import com.zestflow.common.protocol.EventQuery;
 import com.zestflow.common.protocol.EventStats;
 import com.zestflow.common.protocol.EventStatsQuery;
+import com.zestflow.common.protocol.ExecutionRankItem;
 import com.zestflow.common.protocol.ExecutionTrace;
+import com.zestflow.common.protocol.ExecutionTrendPoint;
+import com.zestflow.common.protocol.FailureClusterItem;
+import com.zestflow.common.protocol.LogAnalyticsQuery;
 import com.zestflow.common.protocol.NodeExecutionDetail;
 import com.zestflow.common.model.dto.ChainEvent;
 
@@ -57,4 +61,19 @@ public interface EventQueryService {
      * @param nodeShape 图节点 shape（flow-start / flow-end / flow-task 等），可为空
      */
     NodeExecutionDetail getNodeExecutionDetail(String executionId, String nodeId, String nodeShape);
+
+    /** 执行趋势（按 hour/day 桶） */
+    List<ExecutionTrendPoint> queryExecutionTrend(LogAnalyticsQuery query);
+
+    /** 链维度排行 */
+    List<ExecutionRankItem> queryChainRanking(LogAnalyticsQuery query);
+
+    /** 执行器维度排行 */
+    List<ExecutionRankItem> queryExecutorRanking(LogAnalyticsQuery query);
+
+    /** 节点维度排行（慢/失败热点） */
+    List<ExecutionRankItem> queryNodeRanking(LogAnalyticsQuery query);
+
+    /** 失败错误聚类 */
+    List<FailureClusterItem> queryFailureClusters(LogAnalyticsQuery query);
 }

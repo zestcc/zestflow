@@ -1,0 +1,1 @@
+import{aN as t,aO as a,aW as i,J as s}from"./index-CKFgVOnw.js";const r=768;function d(o="total, sizes, prev, pager, next, jumper"){const e=i(!1);function n(){e.value=window.innerWidth<r}return t(()=>{n(),window.addEventListener("resize",n)}),a(()=>{window.removeEventListener("resize",n)}),{paginationLayout:s(()=>e.value?"total, prev, pager, next":o),isMobile:e}}export{d as u};

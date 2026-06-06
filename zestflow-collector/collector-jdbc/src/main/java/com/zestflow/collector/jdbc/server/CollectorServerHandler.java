@@ -17,6 +17,7 @@ import com.zestflow.common.protocol.EventQuery;
 import com.zestflow.common.protocol.EventStats;
 import com.zestflow.common.protocol.EventStatsQuery;
 import com.zestflow.common.protocol.ExecutionTrace;
+import com.zestflow.common.protocol.LogAnalyticsQuery;
 import com.zestflow.common.protocol.PageResult;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -138,6 +139,34 @@ public class CollectorServerHandler extends SimpleChannelInboundHandler<FullHttp
             EventStatsQuery query = MAPPER.readValue(body, EventStatsQuery.class);
             runBlockingQuery(ctx, () -> toJson(Result.success(eventQueryService.queryStats(query))));
             return true;
+        }
+
+        // POST /collector/events/analytics/*
+        if (parts.length >= 5 && "events".equals(parts[2]) && "analytics".equals(parts[3])
+                && method == HttpMethod.POST) {
+            LogAnalyticsQuery query = MAPPER.readValue(body, LogAnalyticsQuery.class);
+            if ("trend".equals(parts[4])) {
+                runBlockingQuery(ctx, () -> toJson(Result.success(eventQueryService.queryExecutionTrend(query))));
+                return true;
+            }
+            if (parts.length >= 6 && "rankings".equals(parts[4])) {
+                if ("chains".equals(parts[5])) {
+                    runBlockingQuery(ctx, () -> toJson(Result.success(eventQueryService.queryChainRanking(query))));
+                    return true;
+                }
+                if ("executors".equals(parts[5])) {
+                    runBlockingQuery(ctx, () -> toJson(Result.success(eventQueryService.queryExecutorRanking(query))));
+                    return true;
+                }
+                if ("nodes".equals(parts[5])) {
+                    runBlockingQuery(ctx, () -> toJson(Result.success(eventQueryService.queryNodeRanking(query))));
+                    return true;
+                }
+            }
+            if (parts.length >= 6 && "failures".equals(parts[4]) && "clusters".equals(parts[5])) {
+                runBlockingQuery(ctx, () -> toJson(Result.success(eventQueryService.queryFailureClusters(query))));
+                return true;
+            }
         }
 
         // POST /collector/events/executions

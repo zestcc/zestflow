@@ -117,7 +117,21 @@
 
     <!-- 全局日志 -->
     <el-card v-else shadow="never">
-      <ResponsiveTable :data="logList" :columns="logColumns">
+      <el-row v-if="scheduleLogStats" :gutter="12" class="schedule-stats-row">
+        <el-col :xs="12" :sm="6">
+          <div class="mini-stat"><span class="val">{{ scheduleLogStats.totalCount }}</span><span class="lbl">{{ $t('schedules.statTotal') }}</span></div>
+        </el-col>
+        <el-col :xs="12" :sm="6">
+          <div class="mini-stat ok"><span class="val">{{ scheduleLogStats.successRate }}%</span><span class="lbl">{{ $t('schedules.statSuccessRate') }}</span></div>
+        </el-col>
+        <el-col :xs="12" :sm="6">
+          <div class="mini-stat"><span class="val">{{ scheduleLogStats.avgCostMs }}ms</span><span class="lbl">{{ $t('schedules.statAvgCost') }}</span></div>
+        </el-col>
+        <el-col :xs="12" :sm="6">
+          <div class="mini-stat danger"><span class="val">{{ scheduleLogStats.failedCount }}</span><span class="lbl">{{ $t('schedules.statFailed') }}</span></div>
+        </el-col>
+      </el-row>
+      <ResponsiveTable :data="logList" :columns="logColumns" :show-actions="true" :actions-label="$t('common.actions')" :actions-width="120">
         <template #triggerType="{ row }">
           <el-tag size="small" :type="row.triggerType === 'cron' ? '' : 'warning'">
             {{ row.triggerType === 'cron' ? $t('schedules.cronTrigger') : $t('schedules.manual') }}
@@ -125,6 +139,16 @@
         </template>
         <template #status="{ row }">
           <el-tag :type="statusTagType(row.status)" size="small">{{ statusText(row.status) }}</el-tag>
+        </template>
+        <template #actions="{ row }">
+          <el-button
+            v-if="row.executionId"
+            text
+            size="small"
+            type="primary"
+            class="action-btn"
+            @click="goExecutionTrace(row.executionId)"
+          >{{ $t('schedules.viewTrace') }}</el-button>
         </template>
       </ResponsiveTable>
       <div class="page-pagination-wrap">
@@ -174,7 +198,7 @@
       <template v-if="currentSchedule">
         <el-alert :title="logDialogTitle" type="info" :closable="false" show-icon style="margin-bottom:16px" />
       </template>
-      <ResponsiveTable :data="logList" :columns="logColumns">
+      <ResponsiveTable :data="logList" :columns="logColumns" :show-actions="true" :actions-label="$t('common.actions')" :actions-width="120">
         <template #triggerType="{ row }">
           <el-tag size="small" :type="row.triggerType === 'cron' ? '' : 'warning'">
             {{ row.triggerType === 'cron' ? $t('schedules.cronTrigger') : $t('schedules.manual') }}
@@ -182,6 +206,16 @@
         </template>
         <template #status="{ row }">
           <el-tag :type="statusTagType(row.status)" size="small">{{ statusText(row.status) }}</el-tag>
+        </template>
+        <template #actions="{ row }">
+          <el-button
+            v-if="row.executionId"
+            text
+            size="small"
+            type="primary"
+            class="action-btn"
+            @click="goExecutionTrace(row.executionId)"
+          >{{ $t('schedules.viewTrace') }}</el-button>
         </template>
       </ResponsiveTable>
       <div class="page-pagination-wrap">
@@ -200,6 +234,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { scheduleApi, type ScheduleVO, type ScheduleCreateDTO, type ScheduleUpdateDTO, type ScheduleLogVO } from '@/api/schedule'
@@ -211,6 +246,8 @@ import ResponsiveTable from '@/components/ResponsiveTable.vue'
 import { useResponsivePagination } from '@/composables/useResponsivePagination'
 
 const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
 const { syncFromApps, setCurrentAppCode } = useCurrentApp()
 const { paginationLayout } = useResponsivePagination()
 
@@ -283,6 +320,7 @@ const logDialogVisible = ref(false)
 const currentSchedule = ref<ScheduleVO | null>(null)
 const logList = ref<ScheduleLogVO[]>([])
 const logTotal = ref(0)
+const scheduleLogStats = ref<{ totalCount: number; successCount: number; failedCount: number; runningCount: number; successRate: number; avgCostMs: number } | null>(null)
 const logQuery = reactive({ scheduleId: undefined as number | undefined, status: undefined as number | undefined, page: 1, size: 10 })
 
 const logDialogTitle = computed(() => {
@@ -328,6 +366,15 @@ async function fetchGlobalLogs() {
   })
   logList.value = res.records || []
   logTotal.value = res.total || 0
+  try {
+    scheduleLogStats.value = await scheduleApi.logStats(24)
+  } catch {
+    scheduleLogStats.value = null
+  }
+}
+
+function goExecutionTrace(executionId: string) {
+  router.push({ path: '/logs', query: { executionId } })
 }
 
 async function search() {
@@ -463,8 +510,16 @@ async function fetchLogs() {
 }
 
 onMounted(async () => {
+  const tab = typeof route.query.tab === 'string' ? route.query.tab.trim() : ''
+  if (tab === 'logs') {
+    activeTab.value = 'logs'
+  }
   await fetchModules()
-  await fetchList()
+  if (activeTab.value === 'logs') {
+    await fetchGlobalLogs()
+  } else {
+    await fetchList()
+  }
 })
 </script>
 
@@ -473,4 +528,15 @@ onMounted(async () => {
 .schedule-tabs { margin-bottom: 12px; }
 .filter-card { margin-bottom: 16px; }
 .action-btn.action-btn { padding: 2px 4px; margin-left: 0; }
+.schedule-stats-row { margin-bottom: 16px; }
+.mini-stat {
+  text-align: center;
+  padding: 12px 8px;
+  background: #f5f7fa;
+  border-radius: 6px;
+}
+.mini-stat .val { display: block; font-size: 20px; font-weight: 700; color: #303133; }
+.mini-stat .lbl { display: block; font-size: 12px; color: #909399; margin-top: 4px; }
+.mini-stat.ok .val { color: #67c23a; }
+.mini-stat.danger .val { color: #f56c6c; }
 </style>

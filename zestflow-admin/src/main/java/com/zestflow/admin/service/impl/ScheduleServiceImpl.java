@@ -10,6 +10,7 @@ import com.zestflow.admin.model.dto.ScheduleUpdateDTO;
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
 import com.zestflow.admin.model.entity.ScheduleLogPO;
 import com.zestflow.admin.model.entity.SchedulePO;
+import com.zestflow.admin.model.vo.ScheduleLogStatsVO;
 import com.zestflow.admin.model.vo.ScheduleLogVO;
 import com.zestflow.admin.model.vo.ScheduleVO;
 import com.zestflow.admin.registry.RegistryLiveStore;
@@ -293,6 +294,9 @@ public class ScheduleServiceImpl implements ScheduleService {
             }
         }
         logPo.setErrorMessage(result.getErrorMessage());
+        if (result.getInstanceId() != null && !result.getInstanceId().isBlank()) {
+            logPo.setExecutionId(result.getInstanceId());
+        }
         scheduleLogMapper.insert(logPo);
 
         log.info("调度触发完成 scheduleId={} chainCode={} executor={}:{} status={} cost={}ms attempted={}",
@@ -301,6 +305,35 @@ public class ScheduleServiceImpl implements ScheduleService {
                 logPo.getStatus(), costMs, failover.getAttempted());
 
         return toLogVO(logPo);
+    }
+
+    @Override
+    public ScheduleLogStatsVO getLogStats(Integer hours) {
+        int windowHours = hours != null && hours > 0 ? hours : 24;
+        LocalDateTime since = LocalDateTime.now().minusHours(windowHours);
+        List<ScheduleLogPO> logs = scheduleLogMapper.selectList(
+                new LambdaQueryWrapper<ScheduleLogPO>()
+                        .ge(ScheduleLogPO::getTriggeredAt, since));
+
+        long total = logs.size();
+        long success = logs.stream().filter(l -> l.getStatus() != null && l.getStatus() == 1).count();
+        long failed = logs.stream().filter(l -> l.getStatus() != null && l.getStatus() == 2).count();
+        long running = logs.stream().filter(l -> l.getStatus() != null && l.getStatus() == 0).count();
+        double rate = (success + failed) > 0 ? (double) success / (success + failed) * 100.0 : 0.0;
+        double avgCost = logs.stream()
+                .filter(l -> l.getCostMs() != null && l.getCostMs() > 0)
+                .mapToLong(ScheduleLogPO::getCostMs)
+                .average()
+                .orElse(0D);
+
+        return ScheduleLogStatsVO.builder()
+                .totalCount(total)
+                .successCount(success)
+                .failedCount(failed)
+                .runningCount(running)
+                .successRate(Math.round(rate * 10) / 10.0)
+                .avgCostMs(Math.round(avgCost * 10) / 10.0)
+                .build();
     }
 
     List<ExecutorRegistryPO> findOnlineExecutors(String appCode) {
@@ -360,6 +393,7 @@ public class ScheduleServiceImpl implements ScheduleService {
                 .chainCode(po.getChainCode())
                 .executorId(po.getExecutorId())
                 .executorAddress(po.getExecutorAddress())
+                .executionId(po.getExecutionId())
                 .routeStrategy(po.getRouteStrategy())
                 .triggerType(po.getTriggerType())
                 .params(po.getParams())

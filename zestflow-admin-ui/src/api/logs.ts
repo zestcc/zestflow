@@ -105,3 +105,76 @@ export function getNodeExecutionDetail(
     params: { nodeShape, appCode },
   })
 }
+
+export interface EventStats {
+  totalCount: number
+  executionCount: number
+  successCount: number
+  inProgressCount: number
+  successRate: number
+  avgCostMs: number
+  p95CostMs: number
+  maxCostMs: number
+  failCount: number
+  typeDistribution?: Record<string, number>
+}
+
+export interface LogAnalyticsParams {
+  tenantId?: number
+  appCode?: string
+  executorId?: string
+  chainId?: string
+  startTime?: number
+  endTime?: number
+  granularity?: 'hour' | 'day'
+  limit?: number
+  rankBy?: 'count' | 'fail' | 'slow'
+}
+
+export interface ExecutionTrendPoint {
+  bucketStart: number
+  totalCount: number
+  successCount: number
+  failCount: number
+  avgCostMs: number
+}
+
+export interface ExecutionRankItem {
+  key: string
+  name: string
+  totalCount: number
+  failCount: number
+  successRate: number
+  avgCostMs: number
+  maxCostMs: number
+}
+
+export interface FailureClusterItem {
+  errorSummary: string
+  count: number
+  lastSeen: number
+}
+
+export function queryLogStats(params: LogAnalyticsParams) {
+  return request.post<EventStats>('/logs/analytics/stats', params)
+}
+
+export function queryLogTrend(params: LogAnalyticsParams) {
+  return request.post<ExecutionTrendPoint[]>('/logs/analytics/trend', params)
+}
+
+export function queryChainRanking(params: LogAnalyticsParams) {
+  return request.post<ExecutionRankItem[]>('/logs/analytics/rankings/chains', params)
+}
+
+export function queryExecutorRanking(params: LogAnalyticsParams) {
+  return request.post<ExecutionRankItem[]>('/logs/analytics/rankings/executors', params)
+}
+
+export function queryNodeRanking(params: LogAnalyticsParams) {
+  return request.post<ExecutionRankItem[]>('/logs/analytics/rankings/nodes', params)
+}
+
+export function queryFailureClusters(params: LogAnalyticsParams) {
+  return request.post<FailureClusterItem[]>('/logs/analytics/failures/clusters', params)
+}

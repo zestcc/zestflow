@@ -51,6 +51,7 @@ export interface ScheduleLogVO {
   chainCode: string
   executorId?: string
   executorAddress?: string
+  executionId?: string
   routeStrategy?: string
   triggerType: string
   params?: string
@@ -93,5 +94,9 @@ export const scheduleApi = {
 
   listLogs(params: { scheduleId?: number; jobType?: ScheduleJobType; keyword?: string; status?: number; page?: number; size?: number }) {
     return http.get<{ records: ScheduleLogVO[]; total: number; current: number; size: number }>('/schedules/logs', { params })
+  },
+
+  logStats(hours = 24) {
+    return http.get<{ totalCount: number; successCount: number; failedCount: number; runningCount: number; successRate: number; avgCostMs: number }>('/schedules/logs/stats', { params: { hours } })
   },
 }

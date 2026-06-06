@@ -84,6 +84,16 @@ public final class PlatformJobCatalog {
                         .remote(false)
                         .build(),
                 PlatformJobDefinition.builder()
+                        .jobKey(PlatformJobKeys.EXECUTION_SLA_ALERT)
+                        .name("执行 SLA 邮件告警")
+                        .module("admin")
+                        .scheduleKind(ScheduleKind.FIXED_RATE)
+                        .fixedIntervalMs(300_000L)
+                        .remark("扫描各模块执行/调度指标，向模块负责人发送 SLA 告警邮件")
+                        .editable(false)
+                        .remote(false)
+                        .build(),
+                PlatformJobDefinition.builder()
                         .jobKey(PlatformJobKeys.EXECUTOR_CHAIN_RELOAD)
                         .name("执行器链热加载")
                         .module("executor")

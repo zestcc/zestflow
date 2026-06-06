@@ -24,6 +24,8 @@ public class ScheduleLogPO {
 
     private String executorAddress;
 
+    private String executionId;
+
     private String routeStrategy;
 
     private String triggerType;

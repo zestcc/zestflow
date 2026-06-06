@@ -21,6 +21,9 @@ public class EventStatsQuery implements Serializable {
     /** 应用名 */
     private String appName;
 
+    /** 应用编码 */
+    private String appCode;
+
     /** 租户 ID */
     private Long tenantId;
 

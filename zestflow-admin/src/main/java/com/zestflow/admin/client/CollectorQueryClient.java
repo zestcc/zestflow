@@ -5,8 +5,12 @@ import com.zestflow.common.protocol.EventQuery;
 import com.zestflow.common.protocol.EventQueryResult;
 import com.zestflow.common.protocol.EventStats;
 import com.zestflow.common.protocol.EventStatsQuery;
+import com.zestflow.common.protocol.ExecutionRankItem;
 import com.zestflow.common.protocol.ExecutionTrace;
+import com.zestflow.common.protocol.ExecutionTrendPoint;
+import com.zestflow.common.protocol.FailureClusterItem;
 import com.zestflow.common.protocol.InvocationPayloadDTO;
+import com.zestflow.common.protocol.LogAnalyticsQuery;
 import com.zestflow.common.protocol.NodeExecutionDetail;
 import com.zestflow.common.protocol.PageResult;
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +50,12 @@ public class CollectorQueryClient {
             new ParameterizedTypeReference<com.zestflow.common.model.Result<InvocationPayloadDTO>>() {};
     private static final ParameterizedTypeReference<com.zestflow.common.model.Result<ChainSnapshotDTO>> SNAPSHOT_TYPE =
             new ParameterizedTypeReference<com.zestflow.common.model.Result<ChainSnapshotDTO>>() {};
+    private static final ParameterizedTypeReference<com.zestflow.common.model.Result<List<ExecutionTrendPoint>>> TREND_LIST_TYPE =
+            new ParameterizedTypeReference<com.zestflow.common.model.Result<List<ExecutionTrendPoint>>>() {};
+    private static final ParameterizedTypeReference<com.zestflow.common.model.Result<List<ExecutionRankItem>>> RANK_LIST_TYPE =
+            new ParameterizedTypeReference<com.zestflow.common.model.Result<List<ExecutionRankItem>>>() {};
+    private static final ParameterizedTypeReference<com.zestflow.common.model.Result<List<FailureClusterItem>>> FAILURE_LIST_TYPE =
+            new ParameterizedTypeReference<com.zestflow.common.model.Result<List<FailureClusterItem>>>() {};
 
     public CollectorQueryClient(RestTemplate restTemplate, String accessToken) {
         this.restTemplate = restTemplate;
@@ -106,11 +116,8 @@ public class CollectorQueryClient {
     /**
      * 查询事件统计
      */
-    public EventStats queryStats(String baseUrl, Long startTime, Long endTime) {
+    public EventStats queryStats(String baseUrl, EventStatsQuery query) {
         try {
-            EventStatsQuery query = new EventStatsQuery();
-            query.setStartTime(startTime);
-            query.setEndTime(endTime);
             String url = baseUrl + "/collector/events/stats";
             HttpEntity<EventStatsQuery> entity = new HttpEntity<>(query, buildHeaders());
             var resp = restTemplate.exchange(url, HttpMethod.POST, entity, EVENT_STATS_TYPE);
@@ -121,6 +128,40 @@ public class CollectorQueryClient {
             log.warn("查询统计失败 baseUrl={} error={}", baseUrl, e.getMessage(), e);
         }
         return null;
+    }
+
+    public List<ExecutionTrendPoint> queryTrend(String baseUrl, LogAnalyticsQuery query) {
+        return postList(baseUrl + "/collector/events/analytics/trend", query, TREND_LIST_TYPE);
+    }
+
+    public List<ExecutionRankItem> queryChainRanking(String baseUrl, LogAnalyticsQuery query) {
+        return postList(baseUrl + "/collector/events/analytics/rankings/chains", query, RANK_LIST_TYPE);
+    }
+
+    public List<ExecutionRankItem> queryExecutorRanking(String baseUrl, LogAnalyticsQuery query) {
+        return postList(baseUrl + "/collector/events/analytics/rankings/executors", query, RANK_LIST_TYPE);
+    }
+
+    public List<ExecutionRankItem> queryNodeRanking(String baseUrl, LogAnalyticsQuery query) {
+        return postList(baseUrl + "/collector/events/analytics/rankings/nodes", query, RANK_LIST_TYPE);
+    }
+
+    public List<FailureClusterItem> queryFailureClusters(String baseUrl, LogAnalyticsQuery query) {
+        return postList(baseUrl + "/collector/events/analytics/failures/clusters", query, FAILURE_LIST_TYPE);
+    }
+
+    private <T> List<T> postList(String url, Object body,
+                                   ParameterizedTypeReference<com.zestflow.common.model.Result<List<T>>> type) {
+        try {
+            HttpEntity<Object> entity = new HttpEntity<>(body, buildHeaders());
+            var resp = restTemplate.exchange(url, HttpMethod.POST, entity, type);
+            if (resp.getBody() != null && resp.getBody().getCode() == 200 && resp.getBody().getData() != null) {
+                return resp.getBody().getData();
+            }
+        } catch (Exception e) {
+            log.warn("分析查询失败 url={} error={}", url, e.getMessage(), e);
+        }
+        return List.of();
     }
 
     /**

@@ -3,6 +3,7 @@ package com.zestflow.admin.controller;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.zestflow.admin.model.dto.ScheduleCreateDTO;
 import com.zestflow.admin.model.dto.ScheduleUpdateDTO;
+import com.zestflow.admin.model.vo.ScheduleLogStatsVO;
 import com.zestflow.admin.model.vo.ScheduleLogVO;
 import com.zestflow.admin.model.vo.ScheduleVO;
 import com.zestflow.admin.service.ScheduleService;
@@ -71,5 +72,10 @@ public class ScheduleController {
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer size) {
         return Result.success(scheduleService.listLogs(scheduleId, jobType, keyword, status, page, size));
+    }
+
+    @GetMapping("/logs/stats")
+    public Result<ScheduleLogStatsVO> logStats(@RequestParam(defaultValue = "24") Integer hours) {
+        return Result.success(scheduleService.getLogStats(hours));
     }
 }

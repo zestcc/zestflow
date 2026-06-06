@@ -3,6 +3,7 @@ package com.zestflow.admin.service;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.zestflow.admin.model.dto.ScheduleCreateDTO;
 import com.zestflow.admin.model.dto.ScheduleUpdateDTO;
+import com.zestflow.admin.model.vo.ScheduleLogStatsVO;
 import com.zestflow.admin.model.vo.ScheduleLogVO;
 import com.zestflow.admin.model.vo.ScheduleVO;
 
@@ -23,4 +24,6 @@ public interface ScheduleService {
     ScheduleLogVO trigger(Long id);
 
     IPage<ScheduleLogVO> listLogs(Long scheduleId, String jobType, String keyword, Integer status, Integer page, Integer size);
+
+    ScheduleLogStatsVO getLogStats(Integer hours);
 }

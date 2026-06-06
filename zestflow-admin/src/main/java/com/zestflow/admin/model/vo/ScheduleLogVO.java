@@ -16,6 +16,7 @@ public class ScheduleLogVO {
     private String chainCode;
     private String executorId;
     private String executorAddress;
+    private String executionId;
     private String routeStrategy;
     private String triggerType;
     private String params;

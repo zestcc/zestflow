@@ -11,7 +11,11 @@ import com.zestflow.collector.jdbc.mapper.ExecutionPayloadMapper;
 import com.zestflow.common.protocol.EventQuery;
 import com.zestflow.common.protocol.EventStats;
 import com.zestflow.common.protocol.EventStatsQuery;
+import com.zestflow.common.protocol.ExecutionRankItem;
 import com.zestflow.common.protocol.ExecutionTrace;
+import com.zestflow.common.protocol.ExecutionTrendPoint;
+import com.zestflow.common.protocol.FailureClusterItem;
+import com.zestflow.common.protocol.LogAnalyticsQuery;
 import com.zestflow.common.protocol.NodeExecutionDetail;
 import com.zestflow.collector.spi.EventQueryService;
 import com.zestflow.common.model.dto.ChainEvent;
@@ -67,22 +71,133 @@ public class JdbcEventQueryService implements EventQueryService {
 
     @Override
     public EventStats queryStats(EventStatsQuery query) {
-        Map<String, Object> agg = chainEventMapper.selectAggregatedStats(query);
-        Number totalCount = (Number) agg.getOrDefault("totalCount", 0L);
-        Number avgCostMs = (Number) agg.getOrDefault("avgCostMs", 0D);
-        Number successCount = (Number) agg.getOrDefault("successCount", 0L);
-        Number failCount = (Number) agg.getOrDefault("failCount", 0L);
+        Map<String, Object> legacy = chainEventMapper.selectAggregatedStats(query);
+        Map<String, Object> exec = chainEventMapper.selectExecutionLevelStats(query);
+        List<Map<String, Object>> typeRows = chainEventMapper.selectTypeDistribution(query);
+        List<Long> costs = chainEventMapper.selectExecutionCosts(query);
+
+        Number totalEventCount = (Number) legacy.getOrDefault("totalCount", 0L);
+        Number execCount = (Number) exec.getOrDefault("executionCount", 0L);
+        Number successCount = (Number) exec.getOrDefault("successCount", 0L);
+        Number failCount = (Number) exec.getOrDefault("failCount", 0L);
+        Number inProgress = (Number) exec.getOrDefault("inProgressCount", 0L);
+        Number avgCostMs = (Number) exec.getOrDefault("avgCostMs", 0D);
+        Number maxCostMs = (Number) exec.getOrDefault("maxCostMs", 0L);
 
         long sc = successCount.longValue();
         long fc = failCount.longValue();
         double successRate = (sc + fc) > 0 ? (double) sc / (sc + fc) * 100.0 : 0.0;
 
+        Map<String, Long> typeDistribution = new HashMap<>();
+        for (Map<String, Object> row : typeRows) {
+            Object type = row.get("eventType");
+            Object cnt = row.get("cnt");
+            if (type != null && cnt instanceof Number n) {
+                typeDistribution.put(String.valueOf(type), n.longValue());
+            }
+        }
+
         return EventStats.builder()
-                .totalCount(totalCount.longValue())
-                .avgCostMs(avgCostMs.doubleValue())
+                .totalCount(totalEventCount.longValue())
+                .executionCount(execCount.longValue())
+                .successCount(sc)
+                .inProgressCount(inProgress.longValue())
+                .typeDistribution(typeDistribution.isEmpty() ? null : typeDistribution)
                 .successRate(successRate)
+                .avgCostMs(avgCostMs != null ? avgCostMs.doubleValue() : 0D)
+                .p95CostMs(computeP95(costs))
+                .maxCostMs(maxCostMs != null ? maxCostMs.longValue() : 0L)
                 .failCount(fc)
                 .build();
+    }
+
+    @Override
+    public List<ExecutionTrendPoint> queryExecutionTrend(LogAnalyticsQuery query) {
+        long bucketMs = "day".equalsIgnoreCase(query.getGranularity()) ? 86_400_000L : 3_600_000L;
+        List<Map<String, Object>> rows = chainEventMapper.selectExecutionTrend(query, bucketMs);
+        List<ExecutionTrendPoint> points = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            points.add(ExecutionTrendPoint.builder()
+                    .bucketStart(toLong(row.get("bucketStart")))
+                    .totalCount(toLong(row.get("totalCount")))
+                    .successCount(toLong(row.get("successCount")))
+                    .failCount(toLong(row.get("failCount")))
+                    .avgCostMs(toDouble(row.get("avgCostMs")))
+                    .build());
+        }
+        return points;
+    }
+
+    @Override
+    public List<ExecutionRankItem> queryChainRanking(LogAnalyticsQuery query) {
+        return mapRanking(chainEventMapper.selectChainRanking(query));
+    }
+
+    @Override
+    public List<ExecutionRankItem> queryExecutorRanking(LogAnalyticsQuery query) {
+        return mapRanking(chainEventMapper.selectExecutorRanking(query));
+    }
+
+    @Override
+    public List<ExecutionRankItem> queryNodeRanking(LogAnalyticsQuery query) {
+        return mapRanking(chainEventMapper.selectNodeRanking(query));
+    }
+
+    @Override
+    public List<FailureClusterItem> queryFailureClusters(LogAnalyticsQuery query) {
+        List<Map<String, Object>> rows = chainEventMapper.selectFailureClusters(query);
+        List<FailureClusterItem> items = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            items.add(FailureClusterItem.builder()
+                    .errorSummary(String.valueOf(row.get("errorSummary")))
+                    .count(toLong(row.get("cnt")))
+                    .lastSeen(toLong(row.get("lastSeen")))
+                    .build());
+        }
+        return items;
+    }
+
+    private static List<ExecutionRankItem> mapRanking(List<Map<String, Object>> rows) {
+        List<ExecutionRankItem> items = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            long total = toLong(row.get("totalCount"));
+            long fail = toLong(row.get("failCount"));
+            double rate = total > 0 ? (double) (total - fail) / total * 100.0 : 100.0;
+            items.add(ExecutionRankItem.builder()
+                    .key(row.get("key") != null ? String.valueOf(row.get("key")) : "")
+                    .name(row.get("name") != null ? String.valueOf(row.get("name")) : "")
+                    .totalCount(total)
+                    .failCount(fail)
+                    .successRate(Math.round(rate * 10) / 10.0)
+                    .avgCostMs(toDouble(row.get("avgCostMs")))
+                    .maxCostMs(toLong(row.get("maxCostMs")))
+                    .build());
+        }
+        return items;
+    }
+
+    private static long computeP95(List<Long> costs) {
+        if (costs == null || costs.isEmpty()) {
+            return 0L;
+        }
+        int idx = (int) Math.ceil(costs.size() * 0.95) - 1;
+        idx = Math.max(0, Math.min(idx, costs.size() - 1));
+        Long val = costs.get(idx);
+        return val != null ? val : 0L;
+    }
+
+    private static long toLong(Object v) {
+        if (v instanceof Number n) {
+            return n.longValue();
+        }
+        return 0L;
+    }
+
+    private static double toDouble(Object v) {
+        if (v instanceof Number n) {
+            return n.doubleValue();
+        }
+        return 0D;
     }
 
     @Override

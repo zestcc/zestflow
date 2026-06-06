@@ -1,10 +1,19 @@
 <template>
   <div class="logs-page">
+    <el-tabs v-model="pageTab" class="logs-tabs">
+      <el-tab-pane :label="$t('logs.tabAnalytics')" name="analytics" />
+      <el-tab-pane :label="$t('logs.tabExecutions')" name="executions" />
+    </el-tabs>
+
+    <LogAnalyticsPanel v-if="pageTab === 'analytics'" ref="analyticsRef" :app-code="currentAppCode || query.appCode" />
+
+    <template v-if="pageTab === 'executions'">
     <div class="page-header">
-      <div class="page-stats-row">
-        <span style="font-weight:600;color:#409eff">{{ $t('logs.total', { total: list.length }) }}</span>
-        <el-tag type="success" size="small">{{ $t('logs.success') }} {{ stats.success }}</el-tag>
-        <el-tag type="danger" size="small">{{ $t('logs.failure') }} {{ stats.failure }}</el-tag>
+      <div class="page-stats-row" v-if="globalStats.executionCount > 0">
+        <span style="font-weight:600;color:#409eff">{{ $t('logs.statExecutions') }} {{ globalStats.executionCount }}</span>
+        <el-tag type="success" size="small">{{ $t('logs.success') }} {{ globalStats.successCount }}</el-tag>
+        <el-tag type="danger" size="small">{{ $t('logs.failure') }} {{ globalStats.failCount }}</el-tag>
+        <el-tag type="info" size="small">{{ $t('logs.statSuccessRate') }} {{ formatRate(globalStats.successRate) }}</el-tag>
       </div>
       <div class="page-toolbar">
         <div class="page-filters">
@@ -12,6 +21,7 @@
             <el-option v-for="a in apps" :key="a.appCode" :label="a.appName || a.appCode" :value="a.appCode" />
           </el-select>
           <el-input v-model="query.executionId" class="page-filter-control--md" :placeholder="$t('logs.executionId')" clearable @keyup.enter="search" />
+          <el-input v-model="query.executorId" class="page-filter-control--md" :placeholder="$t('logs.executorId')" clearable @keyup.enter="search" />
           <el-input v-model="query.keyword" class="page-filter-control--md" :placeholder="$t('logs.keyword')" clearable @keyup.enter="search" />
           <el-select v-model="query.status" class="page-filter-control--sm" :placeholder="$t('common.status')" clearable>
             <el-option :label="$t('common.all')" :value="undefined" />
@@ -102,6 +112,7 @@
       />
       <el-empty v-if="total === 0 && loaded" :description="$t('logs.noData')" />
     </div>
+    </template>
 
     <!-- 详情抽屉 -->
     <el-drawer
@@ -279,7 +290,9 @@ import { aiApi, type AiDiagnoseResponse, type AiConfigVO } from '@/api/ai'
 import { executorApi, type AppOption } from '@/api/executor'
 import { chainApi, type ChainVO } from '@/api/chain'
 import ChainDetailDrawer from '@/components/ChainDetailDrawer.vue'
+import LogAnalyticsPanel from '@/components/LogAnalyticsPanel.vue'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
+import { queryLogStats, type EventStats } from '@/api/logs'
 import { useCurrentApp } from '@/composables/useCurrentApp'
 import { useResponsiveDrawerSize } from '@/composables/useResponsiveDrawerSize'
 import { useResponsivePagination } from '@/composables/useResponsivePagination'
@@ -294,8 +307,12 @@ const { paginationLayout } = useResponsivePagination()
 
 const detailDescColumns = computed(() => (isMobileView.value ? 1 : 2))
 
+const pageTab = ref<'analytics' | 'executions'>('analytics')
+const analyticsRef = ref<InstanceType<typeof LogAnalyticsPanel> | null>(null)
+
 const query = reactive<EventQueryParams>({
   executionId: undefined,
+  executorId: undefined,
   appCode: undefined,
   keyword: undefined,
   status: undefined,
@@ -313,17 +330,42 @@ const loading = ref(false)
 
 const apps = ref<AppOption[]>([])
 
-const stats = computed(() => {
-  const success = list.value.filter(r => r.status === 1).length
-  const failure = list.value.filter(r => r.status === 0).length
-  const inProgress = list.value.filter(r => r.status !== 0 && r.status !== 1).length
-  return { success, failure, inProgress }
+const globalStats = reactive<EventStats>({
+  totalCount: 0,
+  executionCount: 0,
+  successCount: 0,
+  inProgressCount: 0,
+  successRate: 0,
+  avgCostMs: 0,
+  p95CostMs: 0,
+  maxCostMs: 0,
+  failCount: 0,
 })
+
+function formatRate(v: number) {
+  if (v == null || Number.isNaN(v)) return '-'
+  return `${v.toFixed(1)}%`
+}
+
+async function loadGlobalStats() {
+  try {
+    const now = Date.now()
+    const res = await queryLogStats({
+      appCode: currentAppCode.value || query.appCode,
+      startTime: now - 24 * 3600_000,
+      endTime: now,
+    })
+    Object.assign(globalStats, res || {})
+  } catch {
+    Object.assign(globalStats, { executionCount: 0, successCount: 0, failCount: 0, successRate: 0 })
+  }
+}
 
 const logColumns = computed(() => [
   { prop: 'executionId', label: t('logs.executionId'), width: 200, showOverflowTooltip: true },
   { prop: 'chainCode', label: t('logs.chainCode'), minWidth: 140, showOverflowTooltip: true },
   { prop: 'chainName', label: t('logs.chainName'), minWidth: 140, showOverflowTooltip: true },
+  { prop: 'executorId', label: t('logs.executorId'), width: 140, showOverflowTooltip: true },
   { prop: 'appName', label: t('logs.appName'), width: 120, showOverflowTooltip: true },
   { prop: 'nodeCount', label: t('logs.nodeCount'), width: 80, align: 'center' as const },
   { prop: 'successCount', label: t('logs.successCount'), width: 80, align: 'center' as const },
@@ -475,6 +517,8 @@ function handleAppChange() {
   query.appCode = currentAppCode.value || undefined
   query.page = 1
   fetchList()
+  loadGlobalStats()
+  analyticsRef.value?.refresh()
 }
 
 async function fetchList() {
@@ -500,6 +544,7 @@ function search() {
 
 function resetSearch() {
   query.executionId = undefined
+  query.executorId = undefined
   query.keyword = undefined
   query.status = undefined
   query.eventTypes = undefined
@@ -589,9 +634,15 @@ onMounted(async () => {
     aiConfig.value = { enabled: false, configured: false }
   }
   await fetchApps()
+  await loadGlobalStats()
+  const tab = typeof route.query.tab === 'string' ? route.query.tab.trim() : ''
+  if (tab === 'analytics') {
+    pageTab.value = 'analytics'
+  }
   const executionId = typeof route.query.executionId === 'string' ? route.query.executionId.trim() : ''
   if (executionId) {
     query.executionId = executionId
+    pageTab.value = 'executions'
   }
   await fetchList()
   if (executionId) {

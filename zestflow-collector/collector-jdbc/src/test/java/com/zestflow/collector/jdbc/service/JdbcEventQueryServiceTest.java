@@ -50,6 +50,13 @@ class JdbcEventQueryServiceTest {
         queryService = new JdbcEventQueryService(chainEventMapper, executionPayloadMapper);
     }
 
+    private void stubStatsMaps(Map<String, Object> legacy, Map<String, Object> exec) {
+        when(chainEventMapper.selectAggregatedStats(any())).thenReturn(legacy);
+        when(chainEventMapper.selectExecutionLevelStats(any())).thenReturn(exec);
+        when(chainEventMapper.selectTypeDistribution(any())).thenReturn(List.of());
+        when(chainEventMapper.selectExecutionCosts(any())).thenReturn(List.of());
+    }
+
     // ==================== 测试数据 ====================
 
     private ChainEventPO createPO(String eventId, String eventType, String executionId,
@@ -207,45 +214,56 @@ class JdbcEventQueryServiceTest {
 
         @Test
         void returnsStatsFromAggregatedData() {
-            Map<String, Object> agg = new LinkedHashMap<>();
-            agg.put("totalCount", 200L);
-            agg.put("avgCostMs", 150.0);
-            agg.put("successCount", 180L);
-            agg.put("failCount", 20L);
-            when(chainEventMapper.selectAggregatedStats(any())).thenReturn(agg);
+            Map<String, Object> legacy = new LinkedHashMap<>();
+            legacy.put("totalCount", 200L);
+            Map<String, Object> exec = new LinkedHashMap<>();
+            exec.put("executionCount", 100L);
+            exec.put("avgCostMs", 150.0);
+            exec.put("successCount", 90L);
+            exec.put("failCount", 10L);
+            exec.put("inProgressCount", 0L);
+            exec.put("maxCostMs", 500L);
+            stubStatsMaps(legacy, exec);
 
             EventStats stats = queryService.queryStats(new EventStatsQuery());
 
             assertThat(stats.getTotalCount()).isEqualTo(200);
+            assertThat(stats.getExecutionCount()).isEqualTo(100);
             assertThat(stats.getAvgCostMs()).isEqualTo(150.0);
-            assertThat(stats.getFailCount()).isEqualTo(20);
+            assertThat(stats.getFailCount()).isEqualTo(10);
             assertThat(stats.getSuccessRate()).isEqualTo(90.0);
         }
 
         @Test
         void emptyStats_returnsZeroValues() {
-            Map<String, Object> agg = new LinkedHashMap<>();
-            agg.put("totalCount", 0L);
-            // AVG 无匹配行时 MySQL 返回 NULL，不放入 map 触达 getOrDefault 默认值
-            agg.put("successCount", 0L);
-            agg.put("failCount", 0L);
-            when(chainEventMapper.selectAggregatedStats(any())).thenReturn(agg);
+            Map<String, Object> legacy = new LinkedHashMap<>();
+            legacy.put("totalCount", 0L);
+            Map<String, Object> exec = new LinkedHashMap<>();
+            exec.put("executionCount", 0L);
+            exec.put("successCount", 0L);
+            exec.put("failCount", 0L);
+            exec.put("inProgressCount", 0L);
+            stubStatsMaps(legacy, exec);
 
             EventStats stats = queryService.queryStats(new EventStatsQuery());
 
             assertThat(stats.getTotalCount()).isZero();
+            assertThat(stats.getExecutionCount()).isZero();
             assertThat(stats.getAvgCostMs()).isZero();
             assertThat(stats.getSuccessRate()).isZero();
         }
 
         @Test
         void successRateWithOnlyFailures() {
-            Map<String, Object> agg = new LinkedHashMap<>();
-            agg.put("totalCount", 10L);
-            agg.put("avgCostMs", 100.0);
-            agg.put("successCount", 0L);
-            agg.put("failCount", 10L);
-            when(chainEventMapper.selectAggregatedStats(any())).thenReturn(agg);
+            Map<String, Object> legacy = new LinkedHashMap<>();
+            legacy.put("totalCount", 10L);
+            Map<String, Object> exec = new LinkedHashMap<>();
+            exec.put("executionCount", 10L);
+            exec.put("avgCostMs", 100.0);
+            exec.put("successCount", 0L);
+            exec.put("failCount", 10L);
+            exec.put("inProgressCount", 0L);
+            stubStatsMaps(legacy, exec);
 
             EventStats stats = queryService.queryStats(new EventStatsQuery());
 

@@ -1,5 +1,9 @@
 package com.zestflow.admin.service;
 
+import com.zestflow.admin.alert.SlaAlertMailContext;
+
+import java.util.List;
+
 /**
  * 邮件发送防腐层接口。
  * <p>
@@ -35,4 +39,12 @@ public interface MailService {
      * @param password 明文密码
      */
     void sendWelcomeEmail(String to, String username, String password);
+
+    /**
+     * 发送 SLA 告警邮件（广播给模块负责人）
+     *
+     * @param recipients 收件人邮箱列表
+     * @param context    告警上下文
+     */
+    void sendSlaAlertEmail(List<String> recipients, SlaAlertMailContext context);
 }

@@ -92,6 +92,10 @@
           <el-icon><MagicStick /></el-icon>
           <span>{{ $t('settings.ai.menu') }}</span>
         </el-menu-item>
+        <el-menu-item index="/settings/alerts">
+          <el-icon><Bell /></el-icon>
+          <span>{{ $t('settings.alert.menu') }}</span>
+        </el-menu-item>
       </el-sub-menu>
     </el-menu>
   </div>
@@ -102,7 +106,7 @@ import { onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import {
-  Odometer, Connection, EditPen, VideoPlay, Grid, Timer, Document, Monitor, Collection, User, UserFilled, Tools, List, MagicStick,
+  Odometer, Connection, EditPen, VideoPlay, Grid, Timer, Document, Monitor, Collection, User, UserFilled, Tools, List, MagicStick, Bell,
 } from '@element-plus/icons-vue'
 
 defineProps<{ collapsed: boolean }>()

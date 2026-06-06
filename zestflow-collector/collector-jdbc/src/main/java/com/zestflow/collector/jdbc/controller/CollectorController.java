@@ -5,7 +5,11 @@ import com.zestflow.collector.jdbc.metrics.CollectorMetricsProvider;
 import com.zestflow.common.protocol.EventQuery;
 import com.zestflow.common.protocol.EventStats;
 import com.zestflow.common.protocol.EventStatsQuery;
+import com.zestflow.common.protocol.ExecutionRankItem;
 import com.zestflow.common.protocol.ExecutionTrace;
+import com.zestflow.common.protocol.ExecutionTrendPoint;
+import com.zestflow.common.protocol.FailureClusterItem;
+import com.zestflow.common.protocol.LogAnalyticsQuery;
 import com.zestflow.collector.spi.EventQueryService;
 import com.zestflow.collector.spi.InvocationPayloadService;
 import com.zestflow.common.protocol.InvocationPayloadDTO;
@@ -77,6 +81,46 @@ public class CollectorController {
         }
         EventStats stats = eventQueryService.queryStats(query);
         return Result.success(stats);
+    }
+
+    @PostMapping("/events/analytics/trend")
+    public Result<?> queryTrend(@RequestBody LogAnalyticsQuery query, HttpServletRequest request) {
+        if (!checkToken(request)) {
+            return Result.fail(401, "UNAUTHORIZED", "Invalid collector token");
+        }
+        return Result.success(eventQueryService.queryExecutionTrend(query));
+    }
+
+    @PostMapping("/events/analytics/rankings/chains")
+    public Result<?> queryChainRanking(@RequestBody LogAnalyticsQuery query, HttpServletRequest request) {
+        if (!checkToken(request)) {
+            return Result.fail(401, "UNAUTHORIZED", "Invalid collector token");
+        }
+        return Result.success(eventQueryService.queryChainRanking(query));
+    }
+
+    @PostMapping("/events/analytics/rankings/executors")
+    public Result<?> queryExecutorRanking(@RequestBody LogAnalyticsQuery query, HttpServletRequest request) {
+        if (!checkToken(request)) {
+            return Result.fail(401, "UNAUTHORIZED", "Invalid collector token");
+        }
+        return Result.success(eventQueryService.queryExecutorRanking(query));
+    }
+
+    @PostMapping("/events/analytics/rankings/nodes")
+    public Result<?> queryNodeRanking(@RequestBody LogAnalyticsQuery query, HttpServletRequest request) {
+        if (!checkToken(request)) {
+            return Result.fail(401, "UNAUTHORIZED", "Invalid collector token");
+        }
+        return Result.success(eventQueryService.queryNodeRanking(query));
+    }
+
+    @PostMapping("/events/analytics/failures/clusters")
+    public Result<?> queryFailureClusters(@RequestBody LogAnalyticsQuery query, HttpServletRequest request) {
+        if (!checkToken(request)) {
+            return Result.fail(401, "UNAUTHORIZED", "Invalid collector token");
+        }
+        return Result.success(eventQueryService.queryFailureClusters(query));
     }
 
     /**

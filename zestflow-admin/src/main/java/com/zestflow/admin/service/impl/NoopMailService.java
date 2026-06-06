@@ -1,9 +1,12 @@
 package com.zestflow.admin.service.impl;
 
+import com.zestflow.admin.alert.SlaAlertMailContext;
 import com.zestflow.admin.service.MailService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 /**
  * 邮件未启用时的兜底实现。
@@ -28,5 +31,11 @@ public class NoopMailService implements MailService {
     @Override
     public void sendWelcomeEmail(String to, String username, String password) {
         log.info("[邮件未启用] 欢迎邮件: to={} username={} password={}", to, username, password);
+    }
+
+    @Override
+    public void sendSlaAlertEmail(List<String> recipients, SlaAlertMailContext context) {
+        log.info("[邮件未启用] SLA 告警: appCode={} rule={} recipients={} summary={}",
+                context.getAppCode(), context.getRuleLabel(), recipients, context.getSummary());
     }
 }

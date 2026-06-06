@@ -176,6 +176,12 @@ const routes: RouteRecordRaw[] = [
             component: () => import('@/views/settings/SettingsAiPage.vue'),
             meta: { title: 'AI 配置' },
           },
+          {
+            path: 'alerts',
+            name: 'SettingsAlerts',
+            component: () => import('@/views/settings/SettingsAlertPage.vue'),
+            meta: { title: 'SLA 告警' },
+          },
         ],
       },
     ],

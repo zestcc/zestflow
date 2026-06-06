@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SLA 告警</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f6f9;font-family:'Helvetica Neue',Arial,sans-serif;">
+<table role="presentation" style="width:100%;background-color:#f4f6f9;padding:40px 0;">
+    <tr>
+        <td align="center">
+            <table role="presentation" style="width:600px;max-width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+                <tr>
+                    <td style="padding:40px 40px 20px;text-align:center;background:linear-gradient(135deg,#c14a4a,#ea6676);">
+                        <h1 style="color:#ffffff;margin:0;font-size:24px;font-weight:600;">ZestFlow 告警</h1>
+                        <p style="color:rgba(255,255,255,0.85);margin:8px 0 0;font-size:14px;" th:text="${ruleLabel}">规则</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:32px 40px;">
+                        <p style="margin:0 0 8px;font-size:13px;color:#888;">应用模块</p>
+                        <p style="margin:0 0 20px;font-size:18px;font-weight:600;color:#333;" th:text="${appCode}">app</p>
+                        <p style="margin:0 0 16px;font-size:15px;color:#555;line-height:1.6;" th:text="${summary}">摘要</p>
+                        <p style="margin:0 0 16px;font-size:13px;color:#999;">
+                            统计窗口：最近 <span th:text="${windowMinutes}">60</span> 分钟
+                        </p>
+                        <table role="presentation" style="width:100%;border-collapse:collapse;margin:16px 0;">
+                            <tr th:each="entry : ${metrics}">
+                                <td style="padding:10px 12px;border:1px solid #eee;background:#fafafa;font-size:13px;color:#666;width:40%;" th:text="${entry.key}">指标</td>
+                                <td style="padding:10px 12px;border:1px solid #eee;font-size:13px;color:#333;" th:text="${entry.value}">值</td>
+                            </tr>
+                        </table>
+                        <p style="margin:16px 0 0;font-size:13px;color:#999;line-height:1.6;">
+                            您收到此邮件是因为您已被分配为该模块负责人。请登录控制台查看日志与调度详情。
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:20px 40px;background-color:#fafafa;border-top:1px solid #eee;">
+                        <p style="margin:0;font-size:12px;color:#aaa;text-align:center;">ZestFlow 自动发送，请勿直接回复</p>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

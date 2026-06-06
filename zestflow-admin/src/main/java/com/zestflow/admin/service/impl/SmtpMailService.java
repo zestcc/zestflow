@@ -1,5 +1,6 @@
 package com.zestflow.admin.service.impl;
 
+import com.zestflow.admin.alert.SlaAlertMailContext;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.service.MailService;
 import com.zestflow.common.exception.BizException;
@@ -17,6 +18,7 @@ import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
 import java.io.UnsupportedEncodingException;
+import java.util.List;
 
 /**
  * SMTP 邮件发送实现。
@@ -89,6 +91,28 @@ public class SmtpMailService implements MailService {
         log.info("欢迎邮件发送成功 to={} username={}", to, username);
     }
 
+    @Override
+    public void sendSlaAlertEmail(List<String> recipients, SlaAlertMailContext context) {
+        if (recipients == null || recipients.isEmpty()) {
+            return;
+        }
+        Context ctx = new Context();
+        ctx.setVariable("appCode", context.getAppCode());
+        ctx.setVariable("ruleLabel", context.getRuleLabel());
+        ctx.setVariable("summary", context.getSummary());
+        ctx.setVariable("metrics", context.getMetrics());
+        ctx.setVariable("windowMinutes", context.getWindowMinutes());
+        ctx.setVariable("tenantId", context.getTenantId());
+
+        String html = templateEngine.process("sla-alert", ctx);
+        String prefix = context.getSubjectPrefix() != null && !context.getSubjectPrefix().isBlank()
+                ? context.getSubjectPrefix() : "[ZestFlow 告警]";
+        String subject = prefix + " " + context.getRuleLabel() + " — " + context.getAppCode();
+        sendMime(recipients.toArray(new String[0]), subject, html);
+        log.info("SLA 告警邮件发送成功 appCode={} rule={} recipients={}",
+                context.getAppCode(), context.getRuleLabel(), recipients.size());
+    }
+
     private void sendMime(String to, String subject, String html) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
@@ -100,6 +124,21 @@ public class SmtpMailService implements MailService {
             mailSender.send(message);
         } catch (MessagingException | UnsupportedEncodingException e) {
             log.error("邮件发送失败 to={} subject={}", to, subject, e);
+            throw new BizException(ErrorCode.MAIL_SEND_FAILED);
+        }
+    }
+
+    private void sendMime(String[] to, String subject, String html) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(new InternetAddress(from, fromName));
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(html, true);
+            mailSender.send(message);
+        } catch (MessagingException | UnsupportedEncodingException e) {
+            log.error("邮件发送失败 to={} subject={}", String.join(",", to), subject, e);
             throw new BizException(ErrorCode.MAIL_SEND_FAILED);
         }
     }

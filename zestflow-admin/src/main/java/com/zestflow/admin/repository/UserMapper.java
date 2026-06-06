@@ -84,4 +84,20 @@ public interface UserMapper extends BaseMapper<UserPO> {
     @InterceptorIgnore(tenantLine = "true")
     @Select("SELECT * FROM `user` WHERE verify_token = #{token} LIMIT 1")
     UserPO findByVerifyToken(@Param("token") String token);
+
+    /**
+     * 模块负责人收件人 — 已分配该 app 且启用、邮箱非空的用户（跨租户）
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("""
+            SELECT DISTINCT u.id, u.username, u.email
+            FROM `user` u
+            INNER JOIN user_app_role r ON u.id = r.user_id
+            WHERE r.tenant_id = #{tenantId}
+              AND r.app_code = #{appCode}
+              AND u.status = 1
+              AND u.email IS NOT NULL
+              AND TRIM(u.email) <> ''
+            """)
+    List<UserPO> selectAppRecipients(@Param("tenantId") Long tenantId, @Param("appCode") String appCode);
 }

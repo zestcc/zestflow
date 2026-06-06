@@ -19,6 +19,8 @@ public final class PlatformJobKeys {
     public static final String HEARTBEAT_DB_FLUSH = "admin.registry.heartbeat-flush";
     /** Admin：多执行器链版本漂移对账 */
     public static final String CHAIN_DRIFT_RECONCILE = "admin.reconcile.chain-drift";
+    /** Admin：执行 SLA 邮件告警扫描 */
+    public static final String EXECUTION_SLA_ALERT = "admin.alert.execution-sla";
 
     /** Executor 节点本地：链热加载轮询（元数据） */
     public static final String EXECUTOR_CHAIN_RELOAD = "executor.chain.reload";

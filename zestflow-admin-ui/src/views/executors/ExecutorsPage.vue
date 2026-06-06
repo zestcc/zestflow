@@ -91,6 +91,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { executorApi } from '@/api/executor'
@@ -99,6 +100,7 @@ import ResponsiveTable from '@/components/ResponsiveTable.vue'
 import { useResponsivePagination } from '@/composables/useResponsivePagination'
 
 const { t } = useI18n()
+const route = useRoute()
 const { paginationLayout } = useResponsivePagination()
 
 const loading = ref(false)
@@ -176,7 +178,13 @@ async function fetchList() {
   }
 }
 
-onMounted(fetchList)
+onMounted(async () => {
+  const appCode = typeof route.query.appCode === 'string' ? route.query.appCode.trim() : ''
+  if (appCode) {
+    filter.value.appCode = appCode
+  }
+  await fetchList()
+})
 </script>
 
 <style scoped>

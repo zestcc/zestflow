@@ -8,6 +8,12 @@ import com.zestflow.admin.util.SecurityUtils;
 import com.zestflow.common.model.Result;
 import com.zestflow.common.model.dto.ChainSnapshotDTO;
 import com.zestflow.common.protocol.InvocationPayloadDTO;
+import com.zestflow.common.protocol.EventStats;
+import com.zestflow.common.protocol.EventStatsQuery;
+import com.zestflow.common.protocol.ExecutionRankItem;
+import com.zestflow.common.protocol.ExecutionTrendPoint;
+import com.zestflow.common.protocol.FailureClusterItem;
+import com.zestflow.common.protocol.LogAnalyticsQuery;
 import com.zestflow.common.protocol.NodeExecutionDetail;
 import com.zestflow.common.protocol.EventQuery;
 import com.zestflow.common.protocol.EventQueryResult;
@@ -84,6 +90,60 @@ public class LogController {
             return Result.fail(404, "NOT_FOUND", "未找到节点执行详情");
         }
         return Result.success(detail);
+    }
+
+    @PostMapping("/analytics/stats")
+    public Result<EventStats> queryStats(@RequestBody EventStatsQuery query) {
+        if (query.getTenantId() == null) {
+            query.setTenantId(SecurityUtils.getCurrentTenantId());
+        }
+        if (collectorRegistryService.listAllOnline().isEmpty() && isApiUrlBlank()) {
+            return Result.fail(503, "COLLECTOR_UNAVAILABLE", "无可用采集器");
+        }
+        return Result.success(collectorQueryAggregator.queryStats(query, query.getAppCode()));
+    }
+
+    @PostMapping("/analytics/trend")
+    public Result<List<ExecutionTrendPoint>> queryTrend(@RequestBody LogAnalyticsQuery query) {
+        if (query.getTenantId() == null) {
+            query.setTenantId(SecurityUtils.getCurrentTenantId());
+        }
+        if (collectorRegistryService.listAllOnline().isEmpty() && isApiUrlBlank()) {
+            return Result.fail(503, "COLLECTOR_UNAVAILABLE", "无可用采集器");
+        }
+        return Result.success(collectorQueryAggregator.queryTrend(query, query.getAppCode()));
+    }
+
+    @PostMapping("/analytics/rankings/chains")
+    public Result<List<ExecutionRankItem>> queryChainRanking(@RequestBody LogAnalyticsQuery query) {
+        if (query.getTenantId() == null) {
+            query.setTenantId(SecurityUtils.getCurrentTenantId());
+        }
+        return Result.success(collectorQueryAggregator.queryChainRanking(query, query.getAppCode()));
+    }
+
+    @PostMapping("/analytics/rankings/executors")
+    public Result<List<ExecutionRankItem>> queryExecutorRanking(@RequestBody LogAnalyticsQuery query) {
+        if (query.getTenantId() == null) {
+            query.setTenantId(SecurityUtils.getCurrentTenantId());
+        }
+        return Result.success(collectorQueryAggregator.queryExecutorRanking(query, query.getAppCode()));
+    }
+
+    @PostMapping("/analytics/rankings/nodes")
+    public Result<List<ExecutionRankItem>> queryNodeRanking(@RequestBody LogAnalyticsQuery query) {
+        if (query.getTenantId() == null) {
+            query.setTenantId(SecurityUtils.getCurrentTenantId());
+        }
+        return Result.success(collectorQueryAggregator.queryNodeRanking(query, query.getAppCode()));
+    }
+
+    @PostMapping("/analytics/failures/clusters")
+    public Result<List<FailureClusterItem>> queryFailureClusters(@RequestBody LogAnalyticsQuery query) {
+        if (query.getTenantId() == null) {
+            query.setTenantId(SecurityUtils.getCurrentTenantId());
+        }
+        return Result.success(collectorQueryAggregator.queryFailureClusters(query, query.getAppCode()));
     }
 
     @GetMapping("/snapshots")

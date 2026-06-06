@@ -4,8 +4,14 @@ import com.zestflow.admin.model.vo.CollectorRegistryVO;
 import com.zestflow.admin.service.CollectorRegistryService;
 import com.zestflow.common.protocol.EventQuery;
 import com.zestflow.common.protocol.EventQueryResult;
+import com.zestflow.common.protocol.EventStats;
+import com.zestflow.common.protocol.EventStatsQuery;
+import com.zestflow.common.protocol.ExecutionRankItem;
 import com.zestflow.common.protocol.ExecutionTrace;
+import com.zestflow.common.protocol.ExecutionTrendPoint;
+import com.zestflow.common.protocol.FailureClusterItem;
 import com.zestflow.common.protocol.InvocationPayloadDTO;
+import com.zestflow.common.protocol.LogAnalyticsQuery;
 import com.zestflow.common.protocol.NodeExecutionDetail;
 import com.zestflow.common.protocol.PageResult;
 import lombok.RequiredArgsConstructor;
@@ -114,6 +120,68 @@ public class CollectorQueryAggregator {
             }
         }
         return null;
+    }
+
+    public EventStats queryStats(EventStatsQuery query, String appCode) {
+        List<String> urls = resolveCollectorUrls(appCode);
+        if (urls.isEmpty()) {
+            return EventStats.builder().build();
+        }
+        List<EventStats> parts = urls.stream()
+                .map(url -> queryClient.queryStats(url, query))
+                .filter(s -> s != null)
+                .toList();
+        return LogAnalyticsMerger.mergeStats(parts);
+    }
+
+    public List<ExecutionTrendPoint> queryTrend(LogAnalyticsQuery query, String appCode) {
+        return fanOutList(urls(appCode), url -> queryClient.queryTrend(url, query),
+                parts -> LogAnalyticsMerger.mergeTrend(parts));
+    }
+
+    public List<ExecutionRankItem> queryChainRanking(LogAnalyticsQuery query, String appCode) {
+        int limit = query.getLimit() > 0 ? query.getLimit() : 10;
+        return fanOutList(urls(appCode), url -> queryClient.queryChainRanking(url, query),
+                parts -> LogAnalyticsMerger.mergeRanking(parts, limit));
+    }
+
+    public List<ExecutionRankItem> queryExecutorRanking(LogAnalyticsQuery query, String appCode) {
+        int limit = query.getLimit() > 0 ? query.getLimit() : 10;
+        return fanOutList(urls(appCode), url -> queryClient.queryExecutorRanking(url, query),
+                parts -> LogAnalyticsMerger.mergeRanking(parts, limit));
+    }
+
+    public List<ExecutionRankItem> queryNodeRanking(LogAnalyticsQuery query, String appCode) {
+        int limit = query.getLimit() > 0 ? query.getLimit() : 10;
+        return fanOutList(urls(appCode), url -> queryClient.queryNodeRanking(url, query),
+                parts -> LogAnalyticsMerger.mergeRanking(parts, limit));
+    }
+
+    public List<FailureClusterItem> queryFailureClusters(LogAnalyticsQuery query, String appCode) {
+        int limit = query.getLimit() > 0 ? query.getLimit() : 10;
+        return fanOutList(urls(appCode), url -> queryClient.queryFailureClusters(url, query),
+                parts -> LogAnalyticsMerger.mergeFailures(parts, limit));
+    }
+
+    private List<String> urls(String appCode) {
+        return resolveCollectorUrls(appCode);
+    }
+
+    private <T> List<T> fanOutList(List<String> baseUrls,
+                                    java.util.function.Function<String, List<T>> fn,
+                                    java.util.function.Function<List<List<T>>, List<T>> merger) {
+        if (baseUrls.isEmpty()) {
+            return List.of();
+        }
+        if (baseUrls.size() == 1) {
+            List<T> single = fn.apply(baseUrls.get(0));
+            return single != null ? single : List.of();
+        }
+        List<List<T>> parts = baseUrls.stream()
+                .map(fn)
+                .filter(list -> list != null && !list.isEmpty())
+                .toList();
+        return merger.apply(parts);
     }
 
     private List<String> resolveCollectorUrls(String appCode) {
