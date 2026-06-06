@@ -72,8 +72,6 @@ class ChainKeyResolverTest {
     void readinessFailureChainNotFound() {
         when(chainRepository.get("CHN404")).thenReturn(null);
 
-        ChainExecuteResultDTO failure = resolver.readinessFailure("CHN404");
-
-        assertThat(failure.getErrorCode()).isEqualTo(ChainExecutionErrorCodes.CHAIN_NOT_FOUND);
+        assertThat(resolver.readinessFailure("CHN404")).isNull();
     }
 }

@@ -97,6 +97,7 @@ public class ChainExecuteFacade {
             return ChainExecuteResultDTO.builder()
                     .status(ChainConstants.CHAIN_FAILED)
                     .errorMessage("请求不能为空")
+                    .costMs(0L)
                     .build();
         }
         if (StringUtils.hasText(request.getChainKey())) {
@@ -111,6 +112,7 @@ public class ChainExecuteFacade {
             return ChainExecuteResultDTO.builder()
                     .status(ChainConstants.CHAIN_FAILED)
                     .errorMessage("chainCode 或 chainKey 不能为空")
+                    .costMs(0L)
                     .build();
         }
         request.setChainCode(request.getChainCode().trim());

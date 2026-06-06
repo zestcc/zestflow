@@ -172,13 +172,6 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
         long startTime = System.currentTimeMillis();
         log.info("链执行开始 chainCode={}", chainCode);
 
-        if (chainKeyResolver != null) {
-            ChainExecuteResultDTO readiness = chainKeyResolver.readinessFailure(chainCode);
-            if (readiness != null) {
-                return readiness;
-            }
-        }
-
         // 1. 获取链定义（内存未命中时从 DB 兜底，不递增版本）
         ChainDefinition definition = chainManager.get(chainCode);
         if (definition == null) {
@@ -202,6 +195,7 @@ public class DefaultChainExecutionEngine implements ChainExecutionEngine {
                     .chainCode(chainCode)
                     .status(ChainConstants.CHAIN_FAILED)
                     .errorMessage("链定义不存在: " + chainCode)
+                    .costMs(0L)
                     .build();
         }
 

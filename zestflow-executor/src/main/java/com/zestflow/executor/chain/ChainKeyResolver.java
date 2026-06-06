@@ -76,8 +76,8 @@ public class ChainKeyResolver {
     public ChainExecuteResultDTO readinessFailure(String chainCode) {
         ChainPO po = chainRepository.get(chainCode);
         if (po == null) {
-            return infrastructureFailure(chainCode, null,
-                    ChainExecutionErrorCodes.CHAIN_NOT_FOUND, "链不存在: " + chainCode);
+            // 无 DB 记录：运行时动态加载链（如 Demo 编排）不受发布状态约束
+            return null;
         }
         return readinessFailure(po);
     }
@@ -118,6 +118,7 @@ public class ChainKeyResolver {
                 .status(ChainConstants.CHAIN_FAILED)
                 .errorCode(errorCode)
                 .errorMessage(message)
+                .costMs(0L)
                 .build();
     }
 
