@@ -685,6 +685,9 @@ export default {
     crossCascade: 'Cross-type cascade',
     parentValuePlaceholder: 'Select or enter parent value',
     virtualGroup: 'Group',
+    typePanelTitle: 'Dictionary types',
+    dataCount: '{n} items',
+    dataFilterPlaceholder: 'Filter by label or value',
   },
   sysConfig: {
     title: 'System Config',

@@ -1,0 +1,1 @@
+import{_ as t}from"./_plugin-vue_export-helper-DlAUqK2U.js";import{Q as a,W as n,a$ as c,aQ as l}from"./index-Db7dSULE.js";const s={},r={class:"chain-detail"};function i(e,_){const o=c("el-alert");return l(),a("div",r,[n(o,{title:e.$t("common.developTip"),type:"info",closable:!1,"show-icon":""},null,8,["title"])])}const f=t(s,[["render",i]]);export{f as default};
