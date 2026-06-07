@@ -29,10 +29,11 @@ public final class ZestFlowFlywayPolicies {
     }
 
     /**
-     * 非 prod 标准启动流程：repair → migrate，并打印 pending / 结果。
+     * 非 prod 标准启动流程：legacy 检测 → repair → migrate，并打印 pending / 结果。
      */
     public static MigrateResult migrateNonProduction(Flyway flyway, String tag) {
-        log.info("[{}] Flyway non-prod: repair → migrate (outOfOrder=true, validateOnMigrate=false)", tag);
+        log.info("[{}] Flyway non-prod: legacy check → repair → migrate", tag);
+        FlywayLegacyHistoryCleaner.resetLegacyHistoryIfNeeded(flyway, tag);
         logPendingMigrations(flyway, tag);
         flyway.repair();
         MigrateResult result = flyway.migrate();

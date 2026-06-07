@@ -1,7 +1,7 @@
 -- Flyway V1 — Admin 库全量表结构（幂等：表已存在则跳过）
--- 2026-06-06 Beta 整合：含 AI Copilot、调度平台任务、SLA 告警、Token 月配额等原 V2–V7 变更
--- 2026-06-06 整合：字典级联/树形（parent_id、parent_type_code、parent_value、extra）+ sys_config
--- 增量 DDL 请新增 V2__*.sql
+-- 2026-06-08 Rebaseline：增量仅 V2（平台任务）、V3（AI 学习事件）；旧 V2 beta / V4 / V5 / V6 已废弃
+-- 2026-06-06 Beta 整合：含 AI Copilot、调度、SLA、字典树形、sys_config 等
+-- 增量 DDL 请新增 V4__*.sql（当前基线 V1–V3 连续）
 
 -- ==================== Admin 表 ====================
 

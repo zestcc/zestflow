@@ -25,7 +25,11 @@ class FlywayMigrationScriptsTest {
         assertTrue(resources.length >= 1, "至少应有一个 Flyway 脚本");
 
         Set<String> versions = new HashSet<>();
+        int maxVersion = 0;
         for (Resource resource : resources) {
+            if (!isAdminMigration(resource)) {
+                continue;
+            }
             String name = resource.getFilename();
             assertTrue(name != null && VERSIONED.matcher(name).matches(),
                     "非法迁移文件名: " + name + "，应为 V{n}__desc.sql");
@@ -33,6 +37,15 @@ class FlywayMigrationScriptsTest {
             String version = name.substring(1, name.indexOf("__"));
             assertFalse(versions.contains(version), "重复 Flyway 版本: " + version);
             versions.add(version);
+            maxVersion = Math.max(maxVersion, Integer.parseInt(version));
         }
+        for (int v = 1; v <= maxVersion; v++) {
+            assertTrue(versions.contains(String.valueOf(v)),
+                    "Flyway 版本必须连续无跳号，缺少 V" + v);
+        }
+    }
+
+    private static boolean isAdminMigration(Resource resource) throws Exception {
+        return resource.getURL().toString().contains("zestflow-admin");
     }
 }
