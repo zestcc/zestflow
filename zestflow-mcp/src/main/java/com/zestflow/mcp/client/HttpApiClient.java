@@ -165,6 +165,17 @@ public class HttpApiClient {
         return post(config.executorUrl() + path, "{}", true);
     }
 
+    public String getExecutorRagStatus() throws Exception {
+        requireExecutorUrl();
+        return get(config.executorUrl() + "/api/ai/rag/status", true);
+    }
+
+    public String suggestExecutorChain(Map<String, Object> body) throws Exception {
+        requireExecutorUrl();
+        return post(config.executorUrl() + "/api/ai/chains/suggest",
+                MAPPER.writeValueAsString(body != null ? body : Map.of()), true);
+    }
+
     private void requireExecutorUrl() {
         if (config.executorUrl() == null || config.executorUrl().isBlank()) {
             throw new IllegalStateException("未配置 --executor-url，应用端 AI 知识库不可用");

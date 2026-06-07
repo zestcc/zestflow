@@ -66,80 +66,29 @@ public class LearningToolService {
     }
 
     public String recordLearningEvent(Map<String, Object> args) throws Exception {
-        if (config.executorUrl() != null && !config.executorUrl().isBlank()) {
-            Map<String, Object> body = new LinkedHashMap<>(args);
-            body.putIfAbsent("appCode", config.appCode());
-            String raw = apiClient.recordExecutorLearningEvent(body);
-            return raw;
-        }
-        LearningEvent draft = new LearningEvent(
-                stringArg(args, "id", UUID.randomUUID().toString()),
-                Instant.now(),
-                stringArg(args, "intent", null),
-                stringArg(args, "feature", null),
-                stringArg(args, "appCode", config.appCode()),
-                stringArg(args, "chainCode", null),
-                intArg(args, "httpMode", null),
-                stringListArg(args, "reusedComponents"),
-                stringListArg(args, "createdComponents"),
-                intArg(args, "validateRounds", 1),
-                booleanArg(args, "validatePassed", false),
-                booleanArg(args, "adopted", false),
-                booleanArg(args, "playgroundSuccess", false),
-                stringArg(args, "userCorrection", null),
-                stringArg(args, "chainData", null),
-                null);
-        AccuracyGate.GateResult gate = AccuracyGate.evaluate(draft);
-        LearningEvent saved = eventStore.append(draft);
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("saved", saved);
-        out.put("promotionEligible", gate.passed());
-        out.put("promotionScore", gate.score());
-        out.put("promotionReason", gate.reason());
-        out.put("eventsFile", eventStore.eventsFile().toString());
-        out.put("storage", "local:.zestflow/learning");
-        if (gate.passed()) {
-            PatternDistiller.DistillResult distilled = distiller.distill(saved.feature());
-            out.put("autoDistilled", true);
-            out.put("distilledPatternCount", distilled.promotedCount());
-        }
-        return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(out);
+        Map<String, Object> body = new LinkedHashMap<>(args);
+        body.putIfAbsent("appCode", config.appCode());
+        return apiClient.recordExecutorLearningEvent(body);
     }
 
     public String searchPatterns(Map<String, Object> args) throws Exception {
         String q = stringArg(args, "query", stringArg(args, "q", ""));
         int limit = intArg(args, "limit", 5);
-        if (config.executorUrl() != null && !config.executorUrl().isBlank()) {
-            String raw = apiClient.searchExecutorRag(q, limit);
-            JsonNode root = mapper.readTree(raw);
-            JsonNode data = root.has("data") ? root.get("data") : root;
-            List<Map<String, Object>> snippets = new ArrayList<>();
-            if (data.isArray()) {
-                for (JsonNode node : data) {
-                    snippets.add(Map.of("scope", "executor", "preview", node.asText()));
-                }
+        String raw = apiClient.searchExecutorRag(q, limit);
+        JsonNode root = mapper.readTree(raw);
+        JsonNode data = root.has("data") ? root.get("data") : root;
+        List<Map<String, Object>> snippets = new ArrayList<>();
+        if (data.isArray()) {
+            for (JsonNode node : data) {
+                snippets.add(Map.of("scope", "executor", "preview", node.asText()));
             }
-            return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(snippets);
         }
-        List<PatternDocument> hits = patternSearcher.search(q, limit);
-        return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(hits.stream()
-                .map(p -> Map.of(
-                        "id", p.id(),
-                        "scope", p.scope(),
-                        "title", p.title(),
-                        "feature", p.feature(),
-                        "confidence", p.confidenceScore(),
-                        "preview", p.markdown().lines().limit(8).reduce((a, b) -> a + "\n" + b).orElse("")))
-                .toList());
+        return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(snippets);
     }
 
     public String distillPatterns(Map<String, Object> args) throws Exception {
         String feature = stringArg(args, "feature", null);
-        if (config.executorUrl() != null && !config.executorUrl().isBlank()) {
-            return apiClient.distillExecutorPatterns(feature);
-        }
-        PatternDistiller.DistillResult result = distiller.distill(feature);
-        return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(result);
+        return apiClient.distillExecutorPatterns(feature);
     }
 
     public String genPlaygroundScene(Map<String, Object> args) throws Exception {

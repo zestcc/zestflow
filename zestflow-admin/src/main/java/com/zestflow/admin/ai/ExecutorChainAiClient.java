@@ -53,6 +53,32 @@ public class ExecutorChainAiClient {
         }
     }
 
+    public Map<String, Object> ragStatus(String appCode) {
+        String baseUrl = executorProxyService.resolveExecutorBaseUrl(appCode);
+        if (baseUrl == null) {
+            return Map.of("error", "无可用执行器");
+        }
+        ExecutorProxyService.ExecutorResult result =
+                executorProxyService.executeOnExecutorUrl(baseUrl, "GET", "/api/ai/rag/status", null);
+        return parseDataMap(result);
+    }
+
+    public Map<String, Object> suggestChain(String appCode, Map<String, Object> body) {
+        String baseUrl = executorProxyService.resolveExecutorBaseUrl(appCode);
+        if (baseUrl == null) {
+            return Map.of("error", "无可用执行器");
+        }
+        try {
+            String json = MAPPER.writeValueAsString(body);
+            ExecutorProxyService.ExecutorResult result = executorProxyService.executeOnExecutorUrl(
+                    baseUrl, "POST", "/api/ai/chains/suggest", json);
+            return parseDataMap(result);
+        } catch (Exception e) {
+            log.warn("应用端 suggest 失败 appCode={}", appCode, e);
+            return Map.of("error", e.getMessage());
+        }
+    }
+
     public Map<String, Object> distillPatterns(String appCode, String feature) {
         String baseUrl = executorProxyService.resolveExecutorBaseUrl(appCode);
         if (baseUrl == null) {

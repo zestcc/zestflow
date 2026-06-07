@@ -129,8 +129,11 @@ Docker 部署时将 `./data/ai-rag` 挂载为持久卷。
 
 | 方法 | 路径 | 权限 |
 |------|------|------|
-| GET | `/api/ai/rag/status` | 登录用户 |
-| GET | `/api/ai/rag/search?q=&appCode=&limit=` | 登录用户 |
+| GET | `/api/ai/rag/status?appCode=` | 登录用户；带 `appCode` 时合并应用端 Executor 知识库状态 |
+| GET | `/api/ai/rag/search?q=&appCode=&limit=` | 登录用户；优先检索应用端 `{dataDir}/ai/patterns` |
+| POST | `/api/ai/executor/chains/suggest` | 登录用户；代理应用端 RAG 建链草稿 |
+| GET | Executor `/api/ai/rag/status` | 应用端本地；MCP/Admin 代理访问 |
+| POST | Executor `/api/ai/chains/suggest` | 应用端本地；基于蒸馏 pattern 生成草稿 |
 | GET | `/api/ai/rag/documents` | 登录用户 |
 | POST/PUT/DELETE | `/api/ai/rag/documents` | 租户管理员 |
 | POST | `/api/ai/rag/documents/rebuild-index` | 租户管理员 |

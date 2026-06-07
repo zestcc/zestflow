@@ -89,6 +89,10 @@ public class AiPlatformConfig {
         return platformConfig.getInt(SysConfigKeys.AI_DEFAULT_MONTHLY_TOKEN_QUOTA, yaml::getDefaultMonthlyTokenQuota);
     }
 
+    public boolean isTenantRagAutoPromote() {
+        return yaml.isTenantRagAutoPromote();
+    }
+
     public String getDefaultPreset() {
         return yaml.getDefaultPreset();
     }

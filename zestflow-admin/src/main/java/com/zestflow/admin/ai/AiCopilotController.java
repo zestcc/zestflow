@@ -128,7 +128,8 @@ public class AiCopilotController {
     }
 
     @GetMapping("/rag/status")
-    public Result<java.util.Map<String, Object>> ragStatus() {
+    public Result<java.util.Map<String, Object>> ragStatus(
+            @RequestParam(required = false) String appCode) {
         java.util.Map<String, Object> status = new java.util.LinkedHashMap<>();
         Long tenantId = tenantAppContext.getCurrentTenantId();
         status.put("enabled", aiPlatformConfig.isRagEnabled());
@@ -136,11 +137,27 @@ public class AiCopilotController {
         status.put("platformChunks", aiRagService.globalChunkCount());
         status.put("tenantChunks", aiRagService.tenantChunkCount(tenantId));
         status.put("tenantDocuments", ragDocumentService.countTenantDocuments(tenantId));
+        status.put("tenantRagAutoPromote", aiPlatformConfig.isTenantRagAutoPromote());
         if (aiPlatformConfig.isRagTenantFilesystemEnabled()) {
             String dir = aiPlatformConfig.getRagTenantDataDir();
             status.put("filesystemPath", dir + "/{tenantId}/*.md");
         }
+        if (StringUtils.hasText(appCode)) {
+            java.util.Map<String, Object> executor = executorChainAiClient.ragStatus(appCode.trim());
+            status.put("executor", executor);
+            status.put("primaryKnowledgeBase", "executor");
+        }
         return Result.success(status);
+    }
+
+    @PostMapping("/executor/chains/suggest")
+    public Result<java.util.Map<String, Object>> executorSuggest(
+            @RequestBody java.util.Map<String, Object> body) {
+        String appCode = body.get("appCode") != null ? String.valueOf(body.get("appCode")) : null;
+        if (!StringUtils.hasText(appCode)) {
+            throw new BizException(ErrorCode.VALIDATION_ERROR, "appCode 不能为空");
+        }
+        return Result.success(executorChainAiClient.suggestChain(appCode.trim(), body));
     }
 
     @GetMapping("/rag/documents")
