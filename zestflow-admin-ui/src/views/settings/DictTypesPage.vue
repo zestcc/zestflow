@@ -285,6 +285,7 @@
         </el-form-item>
         <AiProviderExtraForm
           v-if="isAiProviderType"
+          ref="aiProviderExtraFormRef"
           v-model="dataForm.extra"
           @tier-change="onAiProviderTierChange"
         />
@@ -360,6 +361,7 @@ const dataLoading = ref(false)
 const dataPage = ref(1)
 const dataPageSize = ref(20)
 const crossParentOptions = ref<{ label: string; value: string }[]>([])
+const aiProviderExtraFormRef = ref<{ syncToModel: () => string } | null>(null)
 
 const filteredDataList = computed(() => dataList.value.filter(matchDataKeyword))
 
@@ -583,6 +585,9 @@ async function saveData() {
   if (!valid) return
   dataSubmitting.value = true
   try {
+    if (isAiProviderType.value) {
+      aiProviderExtraFormRef.value?.syncToModel()
+    }
     const common = {
       label: dataForm.label,
       value: dataForm.value,

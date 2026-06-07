@@ -64,7 +64,11 @@
         <el-form-item :label="$t('dict.value')">
           <el-input v-model="editForm.value" disabled />
         </el-form-item>
-        <AiProviderExtraForm v-model="editForm.extra" @tier-change="onTierChange" />
+        <AiProviderExtraForm
+          ref="providerExtraFormRef"
+          v-model="editForm.extra"
+          @tier-change="onTierChange"
+        />
       </el-form>
       <template #footer>
         <el-button @click="editVisible = false">{{ $t('common.cancel') }}</el-button>
@@ -101,6 +105,9 @@ const models = ref<DictDataVO[]>([])
 const filterProvider = ref('')
 const editVisible = ref(false)
 const editForm = ref({ id: 0, label: '', value: '', extra: '', tagType: '' })
+const providerExtraFormRef = ref<{ syncToModel: () => string } | null>(null)
+
+const emit = defineEmits<{ 'providers-changed': [] }>()
 
 const providerColumns = computed(() => [
   { prop: 'value', label: t('dict.code'), width: 140, showOverflowTooltip: true },
@@ -159,9 +166,10 @@ function openEdit(row: DictDataVO) {
 async function saveProvider() {
   saving.value = true
   try {
+    providerExtraFormRef.value?.syncToModel()
     await dictApi.updateData(editForm.value.id, {
       label: editForm.value.label,
-      extra: editForm.value.extra,
+      extra: editForm.value.extra || undefined,
       tagType: editForm.value.tagType || undefined,
     })
     dictStore.invalidate(AI_PROVIDER)
@@ -169,6 +177,7 @@ async function saveProvider() {
     ElMessage.success(t('settings.ai.saveSuccess'))
     editVisible.value = false
     await loadProviders()
+    emit('providers-changed')
   } catch {
     ElMessage.error(t('settings.ai.saveFailed'))
   } finally {
