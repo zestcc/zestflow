@@ -8,6 +8,32 @@
       </template>
     </el-alert>
 
+    <el-card v-if="executorStatus && !executorStatus.error" class="executor-rag-card" shadow="never">
+      <template #header>
+        <span>{{ $t('settings.ai.rag.executorTitle') }}</span>
+        <el-tag size="small" type="success" style="margin-left:8px">{{ $t('settings.ai.rag.executorPrimary') }}</el-tag>
+      </template>
+      <el-descriptions :column="2" size="small" border>
+        <el-descriptions-item :label="$t('settings.ai.rag.executorPatterns')">
+          {{ executorStatus.patternCount ?? 0 }}
+        </el-descriptions-item>
+        <el-descriptions-item :label="$t('settings.ai.rag.executorEvents')">
+          {{ executorStatus.eventCount ?? 0 }}
+        </el-descriptions-item>
+        <el-descriptions-item :label="$t('settings.ai.rag.executorStorage')" :span="2">
+          <span class="rag-path">{{ executorStatus.storage || '-' }}</span>
+        </el-descriptions-item>
+      </el-descriptions>
+    </el-card>
+    <el-alert
+      v-else-if="filterAppCode && executorStatus?.error"
+      type="warning"
+      :closable="false"
+      show-icon
+      class="rag-hint"
+      :title="$t('settings.ai.rag.executorUnavailable')"
+    />
+
     <div class="rag-toolbar">
       <el-select v-model="filterAppCode" clearable filterable :placeholder="$t('design.selectApp')" class="rag-filter">
         <el-option v-for="a in apps" :key="a.appCode" :label="a.appName || a.appCode" :value="a.appCode" />
@@ -85,6 +111,7 @@ const filterAppCode = ref('')
 const editorVisible = ref(false)
 const editingId = ref<number | null>(null)
 const filesystemPath = ref('./data/ai-rag/{tenantId}/*.md')
+const executorStatus = ref<import('@/api/ai').ExecutorRagStatus | null>(null)
 
 const editorForm = reactive<AiRagDocumentSaveDTO>({
   title: '',
@@ -114,6 +141,7 @@ async function loadDocuments() {
   loading.value = true
   try {
     documents.value = await aiApi.listRagDocuments(filterAppCode.value || undefined)
+    await loadStatus()
   } catch {
     documents.value = []
   } finally {
@@ -123,10 +151,11 @@ async function loadDocuments() {
 
 async function loadStatus() {
   try {
-    const status = await aiApi.getRagStatus()
+    const status = await aiApi.getRagStatus(filterAppCode.value || undefined)
     if (status?.filesystemPath) {
       filesystemPath.value = status.filesystemPath
     }
+    executorStatus.value = status?.executor ?? null
   } catch { /* ignore */ }
 }
 
@@ -207,6 +236,10 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.executor-rag-card {
+  margin-bottom: 12px;
+}
+
 .settings-ai-rag .rag-hint {
   margin-bottom: 16px;
 }

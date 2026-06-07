@@ -236,6 +236,8 @@ function goPlayground() {
     query: {
       chainCode: props.playgroundChainCode,
       appCode: ctx?.appCode,
+      aiSessionId: store.sessionId || undefined,
+      aiFeature: store.lastUserMessage || ctx?.chainCode || undefined,
     },
   })
 }

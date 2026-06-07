@@ -51,6 +51,9 @@ jobs:
       - name: Test zestflow-mcp
         run: mvn -B test -pl zestflow-mcp -am
 
+      - name: Test zestflow-dev-init
+        run: mvn -B test -pl zestflow-dev-init -am
+
   build:
     name: Package (skip tests)
     runs-on: ubuntu-latest

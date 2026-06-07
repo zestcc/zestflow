@@ -289,7 +289,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { aiApi } from '@/api/ai'
 import { ElMessage, ElNotification } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import {
@@ -310,7 +311,29 @@ const { t } = useI18n()
 const { labelOf: executionResultLabel, tagTypeOf: executionResultTagType } = useDictLabel('execution_result')
 const { labelOf: httpMethodLabel, tagTypeOf: httpMethodTagType } = useDictLabel('http_method')
 const router = useRouter()
+const route = useRoute()
 const { currentAppCode, syncFromApps } = useCurrentApp()
+
+const aiSessionId = computed(() => {
+  const q = route.query.aiSessionId
+  return typeof q === 'string' && q.trim() ? q.trim() : ''
+})
+const aiFeature = computed(() => {
+  const q = route.query.aiFeature
+  return typeof q === 'string' && q.trim() ? q.trim() : ''
+})
+
+async function reportAiPlaygroundSuccess() {
+  if (!aiSessionId.value) return
+  try {
+    await aiApi.submitFeedback(aiSessionId.value, {
+      adopted: false,
+      intent: 'COMPOSE_CHAIN',
+      feature: aiFeature.value || undefined,
+      playgroundSuccess: true,
+    })
+  } catch { /* ignore */ }
+}
 
 const TABLET_BREAKPOINT = 768
 const COMPACT_BREAKPOINT = 1024
@@ -456,6 +479,9 @@ async function handleExecute() {
     const res: any = await executePlaygroundScene(selectedSceneCode.value, params)
     lastResult.value = res
     notifyExecuteResult(res)
+    if (res?.status === 1) {
+      await reportAiPlaygroundSuccess()
+    }
     await loadHistory()
     showWorkspaceOnMobile()
   } catch (e: any) {

@@ -25,5 +25,14 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, '../zestflow-admin/src/main/resources/static'),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/@antv/x6')) return 'x6'
+          if (id.includes('node_modules/element-plus')) return 'element-plus'
+          if (id.includes('node_modules/vue-i18n')) return 'i18n'
+        },
+      },
+    },
   },
 })

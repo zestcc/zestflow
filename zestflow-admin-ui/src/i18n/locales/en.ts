@@ -542,6 +542,12 @@ export default {
         rebuildIndex: 'Rebuild index',
         rebuildSuccess: 'Index rebuilt',
         rebuildFailed: 'Failed to rebuild index',
+        executorTitle: 'Executor knowledge base',
+        executorPrimary: 'Primary',
+        executorPatterns: 'Distilled patterns',
+        executorEvents: 'Learning events',
+        executorStorage: 'Storage path',
+        executorUnavailable: 'No online executor or cannot read executor knowledge base for this app',
       },
       usage: {
         window: 'Window',

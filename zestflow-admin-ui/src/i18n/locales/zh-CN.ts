@@ -543,6 +543,12 @@ export default {
         rebuildIndex: '重建索引',
         rebuildSuccess: '索引已重建',
         rebuildFailed: '重建索引失败',
+        executorTitle: '应用端知识库（Executor）',
+        executorPrimary: '主库',
+        executorPatterns: '蒸馏 Pattern 数',
+        executorEvents: '学习事件数',
+        executorStorage: '存储路径',
+        executorUnavailable: '当前应用无在线 Executor 或无法读取应用端知识库',
       },
       usage: {
         window: '统计窗口',

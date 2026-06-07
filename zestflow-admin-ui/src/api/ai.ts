@@ -209,6 +209,22 @@ export interface AiRagDocumentSaveDTO {
   sortOrder?: number
 }
 
+export interface ExecutorRagStatus {
+  storage?: string
+  eventCount?: number
+  patternCount?: number
+  patterns?: Array<{
+    id: string
+    title: string
+    feature: string
+    confidence: number
+    sampleCount: number
+  }>
+  lastEventAt?: string
+  lastFeature?: string
+  error?: string
+}
+
 export interface AiRagStatus {
   enabled?: boolean
   mode?: string
@@ -216,6 +232,9 @@ export interface AiRagStatus {
   tenantChunks?: number
   tenantDocuments?: number
   filesystemPath?: string
+  tenantRagAutoPromote?: boolean
+  primaryKnowledgeBase?: string
+  executor?: ExecutorRagStatus
 }
 
 export interface AiUsageDaily {
@@ -314,8 +333,8 @@ export const aiApi = {
     return http.get<string[]>('/ai/rag/search', { params: { q, limit, appCode } })
   },
 
-  getRagStatus() {
-    return http.get<AiRagStatus>('/ai/rag/status')
+  getRagStatus(appCode?: string) {
+    return http.get<AiRagStatus>('/ai/rag/status', { params: appCode ? { appCode } : {} })
   },
 
   listRagDocuments(appCode?: string) {
