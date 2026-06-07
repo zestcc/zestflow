@@ -45,6 +45,7 @@
         <module>zestflow-common</module>
         <module>zestflow-executor</module>
         <module>zestflow-collector</module>
+        <module>zestflow-dev-templates</module>
         <module>zestflow-starter</module>
         <module>zestflow-admin</module>
         <module>zestflow-demo</module>
@@ -131,6 +132,11 @@
                 <groupId>cn.zestflow.www</groupId>
                 <artifactId>collector-rabbitmq</artifactId>
                 <version>${collector-rabbitmq.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>cn.zestflow.www</groupId>
+                <artifactId>zestflow-dev-templates</artifactId>
+                <version>0.1.0</version>
             </dependency>
             <dependency>
                 <groupId>cn.zestflow.www</groupId>

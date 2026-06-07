@@ -46,6 +46,28 @@ bash scripts/dev/install-mcp.sh
 
 环境变量等价：`ZESTFLOW_PROJECT`、`ZESTFLOW_APP_CODE`、`ZESTFLOW_EXECUTOR_URL`、`ZESTFLOW_ADMIN_URL`、`ZESTFLOW_TOKEN`。
 
+### 一键初始化 Dev 文件（推荐）
+
+安装平台 JAR 后，在**业务工程根目录**执行：
+
+```bash
+java -jar ~/.zestflow/tools/zestflow-mcp.jar --init-dev --project /path/to/my-app
+```
+
+```powershell
+powershell -File scripts/dev/init-dev-project.ps1 -ProjectRoot D:/work/my-app
+```
+
+| 参数 | 说明 |
+|------|------|
+| `--init-dev` | 生成 `.zestflow/rules/project.md`、IDE MCP 配置、learning 目录 |
+| `--ide` | `cursor` / `vscode` / `claude` / `all`（默认 `all`） |
+| `--base-package` | 覆盖 pom 推断的包名 |
+| `--force` | 覆盖已存在文件 |
+| `--no-gitignore` | 不追加 `.gitignore` 条目 |
+
+**Maven 引入 `zestflow-starter` 的业务项目**同样适用：运行时靠 starter，Dev 文件靠上述命令一次性生成（MCP 与 Cursor 无强绑定）。
+
 **本地日常开发（仅起 Executor）：**
 
 ```bash
@@ -71,7 +93,7 @@ java -jar zestflow-mcp.jar \
 
 ### 推荐：项目级（`${workspaceFolder}` 自动指向当前工程）
 
-每个业务项目根目录 `.cursor/mcp.json`（可从 [`scripts/dev/mcp/project.cursor.mcp.json.example`](../scripts/dev/mcp/project.cursor.mcp.json.example) 复制）：
+每个业务项目根目录 `.cursor/mcp.json`（推荐 `java -jar ... --init-dev --project .` 自动生成，或从 [`scripts/dev/mcp/project.cursor.mcp.json.example`](../scripts/dev/mcp/project.cursor.mcp.json.example) 复制）：
 
 ```json
 {

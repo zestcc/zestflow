@@ -2,6 +2,7 @@ package com.zestflow.mcp;
 
 import com.zestflow.mcp.config.McpRuntimeConfig;
 import com.zestflow.mcp.config.McpRuntimeConfigParser;
+import com.zestflow.mcp.dev.DevInitCommandParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,6 +19,11 @@ public final class ZestFlowMcpApplication {
     }
 
     public static void main(String[] args) throws Exception {
+        if (DevInitCommandParser.isInitDevCommand(args)) {
+            DevInitCommandParser.printResult(DevInitCommandParser.run(args));
+            return;
+        }
+
         McpRuntimeConfig config = McpRuntimeConfigParser.parse(args);
 
         if (config.exportTaskPackage()) {

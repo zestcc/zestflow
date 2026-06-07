@@ -9,7 +9,8 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
     baseline-version: 1
-    validate-on-migrate: true
+    validate-on-migrate: false
+    out-of-order: true
     clean-disabled: true
   datasource:
     url: jdbc:mysql://localhost:3306/zestflow_admin?useUnicode=true&characterEncoding=utf-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false

@@ -68,6 +68,16 @@ public class AdminProductionGuard {
             failed = true;
         }
 
+        if (!Boolean.TRUE.equals(environment.getProperty("spring.flyway.validate-on-migrate", Boolean.class))) {
+            log.error("[prod] spring.flyway.validate-on-migrate 必须为 true（禁止跳过迁移校验）");
+            failed = true;
+        }
+
+        if (Boolean.TRUE.equals(environment.getProperty("spring.flyway.out-of-order", Boolean.class))) {
+            log.error("[prod] spring.flyway.out-of-order 必须为 false（生产须顺序迁移）");
+            failed = true;
+        }
+
         if (deployProperties.isCluster()) {
             if (!ProductionSecretGuard.hasText(environment.getProperty("spring.data.redis.host"))) {
                 log.error("[prod] deploy-mode=cluster 必须配置 spring.data.redis.host");

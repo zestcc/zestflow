@@ -20,6 +20,10 @@
     <dependencies>
         <dependency>
             <groupId>cn.zestflow.www</groupId>
+            <artifactId>zestflow-dev-templates</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.zestflow.www</groupId>
             <artifactId>zestflow-executor</artifactId>
         </dependency>
         <dependency>

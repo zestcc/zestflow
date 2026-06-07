@@ -8,7 +8,8 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
     baseline-version: 1
-    validate-on-migrate: true
+    validate-on-migrate: false
+    out-of-order: true
     clean-disabled: false
   datasource:
     url: jdbc:h2:mem:zestflow_demo;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE

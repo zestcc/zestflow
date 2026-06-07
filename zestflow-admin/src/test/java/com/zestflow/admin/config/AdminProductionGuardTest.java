@@ -19,6 +19,8 @@ class AdminProductionGuardTest {
         env.setProperty("zestflow.playground.enabled", "false");
         env.setProperty("zestflow.tenant.ip-demo-mode", "disabled");
         env.setProperty("spring.flyway.enabled", "true");
+        env.setProperty("spring.flyway.validate-on-migrate", "true");
+        env.setProperty("spring.flyway.out-of-order", "false");
         return env;
     }
 
@@ -88,6 +90,32 @@ class AdminProductionGuardTest {
     void validateProductionConfig_flywayDisabled_fails() {
         MockEnvironment env = validProdEnv();
         env.setProperty("spring.flyway.enabled", "false");
+
+        AdminDeployProperties deploy = new AdminDeployProperties();
+        deploy.setDeployMode("standalone");
+
+        AdminProductionGuard guard = new AdminProductionGuard(env, deploy);
+        assertThatThrownBy(guard::validateProductionConfig)
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void validateProductionConfig_flywayOutOfOrder_fails() {
+        MockEnvironment env = validProdEnv();
+        env.setProperty("spring.flyway.out-of-order", "true");
+
+        AdminDeployProperties deploy = new AdminDeployProperties();
+        deploy.setDeployMode("standalone");
+
+        AdminProductionGuard guard = new AdminProductionGuard(env, deploy);
+        assertThatThrownBy(guard::validateProductionConfig)
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void validateProductionConfig_flywayValidateDisabled_fails() {
+        MockEnvironment env = validProdEnv();
+        env.setProperty("spring.flyway.validate-on-migrate", "false");
 
         AdminDeployProperties deploy = new AdminDeployProperties();
         deploy.setDeployMode("standalone");
