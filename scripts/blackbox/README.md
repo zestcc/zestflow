@@ -9,7 +9,9 @@
 | `e2e-scene-policy.json` | 场景策略：**全绿 / 一部分绿 / 报错跳过** |
 | `run-enterprise-gate.ps1` | **发布门禁**：mvn test + fullGreen E2E + 多租户/IP + 安全 token（可选） |
 | `run-ai-copilot-e2e.ps1` | Copilot API 黑盒（P0～P5；`-AllowLlmSkip` 在无 Ollama 时跳过 explain/suggest） |
-| `run-ai-copilot-acceptance.ps1` | Copilot **部署验收**：AI 单测 + 上述 E2E |
+| `run-ai-mcp-e2e.ps1` | **Dev MCP** 黑盒：CLI 任务包、Executor validate/list、demo `.cursor/mcp.json` |
+| `run-ai-copilot-perf.ps1` | **AI 压测**：validate/RAG 并发；`-UseMockLlm` 可压 explain |
+| `run-ai-copilot-acceptance.ps1` | Copilot **全量验收**：Admin 单测 + MCP 单测 + E2E + MCP E2E + 压测 |
 | `run-chain-publish-e2e.ps1` | 链 publish → active-codes → 可选 rollback |
 | `run-chain-lifecycle-e2e.ps1` | 创建设计/链 → 绑定 → 发布 → Netty `/execute` |
 | `run-rbac-horizontal-e2e.ps1` | 无 JWT / 无效 JWT 访问受保护 API 应 401/403 |
@@ -105,6 +107,7 @@ CI 上仅跑 Layer A（`mvn test`），与门禁脚本前四步一致；Layer B/
 ## 文档
 
 - [docs/RELEASE_READINESS.md](../../docs/RELEASE_READINESS.md) — 开源发布三层验收  
-- [docs/BLACKBOX_TEST_REPORT.md](../../docs/BLACKBOX_TEST_REPORT.md) — 场景矩阵、压测、安全清单  
+- [docs/AI_COPILOT_ACCEPTANCE.md](../../docs/AI_COPILOT_ACCEPTANCE.md) — **AI 全流程生产验收用例**（建链 + MCP 元件 + 压测）
+- [docs/BLACKBOX_TEST_REPORT.md](../../docs/BLACKBOX_TEST_REPORT.md) — 场景矩阵、压测、安全清单
 - [docs/FULL_E2E_TEST_REPORT.md](../../docs/FULL_E2E_TEST_REPORT.md) — 全流程 + 多租户 + 配置矩阵  
 - [scripts/seed/DEMO_CHAIN_MATRIX.md](../seed/DEMO_CHAIN_MATRIX.md) — demo 链分档与节点类型

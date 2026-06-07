@@ -133,23 +133,6 @@ export interface AiComponentParam {
   required?: boolean
 }
 
-export interface AiComponentScaffoldRequest {
-  appCode: string
-  componentId: string
-  componentType: string
-  groupName?: string
-  description: string
-  inputParams?: AiComponentParam[]
-  outputParams?: AiComponentParam[]
-}
-
-export interface AiComponentScaffoldResponse {
-  fullJavaCode: string
-  summary: string
-  checklist: string[]
-  sessionId?: string
-}
-
 export interface AiFeedbackRequest {
   adopted: boolean
   comment?: string
@@ -294,10 +277,6 @@ export const aiApi = {
 
   suggestExpression(data: AiExpressionSuggestRequest) {
     return http.post<AiExpressionSuggestResponse>('/ai/expression/suggest', data)
-  },
-
-  scaffoldComponent(data: AiComponentScaffoldRequest) {
-    return http.post<AiComponentScaffoldResponse>('/ai/component/scaffold', data)
   },
 
   diagnose(data: AiDiagnoseRequest) {

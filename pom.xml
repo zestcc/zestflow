@@ -84,6 +84,8 @@
         <collector-rabbitmq.version>0.1.0</collector-rabbitmq.version>
         <zestflow-starter.version>0.1.0</zestflow-starter.version>
         <zestflow-admin.version>0.1.0</zestflow-admin.version>
+        <zestflow-mcp.version>0.1.0</zestflow-mcp.version>
+        <mcp-sdk.version>0.10.0</mcp-sdk.version>
 
         <!-- release profile：本地验证加 -Dgpg.skip=true；正式发布勿跳过 -->
         <gpg.skip>false</gpg.skip>
@@ -139,6 +141,16 @@
                 <groupId>cn.zestflow.www</groupId>
                 <artifactId>zestflow-admin</artifactId>
                 <version>${zestflow-admin.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>cn.zestflow.www</groupId>
+                <artifactId>zestflow-mcp</artifactId>
+                <version>${zestflow-mcp.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.modelcontextprotocol.sdk</groupId>
+                <artifactId>mcp</artifactId>
+                <version>${mcp-sdk.version}</version>
             </dependency>
 
             <!-- ============ 第三方依赖 ============ -->
@@ -349,6 +361,12 @@
             </build>
         </profile>
         <!-- 公网试玩包：mvn package -pl zestflow-admin,zestflow-demo -am -Pdemo-dist -DskipTests -->
+        <profile>
+            <id>dev-mcp</id>
+            <modules>
+                <module>zestflow-mcp</module>
+            </modules>
+        </profile>
         <profile>
             <id>demo-dist</id>
             <build>

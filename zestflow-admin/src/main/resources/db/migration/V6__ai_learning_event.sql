@@ -1,0 +1,25 @@
+-- V6: AI Chain-first 学习事件（租户级 Orchestration + 可同步 Dev 摘要）
+-- 版本说明：V4/V5 为调度/SLA 改造；V3 预留未用；本脚本排在 V5 之后。
+CREATE TABLE IF NOT EXISTS `zf_ai_learning_event` (    `id`            BIGINT       NOT NULL AUTO_INCREMENT,
+    `tenant_id`     BIGINT       NOT NULL,
+    `user_id`       BIGINT       DEFAULT NULL,
+    `app_code`      VARCHAR(64)  DEFAULT NULL,
+    `session_id`    BIGINT       DEFAULT NULL COMMENT '关联 zf_ai_copilot_session.id',
+    `intent`        VARCHAR(32)  NOT NULL,
+    `feature`       VARCHAR(128) DEFAULT NULL,
+    `chain_code`    VARCHAR(128) DEFAULT NULL,
+    `http_mode`     TINYINT      DEFAULT NULL COMMENT '1|2|3',
+    `payload_json`  JSON         DEFAULT NULL,
+    `validate_passed` TINYINT    DEFAULT 0,
+    `validate_rounds` INT        DEFAULT NULL,
+    `adopted`       TINYINT      DEFAULT NULL,
+    `playground_success` TINYINT DEFAULT NULL,
+    `promotion_score` DECIMAL(5,4) DEFAULT NULL,
+    `promotion_eligible` TINYINT DEFAULT 0,
+    `user_correction` VARCHAR(1000) DEFAULT NULL,
+    `promoted_to_rag` TINYINT    DEFAULT 0,
+    `created_at`    DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_ai_learn_tenant_feature` (`tenant_id`, `feature`, `created_at`),
+    KEY `idx_ai_learn_promote` (`tenant_id`, `promotion_eligible`, `promoted_to_rag`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI Chain-first 学习事件';

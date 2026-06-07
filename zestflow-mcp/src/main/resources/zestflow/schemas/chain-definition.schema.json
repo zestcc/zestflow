@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ZestFlow ChainDefinition",
+  "type": "object",
+  "required": ["nodes", "edges"],
+  "properties": {
+    "code": { "type": "string" },
+    "version": { "type": "integer" },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "componentId"],
+        "properties": {
+          "id": { "type": "string" },
+          "componentId": { "type": "string" },
+          "type": { "type": "string" },
+          "config": { "type": "object" }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source", "target"],
+        "properties": {
+          "source": { "type": "string" },
+          "target": { "type": "string" },
+          "condition": { "type": "string" }
+        }
+      }
+    },
+    "config": { "type": "object" }
+  }
+}

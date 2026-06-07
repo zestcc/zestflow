@@ -1,0 +1,32 @@
+[
+  {
+    "id": "platform-http-three-mode",
+    "title": "HTTP 三 Mode 暴露策略",
+    "feature": "httpIntegration",
+    "tags": ["http", "mode1", "mode2", "mode3", "execute"],
+    "confidenceScore": 0.99,
+    "sampleCount": 100,
+    "updatedAt": "2026-06-02T00:00:00Z",
+    "file": "http-three-mode.md"
+  },
+  {
+    "id": "platform-user-register-chain",
+    "title": "用户注册业务链模板",
+    "feature": "userRegister",
+    "tags": ["register", "loader", "predicate", "parser"],
+    "confidenceScore": 0.98,
+    "sampleCount": 50,
+    "updatedAt": "2026-06-02T00:00:00Z",
+    "file": "feature-user-register.md"
+  },
+  {
+    "id": "platform-chain-intents",
+    "title": "Chain-first 意图关键字",
+    "feature": "workflow",
+    "tags": ["intent", "plan", "scaffold", "validate"],
+    "confidenceScore": 0.99,
+    "sampleCount": 1,
+    "updatedAt": "2026-06-02T00:00:00Z",
+    "file": "chain-intents.md"
+  }
+]

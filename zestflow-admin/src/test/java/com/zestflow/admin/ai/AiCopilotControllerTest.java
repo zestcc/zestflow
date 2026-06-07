@@ -45,6 +45,7 @@ class AiCopilotControllerTest {
     @Mock private TenantAppContext tenantAppContext;
     @Mock private PermissionService permissionService;
     @Mock private ExecutorProxyService executorProxyService;
+    @Mock private AiLearningEventService aiLearningEventService;
     @Mock private Authentication authentication;
 
     private AiCopilotController controller;
@@ -53,7 +54,8 @@ class AiCopilotControllerTest {
     void setUp() {
         controller = new AiCopilotController(aiCopilotService, tenantAiConfigService,
                 chainKeyHintService, chainTemplateService, aiRagService, ragDocumentService,
-                usageStatsService, aiPlatformConfig, tenantAppContext, permissionService, executorProxyService);
+                usageStatsService, aiLearningEventService, aiPlatformConfig, tenantAppContext,
+                permissionService, executorProxyService);
         when(tenantAppContext.getCurrentTenantId()).thenReturn(1L);
     }
 

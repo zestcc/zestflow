@@ -33,6 +33,7 @@ public class AiCopilotController {
     private final AiRagService aiRagService;
     private final AiRagDocumentService ragDocumentService;
     private final AiUsageStatsService usageStatsService;
+    private final AiLearningEventService aiLearningEventService;
     private final AiPlatformConfig aiPlatformConfig;
     private final TenantAppContext tenantAppContext;
     private final PermissionService permissionService;
@@ -222,22 +223,38 @@ public class AiCopilotController {
         return Result.success(aiCopilotService.diagnose(request));
     }
 
-    @PostMapping("/component/scaffold")
-    public Result<AiComponentScaffoldResponse> componentScaffold(@RequestBody AiComponentScaffoldRequest request) {
-        requireAppEditor(request.getAppCode());
-        return Result.success(aiCopilotService.componentScaffold(request));
-    }
-
     @PostMapping("/sessions/{id}/feedback")
     public Result<Void> sessionFeedback(@PathVariable Long id, @RequestBody AiSessionFeedbackDTO dto) {
         aiCopilotService.recordFeedback(id, dto);
         return Result.success();
     }
 
+    @PostMapping("/learning/events")
+    public Result<AiLearningEventVO> recordLearningEvent(@RequestBody AiLearningEventSaveDTO dto) {
+        return Result.success(aiLearningEventService.record(dto));
+    }
+
+    @GetMapping("/learning/events")
+    public Result<List<AiLearningEventVO>> listLearningEvents(
+            @RequestParam(required = false) String appCode,
+            @RequestParam(defaultValue = "30") int limit) {
+        return Result.success(aiLearningEventService.listRecent(appCode, limit));
+    }
+
+    @PostMapping("/learning/events/{id}/promote-rag")
+    public Result<AiRagDocumentVO> promoteLearningEventToRag(@PathVariable Long id) {
+        requireSuperAdminOrTenantAdmin();
+        return Result.success(aiLearningEventService.promoteToRag(id));
+    }
+
     private void requireAppEditor(String appCode) {
         if (!StringUtils.hasText(appCode)) {
             return;
         }
+        requireAppPermission(appCode, "APP_EDITOR");
+    }
+
+    private void requireAppPermission(String appCode, String permission) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()) {
             throw new BizException(ErrorCode.UNAUTHORIZED);
@@ -246,7 +263,7 @@ public class AiCopilotController {
             return;
         }
         Long userId = SecurityUtils.getUserId(auth);
-        if (userId == null || !permissionService.hasAppPermission(userId, appCode, "APP_EDITOR")) {
+        if (userId == null || !permissionService.hasAppPermission(userId, appCode, permission)) {
             throw new BizException(ErrorCode.PERMISSION_DENIED);
         }
     }

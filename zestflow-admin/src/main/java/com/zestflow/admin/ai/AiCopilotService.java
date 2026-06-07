@@ -45,12 +45,12 @@ public class AiCopilotService {
     private final AiChatClient aiChatClient;
     private final PromptBuilder promptBuilder;
     private final ExecutorValidateClient executorValidateClient;
-    private final AiComponentScaffoldBuilder scaffoldBuilder;
     private final CollectorQueryAggregator collectorQueryAggregator;
     private final AiRagService aiRagService;
     private final AiCopilotSessionMapper sessionMapper;
     private final AiCopilotMessageMapper messageMapper;
     private final AiQuotaService aiQuotaService;
+    private final AiLearningEventService aiLearningEventService;
 
     public AiExplainResponse explain(AiExplainRequest request) {
         requireCopilotEnabled();
@@ -160,25 +160,6 @@ public class AiCopilotService {
         }
     }
 
-    public AiComponentScaffoldResponse componentScaffold(AiComponentScaffoldRequest request) {
-        Long tenantId = tenantAiConfigService.getCurrentTenantId();
-        AiComponentScaffoldBuilder.ScaffoldDefinition def = scaffoldBuilder.fromRequest(request);
-        String javaCode = scaffoldBuilder.generateJavaClass(def);
-        String summary = "已生成 @ZestComponent(" + def.groupName() + ") + "
-                + annotationLabel(def.componentType()) + "(" + def.componentId() + ") 骨架";
-
-        Long sessionId = recordSession(tenantId, request.getAppCode(), null, null, "scaffold");
-        recordMessage(sessionId, tenantId, "user", truncate(request.getDescription()));
-        recordMessage(sessionId, tenantId, "assistant", truncate(summary));
-
-        return AiComponentScaffoldResponse.builder()
-                .fullJavaCode(javaCode)
-                .summary(summary)
-                .checklist(scaffoldBuilder.buildChecklist(request.getComponentId()))
-                .sessionId(sessionId)
-                .build();
-    }
-
     public AiDiagnoseResponse diagnose(AiDiagnoseRequest request) {
         requireCopilotEnabled();
         Long tenantId = tenantAiConfigService.getCurrentTenantId();
@@ -277,6 +258,21 @@ public class AiCopilotService {
         }
         session.setAdopted(dto.getAdopted());
         sessionMapper.updateById(session);
+        if (StringUtils.hasText(dto.getIntent()) || StringUtils.hasText(dto.getFeature())) {
+            AiLearningEventSaveDTO learning = new AiLearningEventSaveDTO();
+            learning.setSessionId(sessionId);
+            learning.setAppCode(session.getAppCode());
+            learning.setIntent(dto.getIntent() != null ? dto.getIntent() : session.getMode());
+            learning.setFeature(dto.getFeature());
+            learning.setChainCode(session.getChainCode());
+            learning.setHttpMode(dto.getHttpMode());
+            learning.setValidatePassed(dto.getValidatePassed());
+            learning.setValidateRounds(dto.getValidateRounds());
+            learning.setAdopted(dto.getAdopted() != null && dto.getAdopted() == 1);
+            learning.setPlaygroundSuccess(dto.getPlaygroundSuccess());
+            learning.setUserCorrection(dto.getUserCorrection());
+            aiLearningEventService.record(learning);
+        }
     }
 
     private void requireCopilotEnabled() {
@@ -547,16 +543,6 @@ public class AiCopilotService {
             }
         }
         return trimmed;
-    }
-
-    private static String annotationLabel(com.zestflow.common.model.ComponentType type) {
-        return switch (type) {
-            case PREDICATE -> "@ZestPredicate";
-            case SELECTOR -> "@ZestSelector";
-            case LOADER -> "@ZestLoader";
-            case PARSER -> "@ZestParser";
-            default -> "@ZestExecute";
-        };
     }
 
     record ParsedChainProposal(String chainData, String summary) {}

@@ -110,12 +110,38 @@ if ($val.ok) {
 }
 Add-Check "ai-validate-chain" ($val.ok -and $valOk) "status=$($val.status) valid=$valValid"
 
-$scaffold = Invoke-Api POST "$BaseAdmin/api/zestflow/ai/component/scaffold" '{"appCode":"demo-app","componentId":"deductStock","componentType":"EXECUTOR","groupName":"order","description":"deduct stock"}' $h
-$hasJava = $false
-if ($scaffold.ok) {
-    try { $hasJava = [bool](ConvertFrom-Json $scaffold.body).data.fullJavaCode } catch {}
+$badValidateBody = '{"appCode":"demo-app","chainCode":"CHN_BAD","chainData":"{\"code\":\"CHN_BAD\",\"version\":1,\"nodes\":[{\"id\":\"n1\",\"label\":\"bad\",\"type\":\"TASK\",\"component\":\"__NOT_REGISTERED__\"}],\"edges\":[]}"}'
+$valBad = Invoke-Api POST "$BaseAdmin/api/zestflow/ai/design/validate" $badValidateBody $h
+$valBadOk = $false
+if ($valBad.ok) {
+    try {
+        $valBadData = (ConvertFrom-Json $valBad.body).data
+        $valBadOk = ($valBadData.valid -eq $false)
+    } catch {}
 }
-Add-Check "ai-component-scaffold" ($scaffold.ok -and $hasJava) "status=$($scaffold.status)"
+Add-Check "ai-validate-invalid-component" ($valBad.ok -and $valBadOk) "status=$($valBad.status)"
+
+$ctxComp = Invoke-Api GET "$BaseAdmin/api/zestflow/ai/context/components?appCode=demo-app" $null $h
+$ctxCompOk = $false
+if ($ctxComp.ok) {
+    try { $ctxCompOk = [bool](ConvertFrom-Json $ctxComp.body).data -and ($ctxComp.body -match 'validateUser') } catch {}
+}
+Add-Check "ai-context-components" ($ctxComp.ok -and $ctxCompOk) "status=$($ctxComp.status)"
+
+if ($UseMockLlm) {
+    $testConn = Invoke-Api POST "$BaseAdmin/api/zestflow/ai/test" '{"preset":"custom","baseUrl":"http://127.0.0.1:' + $MockLlmPort + '/v1","apiKey":"mock-e2e","model":"mock-e2e"}' $h 60
+} else {
+    $testConn = Invoke-Api POST "$BaseAdmin/api/zestflow/ai/test" '{"preset":"ollama","model":"qwen2.5:7b","apiKey":"ollama"}' $h 60
+}
+$testConnOk = $false
+if ($testConn.ok) {
+    try { $testConnOk = [bool](ConvertFrom-Json $testConn.body).data.success } catch {}
+}
+if (-not $testConnOk -and $AllowLlmSkip) {
+    Add-Check "ai-test-connection" $true "skipped-llm-unavailable"
+} else {
+    Add-Check "ai-test-connection" ($testConn.ok -and $testConnOk) "status=$($testConn.status)"
+}
 
 $chainKeys = Invoke-Api GET "$BaseAdmin/api/zestflow/ai/context/chain-keys?appCode=demo-app" $null $h
 $chainKeysOk = $false
@@ -138,6 +164,12 @@ if ($tplSave.ok) {
 Add-Check "ai-templates-save" ($tplSave.ok -and $tplId) "status=$($tplSave.status) id=$tplId"
 
 if ($tplId) {
+    $tplGet = Invoke-Api GET "$BaseAdmin/api/zestflow/ai/templates/$tplId" $null $h
+    $tplGetOk = $false
+    if ($tplGet.ok) {
+        try { $tplGetOk = (ConvertFrom-Json $tplGet.body).data.name -eq "E2E-TPL" } catch {}
+    }
+    Add-Check "ai-templates-get" ($tplGet.ok -and $tplGetOk) "status=$($tplGet.status) id=$tplId"
     $tplDel = Invoke-Api DELETE "$BaseAdmin/api/zestflow/ai/templates/$tplId" $null $h
     Add-Check "ai-templates-delete" ($tplDel.ok -and $tplDel.status -eq 200) "status=$($tplDel.status)"
 } else {
@@ -350,6 +382,54 @@ if ($usage2.ok) {
     } catch {}
 }
 Add-Check "ai-usage-quota-fields" ($usage2.ok -and $quotaFieldsOk) "status=$($usage2.status)"
+
+# --- P7：学习事件 P1～P3（Admin 租户级） ---
+$learnBody = '{"appCode":"demo-app","intent":"COMPOSE_CHAIN","feature":"userRegister","chainCode":"CHN_USER_REGISTER","httpMode":2,"validatePassed":true,"validateRounds":1,"adopted":true,"playgroundSuccess":true}'
+$learnSave = Invoke-Api POST "$BaseAdmin/api/zestflow/ai/learning/events" $learnBody $h
+$learnId = $null
+$learnEligible = $false
+if ($learnSave.ok) {
+    try {
+        $lj = (ConvertFrom-Json $learnSave.body).data
+        $learnId = $lj.id
+        $learnEligible = ($lj.promotionEligible -eq $true)
+    } catch {}
+}
+Add-Check "ai-learning-events-save" ($learnSave.ok -and $learnId -and $learnEligible) "id=$learnId eligible=$learnEligible"
+
+$learnList = Invoke-Api GET "$BaseAdmin/api/zestflow/ai/learning/events?appCode=demo-app&limit=5" $null $h
+$learnListOk = $false
+if ($learnList.ok) {
+    try {
+        $items = (ConvertFrom-Json $learnList.body).data
+        $learnListOk = ($items.Count -gt 0)
+    } catch {}
+}
+Add-Check "ai-learning-events-list" ($learnList.ok -and $learnListOk) "status=$($learnList.status)"
+
+$badLearnBody = '{"appCode":"demo-app","intent":"COMPOSE_CHAIN","feature":"badCase","validatePassed":false,"validateRounds":5,"adopted":false}'
+$badLearnSave = Invoke-Api POST "$BaseAdmin/api/zestflow/ai/learning/events" $badLearnBody $h
+$badLearnId = $null
+if ($badLearnSave.ok) {
+    try { $badLearnId = (ConvertFrom-Json $badLearnSave.body).data.id } catch {}
+}
+$promoteRejected = $false
+if ($badLearnId) {
+    $promoteBad = Invoke-Api POST "$BaseAdmin/api/zestflow/ai/learning/events/$badLearnId/promote-rag" $null $h
+    $promoteRejected = (-not $promoteBad.ok) -or ($promoteBad.status -ge 400)
+}
+Add-Check "ai-learning-promote-rejected" ($badLearnId -and $promoteRejected) "badId=$badLearnId"
+
+$promoteDocId = $null
+if ($learnId) {
+    $promoteOk = Invoke-Api POST "$BaseAdmin/api/zestflow/ai/learning/events/$learnId/promote-rag" $null $h
+    if ($promoteOk.ok) {
+        try { $promoteDocId = (ConvertFrom-Json $promoteOk.body).data.id } catch {}
+    }
+    Add-Check "ai-learning-promote-rag" ($promoteOk.ok -and $promoteDocId) "docId=$promoteDocId"
+} else {
+    Add-Check "ai-learning-promote-rag" $false "no eligible event"
+}
 
 if ($ragDocId) {
     $ragDocDel = Invoke-Api DELETE "$BaseAdmin/api/zestflow/ai/rag/documents/$ragDocId" $null $h

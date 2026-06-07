@@ -41,6 +41,7 @@ class AiCopilotServiceTest {
     @Mock private AiCopilotSessionMapper sessionMapper;
     @Mock private AiCopilotMessageMapper messageMapper;
     @Mock private AiQuotaService aiQuotaService;
+    @Mock private AiLearningEventService aiLearningEventService;
 
     private AiPlatformConfig aiPlatformConfig;
     private AiCopilotService service;
@@ -60,12 +61,12 @@ class AiCopilotServiceTest {
                 aiChatClient,
                 new PromptBuilder(),
                 executorValidateClient,
-                new AiComponentScaffoldBuilder(),
                 collectorQueryAggregator,
                 aiRagService,
                 sessionMapper,
                 messageMapper,
-                aiQuotaService
+                aiQuotaService,
+                aiLearningEventService
         );
 
         lenient().when(tenantAiConfigService.getCurrentTenantId()).thenReturn(1L);

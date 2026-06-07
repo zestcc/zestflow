@@ -1,14 +1,16 @@
 # ZestFlow AI 集成方案（Copilot）
 
-> **版本** 1.3 · **更新** 2026-06-06 · **状态** 已实现（P0～P4 + P5 集成增强）  
+> **版本** 1.4 · **更新** 2026-06-02 · **状态** 已实现（P0～P5 + Dev MCP Phase 1）  
 > **定位** 面向开发人员的编排辅助（Copilot），非自动上线（Autopilot）  
-> **运维** 见 [AI_COPILOT_OPS.md](./AI_COPILOT_OPS.md)
+> **运维** 见 [AI_COPILOT_OPS.md](./AI_COPILOT_OPS.md)  
+> **Dev Copilot（MCP）** 见 [AI_DEV_COPILOT_FINAL_SOLUTION.md](./AI_DEV_COPILOT_FINAL_SOLUTION.md) · [MCP_SETUP.md](./MCP_SETUP.md)
 
 ---
 
 ## 目录
 
 - [1. 概述](#1-概述)
+- [1.5 双 Copilot 模型](#15-双-copilot-模型)
 - [2. 产品原则](#2-产品原则)
 - [3. 多租户与数据隔离](#3-多租户与数据隔离)
 - [4. 功能范围与分期](#4-功能范围与分期)
@@ -60,13 +62,32 @@ flowchart LR
 
 ---
 
+## 1.5 双 Copilot 模型
+
+ZestFlow AI 分为 **编排 Copilot**（本文档，Admin 内已实现）与 **开发 Copilot**（`zestflow-mcp`，IDE 内使用）。
+
+| | Orchestration Copilot | Dev Copilot |
+|--|----------------------|-------------|
+| **载体** | Admin UI + 后端 | `zestflow-mcp.jar` + Cursor / Claude |
+| **用户** | 业务 / 实施 / 0 代码编排 | 写 `@ZestComponent` 的开发者 |
+| **LLM** | Admin 租户配置 | IDE 侧模型 |
+| **典型动作** | suggest 链、explain、expression | list 元件、读 Java、validate 链 |
+| **落盘** | 设计器 diff → 人工发布 | **Cursor/Claude Apply**（MCP 不写盘） |
+| **文档** | 本文档 | [AI_DEV_COPILOT_FINAL_SOLUTION.md](./AI_DEV_COPILOT_FINAL_SOLUTION.md) |
+
+**口号**：Admin 设计链，MCP 连接规范与代码，Cursor 写元件。
+
+**业界对照**：Admin 编排 ≈ n8n AI Workflow / Temporal UI；Dev MCP ≈ [Stripe MCP](https://github.com/stripe/agent-toolkit)、[Supabase MCP](https://github.com/supabase-community/supabase-mcp) — 规范与 Tools 由官方 Server 提供，IDE 只改配置。
+
+---
+
 ## 2. 产品原则
 
 | 原则 | 说明 |
 |------|------|
 | Copilot ≠ Autopilot | 生成物永远是草稿，必须人 review |
 | 设计器内主入口 | 不做顶级「AI 中心」大菜单 |
-| LLM 仅在 Admin | 统一鉴权、脱敏、审计；前端与 Executor 不直连 LLM |
+| LLM 编排仅在 Admin | **编排** Copilot 的 LLM 统一在 Admin 鉴权、脱敏、审计；**Dev** Copilot 在 IDE + MCP，LLM 由 Cursor/Claude 侧配置 |
 | 校验在 Executor | AI 输出不可信，必须过 `ChainValidator` |
 | 租户级 AI 配置 | 预设全局只读；Key 与开关按租户隔离 |
 | 预设丰富、Key 自备 | 内置多家免费/低成本 API **适配**，不托管平台 Key |
@@ -420,7 +441,6 @@ zestflow:
 | POST | `/api/ai/design/validate` | 校验 chainData |
 | POST | `/api/ai/expression/suggest` | Aviator 助手 |
 | POST | `/api/ai/logs/diagnose` | 日志诊断（Phase 2） |
-| POST | `/api/ai/component/scaffold` | Java 脚手架（Phase 3） |
 | GET | `/api/ai/rag/search` | 混合 RAG 检索（platform + 租户） |
 | GET | `/api/ai/rag/status` | RAG 索引状态（含 tenantDocuments、filesystemPath） |
 | GET/POST/PUT/DELETE | `/api/ai/rag/documents` | 租户 RAG 文档 CRUD（租户管理员） |
@@ -513,6 +533,8 @@ src/i18n: layout.aiAssistant, ai.*
 ---
 
 ## 11. 元件辅助生成
+
+> **Dev Copilot 主路径**：在 **`zestflow-demo`** 或业务 Executor 工程配置 [MCP_SETUP.md](./MCP_SETUP.md) / `.cursor/mcp.json`；Admin 元件页 **不再提供** AI 脚手架（已移除 `POST /ai/component/scaffold`）。
 
 ### 11.1 与链 Copilot 的区别
 
@@ -711,6 +733,9 @@ CREATE TABLE zf_ai_rag_document (
 
 ## 16. 验收标准
 
+> **生产级用例矩阵**（逐条 TC 编号、黑盒/压测/手工）：[AI_COPILOT_ACCEPTANCE.md](./AI_COPILOT_ACCEPTANCE.md)  
+> **一键自动化**：`powershell -File scripts/blackbox/run-ai-copilot-acceptance.ps1 -UseMockLlm`
+
 ### MVP（P0 + P1）
 
 1. 设计器中文描述业务，**60 秒内**得到可校验链草稿
@@ -734,6 +759,7 @@ CREATE TABLE zf_ai_rag_document (
 - 自动 git commit / 自动部署 Executor
 - 全站单一 AI Key（必须租户级）
 - 安装包捆绑 LLM 权重
+- **Dev Copilot：`zestflow-mcp` 写盘 Tool（`write_project_file`）** — 源码由 Cursor/Claude diff + 用户 Apply 落盘，见 [AI_DEV_COPILOT_FINAL_SOLUTION.md §2.3](./AI_DEV_COPILOT_FINAL_SOLUTION.md#23-dev-copilot-明确不做v1)
 
 ---
 
@@ -743,6 +769,7 @@ CREATE TABLE zf_ai_rag_document (
 |------|------|---------------|
 | 设计器内 Copilot | Power Automate | `AiCopilotDrawer` |
 | validate → fix | n8n MCP | validate API + repair loop |
+| Dev 元件开发 | Stripe/Supabase MCP（只读+Tools） | `zestflow-mcp` 只读 + validate；**写盘在 IDE** |
 | 中间表示 | n8n workflow JSON | `ChainDefinitionDTO` |
 | 试跑 | n8n test / Playground | Playground 按钮 |
 | 不自动上线 | Temporal 思路 | 人工 publish/reload |
@@ -869,43 +896,13 @@ presets:
 }
 ```
 
-### B.3 元件脚手架（Phase 3）
+### B.3 元件脚手架（**已移除**）
 
-**请求** `POST /api/ai/component/scaffold`
+Admin `POST /api/ai/component/scaffold` 与元件页「AI 脚手架」已删除。元件开发请用 **Dev Copilot**：
 
-```json
-{
-  "appCode": "demo-app",
-  "componentId": "deductStock",
-  "componentType": "EXECUTOR",
-  "groupName": "order",
-  "description": "从 ctx 取 orderId、skuId、qty，扣减库存，结果写入 stockResult",
-  "inputParams": [
-    { "name": "orderId", "type": "String", "required": true },
-    { "name": "skuId", "type": "String", "required": true },
-    { "name": "qty", "type": "Integer", "required": true }
-  ],
-  "outputParams": [
-    { "name": "stockResult", "type": "Object", "required": false }
-  ]
-}
-```
-
-**响应**
-
-```json
-{
-  "fullJavaCode": "package com.zestflow.component.generated;\n\n...",
-  "summary": "已生成 @ZestComponent(order) + @ZestExecute(deductStock) 骨架",
-  "checklist": [
-    "复制到 Executor 工程对应包路径",
-    "补全 TODO 业务逻辑",
-    "mvn package 并部署",
-    "Admin 发布/reload 后在元件列表确认 deductStock 出现"
-  ],
-  "sessionId": "..."
-}
-```
+- Cursor 打开 **`zestflow-demo`**（或业务 Executor 工程），配置 [MCP_SETUP.md](./MCP_SETUP.md)
+- 调用 MCP Tool **`scaffold_component`**（只返回 Java 文本，落盘由 IDE Apply）
+- 一次性准备：`powershell -File scripts/dev/setup-demo-mcp.ps1`
 
 ---
 
