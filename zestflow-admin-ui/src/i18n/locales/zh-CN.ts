@@ -686,6 +686,9 @@ export default {
     crossCascade: '跨类型级联',
     parentValuePlaceholder: '选择或输入父级值',
     virtualGroup: '分组',
+    typePanelTitle: '字典类型',
+    dataCount: '共 {n} 项',
+    dataFilterPlaceholder: '筛选标签或数据值',
   },
   sysConfig: {
     title: '系统配置',
