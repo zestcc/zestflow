@@ -273,6 +273,7 @@
         </el-form-item>
         <AiProviderExtraForm
           v-if="isAiProviderType"
+          ref="aiProviderExtraFormRef"
           v-model="dataForm.extra"
           @tier-change="onAiProviderTierChange"
         />
@@ -344,6 +345,7 @@ const dataList = ref<DictDataVO[]>([])
 const dataTree = ref<DictDataTreeVO[]>([])
 const dataLoading = ref(false)
 const crossParentOptions = ref<{ label: string; value: string }[]>([])
+const aiProviderExtraFormRef = ref<{ syncToModel: () => string } | null>(null)
 
 const filteredTypes = computed(() => {
   const kw = typeKeyword.value.trim().toLowerCase()
@@ -559,6 +561,9 @@ async function saveData() {
   if (!valid) return
   dataSubmitting.value = true
   try {
+    if (isAiProviderType.value) {
+      aiProviderExtraFormRef.value?.syncToModel()
+    }
     const common = {
       label: dataForm.label,
       value: dataForm.value,

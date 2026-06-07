@@ -63,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, watch } from 'vue'
+import { reactive, watch, nextTick } from 'vue'
 import { useDict } from '@/composables/useDict'
 import {
   emptyAiProviderExtra,
@@ -104,7 +104,16 @@ function emitSerialized() {
   if (next !== props.modelValue) {
     emit('update:modelValue', next)
   }
+  return next
 }
+
+/** 保存前强制把表单写回 v-model */
+function syncToModel() {
+  syncingFromProp = false
+  return emitSerialized()
+}
+
+defineExpose({ syncToModel })
 
 function onTierChange(tier: string) {
   emit('tier-change', tier, tagTypeForAiProviderTier(tier))
@@ -113,9 +122,11 @@ function onTierChange(tier: string) {
 
 watch(
   () => props.modelValue,
-  (v) => {
+  async (v) => {
     if (v === serializeAiProviderExtra(form)) return
     applyFromProp(v)
+    await nextTick()
+    emitSerialized()
   },
   { immediate: true },
 )

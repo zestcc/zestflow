@@ -39,7 +39,8 @@ export interface AiTenantConfigVO {
   preset: string
   baseUrl?: string
   apiKeyMasked?: string
-  hasApiKey?: boolean
+  /** 与后端 apiKeyConfigured 对齐 */
+  apiKeyConfigured?: boolean
   model?: string
   allowedPresets?: string[]
 }

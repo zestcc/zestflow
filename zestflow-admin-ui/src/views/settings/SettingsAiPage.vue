@@ -120,7 +120,7 @@
       </el-tab-pane>
 
       <el-tab-pane :label="$t('settings.ai.tabSystem')" name="system">
-        <SettingsAiSystemPanel />
+        <SettingsAiSystemPanel @providers-changed="reloadProviders" />
       </el-tab-pane>
 
       <el-tab-pane :label="$t('settings.ai.tabRag')" name="rag">
@@ -135,7 +135,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import SettingsAiRagPanel from '@/components/settings/SettingsAiRagPanel.vue'
 import SettingsAiUsagePanel from '@/components/settings/SettingsAiUsagePanel.vue'
 import SettingsAiSystemPanel from '@/components/settings/SettingsAiSystemPanel.vue'
@@ -207,7 +207,7 @@ const apiKeyPlaceholder = computed(() => {
   if (selectedPreset.value?.apiKeyRequired === false) {
     return selectedPreset.value.apiKeyPlaceholder || t('settings.ai.apiKeyOptional')
   }
-  if (tenantConfig.value?.hasApiKey) {
+  if (tenantConfig.value?.apiKeyConfigured) {
     return t('settings.ai.apiKeyKeep')
   }
   return t('settings.ai.apiKeyPlaceholder')
@@ -242,6 +242,30 @@ function onPresetChange() {
   testResult.value = null
 }
 
+function applyTenantConfig(config: AiTenantConfigVO) {
+  tenantConfig.value = config
+  form.enabled = !!config.enabled
+  if (config.preset) {
+    form.preset = config.preset
+  }
+  const preset = presets.value.find(p => p.id === form.preset)
+  form.baseUrl = config.baseUrl ?? preset?.baseUrl ?? ''
+  form.model = config.model ?? preset?.defaultModel ?? ''
+}
+
+async function reloadProviders() {
+  try {
+    const [providerRes, configRes] = await Promise.all([
+      aiApi.getProviders(),
+      aiApi.getTenantConfig(),
+    ])
+    presets.value = providerRes ?? []
+    applyTenantConfig(configRes)
+  } catch {
+    // 静默：主加载流程会提示
+  }
+}
+
 async function loadData() {
   loading.value = true
   try {
@@ -250,12 +274,7 @@ async function loadData() {
       aiApi.getTenantConfig(),
     ])
     presets.value = providerRes ?? []
-    tenantConfig.value = configRes
-    form.enabled = !!configRes.enabled
-    form.preset = configRes.preset || 'deepseek'
-    const preset = presets.value.find(p => p.id === form.preset)
-    form.baseUrl = configRes.baseUrl || preset?.baseUrl || ''
-    form.model = configRes.model || preset?.defaultModel || ''
+    applyTenantConfig(configRes)
     form.apiKey = ''
   } catch {
     ElMessage.error(t('settings.ai.loadFailed'))
@@ -277,6 +296,7 @@ async function handleSave() {
       payload.apiKey = form.apiKey.trim()
     }
     tenantConfig.value = await aiApi.saveTenantConfig(payload as any)
+    applyTenantConfig(tenantConfig.value)
     form.apiKey = ''
     ElMessage.success(t('settings.ai.saveSuccess'))
   } catch {
@@ -308,6 +328,12 @@ async function handleTest() {
 
 onMounted(() => {
   void loadData()
+})
+
+watch(activeTab, (tab) => {
+  if (tab === 'config' || tab === 'system') {
+    void reloadProviders()
+  }
 })
 </script>
 
