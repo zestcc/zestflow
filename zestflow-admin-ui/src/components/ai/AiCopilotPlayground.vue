@@ -47,8 +47,8 @@
       </div>
 
       <div v-if="lastResult" class="pg-result">
-        <el-tag :type="lastResult.status === 1 ? 'success' : 'danger'" size="small">
-          {{ lastResult.status === 1 ? 'OK' : 'FAIL' }}
+        <el-tag :type="executionResultTagType(lastResult.status)" size="small">
+          {{ executionResultLabel(lastResult.status) }}
         </el-tag>
         <span class="pg-cost">{{ lastResult.costMs }}ms</span>
         <pre class="pg-response">{{ formatResponse }}</pre>
@@ -64,6 +64,7 @@ import { ElMessage } from 'element-plus'
 import { ArrowDown } from '@element-plus/icons-vue'
 import { listAllPlaygroundScenes, getPlaygroundSceneByCode, type PlaygroundSceneVO } from '@/api/playground-scene'
 import { executePlaygroundScene, type PlaygroundExecuteResult } from '@/api/playground'
+import { useDictLabel } from '@/composables/useDictLabel'
 
 const props = defineProps<{
   enabled: boolean
@@ -72,6 +73,7 @@ const props = defineProps<{
 }>()
 
 const router = useRouter()
+const { labelOf: executionResultLabel, tagTypeOf: executionResultTagType } = useDictLabel('execution_result')
 const expanded = ref(false)
 const scenes = ref<PlaygroundSceneVO[]>([])
 const selectedSceneCode = ref('')

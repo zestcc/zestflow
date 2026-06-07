@@ -61,8 +61,8 @@
       </template>
       <template #timeout="{ row }">{{ row.timeout === -1 ? '-' : row.timeout }}</template>
       <template #async="{ row }">
-        <el-tag :type="row.async ? 'warning' : 'info'" size="small">
-          {{ row.async ? $t('components.yes') : $t('components.no') }}
+        <el-tag :type="yesNoTagType(row.async ? 1 : 0)" size="small">
+          {{ yesNoLabel(row.async ? 1 : 0) }}
         </el-tag>
       </template>
       <template #status="{ row }">
@@ -118,8 +118,8 @@
             {{ selectedComp.timeout === -1 ? '-' : selectedComp.timeout }}
           </el-descriptions-item>
           <el-descriptions-item :label="$t('components.isAsync')">
-            <el-tag :type="selectedComp.async ? 'warning' : 'info'" size="small">
-              {{ selectedComp.async ? $t('components.yes') : $t('components.no') }}
+            <el-tag :type="yesNoTagType(selectedComp.async ? 1 : 0)" size="small">
+              {{ yesNoLabel(selectedComp.async ? 1 : 0) }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item :label="$t('components.status')">
@@ -168,6 +168,7 @@ import { useResponsivePagination } from '@/composables/useResponsivePagination'
 const { t } = useI18n()
 const { options: componentTypeOptions, labelOf: componentTypeLabel, tagTypeOf: componentTypeTagType } = useDictLabel('component_type')
 const { dictOptions: componentOnlineOptions, labelOf: registryStatusLabel, tagTypeOf: registryStatusTagType } = useDictLabel('registry_status')
+const { labelOf: yesNoLabel, tagTypeOf: yesNoTagType } = useDictLabel('yes_no')
 const componentOnlineFilterOptions = computed(() =>
   componentOnlineOptions.value.filter(o => o.value === '0' || o.value === '1'),
 )

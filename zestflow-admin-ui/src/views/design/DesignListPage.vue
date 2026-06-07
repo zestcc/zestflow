@@ -142,8 +142,8 @@
         :actions-width="80"
       >
         <template #status="{ row }">
-          <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
-            {{ row.status === 1 ? $t('chains.enabled') : $t('chains.disabled') }}
+          <el-tag :type="enableStatusTagType(row.status)" size="small">
+            {{ enableStatusLabel(row.status) }}
           </el-tag>
         </template>
         <template #actions="{ row }">

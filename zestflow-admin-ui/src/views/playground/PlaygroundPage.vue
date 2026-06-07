@@ -39,8 +39,8 @@
             @click="loadHistoryDetail(item)"
           >
             <div class="history-item-top">
-              <el-tag :type="item.status === 1 ? 'success' : 'danger'" size="small" class="history-status">
-                {{ item.status === 1 ? '✓' : '✗' }}
+              <el-tag :type="executionResultTagType(item.status)" size="small" class="history-status">
+                {{ executionResultLabel(item.status) }}
               </el-tag>
               <span class="history-scene">{{ item.sceneName }}</span>
               <span class="history-time">{{ formatTime(item.createdAt) }}</span>
@@ -103,8 +103,8 @@
                 </div>
               </el-option>
             </el-select>
-            <el-tag :type="methodTagType" size="small" class="pg-method-tag">
-              {{ sceneInfo?.requestMethod || 'POST' }}
+            <el-tag :type="httpMethodTagType(sceneInfo?.requestMethod || 'POST')" size="small" class="pg-method-tag">
+              {{ httpMethodLabel(sceneInfo?.requestMethod || 'POST') }}
             </el-tag>
             <div class="pg-url-display">{{ requestPathDisplay }}</div>
           </div>
@@ -216,8 +216,8 @@
 
           <!-- 响应摘要 -->
           <div class="pg-response-summary" v-if="lastResult">
-            <el-tag :type="lastResult.status === 1 ? 'success' : 'danger'" size="default" class="pg-response-status">
-              {{ lastResult.status === 1 ? 'Success' : 'Failed' }}
+            <el-tag :type="executionResultTagType(lastResult.status)" size="default" class="pg-response-status">
+              {{ executionResultLabel(lastResult.status) }}
             </el-tag>
             <span class="pg-response-stat">
               <el-icon><Timer /></el-icon>
@@ -304,8 +304,11 @@ import {
 import { executorApi, type AppOption } from '@/api/executor'
 import { goToLogDetail } from '@/utils/zestflow-nav'
 import { useCurrentApp } from '@/composables/useCurrentApp'
+import { useDictLabel } from '@/composables/useDictLabel'
 
 const { t } = useI18n()
+const { labelOf: executionResultLabel, tagTypeOf: executionResultTagType } = useDictLabel('execution_result')
+const { labelOf: httpMethodLabel, tagTypeOf: httpMethodTagType } = useDictLabel('http_method')
 const router = useRouter()
 const { currentAppCode, syncFromApps } = useCurrentApp()
 
@@ -334,15 +337,6 @@ function showWorkspaceOnMobile() {
 const scenes = ref<PlaygroundSceneVO[]>([])
 const selectedSceneCode = ref('')
 const sceneInfo = ref<PlaygroundSceneVO | null>(null)
-
-const methodTagType = computed(() => {
-  const m = sceneInfo.value?.requestMethod
-  if (m === 'POST') return 'success'
-  if (m === 'GET') return 'primary'
-  if (m === 'PUT') return 'warning'
-  if (m === 'DELETE') return 'danger'
-  return 'info'
-})
 
 // === 应用 ===
 const apps = ref<AppOption[]>([])
