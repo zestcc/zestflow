@@ -83,34 +83,55 @@
           <el-empty v-if="!dataLoading && !dataTree.length" :description="$t('dict.noDataItems')" />
         </div>
 
-        <ResponsiveTable
-          v-else
-          :data="dataList"
-          :columns="dataColumns"
-          :loading="dataLoading"
-          row-key="id"
-          :show-actions="true"
-          :actions-label="$t('common.actions')"
-          :actions-width="140"
-        >
-          <template #status="{ row }">
-            <el-tag :type="enableStatusTagType(row.status)" size="small">
-              {{ enableStatusLabel(row.status) }}
-            </el-tag>
-          </template>
-          <template #tagType="{ row }">
-            <el-tag v-if="row.tagType" :type="row.tagType" size="small">{{ row.tagType }}</el-tag>
-            <span v-else>-</span>
-          </template>
-          <template #defaultFlag="{ row }">
-            <el-tag v-if="row.defaultFlag === 1" type="success" size="small">{{ $t('dict.yes') }}</el-tag>
-            <span v-else>-</span>
-          </template>
-          <template #actions="{ row }">
-            <el-button text size="small" type="primary" class="action-btn" @click="showEditData(row)">{{ $t('common.edit') }}</el-button>
-            <el-button text size="small" type="danger" class="action-btn" @click="handleDeleteData(row)">{{ $t('common.delete') }}</el-button>
-          </template>
-        </ResponsiveTable>
+        <div v-else class="dict-table-wrap">
+          <ResponsiveTable
+            :data="paginatedDataList"
+            :columns="dataColumns"
+            :loading="dataLoading"
+            row-key="id"
+            :show-actions="true"
+            :actions-label="$t('common.actions')"
+            :actions-width="140"
+          >
+            <template #parentId="{ row }">
+              {{ row.parentId ?? '-' }}
+            </template>
+            <template #parentTypeCode="{ row }">
+              {{ row.parentTypeCode || '-' }}
+            </template>
+            <template #parentValue="{ row }">
+              {{ row.parentValue || '-' }}
+            </template>
+            <template #status="{ row }">
+              <el-tag :type="enableStatusTagType(row.status)" size="small">
+                {{ enableStatusLabel(row.status) }}
+              </el-tag>
+            </template>
+            <template #tagType="{ row }">
+              <el-tag v-if="row.tagType" :type="row.tagType" size="small">{{ row.tagType }}</el-tag>
+              <span v-else>-</span>
+            </template>
+            <template #defaultFlag="{ row }">
+              <el-tag v-if="row.defaultFlag === 1" type="success" size="small">{{ $t('dict.yes') }}</el-tag>
+              <span v-else>-</span>
+            </template>
+            <template #actions="{ row }">
+              <el-button text size="small" type="primary" class="action-btn" @click="showEditData(row)">{{ $t('common.edit') }}</el-button>
+              <el-button text size="small" type="danger" class="action-btn" @click="handleDeleteData(row)">{{ $t('common.delete') }}</el-button>
+            </template>
+          </ResponsiveTable>
+          <div class="page-pagination-wrap">
+            <el-pagination
+              v-if="dataList.length > 0"
+              v-model:current-page="dataPage"
+              v-model:page-size="dataPageSize"
+              :total="dataList.length"
+              :page-sizes="[10, 20, 50, 100]"
+              :layout="paginationLayout"
+              background
+            />
+          </div>
+        </div>
       </main>
 
       <main v-else class="dict-data-panel dict-data-empty">
@@ -250,12 +271,14 @@ import { useDict } from '@/composables/useDict'
 import { parseAiProviderExtra, tagTypeForAiProviderTier } from '@/utils/aiProviderExtra'
 import { useDictLabel } from '@/composables/useDictLabel'
 import { useDictStore } from '@/stores/dict'
+import { useResponsivePagination } from '@/composables/useResponsivePagination'
 import { buildParentTreeOptions } from '@/utils/dictTreeUtils'
 
 const { t } = useI18n()
 const dictStore = useDictStore()
 const { labelOf: enableStatusLabel, tagTypeOf: enableStatusTagType } = useDictLabel('enable_status')
 const { options: tagTypeOptions } = useDict('tag_type')
+const { paginationLayout } = useResponsivePagination()
 
 const dataColumns = computed(() => [
   { prop: 'label', label: t('dict.label'), minWidth: 100, showOverflowTooltip: true },
@@ -277,7 +300,14 @@ const dataViewMode = ref<'tree' | 'table'>('tree')
 const dataList = ref<DictDataVO[]>([])
 const dataTree = ref<DictDataTreeVO[]>([])
 const dataLoading = ref(false)
+const dataPage = ref(1)
+const dataPageSize = ref(20)
 const crossParentOptions = ref<{ label: string; value: string }[]>([])
+
+const paginatedDataList = computed(() => {
+  const start = (dataPage.value - 1) * dataPageSize.value
+  return dataList.value.slice(start, start + dataPageSize.value)
+})
 
 const filteredTypes = computed(() => {
   const kw = typeKeyword.value.trim().toLowerCase()
@@ -336,6 +366,7 @@ async function fetchTypeList() {
 
 function selectType(row: DictTypeVO) {
   currentType.value = row
+  dataPage.value = 1
   refreshData()
 }
 
@@ -349,6 +380,8 @@ async function refreshData() {
     ])
     dataTree.value = tree || []
     dataList.value = detail.dataList || []
+    const maxPage = Math.max(1, Math.ceil(dataList.value.length / dataPageSize.value))
+    if (dataPage.value > maxPage) dataPage.value = maxPage
   } finally {
     dataLoading.value = false
   }
@@ -522,13 +555,16 @@ onMounted(fetchTypeList)
 .dict-layout {
   display: flex;
   gap: 16px;
-  min-height: 520px;
+  height: calc(100vh - 196px);
+  min-height: 480px;
+  max-height: calc(100vh - 160px);
   align-items: stretch;
 }
 
 .dict-type-panel {
   width: 280px;
   flex-shrink: 0;
+  height: 100%;
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 8px;
   background: var(--el-bg-color);
@@ -537,8 +573,17 @@ onMounted(fetchTypeList)
   overflow: hidden;
 }
 
-.type-search { margin: 12px; width: calc(100% - 24px); }
-.type-scroll { flex: 1; padding: 0 8px 12px; }
+.type-search {
+  margin: 12px;
+  width: calc(100% - 24px);
+  flex-shrink: 0;
+}
+
+.type-scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 0 8px 12px;
+}
 
 .type-item {
   padding: 10px 12px;
@@ -556,12 +601,25 @@ onMounted(fetchTypeList)
 .dict-data-panel {
   flex: 1;
   min-width: 0;
+  height: 100%;
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 8px;
   background: var(--el-bg-color);
   padding: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
-.dict-data-empty { display: flex; align-items: center; justify-content: center; }
+
+.dict-data-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.data-panel-header {
+  flex-shrink: 0;
+}
 
 .data-panel-header {
   display: flex;
@@ -575,7 +633,30 @@ onMounted(fetchTypeList)
 .data-panel-desc { margin: 4px 0 0; color: var(--el-text-color-secondary); font-size: 13px; }
 .data-panel-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
-.dict-tree-wrap { min-height: 360px; }
+.dict-tree-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.dict-table-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dict-table-wrap :deep(.responsive-table-wrapper) {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.dict-table-wrap .page-pagination-wrap {
+  flex-shrink: 0;
+  margin-top: 12px;
+}
 .tree-node {
   flex: 1;
   display: flex;
@@ -591,7 +672,20 @@ onMounted(fetchTypeList)
 .tree-node-actions { flex-shrink: 0; }
 
 @media (max-width: 768px) {
-  .dict-layout { flex-direction: column; }
-  .dict-type-panel { width: 100%; max-height: 240px; }
+  .dict-layout {
+    flex-direction: column;
+    height: auto;
+    max-height: none;
+  }
+
+  .dict-type-panel {
+    width: 100%;
+    height: 240px;
+  }
+
+  .dict-data-panel {
+    height: auto;
+    min-height: 420px;
+  }
 }
 </style>

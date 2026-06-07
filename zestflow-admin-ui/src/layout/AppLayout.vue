@@ -28,7 +28,7 @@
           @toggle-sidebar="toggleMobileSidebar"
         />
       </el-header>
-      <el-main class="main-content">
+      <el-main class="main-content content-scroll">
         <NoAppEmpty v-if="route.meta?.requiresExecutor && !appStore.hasOnlineApps" />
         <template v-else>
           <div v-if="!route.meta?.hideTitle" class="page-title">{{ route.meta?.title || '' }}</div>
@@ -100,39 +100,41 @@ onUnmounted(() => {
 <style scoped>
 .layout-container {
   height: 100vh;
+  background: var(--main-bg);
 }
 
 .desktop-sidebar {
-  background-color: #304156;
-  transition: width 0.3s;
+  background: linear-gradient(180deg, var(--sidebar-bg) 0%, var(--sidebar-bg-end) 100%);
+  transition: width 0.28s ease;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   height: 100%;
+  box-shadow: 1px 0 0 rgba(0, 0, 0, 0.06);
 }
 
 .el-header {
-  background-color: #fff;
-  border-bottom: 1px solid #e6e6e6;
+  background-color: var(--surface-bg);
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   padding: 0 20px;
-  height: 60px;
+  height: 56px;
+  box-shadow: var(--shadow-sm);
 }
 
 .main-content {
-  background-color: #f0f2f5;
-  padding: 20px;
+  background-color: var(--main-bg);
+  padding: 20px 24px;
   overflow-y: auto;
 }
 
 .page-title {
-  font-size: 18px;
+  font-size: var(--font-size-lg);
   font-weight: 600;
-  color: #303133;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #e4e7ed;
+  color: var(--text-primary);
+  margin: 0 0 20px;
+  letter-spacing: -0.01em;
 }
 
 /* ============================================================
@@ -150,8 +152,7 @@ onUnmounted(() => {
 
   .page-title {
     font-size: 16px;
-    margin-bottom: 12px;
-    padding-bottom: 8px;
+    margin-bottom: 16px;
   }
 }
 

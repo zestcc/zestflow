@@ -8,8 +8,8 @@ DELETE FROM flyway_schema_history WHERE version > '1';
 -- 2) 删除失败记录
 DELETE FROM flyway_schema_history WHERE success = 0;
 
--- 3) 启动 Admin 后 Flyway 会 repair V1 checksum（demo 环境自动 repair+migrate）
---    若表结构仍是旧版，请删库重建：
+-- 3) 非 prod 且 spring.flyway.enabled=true 时，Admin 启动会自动 repair+migrate
+--    若表结构仍是旧版（缺 sys_config / 字典 parent 列等），请删库重建：
 --    DROP DATABASE zestflow_admin;
 --    CREATE DATABASE zestflow_admin CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
