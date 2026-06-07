@@ -8,8 +8,8 @@
         </el-button>
         <span v-if="appName" class="app-prefix">{{ appName }}</span>
         <span class="toolbar-title">{{ design?.name }}</span>
-        <el-tag v-if="design" :type="design.status === 1 ? 'success' : 'danger'" size="small">
-          {{ design.status === 1 ? $t('design.enabled') : $t('design.disabled') }}
+        <el-tag v-if="design" :type="enableStatusTagType(design.status)" size="small">
+          {{ enableStatusLabel(design.status) }}
         </el-tag>
       </div>
       <div class="toolbar-center">
@@ -624,8 +624,8 @@
           </el-tag>
         </template>
         <template #status="{ row }">
-          <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
-            {{ row.status === 1 ? $t('components.online') : $t('components.offline') }}
+          <el-tag :type="registryStatusTagType(row.status)" size="small">
+            {{ registryStatusLabel(row.status) }}
           </el-tag>
         </template>
         <template #selected="{ row }">
@@ -680,8 +680,8 @@
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item :label="$t('design.detailStatus')">
-            <el-tag :type="compDrawer.data.status === 1 ? 'success' : 'info'" size="small">
-              {{ compDrawer.data.status === 1 ? $t('components.online') : $t('components.offline') }}
+            <el-tag :type="registryStatusTagType(compDrawer.data.status)" size="small">
+              {{ registryStatusLabel(compDrawer.data.status) }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item :label="$t('design.detailCachedAt')" v-if="compDrawer.data.cachedAt">
@@ -760,6 +760,7 @@ import { Clipboard } from '@antv/x6-plugin-clipboard'
 import { Export } from '@antv/x6-plugin-export'
 import { designApi } from '@/api/design'
 import { useDict } from '@/composables/useDict'
+import { useDictLabel } from '@/composables/useDictLabel'
 import { useResponsiveDrawerSize } from '@/composables/useResponsiveDrawerSize'
 import { useResponsivePagination } from '@/composables/useResponsivePagination'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
@@ -1165,6 +1166,9 @@ watch([selectedNodeData, selectedEdgeData], ([node, edge]) => {
 const { options: executeStrategyOptions } = useDict('execute_strategy')
 const { options: designLineTypeOptions } = useDict('design_line_type')
 const { options: predicateModeOptions } = useDict('predicate_mode')
+const { labelOf: enableStatusLabel, tagTypeOf: enableStatusTagType } = useDictLabel('enable_status')
+const { labelOf: registryStatusLabel, tagTypeOf: registryStatusTagType } = useDictLabel('registry_status')
+const { labelOf: designNodeTypeLabel } = useDictLabel('design_node_type')
 
 const chainSettings = reactive({
   transactionEnabled: false,
@@ -1439,6 +1443,8 @@ function nodeColor(type: string) {
 
 function typeLabel(type: string) {
   const nt = normalizeNodeType(type)
+  const dictLabel = designNodeTypeLabel(nt)
+  if (dictLabel && dictLabel !== nt) return dictLabel
   const meta = getNodeTypeMeta(nt)
   if (meta) {
     const key = `design.${meta.i18nKey}`

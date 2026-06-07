@@ -195,6 +195,31 @@ public final class SystemDictSeeds {
                 item("DELAY", "延迟", "info")
         )));
 
+        seeds.add(new Seed("run_location", "任务运行位置", List.of(
+                item("local", "Admin 本地", "success"),
+                item("remote", "远程节点", "warning")
+        )));
+        seeds.add(new Seed("config_value_type", "系统配置值类型", List.of(
+                item("json", "JSON", "primary"),
+                item("text", "文本", "info"),
+                item("number", "数字", "warning"),
+                item("bool", "布尔", "success")
+        )));
+        seeds.add(new Seed("log_analytics_time_range", "日志分析时间窗", List.of(
+                item("24h", "近 24 小时", "primary"),
+                item("7d", "近 7 天", "info"),
+                item("30d", "近 30 天", "warning")
+        )));
+        seeds.add(new Seed("log_analytics_granularity", "日志趋势粒度", List.of(
+                item("hour", "按小时", "primary"),
+                item("day", "按天", "info")
+        )));
+        seeds.add(new Seed("log_analytics_rank_by", "日志排行维度", List.of(
+                item("count", "执行次数", "primary"),
+                item("fail", "失败次数", "danger"),
+                item("slow", "平均耗时", "warning")
+        )));
+
         // ---- AI Copilot 相关 ----
 
         seeds.add(new Seed("ai_provider_tier", "AI 提供商档位", List.of(

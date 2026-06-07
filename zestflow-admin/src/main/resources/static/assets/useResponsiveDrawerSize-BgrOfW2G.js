@@ -1,1 +1,0 @@
-import{aO as i,aP as r,aX as s,J as t}from"./index-B1Guj_KE.js";const a=768;function w(o=480){const e=s(!1);function n(){e.value=window.innerWidth<a}return i(()=>{n(),window.addEventListener("resize",n)}),r(()=>{window.removeEventListener("resize",n)}),{drawerSize:t(()=>e.value?"100%":o),isMobile:e}}export{w as u};

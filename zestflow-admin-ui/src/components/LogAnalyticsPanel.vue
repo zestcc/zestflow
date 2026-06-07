@@ -2,9 +2,9 @@
   <div class="log-analytics">
     <div class="analytics-toolbar">
       <el-radio-group v-model="timeRange" size="small" @change="refresh">
-        <el-radio-button label="24h">{{ $t('logs.range24h') }}</el-radio-button>
-        <el-radio-button label="7d">{{ $t('logs.range7d') }}</el-radio-button>
-        <el-radio-button label="30d">{{ $t('logs.range30d') }}</el-radio-button>
+        <el-radio-button v-for="item in timeRangeOptions" :key="item.value" :label="item.value">
+          {{ item.label }}
+        </el-radio-button>
       </el-radio-group>
       <el-input
         v-model="executorFilter"
@@ -60,8 +60,9 @@
       <template #header>
         <span>{{ $t('logs.trendTitle') }}</span>
         <el-radio-group v-model="granularity" size="small" style="float:right" @change="loadTrend">
-          <el-radio-button label="hour">{{ $t('logs.granularityHour') }}</el-radio-button>
-          <el-radio-button label="day">{{ $t('logs.granularityDay') }}</el-radio-button>
+          <el-radio-button v-for="item in granularityOptions" :key="item.value" :label="item.value">
+            {{ item.label }}
+          </el-radio-button>
         </el-radio-group>
       </template>
       <div v-if="trend.length === 0" class="empty-hint">{{ $t('logs.noData') }}</div>
@@ -83,9 +84,7 @@
             <div class="rank-header">
               <span>{{ $t('logs.rankChains') }}</span>
               <el-select v-model="chainRankBy" size="small" style="width:120px" @change="loadChainRank">
-                <el-option :label="$t('logs.rankByCount')" value="count" />
-                <el-option :label="$t('logs.rankByFail')" value="fail" />
-                <el-option :label="$t('logs.rankBySlow')" value="slow" />
+                <el-option v-for="item in rankByOptions" :key="item.value" :label="item.label" :value="item.value" />
               </el-select>
             </div>
           </template>
@@ -108,9 +107,7 @@
             <div class="rank-header">
               <span>{{ $t('logs.rankExecutors') }}</span>
               <el-select v-model="executorRankBy" size="small" style="width:120px" @change="loadExecutorRank">
-                <el-option :label="$t('logs.rankByCount')" value="count" />
-                <el-option :label="$t('logs.rankByFail')" value="fail" />
-                <el-option :label="$t('logs.rankBySlow')" value="slow" />
+                <el-option v-for="item in rankByOptions" :key="item.value" :label="item.label" :value="item.value" />
               </el-select>
             </div>
           </template>
@@ -176,10 +173,15 @@ import {
   queryNodeRanking,
   queryFailureClusters,
 } from '@/api/logs'
+import { useDictLabel } from '@/composables/useDictLabel'
 
 const props = defineProps<{
   appCode?: string
 }>()
+
+const { options: timeRangeOptions } = useDictLabel('log_analytics_time_range')
+const { options: granularityOptions } = useDictLabel('log_analytics_granularity')
+const { options: rankByOptions } = useDictLabel('log_analytics_rank_by')
 
 const timeRange = ref<'24h' | '7d' | '30d'>('24h')
 const granularity = ref<'hour' | 'day'>('hour')

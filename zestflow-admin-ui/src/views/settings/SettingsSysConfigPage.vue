@@ -22,10 +22,7 @@
         </el-select>
       </el-form-item>
       <el-form-item :label="$t('common.status')">
-        <el-select v-model="filter.status" :placeholder="$t('common.all')" clearable class="page-filter-control--sm">
-          <el-option :label="$t('dict.enabled')" :value="1" />
-          <el-option :label="$t('dict.disabled')" :value="0" />
-        </el-select>
+        <DictSelect v-model="filter.status" type-code="enable_status" class="page-filter-control--sm" />
       </el-form-item>
       <el-form-item class="filter-actions-item">
         <el-button type="primary" @click="handleSearch">{{ $t('common.search') }}</el-button>
@@ -52,8 +49,8 @@
         <el-tag size="small">{{ row.category }}</el-tag>
       </template>
       <template #status="{ row }">
-        <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
-          {{ row.status === 1 ? $t('dict.enabled') : $t('dict.disabled') }}
+        <el-tag :type="statusTagType(row.status)" size="small">
+          {{ statusLabel(row.status) }}
         </el-tag>
       </template>
       <template #actions="{ row }">
@@ -92,9 +89,7 @@
           <el-input v-model="form.configName" maxlength="128" />
         </el-form-item>
         <el-form-item :label="$t('sysConfig.valueType')" prop="valueType">
-          <el-select v-model="form.valueType" style="width:180px">
-            <el-option v-for="t in valueTypes" :key="t" :label="t" :value="t" />
-          </el-select>
+          <DictSelect v-model="form.valueType" type-code="config_value_type" :clearable="false" style="width:180px" />
         </el-form-item>
         <el-form-item :label="$t('sysConfig.category')">
           <el-select v-model="form.category" filterable allow-create default-first-option style="width:220px">
@@ -128,12 +123,13 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { sysConfigApi, type SysConfigVO } from '@/api/sysConfig'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
+import DictSelect from '@/components/common/DictSelect.vue'
+import { useDictLabel } from '@/composables/useDictLabel'
 import { useResponsivePagination } from '@/composables/useResponsivePagination'
 
 const { t } = useI18n()
 const { paginationLayout } = useResponsivePagination()
-
-const valueTypes = ['json', 'text', 'number', 'bool']
+const { labelOf: statusLabel, tagTypeOf: statusTagType } = useDictLabel('enable_status')
 
 const columns = computed(() => [
   { prop: 'configKey', label: t('sysConfig.configKey'), minWidth: 160, showOverflowTooltip: true },

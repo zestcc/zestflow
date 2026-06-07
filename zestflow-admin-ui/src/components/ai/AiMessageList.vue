@@ -11,7 +11,7 @@
       :class="`ai-message-item--${msg.role}`"
     >
       <div class="ai-message-role">
-        {{ msg.role === 'user' ? $t('ai.roleUser') : $t('ai.roleAssistant') }}
+        {{ chatRoleLabel(msg.role) }}
       </div>
       <div class="ai-message-bubble">
         <template v-if="msg.loading">
@@ -27,7 +27,10 @@
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue'
 import { ChatDotRound, Loading } from '@element-plus/icons-vue'
+import { useDictLabel } from '@/composables/useDictLabel'
 import type { AiCopilotMessage } from '@/stores/aiCopilot'
+
+const { labelOf: chatRoleLabel } = useDictLabel('ai_chat_role')
 
 const props = defineProps<{
   messages: AiCopilotMessage[]

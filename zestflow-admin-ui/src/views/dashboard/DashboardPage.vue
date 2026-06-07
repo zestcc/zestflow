@@ -141,8 +141,8 @@
         {{ row.executorId || '-' }}
       </template>
       <template #status="{ row }">
-        <el-tag :type="row.status === 1 ? 'success' : row.status === 0 ? 'danger' : 'info'" size="small">
-          {{ row.status === 1 ? t('schedules.success') : row.status === 0 ? t('schedules.failed') : '-' }}
+        <el-tag :type="scheduleLogTagType(row.status)" size="small">
+          {{ scheduleLogLabel(row.status) }}
         </el-tag>
       </template>
       <template #costMs="{ row }">
@@ -163,8 +163,10 @@ import { queryExecutionTraces } from '@/api/logs'
 import { getFeatures, type Features } from '@/api/system'
 import type { DashboardStatsVO } from '@/api/dashboard'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
+import { useDictLabel } from '@/composables/useDictLabel'
 
 const { t } = useI18n()
+const { labelOf: scheduleLogLabel, tagTypeOf: scheduleLogTagType } = useDictLabel('schedule_log_status')
 
 const features = ref<Features | null>(null)
 

@@ -65,8 +65,8 @@
         <span v-else>-</span>
       </template>
       <template #status="{ row }">
-        <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
-          {{ row.status === 1 ? $t('common.success') : $t('common.failed') }}
+        <el-tag :type="executionResultTagType(row.status)" size="small">
+          {{ executionResultLabel(row.status) }}
         </el-tag>
       </template>
       <template #actions="{ row }">
@@ -131,8 +131,8 @@
             {{ detailData.requestPath || '-' }}
           </el-descriptions-item>
           <el-descriptions-item :label="$t('playground.records.status')">
-            <el-tag :type="detailData.status === 1 ? 'success' : 'danger'" size="small">
-              {{ detailData.status === 1 ? $t('common.success') : $t('common.failed') }}
+            <el-tag :type="executionResultTagType(detailData.status)" size="small">
+              {{ executionResultLabel(detailData.status) }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item :label="$t('playground.records.costMs')">
@@ -184,7 +184,7 @@ import { useResponsivePagination } from '@/composables/useResponsivePagination'
 import { useDictLabel } from '@/composables/useDictLabel'
 
 const { t } = useI18n()
-const { dictOptions: executionResultOptions } = useDictLabel('execution_result')
+const { dictOptions: executionResultOptions, labelOf: executionResultLabel, tagTypeOf: executionResultTagType } = useDictLabel('execution_result')
 const router = useRouter()
 const { currentAppCode, syncFromApps } = useCurrentApp()
 const { drawerSize: detailDrawerSize } = useResponsiveDrawerSize(600)

@@ -79,12 +79,12 @@
           <el-tag size="small">{{ row.module || '-' }}</el-tag>
         </template>
         <template #remote="{ row }">
-          <el-tag size="small" :type="row.remote ? 'warning' : 'success'">
-            {{ row.remote ? $t('schedules.remoteNode') : $t('schedules.adminLocal') }}
+          <el-tag size="small" :type="runLocationTagType(row.remote ? 'remote' : 'local')">
+            {{ runLocationLabel(row.remote ? 'remote' : 'local') }}
           </el-tag>
         </template>
         <template #routeStrategy="{ row }">
-          <el-tag v-if="row.routeStrategy" size="small">{{ $t('schedules.' + row.routeStrategy) }}</el-tag>
+          <el-tag v-if="row.routeStrategy" size="small">{{ routeStrategyLabel(row.routeStrategy) }}</el-tag>
           <span v-else>-</span>
         </template>
         <template #status="{ row }">
@@ -330,6 +330,8 @@ const { dictOptions: scheduleLogStatusOptions } = useDictLabel('schedule_log_sta
 const { labelOf: logStatusLabel, tagTypeOf: logStatusTagType } = useDictLabel('schedule_log_status')
 const { labelOf: jobTypeLabel, tagTypeOf: jobTypeTagType } = useDictLabel('schedule_job_type')
 const { labelOf: triggerTypeLabel, tagTypeOf: triggerTypeTagType } = useDictLabel('schedule_trigger_type')
+const { labelOf: routeStrategyLabel } = useDictLabel('route_strategy')
+const { labelOf: runLocationLabel, tagTypeOf: runLocationTagType } = useDictLabel('run_location')
 const { options: platformModuleOptions } = useDict('platform_module')
 
 const logDialogVisible = ref(false)

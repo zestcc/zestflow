@@ -56,8 +56,8 @@
         <span class="code-link" @click="openDesignDetail(row)">{{ row.code }}</span>
       </template>
       <template #status="{ row }">
-        <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
-          {{ row.status === 1 ? $t('design.enabled') : $t('design.disabled') }}
+        <el-tag :type="enableStatusTagType(row.status)" size="small">
+          {{ enableStatusLabel(row.status) }}
         </el-tag>
       </template>
       <template #appCode>{{ currentAppName }}</template>
@@ -177,7 +177,7 @@ import { useResponsivePagination } from '@/composables/useResponsivePagination'
 import { useDictLabel } from '@/composables/useDictLabel'
 
 const { t } = useI18n()
-const { dictOptions: enableStatusOptions } = useDictLabel('enable_status')
+const { dictOptions: enableStatusOptions, labelOf: enableStatusLabel, tagTypeOf: enableStatusTagType } = useDictLabel('enable_status')
 const router = useRouter()
 const { currentAppCode, syncFromApps } = useCurrentApp()
 const { paginationLayout } = useResponsivePagination()

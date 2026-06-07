@@ -266,8 +266,8 @@
               <el-tag size="small" style="font-family:monospace">{{ currentDesignDetail.code }}</el-tag>
             </el-descriptions-item>
             <el-descriptions-item label="状态">
-              <el-tag :type="currentDesignDetail.status === 1 ? 'success' : 'danger'" size="small">
-                {{ currentDesignDetail.status === 1 ? '启用' : '停用' }}
+              <el-tag :type="enableStatusTagType(currentDesignDetail.status)" size="small">
+                {{ enableStatusLabel(currentDesignDetail.status) }}
               </el-tag>
             </el-descriptions-item>
             <el-descriptions-item label="设计者">
@@ -344,6 +344,7 @@ import { useDictLabel } from '@/composables/useDictLabel'
 const { t } = useI18n()
 const router = useRouter()
 const { labelOf: chainStatusLabel, tagTypeOf: chainStatusTagType, dictOptions: chainStatusOptions } = useDictLabel('chain_lifecycle_status')
+const { labelOf: enableStatusLabel, tagTypeOf: enableStatusTagType } = useDictLabel('enable_status')
 const { drawerSize: chainDrawerSize } = useResponsiveDrawerSize(480)
 const { drawerSize: designDrawerSize } = useResponsiveDrawerSize(520)
 const { currentAppCode, syncFromApps } = useCurrentApp()

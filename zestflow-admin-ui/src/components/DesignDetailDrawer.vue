@@ -23,8 +23,8 @@
             <el-tag size="small" style="font-family:monospace">{{ detail.code }}</el-tag>
           </el-descriptions-item>
           <el-descriptions-item :label="$t('design.status')">
-            <el-tag :type="detail.status === 1 ? 'success' : 'danger'" size="small">
-              {{ detail.status === 1 ? $t('design.enabled') : $t('design.disabled') }}
+            <el-tag :type="enableStatusTagType(detail.status)" size="small">
+              {{ enableStatusLabel(detail.status) }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item :label="$t('design.designer')">
@@ -66,9 +66,11 @@ import { useRouter } from 'vue-router'
 import { Loading } from '@element-plus/icons-vue'
 import { designApi, type DesignVO } from '@/api/design'
 import { useResponsiveDrawerSize } from '@/composables/useResponsiveDrawerSize'
+import { useDictLabel } from '@/composables/useDictLabel'
 
 const router = useRouter()
 const { drawerSize } = useResponsiveDrawerSize(520)
+const { labelOf: enableStatusLabel, tagTypeOf: enableStatusTagType } = useDictLabel('enable_status')
 
 const visible = ref(false)
 const loading = ref(false)

@@ -94,8 +94,8 @@
           :actions-width="140"
         >
           <template #status="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
-              {{ row.status === 1 ? $t('dict.enabled') : $t('dict.disabled') }}
+            <el-tag :type="enableStatusTagType(row.status)" size="small">
+              {{ enableStatusLabel(row.status) }}
             </el-tag>
           </template>
           <template #tagType="{ row }">
@@ -239,11 +239,13 @@ import { useI18n } from 'vue-i18n'
 import { dictApi, type DictTypeVO, type DictDataVO, type DictDataTreeVO } from '@/api/dict'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
 import { useDict } from '@/composables/useDict'
+import { useDictLabel } from '@/composables/useDictLabel'
 import { useDictStore } from '@/stores/dict'
 import { buildParentTreeOptions } from '@/utils/dictTreeUtils'
 
 const { t } = useI18n()
 const dictStore = useDictStore()
+const { labelOf: enableStatusLabel, tagTypeOf: enableStatusTagType } = useDictLabel('enable_status')
 const { options: tagTypeOptions } = useDict('tag_type')
 
 const dataColumns = computed(() => [

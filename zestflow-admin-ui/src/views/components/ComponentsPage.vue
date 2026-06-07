@@ -55,8 +55,8 @@
         <span class="code-link" @click="showDetail(row)">{{ row.componentId }}</span>
       </template>
       <template #componentType="{ row }">
-        <el-tag :type="typeTagType(row.componentType)" size="small">
-          {{ typeLabel(row.componentType) }}
+        <el-tag size="small" :type="componentTypeTagType(row.componentType)">
+          {{ componentTypeLabel(row.componentType) }}
         </el-tag>
       </template>
       <template #timeout="{ row }">{{ row.timeout === -1 ? '-' : row.timeout }}</template>
@@ -66,8 +66,8 @@
         </el-tag>
       </template>
       <template #status="{ row }">
-        <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
-          {{ row.status === 1 ? $t('components.active') : $t('components.offline') }}
+        <el-tag :type="registryStatusTagType(row.status)" size="small">
+          {{ registryStatusLabel(row.status) }}
         </el-tag>
       </template>
       <template #cachedAt="{ row }">{{ row.cachedAt }}</template>
@@ -101,8 +101,8 @@
             {{ selectedComp.componentName }}
           </el-descriptions-item>
           <el-descriptions-item :label="$t('components.componentType')">
-            <el-tag :type="typeTagType(selectedComp.componentType)" size="small">
-              {{ typeLabel(selectedComp.componentType) }}
+            <el-tag :type="componentTypeTagType(selectedComp.componentType)" size="small">
+              {{ componentTypeLabel(selectedComp.componentType) }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item :label="$t('components.description')" v-if="selectedComp.description">
@@ -123,8 +123,8 @@
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item :label="$t('components.status')">
-            <el-tag :type="selectedComp.status === 1 ? 'success' : 'info'" size="small">
-              {{ selectedComp.status === 1 ? $t('components.active') : $t('components.offline') }}
+            <el-tag :type="registryStatusTagType(selectedComp.status)" size="small">
+              {{ registryStatusLabel(selectedComp.status) }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item :label="$t('components.updatedAt')" v-if="selectedComp.cachedAt">
@@ -160,15 +160,14 @@ import type { ComponentVO } from '@/api/component'
 import { executorApi, type AppOption } from '@/api/executor'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
 import AiComponentScaffoldDialog from '@/components/ai/AiComponentScaffoldDialog.vue'
-import { useDict } from '@/composables/useDict'
 import { useDictLabel } from '@/composables/useDictLabel'
 import { useCurrentApp } from '@/composables/useCurrentApp'
 import { useResponsiveDrawerSize } from '@/composables/useResponsiveDrawerSize'
 import { useResponsivePagination } from '@/composables/useResponsivePagination'
 
 const { t } = useI18n()
-const { options: componentTypeOptions } = useDict('component_type')
-const { dictOptions: componentOnlineOptions } = useDictLabel('registry_status')
+const { options: componentTypeOptions, labelOf: componentTypeLabel, tagTypeOf: componentTypeTagType } = useDictLabel('component_type')
+const { dictOptions: componentOnlineOptions, labelOf: registryStatusLabel, tagTypeOf: registryStatusTagType } = useDictLabel('registry_status')
 const componentOnlineFilterOptions = computed(() =>
   componentOnlineOptions.value.filter(o => o.value === '0' || o.value === '1'),
 )
@@ -196,36 +195,6 @@ const tagColumns = computed(() => [
 
 function tagRowKey(row: { name: string }) {
   return row.name
-}
-
-function typeLabel(type: string): string {
-  const map: Record<string, string> = {
-    EXECUTOR: t('components.typeExecutor'),
-    PREDICATE: t('components.typePredicate'),
-    SELECTOR: t('components.typeSelector'),
-    LOADER: t('components.typeLoader'),
-    PARSER: t('components.typeParser'),
-    PRE_PROCESSOR: t('components.typePreProcessor'),
-    POST_PROCESSOR: t('components.typePostProcessor'),
-    PARAM_BINDER: t('components.typeParamBinder'),
-    PARAM_VALIDATOR: t('components.typeParamValidator'),
-  }
-  return map[type] || type
-}
-
-function typeTagType(type: string): string {
-  const map: Record<string, string> = {
-    EXECUTOR: 'primary',
-    PREDICATE: 'warning',
-    SELECTOR: '',
-    LOADER: 'cyan',
-    PARSER: 'success',
-    PRE_PROCESSOR: '',
-    POST_PROCESSOR: 'success',
-    PARAM_BINDER: '',
-    PARAM_VALIDATOR: 'success',
-  }
-  return map[type] || 'info'
 }
 
 const loading = ref(false)

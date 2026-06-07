@@ -42,7 +42,7 @@
         <span v-else>-</span>
       </template>
       <template #requestMethod="{ row }">
-        <el-tag :type="row.requestMethod === 'POST' ? 'success' : 'warning'" size="small">{{ row.requestMethod }}</el-tag>
+        <el-tag :type="httpMethodTagType(row.requestMethod)" size="small">{{ httpMethodLabel(row.requestMethod) }}</el-tag>
       </template>
       <template #chainCode="{ row }">
         <span v-if="row.chainCode" class="code-link" @click.stop="openChainDetail(row.chainCode, row.appCode)">{{ row.chainCode }}</span>
@@ -175,8 +175,8 @@
           </el-button>
         </template>
         <template #requestMethod="{ row }">
-          <el-tag :type="row.requestMethod === 'POST' ? 'success' : row.requestMethod === 'GET' ? 'primary' : 'warning'" size="small">
-            {{ row.requestMethod }}
+          <el-tag :type="httpMethodTagType(row.requestMethod)" size="small">
+            {{ httpMethodLabel(row.requestMethod) }}
           </el-tag>
         </template>
         <template #selected="{ row }">
@@ -213,8 +213,8 @@
             <el-tag size="small" effect="plain">{{ endpointDetailData.className }}</el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="Method" :span="1">
-            <el-tag :type="endpointDetailData.requestMethod === 'POST' ? 'success' : endpointDetailData.requestMethod === 'GET' ? 'primary' : 'warning'" size="small">
-              {{ endpointDetailData.requestMethod }}
+            <el-tag :type="httpMethodTagType(endpointDetailData.requestMethod)" size="small">
+              {{ httpMethodLabel(endpointDetailData.requestMethod) }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="接口路径" :span="1">
@@ -308,9 +308,10 @@ import { useCurrentApp } from '@/composables/useCurrentApp'
 import { useResponsiveDrawerSize } from '@/composables/useResponsiveDrawerSize'
 import { useResponsivePagination } from '@/composables/useResponsivePagination'
 import { useDict } from '@/composables/useDict'
+import { useDictLabel } from '@/composables/useDictLabel'
 
 const { t } = useI18n()
-const { options: httpMethodOptions } = useDict('http_method')
+const { options: httpMethodOptions, labelOf: httpMethodLabel, tagTypeOf: httpMethodTagType } = useDictLabel('http_method')
 const { options: httpBodyTypeOptions } = useDict('http_body_type')
 const route = useRoute()
 const { currentAppCode, syncFromApps } = useCurrentApp()
