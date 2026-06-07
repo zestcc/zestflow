@@ -1,130 +1,109 @@
 <template>
   <div class="dashboard">
-    <el-alert v-if="features?.admin" type="info" :closable="false" class="runtime-banner" show-icon>
-      <template #title>{{ $t('dashboard.runtimeTitle') }}</template>
+    <div v-if="features?.admin" class="runtime-strip">
+      <span class="runtime-strip-label">{{ $t('dashboard.runtimeTitle') }}</span>
       <div class="runtime-tags">
-        <el-tag size="small" effect="plain">{{ $t('dashboard.deployMode') }}: {{ features.admin.deployMode }}</el-tag>
-        <el-tag size="small" effect="plain">{{ $t('dashboard.cacheType') }}: {{ features.admin.cacheType }}</el-tag>
-        <el-tag size="small" :type="features.admin.redisRequired ? 'warning' : 'success'">
+        <span class="runtime-chip">{{ $t('dashboard.deployMode') }} · {{ features.admin.deployMode }}</span>
+        <span class="runtime-chip">{{ $t('dashboard.cacheType') }} · {{ features.admin.cacheType }}</span>
+        <span class="runtime-chip" :class="features.admin.redisRequired ? 'runtime-chip--warn' : 'runtime-chip--ok'">
           {{ features.admin.redisRequired ? $t('dashboard.redisRequired') : $t('dashboard.redisNotRequired') }}
-        </el-tag>
-        <el-tag v-if="features.security" size="small" :type="features.security.registryTokenConfigured ? 'success' : 'info'">
+        </span>
+        <span v-if="features.security" class="runtime-chip" :class="features.security.registryTokenConfigured ? 'runtime-chip--ok' : ''">
           {{ $t('dashboard.registryToken') }}:
           {{ features.security.registryTokenConfigured ? $t('dashboard.registryTokenOn') : $t('dashboard.registryTokenOff') }}
-        </el-tag>
-        <el-tag v-if="features.security?.executorAccessTokenConfigured != null" size="small"
-          :type="features.security.executorAccessTokenConfigured ? 'success' : 'info'">
+        </span>
+        <span v-if="features.security?.executorAccessTokenConfigured != null" class="runtime-chip"
+          :class="features.security.executorAccessTokenConfigured ? 'runtime-chip--ok' : ''">
           {{ $t('dashboard.executorAccessToken') }}:
           {{ features.security.executorAccessTokenConfigured ? $t('dashboard.registryTokenOn') : $t('dashboard.registryTokenOff') }}
-        </el-tag>
+        </span>
       </div>
-    </el-alert>
+    </div>
 
     <!-- 执行器概览 -->
     <h3 class="section-title">执行器</h3>
-    <el-row :gutter="20" class="cards">
+    <el-row :gutter="16" class="stat-row">
       <el-col :xs="12" :sm="12" :md="6">
-        <el-card shadow="hover">
-          <div class="card-item">
-            <div class="card-value">{{ stats.totalExecutors }}</div>
-            <div class="card-label">{{ $t('dashboard.totalExecutors') }}</div>
-          </div>
-        </el-card>
+        <div class="stat-card">
+          <div class="stat-card-value">{{ stats.totalExecutors }}</div>
+          <div class="stat-card-label">{{ $t('dashboard.totalExecutors') }}</div>
+        </div>
       </el-col>
       <el-col :xs="12" :sm="12" :md="6">
-        <el-card shadow="hover">
-          <div class="card-item card-success">
-            <div class="card-value">{{ stats.healthyExecutors }}</div>
-            <div class="card-label">{{ $t('dashboard.healthyExecutors') }}</div>
-          </div>
-        </el-card>
+        <div class="stat-card stat-card--success">
+          <div class="stat-card-value">{{ stats.healthyExecutors }}</div>
+          <div class="stat-card-label">{{ $t('dashboard.healthyExecutors') }}</div>
+        </div>
       </el-col>
       <el-col :xs="12" :sm="12" :md="6">
-        <el-card shadow="hover">
-          <div class="card-item card-danger">
-            <div class="card-value">{{ stats.errorExecutors }}</div>
-            <div class="card-label">{{ $t('dashboard.errorExecutors') }}</div>
-          </div>
-        </el-card>
+        <div class="stat-card stat-card--danger">
+          <div class="stat-card-value">{{ stats.errorExecutors }}</div>
+          <div class="stat-card-label">{{ $t('dashboard.errorExecutors') }}</div>
+        </div>
       </el-col>
       <el-col :xs="12" :sm="12" :md="6">
-        <el-card shadow="hover">
-          <div class="card-item card-warning">
-            <div class="card-value">{{ stats.offlineExecutors }}</div>
-            <div class="card-label">{{ $t('dashboard.offlineExecutors') }}</div>
-          </div>
-        </el-card>
+        <div class="stat-card stat-card--warning">
+          <div class="stat-card-value">{{ stats.offlineExecutors }}</div>
+          <div class="stat-card-label">{{ $t('dashboard.offlineExecutors') }}</div>
+        </div>
       </el-col>
     </el-row>
 
     <!-- 应用 & 链 & 设计概览 -->
     <h3 class="section-title">{{ $t('dashboard.apps') }}</h3>
-    <el-row :gutter="20" class="cards">
+    <el-row :gutter="16" class="stat-row">
       <el-col :xs="12" :sm="12" :md="6">
-        <el-card shadow="hover">
-          <div class="card-item">
-            <div class="card-value">{{ stats.totalApps }}</div>
-            <div class="card-label">{{ $t('dashboard.totalApps') }}</div>
-          </div>
-        </el-card>
+        <div class="stat-card">
+          <div class="stat-card-value">{{ stats.totalApps }}</div>
+          <div class="stat-card-label">{{ $t('dashboard.totalApps') }}</div>
+        </div>
       </el-col>
       <el-col :xs="12" :sm="12" :md="6">
-        <el-card shadow="hover">
-          <div class="card-item">
-            <div class="card-value">{{ stats.totalChains }}</div>
-            <div class="card-label">{{ $t('dashboard.totalChains') }}</div>
-          </div>
-        </el-card>
+        <div class="stat-card">
+          <div class="stat-card-value">{{ stats.totalChains }}</div>
+          <div class="stat-card-label">{{ $t('dashboard.totalChains') }}</div>
+        </div>
       </el-col>
       <el-col :xs="12" :sm="12" :md="6">
-        <el-card shadow="hover">
-          <div class="card-item">
-            <div class="card-value">{{ stats.enabledChains }}</div>
-            <div class="card-label">{{ $t('dashboard.enabledChains') }}</div>
-          </div>
-        </el-card>
+        <div class="stat-card">
+          <div class="stat-card-value">{{ stats.enabledChains }}</div>
+          <div class="stat-card-label">{{ $t('dashboard.enabledChains') }}</div>
+        </div>
       </el-col>
       <el-col :xs="12" :sm="12" :md="6">
-        <el-card shadow="hover">
-          <div class="card-item">
-            <div class="card-value">{{ stats.totalDesigns }}</div>
-            <div class="card-label">{{ $t('dashboard.totalDesigns') }}</div>
-          </div>
-        </el-card>
+        <div class="stat-card">
+          <div class="stat-card-value">{{ stats.totalDesigns }}</div>
+          <div class="stat-card-label">{{ $t('dashboard.totalDesigns') }}</div>
+        </div>
       </el-col>
     </el-row>
 
     <!-- 执行统计 -->
     <h3 class="section-title">{{ $t('dashboard.executionStats') }}</h3>
-    <el-row :gutter="20" class="cards">
+    <el-row :gutter="16" class="stat-row">
       <el-col :xs="24" :sm="8" :md="8">
-        <el-card shadow="hover">
-          <div class="card-item">
-            <div class="card-value">{{ stats.todayExecutions }}</div>
-            <div class="card-label">{{ $t('dashboard.todayExecutions') }}</div>
-          </div>
-        </el-card>
+        <div class="stat-card stat-card--wide">
+          <div class="stat-card-value">{{ stats.todayExecutions }}</div>
+          <div class="stat-card-label">{{ $t('dashboard.todayExecutions') }}</div>
+        </div>
       </el-col>
       <el-col :xs="24" :sm="8" :md="8">
-        <el-card shadow="hover">
-          <div class="card-item">
-            <div class="card-value">{{ formatMs(stats.avgExecutionMs) }}</div>
-            <div class="card-label">{{ $t('dashboard.avgExecutionMs') }}</div>
-          </div>
-        </el-card>
+        <div class="stat-card stat-card--wide">
+          <div class="stat-card-value">{{ formatMs(stats.avgExecutionMs) }}</div>
+          <div class="stat-card-label">{{ $t('dashboard.avgExecutionMs') }}</div>
+        </div>
       </el-col>
       <el-col :xs="24" :sm="8" :md="8">
-        <el-card shadow="hover">
-          <div class="card-item" :class="stats.successRate >= 80 ? 'card-success' : 'card-danger'">
-            <div class="card-value">{{ formatRate(stats.successRate) }}</div>
-            <div class="card-label">{{ $t('dashboard.successRate') }}</div>
-          </div>
-        </el-card>
+        <div class="stat-card stat-card--wide" :class="stats.successRate >= 80 ? 'stat-card--success' : 'stat-card--danger'">
+          <div class="stat-card-value">{{ formatRate(stats.successRate) }}</div>
+          <div class="stat-card-label">{{ $t('dashboard.successRate') }}</div>
+        </div>
       </el-col>
     </el-row>
 
     <!-- 最近执行记录 -->
     <h3 class="section-title">{{ $t('dashboard.recentExecutions') }}</h3>
+    <div class="table-panel">
     <ResponsiveTable
       :data="recentExecutions"
       :columns="executionColumns"
@@ -152,6 +131,7 @@
         {{ formatTime(row.startTime) }}
       </template>
     </ResponsiveTable>
+    </div>
   </div>
 </template>
 
@@ -253,68 +233,146 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.runtime-banner {
-  margin-bottom: 20px;
+.dashboard {
+  max-width: 1440px;
+}
+
+.runtime-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  background: var(--surface-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.runtime-strip-label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .runtime-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 4px;
+}
+
+.runtime-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  background: #f0f2f5;
+  border: 1px solid transparent;
+}
+
+.runtime-chip--ok {
+  color: #3a7a2a;
+  background: #f0f9eb;
+}
+
+.runtime-chip--warn {
+  color: #b88230;
+  background: #fdf6ec;
 }
 
 .section-title {
-  margin: 24px 0 16px;
-  font-size: 16px;
-  color: #606266;
+  margin: 20px 0 12px;
+  font-size: 15px;
+  color: var(--text-secondary);
   font-weight: 600;
 }
 
-.card-item {
+.stat-row {
+  margin-bottom: 4px;
+}
+
+.stat-row :deep(.el-col) {
+  margin-bottom: 12px;
+}
+
+.stat-card {
+  background: var(--surface-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 18px 16px 16px;
   text-align: center;
-  padding: 10px 0;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.card-value {
-  font-size: 32px;
-  font-weight: bold;
-  color: #409eff;
+.stat-card:hover {
+  border-color: #d4dbe6;
+  box-shadow: var(--shadow-md);
 }
 
-.card-success .card-value {
-  color: #67c23a;
+.stat-card--wide {
+  padding-top: 20px;
+  padding-bottom: 18px;
 }
 
-.card-danger .card-value {
-  color: #f56c6c;
+.stat-card-value {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #2563eb;
+  letter-spacing: -0.02em;
 }
 
-.card-warning .card-value {
-  color: #e6a23c;
+.stat-card--success .stat-card-value {
+  color: #16a34a;
 }
 
-.card-label {
-  font-size: 14px;
-  color: #909399;
-  margin-top: 8px;
+.stat-card--danger .stat-card-value {
+  color: #dc2626;
+}
+
+.stat-card--warning .stat-card-value {
+  color: #d97706;
+}
+
+.stat-card-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+.table-panel {
+  background: var(--surface-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 4px 4px 8px;
 }
 
 @media (max-width: 767px) {
+  .runtime-strip {
+    padding: 10px 12px;
+  }
+
   .section-title {
-    margin: 16px 0 12px;
+    margin: 16px 0 10px;
     font-size: 14px;
   }
 
-  .card-value {
-    font-size: 24px;
+  .stat-card {
+    padding: 14px 12px;
   }
 
-  .card-item {
-    padding: 6px 0;
+  .stat-card-value {
+    font-size: 22px;
   }
 
-  .card-label {
+  .stat-card-label {
     font-size: 12px;
     margin-top: 4px;
   }

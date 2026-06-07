@@ -5,11 +5,12 @@
       <img v-else src="/favicon.svg" alt="ZF" class="logo-icon" />
     </div>
     <el-menu
+      class="sidebar-menu sidebar-scroll"
       :default-active="route.path"
       :collapse="collapsed"
-      background-color="#304156"
-      text-color="#bfcbd9"
-      active-text-color="#409eff"
+      background-color="transparent"
+      text-color="var(--sidebar-text)"
+      active-text-color="#ffffff"
       router
       @select="handleMenuSelect"
     >
@@ -137,27 +138,58 @@ onMounted(() => {
 }
 
 .logo {
-  height: 60px;
+  height: 56px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .logo-img {
-  height: 32px;
+  height: 30px;
 }
 
 .logo-icon {
-  height: 28px;
+  height: 26px;
 }
 
-.el-menu {
+.sidebar-menu {
   border-right: none;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  padding: 8px 0 12px;
+}
+
+.sidebar-menu:not(.el-menu--collapse) {
+  width: 100%;
+}
+
+.sidebar-menu :deep(.el-menu-item),
+.sidebar-menu :deep(.el-sub-menu__title) {
+  margin: 2px 10px;
+  border-radius: 8px;
+  height: 44px;
+  line-height: 44px;
+}
+
+.sidebar-menu :deep(.el-menu-item.is-active) {
+  background: linear-gradient(90deg, rgba(64, 158, 255, 0.28) 0%, rgba(64, 158, 255, 0.12) 100%) !important;
+  color: #ffffff !important;
+  font-weight: 500;
+}
+
+.sidebar-menu :deep(.el-menu-item:hover),
+.sidebar-menu :deep(.el-sub-menu__title:hover) {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+.sidebar-menu :deep(.el-sub-menu .el-menu-item) {
+  margin-left: 10px;
+  margin-right: 10px;
+  min-width: auto;
 }
 </style>
