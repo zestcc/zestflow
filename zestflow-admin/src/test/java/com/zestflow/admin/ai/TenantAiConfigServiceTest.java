@@ -5,6 +5,7 @@ import com.zestflow.admin.ai.model.dto.AiTenantConfigSaveDTO;
 import com.zestflow.admin.ai.model.entity.AiTenantConfigPO;
 import com.zestflow.admin.ai.model.vo.AiTenantConfigVO;
 import com.zestflow.admin.ai.repository.AiTenantConfigMapper;
+import com.zestflow.admin.config.AiPlatformConfig;
 import com.zestflow.admin.service.TenantAppContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,16 +28,17 @@ class TenantAiConfigServiceTest {
     @Mock private AiApiKeyCipher apiKeyCipher;
     @Mock private TenantAppContext tenantAppContext;
 
-    private AiProperties aiProperties;
+    private AiPlatformConfig aiPlatformConfig;
     private TenantAiConfigService service;
 
     @BeforeEach
     void setUp() {
-        aiProperties = new AiProperties();
-        aiProperties.setEnabled(true);
-        aiProperties.setDefaultPreset("deepseek");
+        AiProperties yaml = new AiProperties();
+        yaml.setEnabled(true);
+        yaml.setDefaultPreset("deepseek");
+        aiPlatformConfig = AiPlatformConfigTestFixtures.fromYaml(yaml);
         service = new TenantAiConfigService(
-                configMapper, presetRegistry, apiKeyCipher, aiProperties, tenantAppContext);
+                configMapper, presetRegistry, apiKeyCipher, aiPlatformConfig, tenantAppContext);
 
         AiProviderPreset deepseek = new AiProviderPreset();
         deepseek.setId("deepseek");
@@ -86,7 +88,11 @@ class TenantAiConfigServiceTest {
 
     @Test
     void isCopilotEnabledForTenant_whenDisabledGlobally_returnsFalse() {
-        aiProperties.setEnabled(false);
+        AiProperties yaml = new AiProperties();
+        yaml.setEnabled(false);
+        aiPlatformConfig = AiPlatformConfigTestFixtures.fromYaml(yaml);
+        service = new TenantAiConfigService(
+                configMapper, presetRegistry, apiKeyCipher, aiPlatformConfig, tenantAppContext);
 
         assertThat(service.isCopilotEnabledForTenant(1L)).isFalse();
     }

@@ -1,5 +1,6 @@
 package com.zestflow.admin.ai;
 
+import com.zestflow.admin.config.AiPlatformConfig;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
@@ -35,7 +36,7 @@ final class AiRagIndexEngine {
     List<String> search(String query,
                           String ragMode,
                           int limit,
-                          AiProperties aiProperties,
+                          AiPlatformConfig aiPlatformConfig,
                           AiEmbeddingClient embeddingClient,
                           TenantAiConfigService tenantAiConfigService) {
         if (!StringUtils.hasText(query) || chunks.isEmpty()) {
@@ -60,8 +61,8 @@ final class AiRagIndexEngine {
         }
         ranked.sort(Comparator.comparingDouble((AiRagService.ScoredChunk sc) -> sc.score).reversed());
 
-        if (aiProperties.isRagUseLlmEmbedding() && !ranked.isEmpty()) {
-            rerankWithLlmEmbeddings(query, ranked, aiProperties, embeddingClient, tenantAiConfigService);
+        if (aiPlatformConfig.isRagUseLlmEmbedding() && !ranked.isEmpty()) {
+            rerankWithLlmEmbeddings(query, ranked, aiPlatformConfig, embeddingClient, tenantAiConfigService);
             ranked.sort(Comparator.comparingDouble((AiRagService.ScoredChunk sc) -> sc.score).reversed());
         }
 
@@ -92,7 +93,7 @@ final class AiRagIndexEngine {
 
     private void rerankWithLlmEmbeddings(String query,
                                          List<AiRagService.ScoredChunk> ranked,
-                                         AiProperties aiProperties,
+                                         AiPlatformConfig aiPlatformConfig,
                                          AiEmbeddingClient embeddingClient,
                                          TenantAiConfigService tenantAiConfigService) {
         try {
@@ -101,12 +102,12 @@ final class AiRagIndexEngine {
             if (!config.ready()) {
                 return;
             }
-            ensureLlmEmbeddings(config, aiProperties, embeddingClient);
-            float[] queryEmbedding = embeddingClient.embed(query, buildEmbeddingOptions(config, aiProperties));
+            ensureLlmEmbeddings(config, aiPlatformConfig, embeddingClient);
+            float[] queryEmbedding = embeddingClient.embed(query, buildEmbeddingOptions(config, aiPlatformConfig));
             if (queryEmbedding.length == 0) {
                 return;
             }
-            int candidateLimit = Math.min(ranked.size(), aiProperties.getRagEmbeddingCandidateLimit());
+            int candidateLimit = Math.min(ranked.size(), aiPlatformConfig.getRagEmbeddingCandidateLimit());
             for (int i = 0; i < candidateLimit; i++) {
                 AiRagService.ScoredChunk sc = ranked.get(i);
                 float[] chunkEmbedding = sc.chunk.llmEmbedding();
@@ -122,13 +123,13 @@ final class AiRagIndexEngine {
     }
 
     private synchronized void ensureLlmEmbeddings(TenantAiConfigService.EffectiveAiConfig config,
-                                                  AiProperties aiProperties,
+                                                  AiPlatformConfig aiPlatformConfig,
                                                   AiEmbeddingClient embeddingClient) {
         if (llmEmbeddingsReady) {
             return;
         }
         List<String> texts = chunks.stream().map(AiRagService.IndexedChunk::text).toList();
-        List<float[]> vectors = embeddingClient.embedBatch(texts, buildEmbeddingOptions(config, aiProperties));
+        List<float[]> vectors = embeddingClient.embedBatch(texts, buildEmbeddingOptions(config, aiPlatformConfig));
         for (int i = 0; i < chunks.size() && i < vectors.size(); i++) {
             AiRagService.IndexedChunk old = chunks.get(i);
             chunks.set(i, new AiRagService.IndexedChunk(old.source(), old.text(), vectors.get(i)));
@@ -137,17 +138,17 @@ final class AiRagIndexEngine {
     }
 
     private static AiChatClient.AiChatOptions buildEmbeddingOptions(
-            TenantAiConfigService.EffectiveAiConfig config, AiProperties aiProperties) {
-        String model = StringUtils.hasText(aiProperties.getRagEmbeddingModel())
-                ? aiProperties.getRagEmbeddingModel()
+            TenantAiConfigService.EffectiveAiConfig config, AiPlatformConfig aiPlatformConfig) {
+        String model = StringUtils.hasText(aiPlatformConfig.getRagEmbeddingModel())
+                ? aiPlatformConfig.getRagEmbeddingModel()
                 : config.model();
         return new AiChatClient.AiChatOptions(
                 config.baseUrl(),
                 config.apiKey(),
                 model,
-                aiProperties.getTimeoutMs(),
-                aiProperties.getMaxTokens(),
-                aiProperties.getTemperature(),
+                aiPlatformConfig.getTimeoutMs(),
+                aiPlatformConfig.getMaxTokens(),
+                aiPlatformConfig.getTemperature(),
                 false
         );
     }

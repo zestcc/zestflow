@@ -6,6 +6,7 @@ import com.zestflow.admin.playground.repository.PlaygroundRecordMapper;
 import com.zestflow.admin.playground.repository.PlaygroundSceneMapper;
 import com.zestflow.admin.client.CollectorQueryAggregator;
 import com.zestflow.admin.client.ExecutorProxyService;
+import com.zestflow.admin.config.PlaygroundPlatformConfig;
 import com.zestflow.admin.playground.support.PlaygroundAccessControl;
 import com.zestflow.admin.playground.support.PlaygroundUrlResolver;
 import com.zestflow.admin.service.TenantAppContext;
@@ -34,6 +35,7 @@ class PlaygroundServiceImplTest {
     @Mock private PlaygroundAccessControl accessControl;
     @Mock private PlaygroundUrlResolver playgroundUrlResolver;
     @Mock private CollectorQueryAggregator collectorQueryAggregator;
+    @Mock private PlaygroundPlatformConfig playgroundPlatformConfig;
 
     private PlaygroundServiceImpl playgroundService;
 
@@ -41,7 +43,9 @@ class PlaygroundServiceImplTest {
     void setUp() {
         playgroundService = new PlaygroundServiceImpl(
                 sceneMapper, recordMapper, proxyService, rateLimiter,
-                tenantAppContext, accessControl, playgroundUrlResolver, collectorQueryAggregator);
+                tenantAppContext, accessControl, playgroundUrlResolver, collectorQueryAggregator,
+                playgroundPlatformConfig);
+        lenient().when(playgroundPlatformConfig.getExecuteTimeoutMs()).thenReturn(30_000);
         lenient().when(playgroundUrlResolver.allowedBaseUrls(anyString())).thenReturn(java.util.List.of());
         lenient().when(playgroundUrlResolver.stripInternalAbsoluteUrl(anyString())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(playgroundUrlResolver.isExecutePath(anyString())).thenAnswer(inv -> {

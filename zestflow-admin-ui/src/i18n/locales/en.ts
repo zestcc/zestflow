@@ -683,7 +683,7 @@ export default {
     textPlaceholder: 'Text content',
     invalidJson: 'Invalid JSON',
     deleteConfirm: 'Delete config "{key}"?',
-    hint: 'Non-enum global parameters (thresholds, flags, JSON blobs), separate from dictionary enums.',
+    platformHint: 'Platform params live on tenant 1 and apply to all tenants at runtime. Changes take effect immediately (alert scan interval requires restart). YAML is bootstrap fallback only.',
   },
   design: {
     title: 'Design List',

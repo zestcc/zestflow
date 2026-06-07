@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import com.zestflow.admin.config.PlaygroundPlatformConfig;
 import com.zestflow.admin.playground.PlaygroundRateLimiter;
 
 import com.zestflow.admin.playground.model.entity.PlaygroundRecordPO;
@@ -110,11 +111,7 @@ public class PlaygroundServiceImpl implements PlaygroundService {
 
     private final CollectorQueryAggregator collectorQueryAggregator;
 
-
-
-    @Value("${zestflow.playground.execute-timeout-ms:30000}")
-
-    private long executeTimeoutMs;
+    private final PlaygroundPlatformConfig playgroundPlatformConfig;
 
 
 
@@ -284,7 +281,7 @@ public class PlaygroundServiceImpl implements PlaygroundService {
 
                 .idempotencyKey("playground-" + scene.getSceneCode() + "-" + UUID.randomUUID())
 
-                .timeoutMs(executeTimeoutMs)
+                .timeoutMs((long) playgroundPlatformConfig.getExecuteTimeoutMs())
 
                 .build();
 

@@ -1,5 +1,6 @@
 package com.zestflow.admin.ai;
 
+import com.zestflow.admin.config.AiPlatformConfig;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
@@ -24,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class AiRagService {
 
-    private final AiProperties aiProperties;
+    private final AiPlatformConfig aiPlatformConfig;
     private final AiEmbeddingClient embeddingClient;
     private final TenantAiConfigService tenantAiConfigService;
     private final AiRagDocumentService ragDocumentService;
@@ -32,11 +33,11 @@ public class AiRagService {
     private final AiRagIndexEngine globalIndex = new AiRagIndexEngine();
     private final Map<Long, AiRagIndexEngine> tenantIndexes = new ConcurrentHashMap<>();
 
-    public AiRagService(AiProperties aiProperties,
+    public AiRagService(AiPlatformConfig aiPlatformConfig,
                         AiEmbeddingClient embeddingClient,
                         TenantAiConfigService tenantAiConfigService,
                         @Lazy AiRagDocumentService ragDocumentService) {
-        this.aiProperties = aiProperties;
+        this.aiPlatformConfig = aiPlatformConfig;
         this.embeddingClient = embeddingClient;
         this.tenantAiConfigService = tenantAiConfigService;
         this.ragDocumentService = ragDocumentService;
@@ -44,7 +45,7 @@ public class AiRagService {
 
     @PostConstruct
     void loadGlobalIndex() {
-        if (!aiProperties.isRagEnabled()) {
+        if (!aiPlatformConfig.isRagEnabled()) {
             return;
         }
         List<IndexedChunk> chunks = new ArrayList<>();
@@ -59,26 +60,26 @@ public class AiRagService {
                 chunks.addAll(AiRagIndexEngine.splitMarkdown(resource.getFilename(), text));
             }
             globalIndex.rebuild(chunks);
-            log.info("AI RAG 平台索引已加载 chunks={} mode={}", chunks.size(), aiProperties.getRagMode());
+            log.info("AI RAG 平台索引已加载 chunks={} mode={}", chunks.size(), aiPlatformConfig.getRagMode());
         } catch (IOException e) {
             log.warn("AI RAG 平台索引加载失败", e);
         }
     }
 
     public List<String> retrieve(Long tenantId, String appCode, String query, int limit) {
-        if (!aiProperties.isRagEnabled() || !StringUtils.hasText(query)) {
+        if (!aiPlatformConfig.isRagEnabled() || !StringUtils.hasText(query)) {
             return List.of();
         }
-        int max = limit > 0 ? limit : aiProperties.getRagMaxChunks();
-        String mode = aiProperties.getRagMode();
+        int max = limit > 0 ? limit : aiPlatformConfig.getRagMaxChunks();
+        String mode = aiPlatformConfig.getRagMode();
 
         List<RankedHit> hits = new ArrayList<>();
-        appendHits(hits, globalIndex.search(query, mode, max, aiProperties, embeddingClient, tenantAiConfigService), "platform");
+        appendHits(hits, globalIndex.search(query, mode, max, aiPlatformConfig, embeddingClient, tenantAiConfigService), "platform");
 
         if (tenantId != null) {
             AiRagIndexEngine tenantIndex = tenantIndexes.computeIfAbsent(tenantId,
                     id -> buildTenantIndex(id, appCode));
-            appendHits(hits, tenantIndex.search(query, mode, max, aiProperties, embeddingClient, tenantAiConfigService), "tenant");
+            appendHits(hits, tenantIndex.search(query, mode, max, aiPlatformConfig, embeddingClient, tenantAiConfigService), "tenant");
         }
 
         return hits.stream()
@@ -106,11 +107,11 @@ public class AiRagService {
     }
 
     public String retrievalMode() {
-        if (!aiProperties.isRagEnabled()) {
+        if (!aiPlatformConfig.isRagEnabled()) {
             return "disabled";
         }
-        String mode = normalizeMode(aiProperties.getRagMode());
-        if (aiProperties.isRagUseLlmEmbedding()) {
+        String mode = normalizeMode(aiPlatformConfig.getRagMode());
+        if (aiPlatformConfig.isRagUseLlmEmbedding()) {
             return mode + "+embedding";
         }
         return mode;

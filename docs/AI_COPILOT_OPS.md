@@ -1,24 +1,39 @@
 # ZestFlow Copilot 运维指南
 
-> **版本** 1.0 · **更新** 2026-06-02 · 配合 [AI_COPILOT.md](./AI_COPILOT.md) P5 使用
+> **版本** 1.1 · **更新** 2026-06-06 · 配合 [AI_COPILOT.md](./AI_COPILOT.md) P5 使用
 
 本文面向平台运维与租户管理员，说明 AI 预设维护、租户 RAG 知识库、用量看板与常见部署配置。
 
 ---
 
-## 1. 全局开关与环境变量
+## 1. 全局开关与配置来源
 
-### 1.1 application.yml（Admin）
+### 1.1 运行时优先级
+
+```
+有效值 = sys_config（租户 1，Admin UI 可改，热更新）> application.yml 冷启动兜底
+```
+
+| 层 | 存储 | 说明 |
+|----|------|------|
+| 部署/密钥 | yaml + 环境变量 | JWT、registry-token、SMTP、`env-keys` 等 |
+| 枚举/级联 | 字典 `ai_provider` / `ai_model` | 提供商与模型列表 |
+| 平台可调参数 | `sys_config`（租户 1） | AI 开关、RAG 阈值、Playground 超时等 |
+| 租户 AI 运行时 | `zf_ai_tenant_config` | 每租户 preset、Key、配额 |
+
+**运维入口：** 设置 → **系统配置**（平台参数，租户 1 维护）；设置 → **AI 配置**（租户级 preset/Key/RAG 文档）。
+
+### 1.2 application.yml（Admin，仅兜底）
 
 ```yaml
 zestflow:
   ai:
-    enabled: true                    # 全局 Copilot 开关
+    enabled: true                    # 全局 Copilot 开关（sys_config: ai.enabled 优先）
     default-preset: deepseek
     timeout-ms: 60000
     max-tokens: 4096
     tenant-auto-init: true           # 非生产可自动写入默认租户 AI 配置
-    env-keys:                        # presetId → 环境变量名（兜底 Key）
+    env-keys:                        # presetId → 环境变量名（兜底 Key，仅 yaml）
       deepseek: DEEPSEEK_API_KEY
       siliconflow: SILICONFLOW_API_KEY
       groq: GROQ_API_KEY
@@ -31,7 +46,9 @@ zestflow:
     rag-tenant-max-content-bytes: 524288
 ```
 
-### 1.2 常用环境变量
+首次启动时 `SystemConfigSeeder` 会将缺失的 `sys_config` 键补齐为 yaml 当前值；之后以 UI 修改为准。
+
+### 1.3 常用环境变量
 
 | 变量 | 用途 |
 |------|------|
@@ -47,14 +64,15 @@ zestflow:
 
 ## 2. AI 提供商预设维护
 
-预设定义文件：`zestflow-admin/src/main/resources/ai-providers.yaml`
+提供商枚举由字典 `ai_provider` / `ai_model` 管理（树状级联）。`ai-providers.yaml` **仅在空库首次启动时** 作为种子写入字典，之后通过 **设置 → 字典管理** 维护。
 
 ### 2.1 新增或调整预设
 
-1. 在 `ai-providers.yaml` 增加条目（`id`、`displayName`、`baseUrl`、`defaultModel`、`models`、`tier`、`region` 等）。
-2. 本地 `custom` 预设允许租户填写任意 OpenAI 兼容 Base URL。
-3. 标记 `deprecated: true` 时可指定 `successor` 引导迁移。
-4. 重启 Admin 后 `/api/ai/providers` 生效；无需数据库迁移。
+1. 在字典 `ai_provider` 下新增条目（或通过 yaml 种子后于 UI 编辑）。
+2. 在对应 provider 的 `ai_model` 子节点维护模型列表。
+3. 本地 `custom` 预设允许租户填写任意 OpenAI 兼容 Base URL。
+4. 标记 `deprecated: true` 时可指定 `successor` 引导迁移。
+5. 修改后立即生效；无需重启 Admin。
 
 ### 2.2 验证
 
@@ -155,7 +173,7 @@ Flyway `V1__init_admin_schema.sql`（Beta 整合，含原 AI V3–V5）：
 
 | 现象 | 排查 |
 |------|------|
-| Copilot 灰显 | 检查全局 `zestflow.ai.enabled`、租户「启用 Copilot」、Key 是否配置 |
+| Copilot 灰显 | 检查 `sys_config` `ai.enabled`（或 yaml 兜底）、租户「启用 Copilot」、Key 是否配置 |
 | RAG 无命中 | `/api/ai/rag/status` 看 `platformChunks` / `tenantChunks`；确认文档 `enabled=1` |
 | 文件目录不生效 | `rag-tenant-filesystem-enabled=true`；路径 `{dir}/{tenantId}/*.md`；重建索引 |
 | 用量为空 | 需有 Copilot 会话；仅 scaffold 规则模板时部分指标为 0 |

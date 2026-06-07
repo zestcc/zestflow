@@ -5,6 +5,7 @@ import com.zestflow.admin.ai.model.entity.AiCopilotMessagePO;
 import com.zestflow.admin.ai.model.entity.AiTenantConfigPO;
 import com.zestflow.admin.ai.repository.AiCopilotMessageMapper;
 import com.zestflow.admin.ai.repository.AiTenantConfigMapper;
+import com.zestflow.admin.config.AiPlatformConfig;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +20,7 @@ public class AiQuotaService {
 
     private final AiTenantConfigMapper configMapper;
     private final AiCopilotMessageMapper messageMapper;
-    private final AiProperties aiProperties;
+    private final AiPlatformConfig aiPlatformConfig;
 
     public void ensureWithinQuota(Long tenantId) {
         Integer quota = resolveMonthlyQuota(tenantId);
@@ -40,7 +41,7 @@ public class AiQuotaService {
         if (po != null && po.getMonthlyTokenQuota() != null) {
             return po.getMonthlyTokenQuota();
         }
-        int globalDefault = aiProperties.getDefaultMonthlyTokenQuota();
+        int globalDefault = aiPlatformConfig.getDefaultMonthlyTokenQuota();
         return globalDefault > 0 ? globalDefault : null;
     }
 

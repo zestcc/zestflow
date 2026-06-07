@@ -1,5 +1,6 @@
 package com.zestflow.admin.ai;
 
+import com.zestflow.admin.config.AiPlatformConfig;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -7,7 +8,7 @@ import static org.mockito.Mockito.mock;
 
 class AiRagServiceTest {
 
-    private final AiProperties props = ragProperties();
+    private final AiPlatformConfig props = AiPlatformConfigTestFixtures.fromYaml(ragProperties());
     private final AiRagDocumentService docService = mock(AiRagDocumentService.class);
     private final AiRagService ragService = new AiRagService(
             props,

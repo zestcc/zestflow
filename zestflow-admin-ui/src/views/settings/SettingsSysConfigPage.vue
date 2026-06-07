@@ -7,6 +7,9 @@
         </div>
         <el-button type="primary" @click="openCreate">{{ $t('sysConfig.create') }}</el-button>
       </div>
+      <el-alert type="info" :closable="false" show-icon class="platform-hint">
+        {{ $t('sysConfig.platformHint') }}
+      </el-alert>
     </div>
 
     <el-form :model="filter" inline size="default" class="responsive-filter-form" style="margin-bottom:12px">
@@ -314,6 +317,7 @@ onMounted(async () => {
 
 <style scoped>
 .summary-total { font-weight: 600; color: #409eff; }
+.platform-hint { margin-top: 12px; }
 .action-btn.action-btn { padding: 2px 4px; margin-left: 0; }
 .config-value-preview {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;

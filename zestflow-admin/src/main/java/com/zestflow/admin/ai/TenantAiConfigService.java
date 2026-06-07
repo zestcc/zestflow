@@ -9,6 +9,7 @@ import com.zestflow.admin.ai.model.vo.AiConfigStatusVO;
 import com.zestflow.admin.ai.model.vo.AiProviderVO;
 import com.zestflow.admin.ai.model.vo.AiTenantConfigVO;
 import com.zestflow.admin.ai.repository.AiTenantConfigMapper;
+import com.zestflow.admin.config.AiPlatformConfig;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.service.TenantAppContext;
 import com.zestflow.common.exception.BizException;
@@ -32,7 +33,7 @@ public class TenantAiConfigService {
     private final AiTenantConfigMapper configMapper;
     private final AiProviderPresetRegistry presetRegistry;
     private final AiApiKeyCipher apiKeyCipher;
-    private final AiProperties aiProperties;
+    private final AiPlatformConfig aiPlatformConfig;
     private final TenantAppContext tenantAppContext;
 
     public AiTenantConfigVO getTenantConfig(Long tenantId) {
@@ -74,7 +75,7 @@ public class TenantAiConfigService {
         }
         if (existing == null) {
             if (po.getPreset() == null) {
-                po.setPreset(aiProperties.getDefaultPreset());
+                po.setPreset(aiPlatformConfig.getDefaultPreset());
             }
             if (po.getEnabled() == null) {
                 po.setEnabled(false);
@@ -93,9 +94,9 @@ public class TenantAiConfigService {
                 .map(AiProviderPreset::getDisplayName)
                 .orElse(effective.preset());
         return AiConfigStatusVO.builder()
-                .globallyEnabled(aiProperties.isEnabled())
+                .globallyEnabled(aiPlatformConfig.isEnabled())
                 .tenantEnabled(tenantEnabled)
-                .copilotAvailable(aiProperties.isEnabled() && tenantEnabled && effective.ready())
+                .copilotAvailable(aiPlatformConfig.isEnabled() && tenantEnabled && effective.ready())
                 .preset(effective.preset())
                 .model(effective.model())
                 .presetDisplayName(displayName)
@@ -111,7 +112,7 @@ public class TenantAiConfigService {
     }
 
     public boolean isCopilotEnabledForTenant(Long tenantId) {
-        if (!aiProperties.isEnabled()) {
+        if (!aiPlatformConfig.isEnabled()) {
             return false;
         }
         AiTenantConfigPO po = findByTenantId(tenantId);
@@ -121,9 +122,9 @@ public class TenantAiConfigService {
     public EffectiveAiConfig resolveEffectiveConfig(Long tenantId) {
         AiTenantConfigPO po = findByTenantId(tenantId);
         String presetId = po != null && StringUtils.hasText(po.getPreset())
-                ? po.getPreset() : aiProperties.getDefaultPreset();
+                ? po.getPreset() : aiPlatformConfig.getDefaultPreset();
         AiProviderPreset preset = presetRegistry.getById(presetId)
-                .orElse(presetRegistry.getById(aiProperties.getDefaultPreset()).orElse(null));
+                .orElse(presetRegistry.getById(aiPlatformConfig.getDefaultPreset()).orElse(null));
 
         String baseUrl = po != null && StringUtils.hasText(po.getBaseUrl())
                 ? po.getBaseUrl()
@@ -148,7 +149,7 @@ public class TenantAiConfigService {
 
     public EffectiveAiConfig resolveForTest(AiTenantConfigSaveDTO override) {
         String presetId = StringUtils.hasText(override.getPreset())
-                ? override.getPreset() : aiProperties.getDefaultPreset();
+                ? override.getPreset() : aiPlatformConfig.getDefaultPreset();
         AiProviderPreset preset = presetRegistry.requireById(presetId);
         String baseUrl = StringUtils.hasText(override.getBaseUrl())
                 ? override.getBaseUrl() : preset.getBaseUrl();
@@ -164,8 +165,8 @@ public class TenantAiConfigService {
      * 从环境变量解析免费 API Key（按预设 ID）。
      */
     public String resolveEnvApiKey(String presetId, AiProviderPreset preset) {
-        if (aiProperties.getEnvKeys() != null && StringUtils.hasText(presetId)) {
-            String fromEnv = aiProperties.getEnvKeys().get(presetId);
+        if (aiPlatformConfig.getEnvKeys() != null && StringUtils.hasText(presetId)) {
+            String fromEnv = aiPlatformConfig.getEnvKeys().get(presetId);
             if (StringUtils.hasText(fromEnv)) {
                 return fromEnv.trim();
             }
@@ -181,11 +182,11 @@ public class TenantAiConfigService {
      * 检测环境变量中首个可用的免费云端预设（优先级：硅基 > DeepSeek > Groq > 通义 > Gemini）。
      */
     public String detectEnvPresetId() {
-        if (aiProperties.getEnvKeys() == null) {
+        if (aiPlatformConfig.getEnvKeys() == null) {
             return null;
         }
         for (String id : List.of("siliconflow", "deepseek", "groq", "dashscope", "gemini", "github-models")) {
-            String key = aiProperties.getEnvKeys().get(id);
+            String key = aiPlatformConfig.getEnvKeys().get(id);
             if (StringUtils.hasText(key) && presetRegistry.getById(id).isPresent()) {
                 return id;
             }
@@ -219,7 +220,7 @@ public class TenantAiConfigService {
         if (po == null) {
             return AiTenantConfigVO.builder()
                     .enabled(false)
-                    .preset(aiProperties.getDefaultPreset())
+                    .preset(aiPlatformConfig.getDefaultPreset())
                     .apiKeyConfigured(false)
                     .build();
         }

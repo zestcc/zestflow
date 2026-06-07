@@ -6,6 +6,7 @@ import com.zestflow.admin.ai.model.dto.AiValidateRequest;
 import com.zestflow.admin.ai.model.vo.AiConfigStatusVO;
 import com.zestflow.admin.ai.model.vo.AiValidationVO;
 import com.zestflow.admin.client.ExecutorProxyService;
+import com.zestflow.admin.config.AiPlatformConfig;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.service.PermissionService;
 import com.zestflow.admin.service.TenantAppContext;
@@ -40,7 +41,7 @@ class AiCopilotControllerTest {
     @Mock private AiRagService aiRagService;
     @Mock private AiRagDocumentService ragDocumentService;
     @Mock private AiUsageStatsService usageStatsService;
-    @Mock private AiProperties aiProperties;
+    @Mock private AiPlatformConfig aiPlatformConfig;
     @Mock private TenantAppContext tenantAppContext;
     @Mock private PermissionService permissionService;
     @Mock private ExecutorProxyService executorProxyService;
@@ -52,7 +53,7 @@ class AiCopilotControllerTest {
     void setUp() {
         controller = new AiCopilotController(aiCopilotService, tenantAiConfigService,
                 chainKeyHintService, chainTemplateService, aiRagService, ragDocumentService,
-                usageStatsService, aiProperties, tenantAppContext, permissionService, executorProxyService);
+                usageStatsService, aiPlatformConfig, tenantAppContext, permissionService, executorProxyService);
         when(tenantAppContext.getCurrentTenantId()).thenReturn(1L);
     }
 

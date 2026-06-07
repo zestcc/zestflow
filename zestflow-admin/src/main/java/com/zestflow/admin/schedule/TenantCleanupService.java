@@ -1,7 +1,7 @@
 package com.zestflow.admin.schedule;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.zestflow.admin.config.TenantModeConfig;
+import com.zestflow.admin.config.TenantPlatformConfig;
 import com.zestflow.admin.model.entity.TenantIpMappingPO;
 import com.zestflow.admin.model.entity.TenantPO;
 import com.zestflow.admin.repository.TenantIpMappingMapper;
@@ -25,15 +25,15 @@ public class TenantCleanupService {
 
     private final TenantIpMappingMapper tenantIpMappingMapper;
     private final TenantMapper tenantMapper;
-    private final TenantModeConfig tenantModeConfig;
+    private final TenantPlatformConfig tenantPlatformConfig;
     private final TenantLifecycleService tenantLifecycleService;
 
     public void cleanupExpiredTrialTenants() {
-        if (!tenantModeConfig.isTrialLifecycleEnabled()) {
+        if (!tenantPlatformConfig.isTrialLifecycleEnabled()) {
             return;
         }
         LocalDateTime slidingThreshold = LocalDateTime.now()
-                .minusMinutes(tenantModeConfig.getIpTenantTimeoutMinutes());
+                .minusMinutes(tenantPlatformConfig.getIpTenantTimeoutMinutes());
         LocalDateTime now = LocalDateTime.now();
 
         List<TenantPO> expired = tenantMapper.selectList(
@@ -51,7 +51,7 @@ public class TenantCleanupService {
         }
         if (purged > 0) {
             log.info("试玩租户回收：已删除 {} 个超过 {} 分钟无活动或已过期的 trial 租户",
-                    purged, tenantModeConfig.getIpTenantTimeoutMinutes());
+                    purged, tenantPlatformConfig.getIpTenantTimeoutMinutes());
         }
     }
 

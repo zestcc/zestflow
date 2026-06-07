@@ -1,9 +1,10 @@
 package com.zestflow.admin.system;
 
-import com.zestflow.admin.ai.AiProperties;
 import com.zestflow.admin.config.AdminCacheProperties;
 import com.zestflow.admin.config.AdminRedisConditions;
-import com.zestflow.admin.config.TenantModeConfig;
+import com.zestflow.admin.config.AiPlatformConfig;
+import com.zestflow.admin.config.PlaygroundPlatformConfig;
+import com.zestflow.admin.config.TenantPlatformConfig;
 import com.zestflow.admin.runtime.AdminDeployProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.env.Environment;
@@ -23,24 +24,24 @@ import java.util.Map;
 public class SystemController {
 
     private final Environment environment;
-    private final TenantModeConfig tenantModeConfig;
+    private final TenantPlatformConfig tenantPlatformConfig;
     private final AdminDeployProperties deployProperties;
     private final AdminCacheProperties cacheProperties;
-    private final AiProperties aiProperties;
+    private final AiPlatformConfig aiPlatformConfig;
+    private final PlaygroundPlatformConfig playgroundPlatformConfig;
 
     /**
      * 获取系统特性开关状态，前端/E2E 探测运行时配置
      */
     @GetMapping("/features")
     public Map<String, Object> getFeatures() {
-        boolean playgroundEnabled = "true".equalsIgnoreCase(
-                environment.getProperty("zestflow.playground.enabled", "false"));
+        boolean playgroundEnabled = playgroundPlatformConfig.isEnabled();
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("playground", Map.of("enabled", playgroundEnabled));
-        out.put("copilot", Map.of("globallyEnabled", aiProperties.isEnabled()));
+        out.put("copilot", Map.of("globallyEnabled", aiPlatformConfig.isEnabled()));
         out.put("tenant", Map.of(
-                "mode", tenantModeConfig.getMode() != null ? tenantModeConfig.getMode() : "single",
-                "ipDemoMode", tenantModeConfig.getIpDemoMode() != null ? tenantModeConfig.getIpDemoMode() : "disabled"
+                "mode", tenantPlatformConfig.getMode() != null ? tenantPlatformConfig.getMode() : "single",
+                "ipDemoMode", tenantPlatformConfig.getIpDemoMode() != null ? tenantPlatformConfig.getIpDemoMode() : "disabled"
         ));
         String registryToken = environment.getProperty("zestflow.admin.registry-token", "");
         String executorAccessToken = environment.getProperty("zestflow.admin.executor-access-token", "");

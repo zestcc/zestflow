@@ -3,6 +3,7 @@ package com.zestflow.admin.ai;
 import com.zestflow.admin.ai.model.dto.*;
 import com.zestflow.admin.ai.model.vo.*;
 import com.zestflow.admin.client.ExecutorProxyService;
+import com.zestflow.admin.config.AiPlatformConfig;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.service.PermissionService;
 import com.zestflow.admin.service.TenantAppContext;
@@ -32,7 +33,7 @@ public class AiCopilotController {
     private final AiRagService aiRagService;
     private final AiRagDocumentService ragDocumentService;
     private final AiUsageStatsService usageStatsService;
-    private final AiProperties aiProperties;
+    private final AiPlatformConfig aiPlatformConfig;
     private final TenantAppContext tenantAppContext;
     private final PermissionService permissionService;
     private final ExecutorProxyService executorProxyService;
@@ -121,13 +122,13 @@ public class AiCopilotController {
     public Result<java.util.Map<String, Object>> ragStatus() {
         java.util.Map<String, Object> status = new java.util.LinkedHashMap<>();
         Long tenantId = tenantAppContext.getCurrentTenantId();
-        status.put("enabled", aiProperties.isRagEnabled());
+        status.put("enabled", aiPlatformConfig.isRagEnabled());
         status.put("mode", aiRagService.retrievalMode());
         status.put("platformChunks", aiRagService.globalChunkCount());
         status.put("tenantChunks", aiRagService.tenantChunkCount(tenantId));
         status.put("tenantDocuments", ragDocumentService.countTenantDocuments(tenantId));
-        if (aiProperties.isRagTenantFilesystemEnabled()) {
-            String dir = aiProperties.getRagTenantDataDir();
+        if (aiPlatformConfig.isRagTenantFilesystemEnabled()) {
+            String dir = aiPlatformConfig.getRagTenantDataDir();
             status.put("filesystemPath", dir + "/{tenantId}/*.md");
         }
         return Result.success(status);

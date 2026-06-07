@@ -1,5 +1,6 @@
 package com.zestflow.admin.ai;
 
+import com.zestflow.admin.config.AiPlatformConfig;
 import com.zestflow.admin.ai.model.entity.AiTenantConfigPO;
 import com.zestflow.admin.ai.repository.AiTenantConfigMapper;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +25,7 @@ public class AiTenantConfigInitializer implements ApplicationRunner {
     private static final long[] DEFAULT_TENANT_IDS = {1L, 2L};
 
     private final AiTenantConfigMapper configMapper;
-    private final AiProperties aiProperties;
+    private final AiPlatformConfig aiPlatformConfig;
     private final AiProviderPresetRegistry presetRegistry;
     private final AiApiKeyCipher apiKeyCipher;
     private final TenantAiConfigService tenantAiConfigService;
@@ -32,7 +33,7 @@ public class AiTenantConfigInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        if (!aiProperties.isEnabled() || !aiProperties.isTenantAutoInit()) {
+        if (!aiPlatformConfig.isEnabled() || !aiPlatformConfig.isTenantAutoInit()) {
             return;
         }
         if (Arrays.asList(environment.getActiveProfiles()).contains("prod")) {
@@ -55,7 +56,7 @@ public class AiTenantConfigInitializer implements ApplicationRunner {
         String presetId = tenantAiConfigService.detectEnvPresetId();
         String apiKeyPlain = null;
         if (StringUtils.hasText(presetId)) {
-            apiKeyPlain = aiProperties.getEnvKeys().get(presetId);
+            apiKeyPlain = aiPlatformConfig.getEnvKeys().get(presetId);
         } else {
             presetId = "ollama";
             apiKeyPlain = presetRegistry.getById("ollama")

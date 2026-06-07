@@ -1,6 +1,7 @@
 package com.zestflow.admin.alert;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.zestflow.admin.config.AlertPlatformConfig;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.common.exception.BizException;
 import com.zestflow.admin.model.dto.AlertConfigSaveDTO;
@@ -17,7 +18,7 @@ import java.math.BigDecimal;
 @RequiredArgsConstructor
 public class AlertConfigService {
 
-    private final AlertProperties alertProperties;
+    private final AlertPlatformConfig alertPlatformConfig;
     private final AlertTenantConfigMapper configMapper;
 
     public EffectiveAlertConfig resolveEffective(Long tenantId) {
@@ -39,7 +40,7 @@ public class AlertConfigService {
                 .scheduleFailThreshold(effective.getScheduleFailThreshold())
                 .alertNoOnlineExecutor(effective.isAlertNoOnlineExecutor())
                 .subjectPrefix(effective.getSubjectPrefix())
-                .scanIntervalMs(alertProperties.getScanIntervalMs())
+                .scanIntervalMs(alertPlatformConfig.getScanIntervalMs())
                 .defaults(fromYml())
                 .tenantOverride(override != null)
                 .build();
@@ -124,45 +125,45 @@ public class AlertConfigService {
     private EffectiveAlertConfig merge(AlertTenantConfigPO override) {
         return EffectiveAlertConfig.builder()
                 .enabled(override != null && override.getEnabled() != null
-                        ? override.getEnabled() == 1 : alertProperties.isEnabled())
+                        ? override.getEnabled() == 1 : alertPlatformConfig.isEnabled())
                 .cooldownMinutes(orInt(override != null ? override.getCooldownMinutes() : null,
-                        alertProperties.getCooldownMinutes()))
+                        alertPlatformConfig.getCooldownMinutes()))
                 .windowMinutes(orInt(override != null ? override.getWindowMinutes() : null,
-                        alertProperties.getWindowMinutes()))
+                        alertPlatformConfig.getWindowMinutes()))
                 .minExecutions(orInt(override != null ? override.getMinExecutions() : null,
-                        alertProperties.getMinExecutions()))
+                        alertPlatformConfig.getMinExecutions()))
                 .successRateThreshold(override != null && override.getSuccessRateThreshold() != null
                         ? override.getSuccessRateThreshold().doubleValue()
-                        : alertProperties.getSuccessRateThreshold())
+                        : alertPlatformConfig.getSuccessRateThreshold())
                 .failCountThreshold(orInt(override != null ? override.getFailCountThreshold() : null,
-                        alertProperties.getFailCountThreshold()))
+                        alertPlatformConfig.getFailCountThreshold()))
                 .p95CostMsThreshold(override != null && override.getP95CostMsThreshold() != null
                         ? override.getP95CostMsThreshold()
-                        : alertProperties.getP95CostMsThreshold())
+                        : alertPlatformConfig.getP95CostMsThreshold())
                 .scheduleFailThreshold(orInt(override != null ? override.getScheduleFailThreshold() : null,
-                        alertProperties.getScheduleFailThreshold()))
+                        alertPlatformConfig.getScheduleFailThreshold()))
                 .alertNoOnlineExecutor(override != null && override.getAlertNoOnlineExecutor() != null
                         ? override.getAlertNoOnlineExecutor() == 1
-                        : alertProperties.isAlertNoOnlineExecutor())
+                        : alertPlatformConfig.isAlertNoOnlineExecutor())
                 .subjectPrefix(override != null && StringUtils.hasText(override.getSubjectPrefix())
                         ? override.getSubjectPrefix()
-                        : alertProperties.getSubjectPrefix())
+                        : alertPlatformConfig.getSubjectPrefix())
                 .build();
     }
 
     private AlertConfigVO fromYml() {
         return AlertConfigVO.builder()
-                .enabled(alertProperties.isEnabled())
-                .cooldownMinutes(alertProperties.getCooldownMinutes())
-                .windowMinutes(alertProperties.getWindowMinutes())
-                .minExecutions(alertProperties.getMinExecutions())
-                .successRateThreshold(alertProperties.getSuccessRateThreshold())
-                .failCountThreshold(alertProperties.getFailCountThreshold())
-                .p95CostMsThreshold(alertProperties.getP95CostMsThreshold())
-                .scheduleFailThreshold(alertProperties.getScheduleFailThreshold())
-                .alertNoOnlineExecutor(alertProperties.isAlertNoOnlineExecutor())
-                .subjectPrefix(alertProperties.getSubjectPrefix())
-                .scanIntervalMs(alertProperties.getScanIntervalMs())
+                .enabled(alertPlatformConfig.isEnabled())
+                .cooldownMinutes(alertPlatformConfig.getCooldownMinutes())
+                .windowMinutes(alertPlatformConfig.getWindowMinutes())
+                .minExecutions(alertPlatformConfig.getMinExecutions())
+                .successRateThreshold(alertPlatformConfig.getSuccessRateThreshold())
+                .failCountThreshold(alertPlatformConfig.getFailCountThreshold())
+                .p95CostMsThreshold(alertPlatformConfig.getP95CostMsThreshold())
+                .scheduleFailThreshold(alertPlatformConfig.getScheduleFailThreshold())
+                .alertNoOnlineExecutor(alertPlatformConfig.isAlertNoOnlineExecutor())
+                .subjectPrefix(alertPlatformConfig.getSubjectPrefix())
+                .scanIntervalMs(alertPlatformConfig.getScanIntervalMs())
                 .build();
     }
 

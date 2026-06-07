@@ -12,6 +12,7 @@ import com.zestflow.admin.ai.model.entity.AiCopilotSessionPO;
 import com.zestflow.admin.ai.repository.AiCopilotMessageMapper;
 import com.zestflow.admin.ai.repository.AiCopilotSessionMapper;
 import com.zestflow.admin.client.CollectorQueryAggregator;
+import com.zestflow.admin.config.AiPlatformConfig;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.common.exception.BizException;
 import com.zestflow.common.model.dto.ChainEvent;
@@ -41,19 +42,20 @@ class AiCopilotServiceTest {
     @Mock private AiCopilotMessageMapper messageMapper;
     @Mock private AiQuotaService aiQuotaService;
 
-    private AiProperties aiProperties;
+    private AiPlatformConfig aiPlatformConfig;
     private AiCopilotService service;
 
     @BeforeEach
     void setUp() {
-        aiProperties = new AiProperties();
-        aiProperties.setEnabled(true);
-        aiProperties.setRepairMaxRounds(2);
+        AiProperties yaml = new AiProperties();
+        yaml.setEnabled(true);
+        yaml.setRepairMaxRounds(2);
+        aiPlatformConfig = AiPlatformConfigTestFixtures.fromYaml(yaml);
 
         lenient().when(aiRagService.retrieve(anyLong(), any(), anyString(), anyInt())).thenReturn(List.of());
 
         service = new AiCopilotService(
-                aiProperties,
+                aiPlatformConfig,
                 tenantAiConfigService,
                 aiChatClient,
                 new PromptBuilder(),

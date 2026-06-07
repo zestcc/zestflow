@@ -684,7 +684,7 @@ export default {
     textPlaceholder: '文本内容',
     invalidJson: 'JSON 格式不正确',
     deleteConfirm: '确定删除配置「{key}」吗？',
-    hint: '存放非枚举类全局参数（阈值、开关、JSON 配置块），与字典枚举分离。',
+    platformHint: '平台参数由租户 1 维护，全租户运行时读取；修改后立即生效（告警扫描间隔除外需重启）。yaml 仅作冷启动兜底。',
   },
   design: {
     title: '设计列表',

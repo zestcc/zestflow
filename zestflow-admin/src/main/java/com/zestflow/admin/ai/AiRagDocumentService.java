@@ -7,6 +7,7 @@ import com.zestflow.admin.ai.model.entity.AiRagDocumentPO;
 import com.zestflow.admin.ai.model.vo.AiRagDocumentExportVO;
 import com.zestflow.admin.ai.model.vo.AiRagDocumentVO;
 import com.zestflow.admin.ai.repository.AiRagDocumentMapper;
+import com.zestflow.admin.config.AiPlatformConfig;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.util.SecurityUtils;
 import com.zestflow.common.exception.BizException;
@@ -28,16 +29,16 @@ public class AiRagDocumentService {
 
     private final AiRagDocumentMapper documentMapper;
     private final TenantAiConfigService tenantAiConfigService;
-    private final AiProperties aiProperties;
+    private final AiPlatformConfig aiPlatformConfig;
     private final AiRagService aiRagService;
 
     public AiRagDocumentService(AiRagDocumentMapper documentMapper,
                                 TenantAiConfigService tenantAiConfigService,
-                                AiProperties aiProperties,
+                                AiPlatformConfig aiPlatformConfig,
                                 AiRagService aiRagService) {
         this.documentMapper = documentMapper;
         this.tenantAiConfigService = tenantAiConfigService;
-        this.aiProperties = aiProperties;
+        this.aiPlatformConfig = aiPlatformConfig;
         this.aiRagService = aiRagService;
     }
 
@@ -147,7 +148,7 @@ public class AiRagDocumentService {
                 .sorted(Comparator.comparingInt(d -> d.getSortOrder() == null ? 0 : d.getSortOrder()))
                 .flatMap(doc -> AiRagIndexEngine.splitMarkdown(doc.getTitle(), doc.getContent()).stream())
                 .toList();
-        if (aiProperties.isRagTenantFilesystemEnabled()) {
+        if (aiPlatformConfig.isRagTenantFilesystemEnabled()) {
             chunks = Stream.concat(chunks.stream(), loadFilesystemChunks(tenantId).stream()).toList();
         }
         return chunks;
@@ -158,7 +159,7 @@ public class AiRagDocumentService {
     }
 
     private List<AiRagService.IndexedChunk> loadFilesystemChunks(Long tenantId) {
-        Path dir = Path.of(aiProperties.getRagTenantDataDir(), String.valueOf(tenantId));
+        Path dir = Path.of(aiPlatformConfig.getRagTenantDataDir(), String.valueOf(tenantId));
         if (!Files.isDirectory(dir)) {
             return List.of();
         }
@@ -211,16 +212,16 @@ public class AiRagDocumentService {
         if (!StringUtils.hasText(title) || !StringUtils.hasText(content)) {
             throw new BizException(ErrorCode.VALIDATION_ERROR);
         }
-        if (content.length() > aiProperties.getRagTenantMaxContentBytes()) {
+        if (content.length() > aiPlatformConfig.getRagTenantMaxContentBytes()) {
             throw new BizException(ErrorCode.VALIDATION_ERROR, "RAG 文档过大");
         }
     }
 
     private void enforceDocumentLimit(Long tenantId) {
-        if (aiProperties.getRagTenantMaxDocuments() <= 0) {
+        if (aiPlatformConfig.getRagTenantMaxDocuments() <= 0) {
             return;
         }
-        if (countTenantDocuments(tenantId) >= aiProperties.getRagTenantMaxDocuments()) {
+        if (countTenantDocuments(tenantId) >= aiPlatformConfig.getRagTenantMaxDocuments()) {
             throw new BizException(ErrorCode.VALIDATION_ERROR, "租户 RAG 文档数量已达上限");
         }
     }

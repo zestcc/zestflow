@@ -3,6 +3,7 @@ package com.zestflow.admin.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.zestflow.admin.config.PlatformConfigReader;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.model.dto.SysConfigCreateDTO;
 import com.zestflow.admin.model.dto.SysConfigUpdateDTO;
@@ -29,6 +30,7 @@ public class SysConfigServiceImpl implements SysConfigService {
 
     private final SysConfigMapper sysConfigMapper;
     private final TenantAppContext tenantAppContext;
+    private final PlatformConfigReader platformConfigReader;
 
     @Override
     public IPage<SysConfigVO> list(String keyword, String category, Integer status, Integer page, Integer size) {
@@ -84,7 +86,7 @@ public class SysConfigServiceImpl implements SysConfigService {
         }
         SysConfigPO po = sysConfigMapper.selectOne(
                 new LambdaQueryWrapper<SysConfigPO>()
-                        .eq(SysConfigPO::getTenantId, tenantAppContext.getCurrentTenantId())
+                        .eq(SysConfigPO::getTenantId, PlatformConfigReader.PLATFORM_TENANT_ID)
                         .eq(SysConfigPO::getConfigKey, configKey.trim())
                         .eq(SysConfigPO::getStatus, 1));
         return po == null ? Optional.empty() : Optional.ofNullable(po.getConfigValue());
@@ -113,6 +115,7 @@ public class SysConfigServiceImpl implements SysConfigService {
         po.setRemark(dto.getRemark());
 
         sysConfigMapper.insert(po);
+        afterMutation(po);
         log.info("系统配置创建 key={} category={}", po.getConfigKey(), po.getCategory());
         return toVO(po);
     }
@@ -130,6 +133,7 @@ public class SysConfigServiceImpl implements SysConfigService {
         if (dto.getRemark() != null) po.setRemark(dto.getRemark());
 
         sysConfigMapper.updateById(po);
+        afterMutation(po);
         log.info("系统配置更新 id={} key={}", id, po.getConfigKey());
         return toVO(po);
     }
@@ -137,8 +141,9 @@ public class SysConfigServiceImpl implements SysConfigService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
-        requireOwned(id);
+        SysConfigPO po = requireOwned(id);
         sysConfigMapper.deleteById(id);
+        afterMutation(po);
         log.info("系统配置删除 id={}", id);
     }
 
@@ -148,7 +153,14 @@ public class SysConfigServiceImpl implements SysConfigService {
         SysConfigPO po = requireOwned(id);
         po.setStatus(po.getStatus() != null && po.getStatus() == 1 ? 0 : 1);
         sysConfigMapper.updateById(po);
+        afterMutation(po);
         log.info("系统配置状态切换 id={} status={}", id, po.getStatus());
+    }
+
+    private void afterMutation(SysConfigPO po) {
+        if (po != null && po.getTenantId() != null && po.getTenantId() == PlatformConfigReader.PLATFORM_TENANT_ID) {
+            platformConfigReader.invalidate();
+        }
     }
 
     private SysConfigPO requireOwned(Long id) {

@@ -3,6 +3,7 @@ package com.zestflow.admin.ai;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zestflow.admin.ai.TenantAiConfigService.EffectiveAiConfig;
+import com.zestflow.admin.config.AiPlatformConfig;
 import com.zestflow.admin.ai.model.dto.*;
 import com.zestflow.admin.ai.model.entity.AiCopilotMessagePO;
 import com.zestflow.admin.ai.model.entity.AiCopilotSessionPO;
@@ -39,7 +40,7 @@ public class AiCopilotService {
     private static final Pattern ID_CARD_PATTERN = Pattern.compile("\\d{17}[\\dXx]");
     private static final int SUMMARY_MAX_LEN = 2000;
 
-    private final AiProperties aiProperties;
+    private final AiPlatformConfig aiPlatformConfig;
     private final TenantAiConfigService tenantAiConfigService;
     private final AiChatClient aiChatClient;
     private final PromptBuilder promptBuilder;
@@ -100,7 +101,7 @@ public class AiCopilotService {
                     request.getAppCode(), proposal.chainData());
             int repairRounds = 0;
 
-            while (!validation.isValid() && repairRounds < aiProperties.getRepairMaxRounds()) {
+            while (!validation.isValid() && repairRounds < aiPlatformConfig.getRepairMaxRounds()) {
                 repairRounds++;
                 String fixSystem = promptBuilder.buildSystemPrompt("fix-errors", request.getAllowedComponents());
                 String fixUser = promptBuilder.buildUserPrompt("fix-errors", request.getUserMessage(),
@@ -295,10 +296,10 @@ public class AiCopilotService {
     }
 
     private String enrichSystemWithRag(String system, String userQuery, Long tenantId, String appCode) {
-        if (!aiProperties.isRagEnabled()) {
+        if (!aiPlatformConfig.isRagEnabled()) {
             return system;
         }
-        List<String> snippets = aiRagService.retrieve(tenantId, appCode, userQuery, aiProperties.getRagMaxChunks());
+        List<String> snippets = aiRagService.retrieve(tenantId, appCode, userQuery, aiPlatformConfig.getRagMaxChunks());
         if (snippets.isEmpty()) {
             return system;
         }
@@ -331,9 +332,9 @@ public class AiCopilotService {
                 config.baseUrl(),
                 config.apiKey(),
                 config.model(),
-                aiProperties.getTimeoutMs(),
-                aiProperties.getMaxTokens(),
-                aiProperties.getTemperature(),
+                aiPlatformConfig.getTimeoutMs(),
+                aiPlatformConfig.getMaxTokens(),
+                aiPlatformConfig.getTemperature(),
                 jsonMode
         );
     }
@@ -374,7 +375,7 @@ public class AiCopilotService {
     }
 
     private String maskIfNeeded(String text) {
-        if (!aiProperties.isPiiMask() || !StringUtils.hasText(text)) {
+        if (!aiPlatformConfig.isPiiMask() || !StringUtils.hasText(text)) {
             return text;
         }
         String masked = PHONE_PATTERN.matcher(text).replaceAll("138****0000");
