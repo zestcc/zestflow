@@ -1,8 +1,5 @@
 <template>
   <div class="chain-create">
-    <div class="page-header">
-      <h2>{{ $t('chains.createTitle') }}</h2>
-    </div>
     <div class="form-wrapper">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="120px" style="max-width:600px" @submit.prevent>
         <el-form-item :label="$t('chains.name')" prop="name">
@@ -73,8 +70,6 @@ async function handleSubmit() {
   padding: 20px;
   border-radius: 4px;
 }
-.page-header { margin-bottom: 20px; }
-.page-header h2 { margin: 0; font-size: 18px; color: #303133; }
 .form-wrapper { padding: 0 20px; }
 
 @media (max-width: 767px) {
@@ -84,10 +79,6 @@ async function handleSubmit() {
 
   .form-wrapper {
     padding: 0;
-  }
-
-  .page-header h2 {
-    font-size: 16px;
   }
 }
 </style>

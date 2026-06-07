@@ -69,6 +69,10 @@ html, body, #app {
   width: 100%;
 }
 
+.page-header-row--actions-end {
+  justify-content: flex-end;
+}
+
 .page-stats-row,
 .stats-summary {
   display: flex;

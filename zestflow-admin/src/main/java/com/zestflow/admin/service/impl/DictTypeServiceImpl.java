@@ -4,12 +4,15 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zestflow.admin.constant.ErrorCode;
+import com.zestflow.admin.dict.DictTreeBuilder;
+import com.zestflow.admin.dict.SystemDictSeeds;
 import com.zestflow.admin.model.dto.DictDataCreateDTO;
 import com.zestflow.admin.model.dto.DictDataUpdateDTO;
 import com.zestflow.admin.model.dto.DictTypeCreateDTO;
 import com.zestflow.admin.model.dto.DictTypeUpdateDTO;
 import com.zestflow.admin.model.entity.DictDataPO;
 import com.zestflow.admin.model.entity.DictTypePO;
+import com.zestflow.admin.model.vo.DictDataTreeVO;
 import com.zestflow.admin.model.vo.DictDataVO;
 import com.zestflow.admin.model.vo.DictTypeVO;
 import com.zestflow.admin.repository.DictDataMapper;
@@ -22,10 +25,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -52,95 +57,64 @@ public class DictTypeServiceImpl implements DictTypeService {
     @PostConstruct
     public void initSystemDicts() {
         log.info("开始初始化系统字典数据");
-        initSystemDictType("component_type", "元件类型",
-                List.of(
-                        dataItem("EXECUTOR", "执行器", "primary"),
-                        dataItem("PREDICATE", "条件", "warning"),
-                        dataItem("SELECTOR", "选择器", "warning"),
-                        dataItem("LOADER", "加载器", "info"),
-                        dataItem("PARSER", "解析器", ""),
-                        dataItem("PRE_PROCESSOR", "前置处理器", ""),
-                        dataItem("POST_PROCESSOR", "后置处理器", ""),
-                        dataItem("PARAM_BINDER", "参数绑定器", ""),
-                        dataItem("PARAM_VALIDATOR", "参数校验器", "")
-                ));
-        initSystemDictType("execute_strategy", "执行策略",
-                List.of(
-                        dataItem("NORMAL", "正常", "primary"),
-                        dataItem("RETRY_ON_FAILURE", "失败重试", "warning"),
-                        dataItem("STOP_ON_EXCEPTION", "异常停止", "danger"),
-                        dataItem("IGNORE_EXCEPTION", "忽略异常", "info")
-                ));
-        initSystemDictType("route_strategy", "路由策略",
-                List.of(
-                        dataItem("round_robin", "轮询", "primary"),
-                        dataItem("hash", "哈希", ""),
-                        dataItem("random", "随机", "")
-                ));
-        initSystemDictType("transaction_propagation", "事务传播策略",
-                List.of(
-                        dataItem("INHERIT", "继承链级", "info"),
-                        dataItem("REQUIRED", "REQUIRED（加入当前事务）", "primary"),
-                        dataItem("REQUIRES_NEW", "REQUIRES_NEW（独立新事务）", "warning"),
-                        dataItem("NESTED", "NESTED（嵌套事务）", ""),
-                        dataItem("SUPPORTS", "SUPPORTS（支持当前事务）", ""),
-                        dataItem("NOT_SUPPORTED", "NOT_SUPPORTED（挂起事务）", "danger"),
-                        dataItem("MANDATORY", "MANDATORY（必须在事务中）", ""),
-                        dataItem("NEVER", "NEVER（禁止事务）", "")
-                ));
-        initSystemDictType("tag_type", "标签类型",
-                List.of(
-                        dataItem("primary", "primary", "primary"),
-                        dataItem("success", "success", "success"),
-                        dataItem("warning", "warning", "warning"),
-                        dataItem("danger", "danger", "danger"),
-                        dataItem("info", "info", "info")
-                ));
-        initSystemDictType("app_type", "应用类型", List.of());
+        int sort = 1;
+        for (SystemDictSeeds.Seed seed : SystemDictSeeds.all()) {
+            initSystemDictType(seed.code(), seed.name(), seed.items(), sort++);
+        }
         log.info("系统字典数据初始化完成");
     }
 
-    private void initSystemDictType(String code, String name, List<DictDataPO> dataItems) {
+    /**
+     * 确保系统字典类型存在，并补齐缺失的数据项（已有类型不会整类跳过）。
+     */
+    private void initSystemDictType(String code, String name, List<DictDataPO> dataItems, int typeSort) {
         DictTypePO exists = dictTypeMapper.selectOne(
                 new LambdaQueryWrapper<DictTypePO>()
                         .eq(DictTypePO::getTenantId, SYSTEM_TEMPLATE_TENANT_ID)
                         .eq(DictTypePO::getCode, code));
-        if (exists != null) {
-            return;
+        if (exists == null) {
+            DictTypePO po = new DictTypePO();
+            po.setCode(code);
+            po.setName(name);
+            po.setStatus(1);
+            po.setSort(typeSort);
+            po.setTenantId(SYSTEM_TEMPLATE_TENANT_ID);
+            dictTypeMapper.insert(po);
+            log.info("系统字典类型创建 code={} name={}", code, name);
         }
-        DictTypePO po = new DictTypePO();
-        po.setCode(code);
-        po.setName(name);
-        po.setStatus(1);
-        po.setSort(1);
-        po.setTenantId(SYSTEM_TEMPLATE_TENANT_ID);
-        dictTypeMapper.insert(po);
-        log.info("系统字典类型创建 code={} name={}", code, name);
 
         if (dataItems.isEmpty()) {
             return;
         }
         for (int i = 0; i < dataItems.size(); i++) {
-            DictDataPO item = dataItems.get(i);
-            item.setTypeCode(code);
-            item.setSort(i + 1);
-            item.setStatus(1);
-            item.setDefaultFlag(i == 0 ? 1 : 0);
-            item.setTenantId(SYSTEM_TEMPLATE_TENANT_ID);
-            try {
-                dictDataMapper.insert(item);
-            } catch (Exception e) {
-                log.warn("系统字典数据项创建失败（可能已存在）typeCode={} value={}", code, item.getValue());
-            }
+            ensureSystemDictDataItem(code, dataItems.get(i), i + 1, i == 0);
         }
     }
 
-    private static DictDataPO dataItem(String value, String label, String tagType) {
-        DictDataPO po = new DictDataPO();
-        po.setValue(value);
-        po.setLabel(label);
-        po.setTagType(tagType.isEmpty() ? null : tagType);
-        return po;
+    private void ensureSystemDictDataItem(String typeCode, DictDataPO template, int sort, boolean defaultFlag) {
+        Long count = dictDataMapper.selectCount(
+                new LambdaQueryWrapper<DictDataPO>()
+                        .eq(DictDataPO::getTenantId, SYSTEM_TEMPLATE_TENANT_ID)
+                        .eq(DictDataPO::getTypeCode, typeCode)
+                        .eq(DictDataPO::getValue, template.getValue()));
+        if (count != null && count > 0) {
+            return;
+        }
+        DictDataPO item = new DictDataPO();
+        item.setTypeCode(typeCode);
+        item.setValue(template.getValue());
+        item.setLabel(template.getLabel());
+        item.setTagType(template.getTagType());
+        item.setSort(sort);
+        item.setStatus(1);
+        item.setDefaultFlag(defaultFlag ? 1 : 0);
+        item.setTenantId(SYSTEM_TEMPLATE_TENANT_ID);
+        try {
+            dictDataMapper.insert(item);
+            log.info("系统字典数据项创建 typeCode={} value={}", typeCode, item.getValue());
+        } catch (Exception e) {
+            log.warn("系统字典数据项创建失败 typeCode={} value={}", typeCode, item.getValue(), e);
+        }
     }
 
     // ==================== 字典类型 CRUD ====================
@@ -197,15 +171,22 @@ public class DictTypeServiceImpl implements DictTypeService {
     }
 
     @Override
-    public List<DictDataVO> getDictData(String typeCode) {
-        String cacheKey = cacheKey(typeCode);
+    public List<DictDataVO> getDictData(String typeCode, String parentTypeCode, String parentValue) {
+        String cacheKey = cacheKey(typeCode, parentTypeCode, parentValue);
         List<DictDataVO> cached = dictDataCache.get(cacheKey);
         if (cached != null) {
             return cached;
         }
-        List<DictDataVO> list = listDataByCode(typeCode);
+        List<DictDataVO> list = listDataByCode(typeCode, parentTypeCode, parentValue);
         dictDataCache.put(cacheKey, list);
         return list;
+    }
+
+    @Override
+    public List<DictDataTreeVO> getDictDataTree(String typeCode) {
+        List<DictDataPO> items = listDataPoByCode(typeCode);
+        Map<String, String> parentLabels = resolveCrossParentLabels(items);
+        return DictTreeBuilder.build(typeCode, items, parentLabels);
     }
 
     @Override
@@ -304,6 +285,10 @@ public class DictTypeServiceImpl implements DictTypeService {
 
         DictDataPO po = new DictDataPO();
         po.setTypeCode(dto.getTypeCode());
+        po.setParentId(dto.getParentId());
+        po.setParentTypeCode(blankToNull(dto.getParentTypeCode()));
+        po.setParentValue(blankToNull(dto.getParentValue()));
+        validateParentId(dto.getTypeCode(), null, dto.getParentId());
         po.setLabel(dto.getLabel());
         po.setValue(dto.getValue());
         // sort <=0 时自动取当前类型下最大值+1
@@ -322,6 +307,7 @@ public class DictTypeServiceImpl implements DictTypeService {
         po.setTagType(dto.getTagType());
         po.setDefaultFlag(dto.getDefaultFlag() != null ? dto.getDefaultFlag() : 0);
         po.setRemark(dto.getRemark());
+        po.setExtra(dto.getExtra());
 
         dictDataMapper.insert(po);
         clearCache(dto.getTypeCode());
@@ -338,11 +324,22 @@ public class DictTypeServiceImpl implements DictTypeService {
         }
         if (dto.getLabel() != null) po.setLabel(dto.getLabel());
         if (dto.getValue() != null) po.setValue(dto.getValue());
+        if (dto.getParentId() != null) {
+            if (dto.getParentId() <= 0) {
+                po.setParentId(null);
+            } else {
+                validateParentId(po.getTypeCode(), id, dto.getParentId());
+                po.setParentId(dto.getParentId());
+            }
+        }
+        if (dto.getParentTypeCode() != null) po.setParentTypeCode(blankToNull(dto.getParentTypeCode()));
+        if (dto.getParentValue() != null) po.setParentValue(blankToNull(dto.getParentValue()));
         if (dto.getSort() != null) po.setSort(dto.getSort());
         if (dto.getStatus() != null) po.setStatus(dto.getStatus());
         if (dto.getTagType() != null) po.setTagType(dto.getTagType());
         if (dto.getDefaultFlag() != null) po.setDefaultFlag(dto.getDefaultFlag());
         if (dto.getRemark() != null) po.setRemark(dto.getRemark());
+        if (dto.getExtra() != null) po.setExtra(dto.getExtra());
 
         dictDataMapper.updateById(po);
         clearCache(po.getTypeCode());
@@ -356,6 +353,14 @@ public class DictTypeServiceImpl implements DictTypeService {
         DictDataPO po = dictDataMapper.selectById(id);
         if (po == null) {
             throw new BizException(ErrorCode.DICT_DATA_NOT_FOUND);
+        }
+        Long childCount = dictDataMapper.selectCount(
+                new LambdaQueryWrapper<DictDataPO>()
+                        .eq(DictDataPO::getTenantId, tenantAppContext.getCurrentTenantId())
+                        .eq(DictDataPO::getTypeCode, po.getTypeCode())
+                        .eq(DictDataPO::getParentId, id));
+        if (childCount != null && childCount > 0) {
+            throw new BizException(ErrorCode.DICT_DATA_HAS_CHILDREN);
         }
         dictDataMapper.deleteById(id);
         clearCache(po.getTypeCode());
@@ -404,22 +409,96 @@ public class DictTypeServiceImpl implements DictTypeService {
 
     // ==================== 私有方法 ====================
 
-    private List<DictDataVO> listDataByCode(String code) {
-        List<DictDataPO> poList = dictDataMapper.selectList(
-                new LambdaQueryWrapper<DictDataPO>()
-                        .eq(DictDataPO::getTenantId, tenantAppContext.getCurrentTenantId())
-                        .eq(DictDataPO::getTypeCode, code)
-                        .orderByAsc(DictDataPO::getSort)
-                        .orderByDesc(DictDataPO::getDefaultFlag));
+    private List<DictDataPO> listDataPoByCode(String code) {
+        LambdaQueryWrapper<DictDataPO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(DictDataPO::getTenantId, tenantAppContext.getCurrentTenantId())
+                .eq(DictDataPO::getTypeCode, code)
+                .orderByAsc(DictDataPO::getSort)
+                .orderByDesc(DictDataPO::getDefaultFlag);
+        return dictDataMapper.selectList(wrapper);
+    }
+
+    private Map<String, String> resolveCrossParentLabels(List<DictDataPO> items) {
+        Map<String, String> labels = new HashMap<>();
+        for (DictDataPO item : items) {
+            if (!StringUtils.hasText(item.getParentTypeCode()) || !StringUtils.hasText(item.getParentValue())) {
+                continue;
+            }
+            String parentType = item.getParentTypeCode().trim();
+            String parentValue = item.getParentValue().trim();
+            if (labels.containsKey(parentValue)) {
+                continue;
+            }
+            DictDataPO parent = dictDataMapper.selectOne(
+                    new LambdaQueryWrapper<DictDataPO>()
+                            .eq(DictDataPO::getTenantId, tenantAppContext.getCurrentTenantId())
+                            .eq(DictDataPO::getTypeCode, parentType)
+                            .eq(DictDataPO::getValue, parentValue)
+                            .last("LIMIT 1"));
+            labels.put(parentValue, parent != null ? parent.getLabel() : parentValue);
+        }
+        return labels;
+    }
+
+    private void validateParentId(String typeCode, Long selfId, Long parentId) {
+        if (parentId == null || parentId <= 0) {
+            return;
+        }
+        DictDataPO parent = dictDataMapper.selectById(parentId);
+        if (parent == null
+                || !Objects.equals(parent.getTenantId(), tenantAppContext.getCurrentTenantId())
+                || !typeCode.equals(parent.getTypeCode())) {
+            throw new BizException(ErrorCode.DICT_DATA_PARENT_INVALID);
+        }
+        if (selfId == null) {
+            return;
+        }
+        List<DictDataPO> siblings = listDataPoByCode(typeCode);
+        Map<Long, Long> parentMap = new HashMap<>();
+        for (DictDataPO item : siblings) {
+            if (item.getParentId() != null) {
+                parentMap.put(item.getId(), item.getParentId());
+            }
+        }
+        parentMap.put(selfId, parentId);
+        if (DictTreeBuilder.wouldCreateCycle(parentMap, selfId, parentId)) {
+            throw new BizException(ErrorCode.DICT_DATA_PARENT_CYCLE);
+        }
+    }
+
+    private List<DictDataVO> listDataByCode(String code, String parentTypeCode, String parentValue) {
+        LambdaQueryWrapper<DictDataPO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(DictDataPO::getTenantId, tenantAppContext.getCurrentTenantId())
+                .eq(DictDataPO::getTypeCode, code);
+        if (StringUtils.hasText(parentTypeCode)) {
+            wrapper.eq(DictDataPO::getParentTypeCode, parentTypeCode.trim());
+        }
+        if (StringUtils.hasText(parentValue)) {
+            wrapper.eq(DictDataPO::getParentValue, parentValue.trim());
+        }
+        wrapper.orderByAsc(DictDataPO::getSort)
+                .orderByDesc(DictDataPO::getDefaultFlag);
+        List<DictDataPO> poList = dictDataMapper.selectList(wrapper);
         return poList.stream().map(this::toDataVO).collect(Collectors.toList());
     }
 
-    private void clearCache(String typeCode) {
-        dictDataCache.remove(cacheKey(typeCode));
+    private List<DictDataVO> listDataByCode(String code) {
+        return listDataByCode(code, null, null);
     }
 
-    private String cacheKey(String typeCode) {
-        return tenantAppContext.getCurrentTenantId() + ":" + typeCode;
+    private void clearCache(String typeCode) {
+        String prefix = tenantAppContext.getCurrentTenantId() + ":" + typeCode;
+        dictDataCache.keySet().removeIf(k -> k.startsWith(prefix));
+    }
+
+    private String cacheKey(String typeCode, String parentTypeCode, String parentValue) {
+        return tenantAppContext.getCurrentTenantId() + ":" + typeCode + ":"
+                + (parentTypeCode == null ? "" : parentTypeCode) + ":"
+                + (parentValue == null ? "" : parentValue);
+    }
+
+    private static String blankToNull(String s) {
+        return s == null || s.isBlank() ? null : s.trim();
     }
 
     private DictTypeVO toTypeVO(DictTypePO po) {
@@ -440,6 +519,9 @@ public class DictTypeServiceImpl implements DictTypeService {
         return DictDataVO.builder()
                 .id(po.getId())
                 .typeCode(po.getTypeCode())
+                .parentId(po.getParentId())
+                .parentTypeCode(po.getParentTypeCode())
+                .parentValue(po.getParentValue())
                 .label(po.getLabel())
                 .value(po.getValue())
                 .sort(po.getSort())
@@ -447,6 +529,7 @@ public class DictTypeServiceImpl implements DictTypeService {
                 .tagType(po.getTagType())
                 .defaultFlag(po.getDefaultFlag())
                 .remark(po.getRemark())
+                .extra(po.getExtra())
                 .updatedBy(po.getUpdatedBy())
                 .createdAt(po.getCreatedAt())
                 .updatedAt(po.getUpdatedAt())

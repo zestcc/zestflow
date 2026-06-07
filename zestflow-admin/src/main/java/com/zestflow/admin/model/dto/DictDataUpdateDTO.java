@@ -9,6 +9,12 @@ public class DictDataUpdateDTO {
 
     private String value;
 
+    private Long parentId;
+
+    private String parentTypeCode;
+
+    private String parentValue;
+
     private Integer sort;
 
     private Integer status;
@@ -18,4 +24,6 @@ public class DictDataUpdateDTO {
     private Integer defaultFlag;
 
     private String remark;
+
+    private String extra;
 }

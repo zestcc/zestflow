@@ -24,9 +24,12 @@
       </el-form-item>
       <el-form-item :label="$t('common.status')">
         <el-select v-model="filter.status" :placeholder="$t('common.all')" clearable class="page-filter-control--sm">
-          <el-option :label="$t('settings.executorHealthy')" :value="1" />
-          <el-option :label="$t('settings.executorError')" :value="2" />
-          <el-option :label="$t('settings.executorOffline')" :value="0" />
+          <el-option
+            v-for="item in registryStatusOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.bindValue"
+          />
         </el-select>
       </el-form-item>
       <el-form-item class="filter-actions-item">
@@ -51,9 +54,7 @@
         <span style="font-family:monospace;font-size:13px">{{ row.executorHost }}:{{ row.executorPort }}</span>
       </template>
       <template #status="{ row }">
-        <el-tag v-if="row.status === 1" type="success" size="small" effect="dark">{{ $t('settings.executorHealthy') }}</el-tag>
-        <el-tag v-else-if="row.status === 2" type="danger" size="small" effect="dark">{{ $t('settings.executorError') }}</el-tag>
-        <el-tag v-else type="info" size="small" effect="dark">{{ $t('settings.executorOffline') }}</el-tag>
+        <el-tag :type="registryStatusTagType(row.status)" size="small" effect="dark">{{ registryStatusLabel(row.status) }}</el-tag>
       </template>
       <template #lastHeartbeat="{ row }">{{ formatTime(row.lastHeartbeat) }}</template>
       <template #declaredChainKeys="{ row }">
@@ -98,8 +99,10 @@ import { executorApi } from '@/api/executor'
 import type { ExecutorRegistryVO } from '@/api/executor'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
 import { useResponsivePagination } from '@/composables/useResponsivePagination'
+import { useDictLabel } from '@/composables/useDictLabel'
 
 const { t } = useI18n()
+const { dictOptions: registryStatusOptions, labelOf: registryStatusLabel, tagTypeOf: registryStatusTagType } = useDictLabel('registry_status')
 const route = useRoute()
 const { paginationLayout } = useResponsivePagination()
 

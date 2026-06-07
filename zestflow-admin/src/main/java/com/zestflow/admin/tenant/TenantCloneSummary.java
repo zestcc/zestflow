@@ -17,12 +17,14 @@ public class TenantCloneSummary {
     private final int playgroundScenes = 0;
     @Builder.Default
     private final int schedules = 0;
+    @Builder.Default
+    private final int sysConfigs = 0;
 
     public static TenantCloneSummary empty() {
         return TenantCloneSummary.builder().build();
     }
 
     public int totalItems() {
-        return roles + dictTypes + dictData + playgroundScenes + schedules;
+        return roles + dictTypes + dictData + playgroundScenes + schedules + sysConfigs;
     }
 }

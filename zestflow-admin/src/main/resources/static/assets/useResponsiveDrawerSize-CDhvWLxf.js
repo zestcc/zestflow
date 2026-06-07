@@ -1,1 +1,0 @@
-import{aN as i,aO as r,aW as s,J as t}from"./index-CKFgVOnw.js";const a=768;function w(o=480){const e=s(!1);function n(){e.value=window.innerWidth<a}return i(()=>{n(),window.addEventListener("resize",n)}),r(()=>{window.removeEventListener("resize",n)}),{drawerSize:t(()=>e.value?"100%":o),isMobile:e}}export{w as u};

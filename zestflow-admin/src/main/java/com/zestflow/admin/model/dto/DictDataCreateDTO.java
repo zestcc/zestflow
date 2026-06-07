@@ -10,6 +10,12 @@ public class DictDataCreateDTO {
     @NotBlank(message = "字典类型编码不能为空")
     private String typeCode;
 
+    private Long parentId;
+
+    private String parentTypeCode;
+
+    private String parentValue;
+
     @NotBlank(message = "数据标签不能为空")
     private String label;
 
@@ -25,4 +31,6 @@ public class DictDataCreateDTO {
     private Integer defaultFlag;
 
     private String remark;
+
+    private String extra;
 }

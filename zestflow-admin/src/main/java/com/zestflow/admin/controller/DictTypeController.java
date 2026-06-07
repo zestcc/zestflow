@@ -5,6 +5,7 @@ import com.zestflow.admin.model.dto.DictDataCreateDTO;
 import com.zestflow.admin.model.dto.DictDataUpdateDTO;
 import com.zestflow.admin.model.dto.DictTypeCreateDTO;
 import com.zestflow.admin.model.dto.DictTypeUpdateDTO;
+import com.zestflow.admin.model.vo.DictDataTreeVO;
 import com.zestflow.admin.model.vo.DictDataVO;
 import com.zestflow.admin.model.vo.DictTypeVO;
 import com.zestflow.admin.service.DictTypeService;
@@ -37,9 +38,17 @@ public class DictTypeController {
         return Result.success(dictTypeService.getByCode(code));
     }
 
+    @GetMapping("/{code}/data/tree")
+    public Result<List<DictDataTreeVO>> getDataTree(@PathVariable String code) {
+        return Result.success(dictTypeService.getDictDataTree(code));
+    }
+
     @GetMapping("/{code}/data")
-    public Result<List<DictDataVO>> getData(@PathVariable String code) {
-        return Result.success(dictTypeService.getDictData(code));
+    public Result<List<DictDataVO>> getData(
+            @PathVariable String code,
+            @RequestParam(required = false) String parentTypeCode,
+            @RequestParam(required = false) String parentValue) {
+        return Result.success(dictTypeService.getDictData(code, parentTypeCode, parentValue));
     }
 
     @PostMapping

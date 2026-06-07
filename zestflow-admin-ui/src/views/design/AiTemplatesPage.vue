@@ -2,10 +2,7 @@
   <div class="ai-templates-page">
     <div class="page-header">
       <div class="page-header-row">
-        <div>
-          <h3 class="page-title">{{ $t('ai.templates.title') }}</h3>
-          <p class="page-desc">{{ $t('ai.templates.description') }}</p>
-        </div>
+        <p class="page-desc">{{ $t('ai.templates.description') }}</p>
         <el-button type="primary" @click="openCreate">{{ $t('ai.templates.create') }}</el-button>
       </div>
       <div class="page-toolbar">
@@ -287,17 +284,14 @@ onMounted(async () => {
 <style scoped>
 .ai-templates-page .page-header-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 12px;
 }
-.page-title {
-  margin: 0 0 4px;
-  font-size: 18px;
-}
 .page-desc {
   margin: 0;
+  flex: 1;
   color: #909399;
   font-size: 13px;
 }

@@ -33,11 +33,12 @@
             :placeholder="$t('chains.total')"
             clearable
           >
-            <el-option :label="$t('chains.disabled')" :value="0" />
-            <el-option :label="$t('chains.notDesigned')" :value="1" />
-            <el-option :label="$t('chains.unpublished')" :value="2" />
-            <el-option :label="$t('chains.publishing')" :value="3" />
-            <el-option :label="$t('chains.published')" :value="4" />
+            <el-option
+              v-for="item in chainStatusOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.bindValue"
+            />
           </el-select>
         </div>
         <div class="chain-filter-actions">
@@ -338,19 +339,20 @@ import CreateDesignDialog from '@/components/CreateDesignDialog.vue'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
 import { useCurrentApp } from '@/composables/useCurrentApp'
 import { useResponsiveDrawerSize } from '@/composables/useResponsiveDrawerSize'
+import { useDictLabel } from '@/composables/useDictLabel'
 
 const { t } = useI18n()
 const router = useRouter()
+const { labelOf: chainStatusLabel, tagTypeOf: chainStatusTagType, dictOptions: chainStatusOptions } = useDictLabel('chain_lifecycle_status')
 const { drawerSize: chainDrawerSize } = useResponsiveDrawerSize(480)
 const { drawerSize: designDrawerSize } = useResponsiveDrawerSize(520)
 const { currentAppCode, syncFromApps } = useCurrentApp()
 
 function statusTagType(status: number): string {
-  return ['danger', 'info', 'warning', 'primary', 'success'][status] || 'info'
+  return chainStatusTagType(status)
 }
 function statusLabel(status: number): string {
-  const labels = [t('chains.disabled'), t('chains.notDesigned'), t('chains.unpublished'), t('chains.publishing'), t('chains.published')]
-  return labels[status] || '-'
+  return chainStatusLabel(status)
 }
 
 

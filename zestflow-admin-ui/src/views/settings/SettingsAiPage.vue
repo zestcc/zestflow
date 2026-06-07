@@ -1,7 +1,6 @@
 <template>
   <div class="settings-ai-page">
     <div class="page-header">
-      <h3 class="page-title">{{ $t('settings.ai.title') }}</h3>
       <p class="page-desc">{{ $t('settings.ai.description') }}</p>
     </div>
 
@@ -52,19 +51,21 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item v-if="selectedPreset?.id === 'custom'" :label="$t('settings.ai.baseUrl')">
-          <el-input v-model="form.baseUrl" :placeholder="$t('settings.ai.baseUrlPlaceholder')" />
+        <el-form-item :label="$t('settings.ai.model')">
+          <ComboboxInput
+            v-model="form.model"
+            :suggestions="modelSuggestions"
+            :placeholder="$t('settings.ai.modelPlaceholder')"
+          />
+          <div class="field-hint">{{ $t('settings.ai.connectionFieldHint') }}</div>
         </el-form-item>
 
-        <el-form-item :label="$t('settings.ai.model')">
-          <el-select v-model="form.model" filterable allow-create class="ai-form-control">
-            <el-option
-              v-for="m in modelOptions"
-              :key="m"
-              :label="m"
-              :value="m"
-            />
-          </el-select>
+        <el-form-item :label="$t('settings.ai.baseUrl')">
+          <ComboboxInput
+            v-model="form.baseUrl"
+            :suggestions="urlSuggestions"
+            :placeholder="$t('settings.ai.baseUrlPlaceholder')"
+          />
         </el-form-item>
 
         <el-form-item :label="$t('settings.ai.apiKey')">
@@ -118,6 +119,10 @@
     </el-card>
       </el-tab-pane>
 
+      <el-tab-pane :label="$t('settings.ai.tabSystem')" name="system">
+        <SettingsAiSystemPanel />
+      </el-tab-pane>
+
       <el-tab-pane :label="$t('settings.ai.tabRag')" name="rag">
         <SettingsAiRagPanel />
       </el-tab-pane>
@@ -133,6 +138,9 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import SettingsAiRagPanel from '@/components/settings/SettingsAiRagPanel.vue'
 import SettingsAiUsagePanel from '@/components/settings/SettingsAiUsagePanel.vue'
+import SettingsAiSystemPanel from '@/components/settings/SettingsAiSystemPanel.vue'
+import ComboboxInput from '@/components/common/ComboboxInput.vue'
+import { useDictCascade } from '@/composables/useDictCascade'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import {
@@ -165,15 +173,35 @@ const tierBPresets = computed(() => presets.value.filter(p => p.tier === 'B'))
 
 const selectedPreset = computed(() => presets.value.find(p => p.id === form.preset))
 
-const modelOptions = computed(() => {
-  const p = selectedPreset.value
-  if (!p) return []
-  const models = [...(p.models || [])]
-  if (p.defaultModel && !models.includes(p.defaultModel)) {
-    models.unshift(p.defaultModel)
-  }
-  return models
+const { options: modelDictOptions } = useDictCascade(
+  'ai_model',
+  'ai_provider',
+  computed(() => form.preset),
+)
+
+const modelSuggestions = computed(() => {
+  const fromDict = modelDictOptions.value.map(m => m.value)
+  const fromPreset = selectedPreset.value?.models ?? []
+  const current = form.model?.trim()
+  const set = new Set<string>([...fromDict, ...fromPreset])
+  if (current) set.add(current)
+  return [...set]
 })
+
+const urlSuggestions = computed(() => {
+  const urls: string[] = []
+  const p = selectedPreset.value
+  if (p?.baseUrl) urls.push(p.baseUrl)
+  const current = form.baseUrl?.trim()
+  if (current && !urls.includes(current)) urls.unshift(current)
+  return urls
+})
+
+function effectiveBaseUrl() {
+  const trimmed = form.baseUrl?.trim()
+  if (trimmed) return trimmed
+  return selectedPreset.value?.baseUrl || ''
+}
 
 const apiKeyPlaceholder = computed(() => {
   if (selectedPreset.value?.apiKeyRequired === false) {
@@ -209,9 +237,7 @@ function onPresetChange() {
   const p = selectedPreset.value
   if (p) {
     form.model = p.defaultModel || ''
-    if (p.id !== 'custom') {
-      form.baseUrl = p.baseUrl || ''
-    }
+    form.baseUrl = p.baseUrl || ''
   }
   testResult.value = null
 }
@@ -223,12 +249,13 @@ async function loadData() {
       aiApi.getProviders(),
       aiApi.getTenantConfig(),
     ])
-    presets.value = providerRes?.presets || []
+    presets.value = providerRes ?? []
     tenantConfig.value = configRes
     form.enabled = !!configRes.enabled
     form.preset = configRes.preset || 'deepseek'
-    form.baseUrl = configRes.baseUrl || ''
-    form.model = configRes.model || selectedPreset.value?.defaultModel || ''
+    const preset = presets.value.find(p => p.id === form.preset)
+    form.baseUrl = configRes.baseUrl || preset?.baseUrl || ''
+    form.model = configRes.model || preset?.defaultModel || ''
     form.apiKey = ''
   } catch {
     ElMessage.error(t('settings.ai.loadFailed'))
@@ -243,10 +270,8 @@ async function handleSave() {
     const payload: Record<string, unknown> = {
       enabled: form.enabled,
       preset: form.preset,
-      model: form.model,
-    }
-    if (form.preset === 'custom' && form.baseUrl) {
-      payload.baseUrl = form.baseUrl
+      model: form.model?.trim() || undefined,
+      baseUrl: form.baseUrl?.trim() || undefined,
     }
     if (form.apiKey.trim()) {
       payload.apiKey = form.apiKey.trim()
@@ -267,9 +292,9 @@ async function handleTest() {
   try {
     testResult.value = await aiApi.testConnection({
       preset: form.preset,
-      baseUrl: form.preset === 'custom' ? form.baseUrl : undefined,
+      baseUrl: effectiveBaseUrl() || undefined,
       apiKey: form.apiKey.trim() || undefined,
-      model: form.model,
+      model: form.model?.trim() || '',
     })
   } catch (e: any) {
     testResult.value = {
@@ -293,13 +318,6 @@ onMounted(() => {
 
 .page-header {
   margin-bottom: 16px;
-}
-
-.page-title {
-  margin: 0 0 6px;
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
 }
 
 .page-desc {

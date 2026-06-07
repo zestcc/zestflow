@@ -3,122 +3,88 @@
     <div class="page-header">
       <div class="page-header-row">
         <div class="page-stats-row">
-          <span class="summary-total">{{ $t('dict.total') }} {{ list.length }}</span>
-          <el-divider direction="vertical" />
-          <span class="summary-healthy">{{ $t('dict.enabled') }} {{ list.filter(d => d.status === 1).length }}</span>
-          <el-divider direction="vertical" />
-          <span class="summary-offline">{{ $t('dict.disabled') }} {{ list.filter(d => d.status === 0).length }}</span>
+          <span class="summary-total">{{ $t('dict.total') }} {{ typeList.length }}</span>
         </div>
         <el-button type="primary" @click="showCreateType">{{ $t('dict.createType') }}</el-button>
       </div>
     </div>
 
-    <el-form :model="filter" inline size="default" class="responsive-filter-form" style="margin-bottom:12px">
-      <el-form-item :label="$t('common.keyword')">
-        <el-input v-model="filter.keyword" :placeholder="$t('dict.filterPlaceholder')" clearable class="page-filter-control" @keyup.enter="handleSearch" />
-      </el-form-item>
-      <el-form-item :label="$t('common.status')">
-        <el-select v-model="filter.status" :placeholder="$t('common.all')" clearable class="page-filter-control--sm">
-          <el-option :label="$t('dict.enabled')" :value="1" />
-          <el-option :label="$t('dict.disabled')" :value="0" />
-        </el-select>
-      </el-form-item>
-      <el-form-item class="filter-actions-item">
-        <el-button type="primary" @click="handleSearch">{{ $t('common.search') }}</el-button>
-        <el-button @click="handleReset">{{ $t('common.reset') }}</el-button>
-      </el-form-item>
-    </el-form>
+    <div class="dict-layout">
+      <aside class="dict-type-panel">
+        <el-input
+          v-model="typeKeyword"
+          :placeholder="$t('dict.filterPlaceholder')"
+          clearable
+          class="type-search"
+        >
+          <template #prefix>
+            <el-icon><Search /></el-icon>
+          </template>
+        </el-input>
+        <el-scrollbar class="type-scroll">
+          <div
+            v-for="row in filteredTypes"
+            :key="row.id"
+            class="type-item"
+            :class="{ active: currentType?.id === row.id }"
+            @click="selectType(row)"
+          >
+            <div class="type-item-main">
+              <span class="type-code">{{ row.code }}</span>
+              <el-tag v-if="row.status === 0" size="small" type="info">{{ $t('dict.disabled') }}</el-tag>
+            </div>
+            <div class="type-item-sub">{{ row.name }}</div>
+          </div>
+          <el-empty v-if="!filteredTypes.length && !loading" :description="$t('common.noData')" :image-size="64" />
+        </el-scrollbar>
+      </aside>
 
-    <ResponsiveTable
-      :data="list"
-      :columns="typeColumns"
-      :loading="loading"
-      row-key="id"
-      :show-actions="true"
-      :actions-label="$t('common.actions')"
-      :actions-width="240"
-    >
-      <template #code="{ row }">
-        <el-link type="primary" :underline="'never'" style="font-family:monospace;font-weight:500;cursor:pointer" @click="showDataDrawer(row)">
-          {{ row.code }}
-        </el-link>
-      </template>
-      <template #status="{ row }">
-        <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
-          {{ row.status === 1 ? $t('dict.enabled') : $t('dict.disabled') }}
-        </el-tag>
-      </template>
-      <template #actions="{ row }">
-        <el-button text size="small" type="primary" class="action-btn" @click="showEditType(row)">{{ $t('common.edit') }}</el-button>
-        <el-button text size="small" :type="row.status === 1 ? 'warning' : 'success'" class="action-btn" @click="toggleTypeStatus(row)">
-          {{ row.status === 1 ? $t('dict.disable') : $t('dict.enable') }}
-        </el-button>
-        <el-button text size="small" type="primary" class="action-btn" @click="showDataDrawer(row)">{{ $t('dict.dataItems') }}</el-button>
-        <el-button text size="small" type="danger" class="action-btn" @click="handleDeleteType(row)">{{ $t('common.delete') }}</el-button>
-      </template>
-    </ResponsiveTable>
-
-    <div class="page-pagination-wrap">
-      <el-pagination
-        v-model:current-page="page"
-        v-model:page-size="pageSize"
-        :total="total"
-        :page-sizes="[10, 20, 50]"
-        :layout="paginationLayout"
-        @current-change="fetchList"
-        @size-change="page=1;fetchList()"
-      />
-    </div>
-
-    <!-- 新建/编辑字典类型弹窗 -->
-    <el-dialog
-      v-model="typeDialogVisible"
-      :title="isEditingType ? $t('dict.editType') : $t('dict.createType')"
-      :width="600"
-      :close-on-click-modal="false"
-      @close="fetchList"
-    >
-      <el-form ref="typeFormRef" :model="typeForm" :rules="typeRules" label-width="100px">
-        <el-form-item :label="$t('dict.code')" prop="code" v-if="!isEditingType">
-          <el-input v-model="typeForm.code" :placeholder="$t('dict.codePlaceholder')" maxlength="64" />
-        </el-form-item>
-        <el-form-item :label="$t('dict.name')" prop="name">
-          <el-input v-model="typeForm.name" maxlength="128" />
-        </el-form-item>
-        <el-form-item :label="$t('dict.description')">
-          <el-input v-model="typeForm.description" type="textarea" maxlength="256" />
-        </el-form-item>
-        <el-form-item :label="$t('dict.sort')">
-          <el-input v-model="typeForm.sort" type="number" min="0" style="width:180px" :placeholder="$t('dict.sortPlaceholder')" />
-        </el-form-item>
-        <el-form-item :label="$t('common.status')">
-          <el-switch v-model="typeForm.status" :active-value="1" :inactive-value="0" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="typeDialogVisible = false">{{ $t('common.cancel') }}</el-button>
-        <el-button type="primary" :loading="submitting" @click="saveType">{{ $t('common.save') }}</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- 字典数据项管理 Drawer -->
-    <el-drawer
-      v-model="dataDrawerVisible"
-      :title="currentType?.code + ' - ' + currentType?.name"
-      :size="dataDrawerSize"
-      class="detail-drawer"
-      destroy-on-close
-      @close="fetchList"
-    >
-      <template #header>
-        <div class="drawer-header">
-          <span>{{ currentType?.code }} - {{ currentType?.name }}</span>
-          <el-button type="primary" size="small" @click="showCreateData">{{ $t('dict.addData') }}</el-button>
+      <main v-if="currentType" class="dict-data-panel">
+        <div class="data-panel-header">
+          <div>
+            <h3 class="data-panel-title">{{ currentType.code }}</h3>
+            <p class="data-panel-desc">{{ currentType.name }}</p>
+          </div>
+          <div class="data-panel-actions">
+            <el-radio-group v-model="dataViewMode" size="small">
+              <el-radio-button value="tree">{{ $t('dict.viewTree') }}</el-radio-button>
+              <el-radio-button value="table">{{ $t('dict.viewTable') }}</el-radio-button>
+            </el-radio-group>
+            <el-button type="primary" size="small" @click="showCreateData()">{{ $t('dict.addData') }}</el-button>
+            <el-button text size="small" type="primary" @click="showEditType(currentType)">{{ $t('dict.editType') }}</el-button>
+          </div>
         </div>
-      </template>
 
-      <div class="detail-drawer-body">
+        <div v-if="dataViewMode === 'tree'" v-loading="dataLoading" class="dict-tree-wrap">
+          <el-tree
+            :data="dataTree"
+            node-key="nodeKey"
+            default-expand-all
+            :expand-on-click-node="false"
+            :props="{ label: 'label', children: 'children' }"
+          >
+            <template #default="{ data }">
+              <div class="tree-node">
+                <div class="tree-node-main">
+                  <span class="tree-label">{{ data.label }}</span>
+                  <code class="tree-value">{{ data.value }}</code>
+                  <el-tag v-if="data.virtualNode" size="small" type="warning">{{ $t('dict.virtualGroup') }}</el-tag>
+                  <el-tag v-else-if="data.status === 0" size="small" type="info">{{ $t('dict.disabled') }}</el-tag>
+                  <el-tag v-if="data.defaultFlag === 1" size="small" type="success">{{ $t('dict.default') }}</el-tag>
+                </div>
+                <div v-if="!data.virtualNode" class="tree-node-actions">
+                  <el-button text size="small" type="primary" @click.stop="showCreateData(data.id)">{{ $t('dict.addChild') }}</el-button>
+                  <el-button text size="small" type="primary" @click.stop="showEditData(data)">{{ $t('common.edit') }}</el-button>
+                  <el-button text size="small" type="danger" @click.stop="handleDeleteData(data)">{{ $t('common.delete') }}</el-button>
+                </div>
+              </div>
+            </template>
+          </el-tree>
+          <el-empty v-if="!dataLoading && !dataTree.length" :description="$t('dict.noDataItems')" />
+        </div>
+
         <ResponsiveTable
+          v-else
           :data="dataList"
           :columns="dataColumns"
           :loading="dataLoading"
@@ -145,29 +111,96 @@
             <el-button text size="small" type="danger" class="action-btn" @click="handleDeleteData(row)">{{ $t('common.delete') }}</el-button>
           </template>
         </ResponsiveTable>
+      </main>
 
-        <el-descriptions v-if="selectedData" :column="1" border size="small" style="margin-top:16px">
-          <el-descriptions-item :label="$t('dict.createdBy')">{{ selectedData.updatedBy || '-' }}</el-descriptions-item>
-          <el-descriptions-item :label="$t('dict.createdAt')">{{ selectedData.createdAt || '-' }}</el-descriptions-item>
-          <el-descriptions-item :label="$t('dict.updatedAt')">{{ selectedData.updatedAt || '-' }}</el-descriptions-item>
-        </el-descriptions>
-      </div>
-    </el-drawer>
+      <main v-else class="dict-data-panel dict-data-empty">
+        <el-empty :description="$t('dict.selectTypeHint')" />
+      </main>
+    </div>
 
-    <!-- 新建/编辑数据项弹窗 -->
+    <!-- 新建/编辑字典类型 -->
+    <el-dialog
+      v-model="typeDialogVisible"
+      :title="isEditingType ? $t('dict.editType') : $t('dict.createType')"
+      :width="600"
+      :close-on-click-modal="false"
+    >
+      <el-form ref="typeFormRef" :model="typeForm" :rules="typeRules" label-width="100px">
+        <el-form-item :label="$t('dict.code')" prop="code" v-if="!isEditingType">
+          <el-input v-model="typeForm.code" :placeholder="$t('dict.codePlaceholder')" maxlength="64" />
+        </el-form-item>
+        <el-form-item :label="$t('dict.name')" prop="name">
+          <el-input v-model="typeForm.name" maxlength="128" />
+        </el-form-item>
+        <el-form-item :label="$t('dict.description')">
+          <el-input v-model="typeForm.description" type="textarea" maxlength="256" />
+        </el-form-item>
+        <el-form-item :label="$t('dict.sort')">
+          <el-input v-model="typeForm.sort" type="number" min="0" style="width:180px" :placeholder="$t('dict.sortPlaceholder')" />
+        </el-form-item>
+        <el-form-item :label="$t('common.status')">
+          <el-switch v-model="typeForm.status" :active-value="1" :inactive-value="0" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="typeDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="submitting" @click="saveType">{{ $t('common.save') }}</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 新建/编辑数据项 -->
     <el-dialog
       v-model="dataDialogVisible"
       :title="isEditingData ? $t('dict.editData') : $t('dict.addData')"
-      :width="500"
+      :width="560"
       :close-on-click-modal="false"
-      @close="refreshDataList"
+      destroy-on-close
     >
-      <el-form ref="dataFormRef" :model="dataForm" :rules="dataRules" label-width="100px">
+      <el-form ref="dataFormRef" :model="dataForm" :rules="dataRules" label-width="110px">
         <el-form-item :label="$t('dict.label')" prop="label">
           <el-input v-model="dataForm.label" maxlength="128" />
         </el-form-item>
         <el-form-item :label="$t('dict.value')" prop="value">
           <el-input v-model="dataForm.value" maxlength="128" />
+        </el-form-item>
+        <el-form-item :label="$t('dict.parentId')">
+          <el-tree-select
+            v-model="dataForm.parentId"
+            :data="parentTreeOptions"
+            :props="{ value: 'id', label: 'label', children: 'children' }"
+            check-strictly
+            clearable
+            filterable
+            :placeholder="$t('dict.parentIdPlaceholder')"
+            style="width:100%"
+          />
+        </el-form-item>
+        <el-divider content-position="left">{{ $t('dict.crossCascade') }}</el-divider>
+        <el-form-item :label="$t('dict.parentTypeCode')">
+          <el-select
+            v-model="dataForm.parentTypeCode"
+            clearable
+            filterable
+            allow-create
+            :placeholder="$t('dict.parentTypeCode')"
+            style="width:100%"
+            @change="onParentTypeChange"
+          >
+            <el-option v-for="t in typeList" :key="t.code" :label="`${t.code} (${t.name})`" :value="t.code" />
+          </el-select>
+        </el-form-item>
+        <el-form-item :label="$t('dict.parentValue')">
+          <el-select
+            v-model="dataForm.parentValue"
+            clearable
+            filterable
+            allow-create
+            :disabled="!dataForm.parentTypeCode"
+            :placeholder="$t('dict.parentValuePlaceholder')"
+            style="width:100%"
+          >
+            <el-option v-for="opt in crossParentOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
         <el-form-item :label="$t('dict.sort')">
           <el-input v-model="dataForm.sort" type="number" min="0" style="width:180px" :placeholder="$t('dict.sortPlaceholder')" />
@@ -186,6 +219,9 @@
         <el-form-item :label="$t('dict.remark')">
           <el-input v-model="dataForm.remark" type="textarea" maxlength="256" />
         </el-form-item>
+        <el-form-item :label="$t('dict.extra')">
+          <el-input v-model="dataForm.extra" type="textarea" :rows="4" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dataDialogVisible = false">{{ $t('common.cancel') }}</el-button>
@@ -196,47 +232,53 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
-import { dictApi, type DictTypeVO, type DictDataVO } from '@/api/dict'
+import { dictApi, type DictTypeVO, type DictDataVO, type DictDataTreeVO } from '@/api/dict'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
 import { useDict } from '@/composables/useDict'
 import { useDictStore } from '@/stores/dict'
-import { useResponsiveDrawerSize } from '@/composables/useResponsiveDrawerSize'
-import { useResponsivePagination } from '@/composables/useResponsivePagination'
+import { buildParentTreeOptions } from '@/utils/dictTreeUtils'
 
 const { t } = useI18n()
 const dictStore = useDictStore()
-const { drawerSize: dataDrawerSize } = useResponsiveDrawerSize('50%')
-const { paginationLayout } = useResponsivePagination()
-
-const typeColumns = computed(() => [
-  { prop: 'code', label: t('dict.code'), width: 160, showOverflowTooltip: true },
-  { prop: 'name', label: t('dict.name'), minWidth: 120, showOverflowTooltip: true },
-  { prop: 'description', label: t('dict.description'), minWidth: 140, showOverflowTooltip: true },
-  { prop: 'sort', label: t('dict.sort'), width: 70, align: 'center' as const },
-  { prop: 'status', label: t('common.status'), width: 80, align: 'center' as const },
-  { prop: 'updatedBy', label: t('common.updatedBy'), width: 120, showOverflowTooltip: true },
-])
+const { options: tagTypeOptions } = useDict('tag_type')
 
 const dataColumns = computed(() => [
   { prop: 'label', label: t('dict.label'), minWidth: 100, showOverflowTooltip: true },
   { prop: 'value', label: t('dict.value'), minWidth: 100, showOverflowTooltip: true },
+  { prop: 'parentId', label: t('dict.parentId'), width: 90, align: 'center' as const },
+  { prop: 'parentTypeCode', label: t('dict.parentTypeCode'), width: 120, showOverflowTooltip: true },
+  { prop: 'parentValue', label: t('dict.parentValue'), width: 110, showOverflowTooltip: true },
   { prop: 'sort', label: t('dict.sort'), width: 60, align: 'center' as const },
   { prop: 'status', label: t('common.status'), width: 70, align: 'center' as const },
   { prop: 'tagType', label: t('dict.tagType'), width: 100, align: 'center' as const },
   { prop: 'defaultFlag', label: t('dict.default'), width: 90, align: 'center' as const },
-  { prop: 'remark', label: t('dict.remark'), minWidth: 100, showOverflowTooltip: true },
 ])
 
 const loading = ref(false)
-const list = ref<DictTypeVO[]>([])
-const total = ref(0)
-const page = ref(1)
-const pageSize = ref(10)
-const filter = reactive({ keyword: '', status: '' as number | string })
-const { options: tagTypeOptions } = useDict('tag_type')
+const typeList = ref<DictTypeVO[]>([])
+const typeKeyword = ref('')
+const currentType = ref<DictTypeVO | null>(null)
+const dataViewMode = ref<'tree' | 'table'>('tree')
+const dataList = ref<DictDataVO[]>([])
+const dataTree = ref<DictDataTreeVO[]>([])
+const dataLoading = ref(false)
+const crossParentOptions = ref<{ label: string; value: string }[]>([])
+
+const filteredTypes = computed(() => {
+  const kw = typeKeyword.value.trim().toLowerCase()
+  if (!kw) return typeList.value
+  return typeList.value.filter(
+    (row) => row.code.toLowerCase().includes(kw) || row.name.toLowerCase().includes(kw),
+  )
+})
+
+const parentTreeOptions = computed(() =>
+  buildParentTreeOptions(dataTree.value, isEditingData.value ? editingDataId.value ?? undefined : undefined),
+)
 
 const typeDialogVisible = ref(false)
 const isEditingType = ref(false)
@@ -249,42 +291,55 @@ const typeRules = {
   name: [{ required: true, message: () => t('validation.required', { field: t('dict.name') }), trigger: 'blur' }],
 }
 
-// 数据项管理
-const dataDrawerVisible = ref(false)
-const currentType = ref<DictTypeVO | null>(null)
-const dataList = ref<DictDataVO[]>([])
-const dataLoading = ref(false)
-const selectedData = ref<DictDataVO | null>(null)
-
 const dataDialogVisible = ref(false)
 const isEditingData = ref(false)
 const editingDataId = ref<number | null>(null)
 const dataSubmitting = ref(false)
 const dataFormRef = ref<any>(null)
-const dataForm = reactive({ label: '', value: '', sort: null as number | null, status: 1, tagType: '', defaultFlag: 0, remark: '' })
+const dataForm = reactive({
+  label: '', value: '', parentId: null as number | null,
+  parentTypeCode: '', parentValue: '', sort: null as number | null,
+  status: 1, tagType: '', defaultFlag: 0, remark: '', extra: '',
+})
 const dataRules = {
   label: [{ required: true, message: () => t('validation.required', { field: t('dict.label') }), trigger: 'blur' }],
   value: [{ required: true, message: () => t('validation.required', { field: t('dict.value') }), trigger: 'blur' }],
 }
 
-async function fetchList() {
+async function fetchTypeList() {
   loading.value = true
   try {
-    const res = await dictApi.list({
-      keyword: filter.keyword || undefined,
-      status: filter.status === '' ? undefined : (filter.status as number),
-      page: page.value,
-      size: pageSize.value,
-    })
-    list.value = res.records || []
-    total.value = res.total || 0
+    const res = await dictApi.list({ page: 1, size: 500 })
+    typeList.value = res.records || []
+    if (!currentType.value && typeList.value.length) {
+      selectType(typeList.value[0])
+    } else if (currentType.value) {
+      currentType.value = typeList.value.find((x) => x.id === currentType.value!.id) || typeList.value[0] || null
+    }
   } finally {
     loading.value = false
   }
 }
 
-function handleSearch() { page.value = 1; fetchList() }
-function handleReset() { filter.keyword = ''; filter.status = ''; page.value = 1; fetchList() }
+function selectType(row: DictTypeVO) {
+  currentType.value = row
+  refreshData()
+}
+
+async function refreshData() {
+  if (!currentType.value) return
+  dataLoading.value = true
+  try {
+    const [tree, detail] = await Promise.all([
+      dictApi.getDictDataTree(currentType.value.code),
+      dictApi.getByCode(currentType.value.code),
+    ])
+    dataTree.value = tree || []
+    dataList.value = detail.dataList || []
+  } finally {
+    dataLoading.value = false
+  }
+}
 
 function showCreateType() {
   isEditingType.value = false
@@ -324,78 +379,66 @@ async function saveType() {
     }
     typeDialogVisible.value = false
     ElMessage.success(t('common.save'))
-    if (isEditingType.value) {
-      dictStore.invalidate(typeForm.code)
-    }
-    fetchList()
+    if (isEditingType.value) dictStore.invalidate(typeForm.code)
+    await fetchTypeList()
   } finally {
     submitting.value = false
-  }
-}
-
-async function toggleTypeStatus(row: DictTypeVO) {
-  await dictApi.toggleStatus(row.id)
-  dictStore.invalidate(row.code)
-  ElMessage.success(t('common.save'))
-  fetchList()
-}
-
-async function handleDeleteType(row: DictTypeVO) {
-  await ElMessageBox.confirm(t('dict.deleteTypeConfirm', { name: row.name }), t('common.confirm'), { type: 'warning' })
-  await dictApi.delete(row.id)
-  dictStore.invalidate(row.code)
-  ElMessage.success(t('common.save'))
-  fetchList()
-}
-
-// ==================== 数据项管理 ====================
-
-async function showDataDrawer(row: DictTypeVO) {
-  currentType.value = row
-  dataDrawerVisible.value = true
-  await refreshDataList()
-}
-
-async function refreshDataList() {
-  if (!currentType.value) return
-  dataLoading.value = true
-  try {
-    const res = await dictApi.getByCode(currentType.value.code)
-    dataList.value = res.dataList || []
-  } finally {
-    dataLoading.value = false
   }
 }
 
 function resetDataForm() {
   dataForm.label = ''
   dataForm.value = ''
+  dataForm.parentId = null
+  dataForm.parentTypeCode = ''
+  dataForm.parentValue = ''
   dataForm.sort = null
   dataForm.status = 1
   dataForm.tagType = ''
   dataForm.defaultFlag = 0
   dataForm.remark = ''
+  dataForm.extra = ''
+  crossParentOptions.value = []
 }
 
-function showCreateData() {
+function showCreateData(parentId?: number) {
   isEditingData.value = false
   editingDataId.value = null
   resetDataForm()
+  if (parentId) dataForm.parentId = parentId
   dataDialogVisible.value = true
 }
 
-function showEditData(row: DictDataVO) {
+function showEditData(row: DictDataVO | DictDataTreeVO) {
   isEditingData.value = true
   editingDataId.value = row.id
   dataForm.label = row.label
   dataForm.value = row.value
+  dataForm.parentId = row.parentId ?? null
+  dataForm.parentTypeCode = row.parentTypeCode || ''
+  dataForm.parentValue = row.parentValue || ''
   dataForm.sort = row.sort
   dataForm.status = row.status
   dataForm.tagType = row.tagType || ''
   dataForm.defaultFlag = row.defaultFlag
   dataForm.remark = row.remark || ''
-  selectedData.value = row
+  dataForm.extra = row.extra || ''
+  loadCrossParentOptions(dataForm.parentTypeCode)
   dataDialogVisible.value = true
+}
+
+async function onParentTypeChange(typeCode: string) {
+  dataForm.parentValue = ''
+  await loadCrossParentOptions(typeCode)
+}
+
+async function loadCrossParentOptions(typeCode: string) {
+  if (!typeCode) {
+    crossParentOptions.value = []
+    return
+  }
+  const items = await dictApi.getDictData(typeCode)
+  crossParentOptions.value = items.map((i) => ({ label: i.label, value: i.value }))
 }
 
 async function saveData() {
@@ -403,56 +446,129 @@ async function saveData() {
   if (!valid) return
   dataSubmitting.value = true
   try {
+    const common = {
+      label: dataForm.label,
+      value: dataForm.value,
+      parentId: dataForm.parentId ?? undefined,
+      parentTypeCode: dataForm.parentTypeCode || undefined,
+      parentValue: dataForm.parentValue || undefined,
+      sort: dataForm.sort ?? undefined,
+      status: dataForm.status,
+      tagType: dataForm.tagType || undefined,
+      defaultFlag: dataForm.defaultFlag,
+      remark: dataForm.remark || undefined,
+      extra: dataForm.extra || undefined,
+    }
     if (isEditingData.value && editingDataId.value) {
       await dictApi.updateData(editingDataId.value, {
-        label: dataForm.label, value: dataForm.value, sort: dataForm.sort ?? undefined,
-        status: dataForm.status, tagType: dataForm.tagType || undefined,
-        defaultFlag: dataForm.defaultFlag, remark: dataForm.remark || undefined,
+        ...common,
+        parentId: dataForm.parentId ?? -1,
       })
     } else {
       if (!currentType.value) return
-      await dictApi.addData({
-        typeCode: currentType.value.code,
-        label: dataForm.label, value: dataForm.value, sort: dataForm.sort ?? undefined,
-        status: dataForm.status, tagType: dataForm.tagType || undefined,
-        defaultFlag: dataForm.defaultFlag, remark: dataForm.remark || undefined,
-      })
+      await dictApi.addData({ typeCode: currentType.value.code, ...common })
     }
     dataDialogVisible.value = false
     ElMessage.success(t('common.save'))
-    if (currentType.value) {
-      dictStore.invalidate(currentType.value.code)
-    }
-    refreshDataList()
+    if (currentType.value) dictStore.invalidate(currentType.value.code)
+    refreshData()
   } finally {
     dataSubmitting.value = false
   }
 }
 
-async function handleDeleteData(row: DictDataVO) {
+async function handleDeleteData(row: DictDataVO | DictDataTreeVO) {
   await ElMessageBox.confirm(t('dict.deleteDataConfirm', { label: row.label }), t('common.confirm'), { type: 'warning' })
   await dictApi.deleteData(row.id)
   dictStore.invalidate(row.typeCode)
   ElMessage.success(t('common.save'))
-  refreshDataList()
+  refreshData()
 }
 
-onMounted(() => {
-  fetchList()
+watch(dataViewMode, () => {
+  if (currentType.value) refreshData()
 })
+
+onMounted(fetchTypeList)
 </script>
 
 <style scoped>
 .summary-total { font-weight: 600; color: #409eff; }
-.summary-healthy { font-weight: 600; color: #67c23a; }
-.summary-offline { font-weight: 600; color: #c0c4cc; }
 .action-btn.action-btn { padding: 2px 4px; margin-left: 0; }
-.drawer-header {
+
+.dict-layout {
+  display: flex;
+  gap: 16px;
+  min-height: 520px;
+  align-items: stretch;
+}
+
+.dict-type-panel {
+  width: 280px;
+  flex-shrink: 0;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  background: var(--el-bg-color);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.type-search { margin: 12px; width: calc(100% - 24px); }
+.type-scroll { flex: 1; padding: 0 8px 12px; }
+
+.type-item {
+  padding: 10px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-bottom: 4px;
+  transition: background 0.15s;
+}
+.type-item:hover { background: var(--el-fill-color-light); }
+.type-item.active { background: var(--el-color-primary-light-9); }
+.type-item-main { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.type-code { font-family: monospace; font-weight: 600; font-size: 13px; color: var(--el-color-primary); }
+.type-item-sub { font-size: 12px; color: var(--el-text-color-secondary); margin-top: 4px; }
+
+.dict-data-panel {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  background: var(--el-bg-color);
+  padding: 16px;
+}
+.dict-data-empty { display: flex; align-items: center; justify-content: center; }
+
+.data-panel-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  width: 100%;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
   flex-wrap: wrap;
-  gap: 8px;
+}
+.data-panel-title { margin: 0; font-size: 18px; font-family: monospace; }
+.data-panel-desc { margin: 4px 0 0; color: var(--el-text-color-secondary); font-size: 13px; }
+.data-panel-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.dict-tree-wrap { min-height: 360px; }
+.tree-node {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 8px 4px 0;
+  min-width: 0;
+}
+.tree-node-main { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.tree-label { font-weight: 500; }
+.tree-value { font-size: 12px; color: var(--el-text-color-secondary); background: var(--el-fill-color-light); padding: 1px 6px; border-radius: 4px; }
+.tree-node-actions { flex-shrink: 0; }
+
+@media (max-width: 768px) {
+  .dict-layout { flex-direction: column; }
+  .dict-type-panel { width: 100%; max-height: 240px; }
 }
 </style>

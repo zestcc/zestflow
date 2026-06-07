@@ -1,7 +1,6 @@
 <template>
   <div class="settings-alert-page">
     <div class="page-header">
-      <h3 class="page-title">{{ $t('settings.alert.title') }}</h3>
       <p class="page-desc">{{ $t('settings.alert.description') }}</p>
     </div>
 
@@ -87,7 +86,7 @@
             <el-form-item :label="$t('settings.alert.rule')">
               <el-select v-model="historyQuery.ruleCode" clearable class="page-filter-control--sm">
                 <el-option
-                  v-for="r in ruleOptions"
+                  v-for="r in alertRuleOptions"
                   :key="r.value"
                   :label="r.label"
                   :value="r.value"
@@ -192,8 +191,10 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
 import { alertApi, type AlertConfigVO, type AlertHistoryVO } from '@/api/alert'
 import { executorApi, type AppOption } from '@/api/executor'
+import { useDict } from '@/composables/useDict'
 
 const { t } = useI18n()
+const { options: alertRuleOptions } = useDict('alert_rule')
 const router = useRouter()
 
 const activeTab = ref('config')
@@ -257,14 +258,6 @@ const timeShortcuts = computed(() => [
 
 const detailVisible = ref(false)
 const detailRow = ref<AlertHistoryVO | null>(null)
-
-const ruleOptions = computed(() => [
-  { value: 'LOW_SUCCESS_RATE', label: t('settings.alert.rules.LOW_SUCCESS_RATE') },
-  { value: 'HIGH_FAIL_COUNT', label: t('settings.alert.rules.HIGH_FAIL_COUNT') },
-  { value: 'SLOW_P95', label: t('settings.alert.rules.SLOW_P95') },
-  { value: 'NO_ONLINE_EXECUTOR', label: t('settings.alert.rules.NO_ONLINE_EXECUTOR') },
-  { value: 'SCHEDULE_FAILURES', label: t('settings.alert.rules.SCHEDULE_FAILURES') },
-])
 
 const historyColumns = computed(() => [
   { prop: 'sentAt', label: t('settings.alert.sentAt'), minWidth: 160 },
@@ -441,13 +434,6 @@ onMounted(async () => {
 <style scoped>
 .page-header {
   margin-bottom: 16px;
-}
-
-.page-title {
-  margin: 0 0 6px;
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
 }
 
 .page-desc {

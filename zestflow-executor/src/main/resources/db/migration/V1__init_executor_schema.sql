@@ -1,5 +1,5 @@
 -- Flyway V1 — Executor 业务库（幂等：表已存在则跳过）
--- 2026-06-06：由 db/init.sql 迁入
+-- 2026-06-06 Beta 整合：含 chain_key（原 V2）
 
 CREATE TABLE IF NOT EXISTS `zf_chain` (
     `code`        VARCHAR(64)  NOT NULL PRIMARY KEY,

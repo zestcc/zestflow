@@ -260,7 +260,7 @@ export const aiApi = {
   },
 
   getProviders() {
-    return http.get<AiProvidersResponse>('/ai/providers')
+    return http.get<AiProviderPreset[]>('/ai/providers')
   },
 
   testConnection(data: AiTestRequest) {

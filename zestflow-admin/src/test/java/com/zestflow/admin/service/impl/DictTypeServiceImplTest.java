@@ -167,6 +167,7 @@ class DictTypeServiceImplTest {
     @Test
     void initSystemDicts_seedsTransactionPropagationDict() {
         when(dictTypeMapper.selectOne(any())).thenReturn(null);
+        when(dictDataMapper.selectCount(any())).thenReturn(0L);
 
         dictTypeService.initSystemDicts();
 
@@ -183,6 +184,40 @@ class DictTypeServiceImplTest {
         assertThat(txValues).containsExactlyInAnyOrder(
                 "INHERIT", "REQUIRED", "REQUIRES_NEW", "NESTED",
                 "SUPPORTS", "NOT_SUPPORTED", "MANDATORY", "NEVER");
+    }
+
+    @Test
+    void initSystemDicts_seedsChainLifecycleStatus() {
+        when(dictTypeMapper.selectOne(any())).thenReturn(null);
+        when(dictDataMapper.selectCount(any())).thenReturn(0L);
+
+        dictTypeService.initSystemDicts();
+
+        verify(dictTypeMapper, atLeastOnce()).insert(typeCaptor.capture());
+        assertThat(typeCaptor.getAllValues())
+                .extracting(DictTypePO::getCode)
+                .contains("chain_lifecycle_status", "registry_status", "alert_rule", "ai_copilot_mode");
+
+        verify(dictDataMapper, atLeastOnce()).insert(dataCaptor.capture());
+        List<String> chainStatusValues = dataCaptor.getAllValues().stream()
+                .filter(d -> "chain_lifecycle_status".equals(d.getTypeCode()))
+                .map(DictDataPO::getValue)
+                .toList();
+        assertThat(chainStatusValues).containsExactlyInAnyOrder("0", "1", "2", "3", "4");
+    }
+
+    @Test
+    void initSystemDicts_backfillsMissingDataWhenTypeExists() {
+        when(dictTypeMapper.selectOne(any())).thenReturn(createTypePo(1L, "enable_status", "启用状态"));
+        when(dictDataMapper.selectCount(any())).thenReturn(0L);
+
+        dictTypeService.initSystemDicts();
+
+        verify(dictTypeMapper, never()).insert(any(DictTypePO.class));
+        verify(dictDataMapper, atLeastOnce()).insert(dataCaptor.capture());
+        assertThat(dataCaptor.getAllValues())
+                .extracting(DictDataPO::getTypeCode)
+                .contains("enable_status", "chain_lifecycle_status");
     }
 
     @Test

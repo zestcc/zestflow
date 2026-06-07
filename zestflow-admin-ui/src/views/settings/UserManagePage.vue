@@ -4,7 +4,7 @@
     <div class="page-header">
       <div class="page-header-row">
         <div class="page-stats-row">
-          <span class="summary-total" style="font-weight:600;color:#409eff">{{ $t('settings.userManage') }} {{ total }}</span>
+          <span class="summary-total" style="font-weight:600;color:#409eff">{{ $t('settings.userCount', { count: total }) }}</span>
         </div>
         <el-button type="primary" @click="openCreate">{{ $t('settings.createUser') }}</el-button>
       </div>

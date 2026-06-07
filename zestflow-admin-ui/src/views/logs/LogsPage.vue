@@ -25,17 +25,20 @@
           <el-input v-model="query.keyword" class="page-filter-control--md" :placeholder="$t('logs.keyword')" clearable @keyup.enter="search" />
           <el-select v-model="query.status" class="page-filter-control--sm" :placeholder="$t('common.status')" clearable>
             <el-option :label="$t('common.all')" :value="undefined" />
-            <el-option :label="$t('logs.success')" :value="1" />
-            <el-option :label="$t('logs.failure')" :value="0" />
+            <el-option
+              v-for="item in executionResultOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.bindValue"
+            />
           </el-select>
           <el-select v-model="query.eventTypes" class="page-filter-control" :placeholder="$t('logs.allTypes')" clearable multiple collapse-tags>
-            <el-option label="CHAIN_STARTED" value="CHAIN_STARTED" />
-            <el-option label="CHAIN_COMPLETED" value="CHAIN_COMPLETED" />
-            <el-option label="CHAIN_FAILED" value="CHAIN_FAILED" />
-            <el-option label="CHAIN_TIMEOUT" value="CHAIN_TIMEOUT" />
-            <el-option label="NODE_STARTED" value="NODE_STARTED" />
-            <el-option label="NODE_COMPLETED" value="NODE_COMPLETED" />
-            <el-option label="NODE_FAILED" value="NODE_FAILED" />
+            <el-option
+              v-for="item in logEventTypeOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
           </el-select>
         </div>
         <div class="page-filter-actions">
@@ -296,8 +299,12 @@ import { queryLogStats, type EventStats } from '@/api/logs'
 import { useCurrentApp } from '@/composables/useCurrentApp'
 import { useResponsiveDrawerSize } from '@/composables/useResponsiveDrawerSize'
 import { useResponsivePagination } from '@/composables/useResponsivePagination'
+import { useDict } from '@/composables/useDict'
+import { useDictLabel } from '@/composables/useDictLabel'
 
 const { t } = useI18n()
+const { dictOptions: executionResultOptions } = useDictLabel('execution_result')
+const { options: logEventTypeOptions } = useDict('log_event_type')
 const route = useRoute()
 const router = useRouter()
 const { currentAppCode, syncFromApps } = useCurrentApp()

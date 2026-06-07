@@ -7,8 +7,8 @@
 | **单轨** | 表结构只由 `db/migration/V*.sql` 维护 |
 | **库自行创建** | 部署/开发前手工 `CREATE DATABASE zestflow_admin`，无 init-db 脚本 |
 | **幂等** | V1 用 `CREATE TABLE IF NOT EXISTS`；V2+ 列/索引用「存在则跳过」 |
-| **不可改历史** | 已发布的 V* 改内容会 checksum 冲突；dev 可 `flyway repair` |
-| **增量只加文件** | 新 DDL 写 `V{n}__描述.sql` |
+| **Beta 整合** | 2026-06-06 已将原 V2–V7 及字典级联/sys_config 合并进 V1；新环境只需跑 V1 |
+| **增量只加文件** | 新 DDL 写 `V2__描述.sql` |
 
 ## 部署 / 开发流程
 
@@ -18,11 +18,25 @@ config/application-prod.yml  →  spring.datasource.url / username / password
 start-admin                    →  Flyway 自动 migrate
 ```
 
-## 已有库（曾手工建过表）
+## 已有库（曾跑过旧 V2+ / V3 / V4）
+
+Beta 阶段推荐 **删库重建**（最简单）：
+
+```sql
+DROP DATABASE zestflow_admin;
+CREATE DATABASE zestflow_admin CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+若需保留数据，手动对齐表结构后清理 history（V3/V4 已并入 V1，需删掉 >1 的记录并 repair V1 checksum）：
+
+```sql
+DELETE FROM flyway_schema_history WHERE version > '1';
+-- 启动时 flyway repair（demo 环境自动 repair+migrate）
+```
 
 `baseline-on-migrate: true` + `baseline-version: 1`（prod 已配置）：有表无 history 时 baseline。
 
-V1 已 `IF NOT EXISTS`，即使未 baseline、直接跑 migrate 也不会因「表已存在」失败。
+V1 已 `IF NOT EXISTS`，即使未 baseline、直接跑 migrate 也不会因「表已存在」失败；但 **旧表缺列** 时需删库或手工 ALTER。
 
 ## 故障排查
 
@@ -30,6 +44,6 @@ V1 已 `IF NOT EXISTS`，即使未 baseline、直接跑 migrate 也不会因「�
 |------|------|
 | `Access denied for user 'root'` | 改 **application-prod.yml** 的 `spring.datasource.password`（与 db.env 无关） |
 | `Unknown database 'zestflow_admin'` | 先手工建库 |
-| `Duplicate column 'declared_chain_keys'` | 已修复：V2 为幂等；若 history 卡在失败态，删失败行或 `flyway repair` 后重启 |
-| `checksum mismatch` | 勿改已发布 V*；dev 可 `flyway repair` |
+| `Found more than one migration with version X` | 已修复：Beta 整合后仅 V1 |
+| `checksum mismatch` | Beta 可删库重建；dev 可 `flyway repair` |
 | 线上 `flyway.enabled: false` | 表结构不会自动升级，与 jar 内 V* 脱节；demo/prod 建议 `enabled: true` |

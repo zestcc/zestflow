@@ -1,45 +1,55 @@
 package com.zestflow.admin.ai;
 
+import com.zestflow.admin.service.TenantAppContext;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class AiProviderPresetRegistryTest {
 
-    @Test
-    void load_shouldContainTierAPresets() {
-        AiProviderPresetRegistry registry = new AiProviderPresetRegistry();
-        registry.load();
+    @Mock private AiProviderDictLoader dictLoader;
+    @Mock private TenantAppContext tenantAppContext;
 
-        assertThat(registry.getVersion()).isEqualTo("2026-06");
-        List<AiProviderPreset> presets = registry.listPresets();
-        assertThat(presets).hasSizeGreaterThanOrEqualTo(24);
+    private AiProviderPresetRegistry registry;
 
-        long tierA = presets.stream().filter(p -> "A".equals(p.getTier())).count();
-        assertThat(tierA).isEqualTo(8);
-
-        Optional<AiProviderPreset> deepseek = registry.getById("deepseek");
-        assertThat(deepseek).isPresent();
-        assertThat(deepseek.get().getDefaultModel()).isEqualTo("deepseek-chat");
-        assertThat(deepseek.get().getBaseUrl()).isEqualTo("https://api.deepseek.com");
-        assertThat(deepseek.get().isApiKeyRequired()).isTrue();
-
-        Optional<AiProviderPreset> ollama = registry.getById("ollama");
-        assertThat(ollama).isPresent();
-        assertThat(ollama.get().isApiKeyRequired()).isFalse();
-
-        Optional<AiProviderPreset> custom = registry.getById("custom");
-        assertThat(custom).isPresent();
-        assertThat(custom.get().getTier()).isEqualTo("B");
+    @BeforeEach
+    void setUp() {
+        registry = new AiProviderPresetRegistry(dictLoader, tenantAppContext);
+        when(tenantAppContext.getCurrentTenantId()).thenReturn(1L);
     }
 
     @Test
-    void getById_unknown_returnsEmpty() {
-        AiProviderPresetRegistry registry = new AiProviderPresetRegistry();
-        registry.load();
-        assertThat(registry.getById("nonexistent")).isEmpty();
+    void listPresets_delegatesToDictLoader() {
+        AiProviderPreset deepseek = new AiProviderPreset();
+        deepseek.setId("deepseek");
+        deepseek.setDisplayName("DeepSeek");
+        deepseek.setTier("A");
+        deepseek.setDefaultModel("deepseek-chat");
+        deepseek.setModels(List.of("deepseek-chat"));
+        when(dictLoader.loadPresets(1L)).thenReturn(List.of(deepseek));
+        when(dictLoader.getById(1L, "deepseek")).thenReturn(Optional.of(deepseek));
+        when(dictLoader.getById(1L, "unknown")).thenReturn(Optional.empty());
+
+        assertThat(registry.listPresets()).hasSize(1);
+        assertThat(registry.getById("deepseek")).isPresent();
+        assertThat(registry.getById("unknown")).isEmpty();
+    }
+
+    @Test
+    void getById_found() {
+        AiProviderPreset preset = new AiProviderPreset();
+        preset.setId("ollama");
+        when(dictLoader.getById(1L, "ollama")).thenReturn(Optional.of(preset));
+
+        assertThat(registry.getById("ollama")).isPresent();
     }
 }

@@ -54,9 +54,12 @@
         </el-tooltip>
         <span class="toolbar-divider" />
         <el-select v-model="defaultEdgeStyle" size="small" style="width:80px" @change="onDefaultEdgeStyleChange">
-          <el-option :label="$t('design.straightLine')" value="straight" />
-          <el-option :label="$t('design.polylineLine')" value="polyline" />
-          <el-option :label="$t('design.curveLine')" value="curve" />
+          <el-option
+            v-for="item in designLineTypeOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
         </el-select>
         <span class="toolbar-divider" />
         <!-- 对齐 -->
@@ -1158,12 +1161,8 @@ watch([selectedNodeData, selectedEdgeData], ([node, edge]) => {
   }
 })
 
-const executeStrategyOptions = computed(() => [
-  { value: 'NORMAL', label: t('design.strategyNormal') },
-  { value: 'RETRY_ON_FAILURE', label: t('design.strategyRetry') },
-  { value: 'STOP_ON_EXCEPTION', label: t('design.strategyStopOnException') },
-  { value: 'IGNORE_EXCEPTION', label: t('design.strategyIgnoreException') },
-])
+const { options: executeStrategyOptions } = useDict('execute_strategy')
+const { options: designLineTypeOptions } = useDict('design_line_type')
 
 const chainSettings = reactive({
   transactionEnabled: false,

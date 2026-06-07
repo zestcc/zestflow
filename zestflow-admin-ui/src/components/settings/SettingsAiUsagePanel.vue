@@ -3,9 +3,12 @@
     <div class="usage-toolbar">
       <span>{{ $t('settings.ai.usage.window') }}</span>
       <el-select v-model="days" style="width:120px" @change="loadOverview">
-        <el-option :label="$t('settings.ai.usage.days7')" :value="7" />
-        <el-option :label="$t('settings.ai.usage.days30')" :value="30" />
-        <el-option :label="$t('settings.ai.usage.days90')" :value="90" />
+        <el-option
+          v-for="item in usageWindowOptions"
+          :key="item.value"
+          :label="item.label"
+          :value="item.bindValue"
+        />
       </el-select>
       <el-button @click="loadOverview">{{ $t('design.search') }}</el-button>
     </div>
@@ -51,14 +54,20 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { aiApi, type AiUsageOverview } from '@/api/ai'
+import { useDictLabel } from '@/composables/useDictLabel'
 
 const loading = ref(false)
 const days = ref(30)
 const overview = ref<AiUsageOverview | null>(null)
+const { dictOptions: usageWindowOptions } = useDictLabel('ai_usage_window_days')
+const { labelOf: resolveCopilotMode } = useDictLabel('ai_copilot_mode')
 
 const modeRows = computed(() => {
   const map = overview.value?.sessionsByMode ?? {}
-  return Object.entries(map).map(([mode, count]) => ({ mode, count }))
+  return Object.entries(map).map(([mode, count]) => ({
+    mode: resolveCopilotMode(mode),
+    count,
+  }))
 })
 
 async function loadOverview() {

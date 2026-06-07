@@ -2,34 +2,51 @@ import { defineStore } from 'pinia'
 import { reactive } from 'vue'
 import { dictApi, type DictDataVO } from '@/api/dict'
 
+function cacheKey(typeCode: string, parentTypeCode?: string, parentValue?: string) {
+  return `${typeCode}|${parentTypeCode ?? ''}|${parentValue ?? ''}`
+}
+
 export const useDictStore = defineStore('dict', () => {
   const cache = reactive<Record<string, DictDataVO[]>>({})
   const versions = reactive<Record<string, number>>({})
   const loading = reactive<Record<string, boolean>>({})
 
-  async function loadDict(typeCode: string, force = false): Promise<DictDataVO[]> {
-    if (!force && typeCode in cache) {
-      return cache[typeCode]
+  async function loadDict(
+    typeCode: string,
+    force = false,
+    parentTypeCode?: string,
+    parentValue?: string,
+  ): Promise<DictDataVO[]> {
+    const key = cacheKey(typeCode, parentTypeCode, parentValue)
+    if (!force && key in cache) {
+      return cache[key]
     }
-    loading[typeCode] = true
+    loading[key] = true
     try {
-      const data = await dictApi.getDictData(typeCode)
-      cache[typeCode] = data ?? []
-      return cache[typeCode]
+      const data = await dictApi.getDictData(typeCode, {
+        parentTypeCode: parentTypeCode || undefined,
+        parentValue: parentValue || undefined,
+      })
+      cache[key] = data ?? []
+      return cache[key]
     } catch {
-      if (!(typeCode in cache)) {
-        cache[typeCode] = []
+      if (!(key in cache)) {
+        cache[key] = []
       }
-      return cache[typeCode]
+      return cache[key]
     } finally {
-      loading[typeCode] = false
+      loading[key] = false
     }
   }
 
-  /** 字典 CRUD 后调用，已打开页面会通过 version 监听自动重新拉取 */
   function invalidate(typeCode: string) {
-    delete cache[typeCode]
-    versions[typeCode] = (versions[typeCode] ?? 0) + 1
+    const prefix = `${typeCode}|`
+    for (const key of Object.keys(cache)) {
+      if (key.startsWith(prefix)) {
+        delete cache[key]
+        versions[key] = (versions[key] ?? 0) + 1
+      }
+    }
   }
 
   function invalidateAll() {

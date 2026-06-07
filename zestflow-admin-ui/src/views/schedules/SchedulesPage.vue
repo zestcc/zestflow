@@ -1,8 +1,7 @@
 <template>
   <div class="schedules-page">
     <div class="page-header">
-      <div class="page-header-row">
-        <h2>{{ $t('schedules.title') }}</h2>
+      <div class="page-header-row page-header-row--actions-end">
         <el-button v-if="activeTab === 'chain'" type="primary" @click="showCreate">{{ $t('schedules.create') }}</el-button>
       </div>
     </div>
@@ -23,9 +22,12 @@
         </el-form-item>
         <el-form-item v-if="activeTab === 'platform'" :label="$t('schedules.module')">
           <el-select v-model="query.module" :placeholder="$t('schedules.module')" clearable class="page-filter-control--sm">
-            <el-option label="admin" value="admin" />
-            <el-option label="executor" value="executor" />
-            <el-option label="collector" value="collector" />
+            <el-option
+              v-for="item in platformModuleOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('schedules.keyword')">
@@ -34,15 +36,22 @@
         <el-form-item v-if="activeTab !== 'logs'" :label="$t('common.status')">
           <el-select v-model="query.status" :placeholder="$t('common.status')" clearable class="page-filter-control--sm">
             <el-option :label="$t('schedules.total')" :value="undefined" />
-            <el-option :label="$t('schedules.enabled')" :value="1" />
-            <el-option :label="$t('schedules.disabled')" :value="0" />
+            <el-option
+              v-for="item in enableStatusOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.bindValue"
+            />
           </el-select>
         </el-form-item>
         <el-form-item v-if="activeTab === 'logs'" :label="$t('schedules.logStatus')">
           <el-select v-model="logQuery.status" clearable class="page-filter-control--sm">
-            <el-option :label="$t('schedules.running')" :value="0" />
-            <el-option :label="$t('schedules.success')" :value="1" />
-            <el-option :label="$t('schedules.failed')" :value="2" />
+            <el-option
+              v-for="item in scheduleLogStatusOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.bindValue"
+            />
           </el-select>
         </el-form-item>
         <el-form-item class="filter-actions-item">
@@ -241,6 +250,7 @@ import { scheduleApi, type ScheduleVO, type ScheduleCreateDTO, type ScheduleUpda
 import { chainApi, type ChainVO } from '@/api/chain'
 import { executorApi, type AppOption } from '@/api/executor'
 import { useDict } from '@/composables/useDict'
+import { useDictLabel } from '@/composables/useDictLabel'
 import { useCurrentApp } from '@/composables/useCurrentApp'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
 import { useResponsivePagination } from '@/composables/useResponsivePagination'
@@ -315,6 +325,9 @@ const formRef = ref<any>(null)
 const form = reactive({ chainCode: '', chainName: '', cron: '', routeStrategy: 'round_robin', remark: '' })
 const chainOptions = ref<ChainVO[]>([])
 const { options: routeStrategyOptions } = useDict('route_strategy')
+const { dictOptions: enableStatusOptions } = useDictLabel('enable_status')
+const { dictOptions: scheduleLogStatusOptions } = useDictLabel('schedule_log_status')
+const { options: platformModuleOptions } = useDict('platform_module')
 
 const logDialogVisible = ref(false)
 const currentSchedule = ref<ScheduleVO | null>(null)
@@ -524,7 +537,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page-header h2 { margin: 0; font-size: 20px; }
 .schedule-tabs { margin-bottom: 12px; }
 .filter-card { margin-bottom: 16px; }
 .action-btn.action-btn { padding: 2px 4px; margin-left: 0; }

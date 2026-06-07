@@ -91,19 +91,24 @@
           <el-col :span="6">
             <el-form-item :label="$t('playground.scenes.requestMethod')">
               <el-select v-model="form.requestMethod">
-                <el-option label="POST" value="POST" />
-                <el-option label="GET" value="GET" />
-                <el-option label="PUT" value="PUT" />
-                <el-option label="DELETE" value="DELETE" />
+                <el-option
+                  v-for="item in httpMethodOptions"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="6">
             <el-form-item :label="$t('playground.scenes.bodyType')">
               <el-select v-model="form.bodyType">
-                <el-option label="JSON" value="JSON" />
-                <el-option label="FORM" value="FORM" />
-                <el-option label="RAW" value="RAW" />
+                <el-option
+                  v-for="item in httpBodyTypeOptions"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
               </el-select>
             </el-form-item>
           </el-col>
@@ -302,8 +307,11 @@ import {
 import { useCurrentApp } from '@/composables/useCurrentApp'
 import { useResponsiveDrawerSize } from '@/composables/useResponsiveDrawerSize'
 import { useResponsivePagination } from '@/composables/useResponsivePagination'
+import { useDict } from '@/composables/useDict'
 
 const { t } = useI18n()
+const { options: httpMethodOptions } = useDict('http_method')
+const { options: httpBodyTypeOptions } = useDict('http_body_type')
 const route = useRoute()
 const { currentAppCode, syncFromApps } = useCurrentApp()
 const { drawerSize: detailDrawerSize } = useResponsiveDrawerSize(500)

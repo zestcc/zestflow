@@ -26,8 +26,12 @@
       </el-form-item>
       <el-form-item :label="$t('components.status')">
         <el-select v-model="filter.status" :placeholder="$t('components.total')" clearable class="page-filter-control--sm">
-          <el-option :label="$t('components.active')" :value="1" />
-          <el-option :label="$t('components.offline')" :value="0" />
+          <el-option
+            v-for="item in componentOnlineFilterOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.bindValue"
+          />
         </el-select>
       </el-form-item>
       <el-form-item :label="$t('components.componentType')">
@@ -157,12 +161,17 @@ import { executorApi, type AppOption } from '@/api/executor'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
 import AiComponentScaffoldDialog from '@/components/ai/AiComponentScaffoldDialog.vue'
 import { useDict } from '@/composables/useDict'
+import { useDictLabel } from '@/composables/useDictLabel'
 import { useCurrentApp } from '@/composables/useCurrentApp'
 import { useResponsiveDrawerSize } from '@/composables/useResponsiveDrawerSize'
 import { useResponsivePagination } from '@/composables/useResponsivePagination'
 
 const { t } = useI18n()
 const { options: componentTypeOptions } = useDict('component_type')
+const { dictOptions: componentOnlineOptions } = useDictLabel('registry_status')
+const componentOnlineFilterOptions = computed(() =>
+  componentOnlineOptions.value.filter(o => o.value === '0' || o.value === '1'),
+)
 const { currentAppCode, syncFromApps } = useCurrentApp()
 const { drawerSize } = useResponsiveDrawerSize(600)
 const { paginationLayout } = useResponsivePagination()

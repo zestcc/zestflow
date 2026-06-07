@@ -15,8 +15,12 @@
         </el-form-item>
         <el-form-item>
           <el-select v-model="filter.status" :placeholder="$t('common.all')" clearable class="page-filter-control--sm">
-            <el-option :label="$t('common.success')" :value="1" />
-            <el-option :label="$t('common.failed')" :value="0" />
+            <el-option
+              v-for="item in executionResultOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.bindValue"
+            />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -177,8 +181,10 @@ import { queryRecordPage, getRecordById, type PlaygroundRecordVO, type Playgroun
 import { useCurrentApp } from '@/composables/useCurrentApp'
 import { useResponsiveDrawerSize } from '@/composables/useResponsiveDrawerSize'
 import { useResponsivePagination } from '@/composables/useResponsivePagination'
+import { useDictLabel } from '@/composables/useDictLabel'
 
 const { t } = useI18n()
+const { dictOptions: executionResultOptions } = useDictLabel('execution_result')
 const router = useRouter()
 const { currentAppCode, syncFromApps } = useCurrentApp()
 const { drawerSize: detailDrawerSize } = useResponsiveDrawerSize(600)

@@ -18,8 +18,16 @@ public interface DictTypeService {
     /** 按编码查询字典类型（含数据项列表） */
     DictTypeVO getByCode(String code);
 
-    /** 获取全量字典数据（供其他模块下拉框使用） */
-    List<DictDataVO> getDictData(String typeCode);
+    /** 获取字典数据（供下拉框使用，可选父级过滤） */
+    List<DictDataVO> getDictData(String typeCode, String parentTypeCode, String parentValue);
+
+    /** 获取字典数据树（管理端树形展示） */
+    List<com.zestflow.admin.model.vo.DictDataTreeVO> getDictDataTree(String typeCode);
+
+    /** @deprecated 使用 {@link #getDictData(String, String, String)} */
+    default List<DictDataVO> getDictData(String typeCode) {
+        return getDictData(typeCode, null, null);
+    }
 
     /** 创建字典类型 */
     DictTypeVO create(DictTypeCreateDTO dto, String username);

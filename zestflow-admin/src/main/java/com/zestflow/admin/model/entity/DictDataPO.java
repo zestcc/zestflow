@@ -14,6 +14,15 @@ public class DictDataPO {
 
     private String typeCode;
 
+    /** 同类型树形父级 ID */
+    private Long parentId;
+
+    /** 父级字典类型（空表示与 typeCode 相同） */
+    private String parentTypeCode;
+
+    /** 父级字典项 value，用于级联 */
+    private String parentValue;
+
     private String label;
 
     private String value;
@@ -27,6 +36,9 @@ public class DictDataPO {
     private Integer defaultFlag;
 
     private String remark;
+
+    /** 扩展 JSON */
+    private String extra;
 
     private Long tenantId;
 

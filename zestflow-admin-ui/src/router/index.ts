@@ -165,6 +165,12 @@ const routes: RouteRecordRaw[] = [
             meta: { title: '字典管理' },
           },
           {
+            path: 'sys-config',
+            name: 'SysConfig',
+            component: () => import('@/views/settings/SettingsSysConfigPage.vue'),
+            meta: { title: '系统配置' },
+          },
+          {
             path: 'tenants',
             name: 'TenantManage',
             component: () => import('@/views/tenant/TenantManagePage.vue'),

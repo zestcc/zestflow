@@ -3,7 +3,6 @@
     <el-card shadow="never">
       <template #header>
         <div class="card-header">
-          <span>{{ $t('tenant.title') }}</span>
           <el-button type="primary" @click="openCreate">{{ $t('common.create') }}</el-button>
         </div>
       </template>
@@ -293,7 +292,7 @@ function openDetail(row: TenantVO) {
 <style scoped>
 .card-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;

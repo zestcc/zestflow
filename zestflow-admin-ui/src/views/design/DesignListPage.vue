@@ -27,8 +27,12 @@
           </el-form-item>
           <el-form-item>
             <el-select v-model="filter.status" :placeholder="$t('design.total')" clearable class="page-filter-control--sm">
-              <el-option :label="$t('design.enabled')" :value="1" />
-              <el-option :label="$t('design.disabled')" :value="0" />
+              <el-option
+                v-for="item in enableStatusOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.bindValue"
+              />
             </el-select>
           </el-form-item>
           <el-form-item class="filter-actions-item">
@@ -170,8 +174,10 @@ import DesignDetailDrawer from '@/components/DesignDetailDrawer.vue'
 import ChainDetailDrawer from '@/components/ChainDetailDrawer.vue'
 import { useCurrentApp } from '@/composables/useCurrentApp'
 import { useResponsivePagination } from '@/composables/useResponsivePagination'
+import { useDictLabel } from '@/composables/useDictLabel'
 
 const { t } = useI18n()
+const { dictOptions: enableStatusOptions } = useDictLabel('enable_status')
 const router = useRouter()
 const { currentAppCode, syncFromApps } = useCurrentApp()
 const { paginationLayout } = useResponsivePagination()

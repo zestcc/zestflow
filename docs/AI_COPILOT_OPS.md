@@ -141,12 +141,13 @@ API：`GET /api/ai/usage/overview?days=7|30|90`（租户管理员）
 
 ## 5. 数据库迁移
 
-Flyway `V5__ai_tenant_rag_and_usage.sql`：
+Flyway `V1__init_admin_schema.sql`（Beta 整合，含原 AI V3–V5）：
 
-- 新建 `zf_ai_rag_document`
-- `zf_ai_copilot_session` 增加 `latency_ms`、`success`、`error_message`
+- `zf_ai_rag_document`、`zf_ai_tenant_config`、`zf_ai_copilot_session` 等 AI 表
+- `zf_ai_tenant_config` 含 `monthly_token_quota`（月 Token 上限，NULL=不限）
+- `zf_ai_copilot_session` 含 `latency_ms`、`success`、`error_message`
 
-升级 Admin 后 Flyway 自动执行；回滚需手工处理，建议升级前备份。
+新环境启动 Admin 后 Flyway 自动执行 V1；已有 beta 库建议删库重建。
 
 ---
 

@@ -18,11 +18,12 @@
       </el-form-item>
       <el-form-item :label="$t('components.componentType')" required>
         <el-select v-model="form.componentType">
-          <el-option label="EXECUTOR" value="EXECUTOR" />
-          <el-option label="PREDICATE" value="PREDICATE" />
-          <el-option label="SELECTOR" value="SELECTOR" />
-          <el-option label="LOADER" value="LOADER" />
-          <el-option label="PARSER" value="PARSER" />
+          <el-option
+            v-for="item in componentTypeOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
         </el-select>
       </el-form-item>
       <el-form-item :label="$t('components.groupName')">
@@ -59,8 +60,10 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { aiApi, type AiComponentScaffoldResponse } from '@/api/ai'
 import { executorApi, type AppOption } from '@/api/executor'
+import { useDict } from '@/composables/useDict'
 
 const { t } = useI18n()
+const { options: componentTypeOptions } = useDict('component_type')
 const visible = ref(false)
 const loading = ref(false)
 const apps = ref<AppOption[]>([])
