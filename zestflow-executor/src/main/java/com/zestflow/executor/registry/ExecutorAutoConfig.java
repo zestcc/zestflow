@@ -85,8 +85,15 @@ public class ExecutorAutoConfig {
 
     @Bean
     @ConditionalOnMissingBean
-    public ExecutorChainAiService executorChainAiService(ExecutorProperties properties) {
-        return new ExecutorChainAiService(properties);
+    public ExecutorChainAiService executorChainAiService(ExecutorProperties properties,
+                                                         ChainLoader chainLoader) {
+        ExecutorChainAiService service = new ExecutorChainAiService(properties);
+        service.setChainDataValidator((chainCode, chainData) -> {
+            ChainLoader.ChainValidationResult result =
+                    chainLoader.validateDefinition(chainCode, 1, chainData, null);
+            return result.isValid();
+        });
+        return service;
     }
 
     @Bean(initMethod = "start", destroyMethod = "stop")

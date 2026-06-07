@@ -114,6 +114,11 @@ public class ExecutorProperties implements EnvironmentAware {
     /** 数据持久化目录（链定义、设计图等） */
     private String dataDir = "./zestflow-data";
 
+    /**
+     * 未配置 {@link #accessToken} 时，AI API（{@code /api/ai/*}）是否仅允许本机访问。
+     */
+    private boolean aiLocalhostOnly = true;
+
     /** 链默认超时（毫秒） */
     private long chainDefaultTimeoutMs = 60000;
 

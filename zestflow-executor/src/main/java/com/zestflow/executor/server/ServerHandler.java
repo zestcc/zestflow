@@ -120,6 +120,11 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
                         "{\"code\":401,\"message\":\"Unauthorized\"}");
                 return;
             }
+        } else if (uri.startsWith("/api/ai/") && !isAiApiAllowed(ctx)) {
+            log.warn("AI API 拒绝非本机访问 uri={} remote={}", uri, ctx.channel().remoteAddress());
+            writeResponse(ctx, HttpResponseStatus.FORBIDDEN,
+                    "{\"code\":403,\"message\":\"AI API localhost only; configure zestflow.executor.access-token for remote\"}");
+            return;
         }
 
         try {
@@ -714,12 +719,37 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
                     Result.fail(503, "ChainAiService 未启用").toString());
             return true;
         }
+        if (method == HttpMethod.GET && "/api/ai/rag/status".equals(stripQuery(uri))) {
+            Map<String, Object> status = chainAiService.ragStatus();
+            writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(Result.success(status)));
+            return true;
+        }
         if (method == HttpMethod.GET && uri.startsWith("/api/ai/rag/search")) {
             Map<String, String> params = parseQueryParams(uri);
             String q = params.getOrDefault("q", "");
             int limit = parseIntParam(params.get("limit"), 5);
             List<String> snippets = chainAiService.searchRag(q, limit);
             writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(Result.success(snippets)));
+            return true;
+        }
+        if (method == HttpMethod.POST && "/api/ai/chains/suggest".equals(stripQuery(uri))) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> payload = body != null && !body.isBlank()
+                    ? MAPPER.readValue(body, Map.class) : Map.of();
+            String userMessage = payload.get("userMessage") != null
+                    ? String.valueOf(payload.get("userMessage")) : "";
+            String chainCode = payload.get("chainCode") != null
+                    ? String.valueOf(payload.get("chainCode")) : "";
+            List<String> allowed = new ArrayList<>();
+            if (payload.get("allowedComponents") instanceof List<?> list) {
+                for (Object o : list) {
+                    if (o != null) {
+                        allowed.add(String.valueOf(o));
+                    }
+                }
+            }
+            Map<String, Object> result = chainAiService.suggestChain(userMessage, chainCode, allowed);
+            writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(Result.success(result)));
             return true;
         }
         if (method == HttpMethod.POST && "/api/ai/learning/events".equals(stripQuery(uri))) {
@@ -738,6 +768,18 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
         }
         writeResponse(ctx, HttpResponseStatus.NOT_FOUND, Result.fail(404, "未知 AI 路由").toString());
         return true;
+    }
+
+    private boolean isAiApiAllowed(ChannelHandlerContext ctx) {
+        if (executorProperties == null || !executorProperties.isAiLocalhostOnly()) {
+            return true;
+        }
+        if (ctx.channel().remoteAddress() == null) {
+            return true;
+        }
+        String host = ctx.channel().remoteAddress().toString();
+        return host.contains("127.0.0.1") || host.contains("0:0:0:0:0:0:0:1")
+                || host.contains("::1") || host.startsWith("/127.");
     }
 
     private static int parseIntParam(String raw, int defaultValue) {

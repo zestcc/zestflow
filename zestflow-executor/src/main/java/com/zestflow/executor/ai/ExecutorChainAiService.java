@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.zestflow.executor.registry.ExecutorProperties;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -12,15 +13,20 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -31,12 +37,16 @@ public class ExecutorChainAiService {
 
     private static final double PROMOTION_THRESHOLD = 0.97;
     private static final String ACCEPTANCE_RESOURCE = "zestflow-ai/ai-generation-acceptance.md";
+    private static final Pattern CHAIN_JSON_BLOCK = Pattern.compile("```json\\s*([\\s\\S]*?)```", Pattern.CASE_INSENSITIVE);
 
     private final Path aiRoot;
     private final Path eventsFile;
     private final Path patternsDir;
     private final Path indexFile;
     private final ObjectMapper mapper;
+
+    @Setter
+    private ChainDataValidator chainDataValidator;
 
     public ExecutorChainAiService(ExecutorProperties properties) {
         this.aiRoot = Path.of(properties.getDataDir(), "ai").toAbsolutePath().normalize();
@@ -48,22 +58,65 @@ public class ExecutorChainAiService {
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     }
 
+    public Map<String, Object> ragStatus() throws IOException {
+        List<LearningEvent> events = readAllEvents();
+        List<PatternDoc> patterns = listPatterns();
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("storage", aiRoot.toString());
+        out.put("eventsFile", eventsFile.toString());
+        out.put("eventCount", events.size());
+        out.put("patternCount", patterns.size());
+        out.put("patterns", patterns.stream()
+                .sorted(Comparator.comparingDouble(PatternDoc::confidence).reversed())
+                .limit(20)
+                .map(p -> Map.of(
+                        "id", p.id(),
+                        "title", p.title(),
+                        "feature", p.feature() != null ? p.feature() : "",
+                        "confidence", p.confidence(),
+                        "sampleCount", p.sampleCount()))
+                .toList());
+        if (!events.isEmpty()) {
+            LearningEvent last = events.get(events.size() - 1);
+            out.put("lastEventAt", last.timestamp());
+            out.put("lastFeature", last.feature());
+        }
+        return out;
+    }
+
     public Map<String, Object> recordLearningEvent(Map<String, Object> body) throws IOException {
         LearningEvent draft = parseEvent(body);
-        Files.createDirectories(eventsFile.getParent());
-        LearningEvent saved = new LearningEvent(
-                draft.id() != null ? draft.id() : UUID.randomUUID().toString(),
-                draft.timestamp() != null ? draft.timestamp() : Instant.now(),
-                draft.intent(), draft.feature(), draft.appCode(), draft.chainCode(),
-                draft.httpMode(), draft.reusedComponents(), draft.createdComponents(),
-                draft.validateRounds(), draft.validatePassed(), draft.adopted(),
-                draft.playgroundSuccess(), draft.userCorrection(), draft.chainData(), draft.metadata());
-        Files.writeString(eventsFile,
-                mapper.writeValueAsString(saved) + System.lineSeparator(),
-                StandardCharsets.UTF_8,
-                java.nio.file.StandardOpenOption.CREATE,
-                java.nio.file.StandardOpenOption.APPEND);
+        Optional<LearningEvent> duplicate = findRecentDuplicate(draft);
+        if (duplicate.isPresent()) {
+            LearningEvent existing = duplicate.get();
+            GateResult gate = evaluate(existing);
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("saved", existing);
+            out.put("deduplicated", true);
+            out.put("promotionEligible", gate.passed());
+            out.put("promotionScore", gate.score());
+            out.put("promotionReason", gate.reason());
+            out.put("eventsFile", eventsFile.toString());
+            return out;
+        }
 
+        if (draft.chainData() != null && !draft.chainData().isBlank() && chainDataValidator != null) {
+            String code = draft.chainCode() != null && !draft.chainCode().isBlank()
+                    ? draft.chainCode() : "draft-" + slug(draft.feature());
+            if (!chainDataValidator.isValid(code, draft.chainData())) {
+                Map<String, Object> out = new LinkedHashMap<>();
+                out.put("saved", draft);
+                out.put("promotionEligible", false);
+                out.put("promotionReason", "chainData 未通过 validate-definition，拒绝晋升/蒸馏");
+                out.put("eventsFile", eventsFile.toString());
+                Files.createDirectories(eventsFile.getParent());
+                LearningEvent saved = persistEvent(draft);
+                out.put("saved", saved);
+                return out;
+            }
+        }
+
+        LearningEvent saved = persistEvent(draft);
         GateResult gate = evaluate(saved);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("saved", saved);
@@ -81,21 +134,73 @@ public class ExecutorChainAiService {
         return out;
     }
 
+    private LearningEvent persistEvent(LearningEvent draft) throws IOException {
+        Files.createDirectories(eventsFile.getParent());
+        LearningEvent saved = new LearningEvent(
+                draft.id() != null ? draft.id() : UUID.randomUUID().toString(),
+                draft.timestamp() != null ? draft.timestamp() : Instant.now(),
+                draft.intent(), draft.feature(), draft.appCode(), draft.chainCode(),
+                draft.httpMode(), draft.reusedComponents(), draft.createdComponents(),
+                draft.validateRounds(), draft.validatePassed(), draft.adopted(),
+                draft.playgroundSuccess(), draft.userCorrection(), draft.chainData(), draft.metadata());
+        Files.writeString(eventsFile,
+                mapper.writeValueAsString(saved) + System.lineSeparator(),
+                StandardCharsets.UTF_8,
+                java.nio.file.StandardOpenOption.CREATE,
+                java.nio.file.StandardOpenOption.APPEND);
+        return saved;
+    }
+
     public List<String> searchRag(String query, int limit) throws IOException {
-        int cap = Math.max(1, Math.min(limit, 10));
-        List<RagChunk> chunks = new ArrayList<>();
-        loadClasspathAcceptance().ifPresent(text ->
-                chunks.add(new RagChunk("platform:acceptance", text, 1.0)));
-        for (PatternDoc doc : listPatterns()) {
-            if (matches(doc, query)) {
-                chunks.add(new RagChunk(doc.id(), doc.markdown(), doc.confidence()));
+        return searchRagChunks(query, limit).stream().map(RagChunk::text).toList();
+    }
+
+    public Map<String, Object> suggestChain(String userMessage, String chainCode, List<String> allowedComponents)
+            throws IOException {
+        String q = userMessage != null ? userMessage : "";
+        List<RagChunk> chunks = searchRagChunks(q, 8);
+        String proposed = null;
+        String source = "executor-rag-empty";
+        String summary = "未找到可复用的应用端 pattern，请补充学习事件或手动建链。";
+
+        for (RagChunk chunk : chunks) {
+            Optional<String> json = extractChainJson(chunk.text());
+            if (json.isPresent()) {
+                proposed = json.get();
+                source = "executor-pattern:" + chunk.id();
+                summary = "基于应用端蒸馏 pattern（" + chunk.id() + "）生成链草稿，请校验后采纳。";
+                break;
             }
         }
-        return chunks.stream()
-                .sorted(Comparator.comparingDouble(RagChunk::score).reversed())
-                .limit(cap)
-                .map(RagChunk::text)
-                .toList();
+
+        if (proposed == null && !chunks.isEmpty()) {
+            summary = "检索到 " + chunks.size() + " 条 RAG 片段但无链 JSON；摘要："
+                    + truncate(chunks.get(0).text().replace('\n', ' '), 200);
+            source = "executor-rag-hints";
+        }
+
+        Map<String, Object> validation = new LinkedHashMap<>();
+        validation.put("valid", false);
+        validation.put("errors", List.of());
+        if (proposed != null && chainDataValidator != null) {
+            String code = chainCode != null && !chainCode.isBlank() ? chainCode : "draft-suggest";
+            boolean ok = chainDataValidator.isValid(code, proposed);
+            validation.put("valid", ok);
+            if (!ok) {
+                validation.put("errors", List.of("应用端 validate-definition 未通过"));
+            }
+        }
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("summary", summary);
+        out.put("source", source);
+        out.put("proposedChainData", proposed);
+        out.put("validation", validation);
+        out.put("ragSnippetCount", chunks.size());
+        if (allowedComponents != null && !allowedComponents.isEmpty()) {
+            out.put("allowedComponents", allowedComponents);
+        }
+        return out;
     }
 
     public Map<String, Object> distillPatterns(String featureFilter) throws IOException {
@@ -107,6 +212,107 @@ public class ExecutorChainAiService {
         return out;
     }
 
+    private List<RagChunk> searchRagChunks(String query, int limit) throws IOException {
+        int cap = Math.max(1, Math.min(limit, 10));
+        List<RagChunk> chunks = new ArrayList<>();
+        loadClasspathAcceptance().ifPresent(text ->
+                chunks.add(new RagChunk("platform:acceptance", text, scoreText(text, query) + 1.0)));
+        for (PatternDoc doc : listPatterns()) {
+            double s = scoreText(doc.markdown(), query) + doc.confidence() * 0.5;
+            if (matches(doc, query) || s > 0.35) {
+                chunks.add(new RagChunk(doc.id(), doc.markdown(), s));
+            }
+        }
+        return chunks.stream()
+                .sorted(Comparator.comparingDouble(RagChunk::score).reversed())
+                .limit(cap)
+                .toList();
+    }
+
+    private static double scoreText(String text, String query) {
+        if (text == null || text.isBlank()) {
+            return 0;
+        }
+        if (query == null || query.isBlank()) {
+            return 0.1;
+        }
+        Set<String> qTokens = tokenize(query);
+        if (qTokens.isEmpty()) {
+            return 0.1;
+        }
+        Set<String> docTokens = tokenize(text);
+        long hit = qTokens.stream().filter(docTokens::contains).count();
+        return (double) hit / qTokens.size();
+    }
+
+    private static Set<String> tokenize(String text) {
+        return Pattern.compile("[a-zA-Z0-9\\u4e00-\\u9fa5]+")
+                .matcher(text.toLowerCase(Locale.ROOT))
+                .results()
+                .map(m -> m.group())
+                .filter(t -> t.length() > 1)
+                .collect(Collectors.toSet());
+    }
+
+    private Optional<LearningEvent> findRecentDuplicate(LearningEvent draft) throws IOException {
+        String key = dedupKey(draft);
+        List<LearningEvent> events = readAllEvents();
+        for (int i = events.size() - 1; i >= 0 && i >= events.size() - 50; i--) {
+            LearningEvent e = events.get(i);
+            if (key.equals(dedupKey(e))) {
+                return Optional.of(e);
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static String dedupKey(LearningEvent e) {
+        String raw = (e.intent() != null ? e.intent() : "")
+                + "|" + (e.feature() != null ? e.feature() : "")
+                + "|" + (e.chainCode() != null ? e.chainCode() : "")
+                + "|" + sha256Short(e.chainData())
+                + "|" + Boolean.TRUE.equals(e.adopted())
+                + "|" + Boolean.TRUE.equals(e.playgroundSuccess());
+        return raw;
+    }
+
+    private static String sha256Short(String s) {
+        if (s == null || s.isBlank()) {
+            return "-";
+        }
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] dig = md.digest(s.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(dig, 0, 8);
+        } catch (Exception e) {
+            return Integer.toHexString(s.hashCode());
+        }
+    }
+
+    private Optional<String> extractChainJson(String markdown) {
+        if (markdown == null) {
+            return Optional.empty();
+        }
+        Matcher m = CHAIN_JSON_BLOCK.matcher(markdown);
+        while (m.find()) {
+            String block = m.group(1).trim();
+            if (block.contains("\"nodes\"") || block.contains("nodes")) {
+                try {
+                    JsonNode node = mapper.readTree(block);
+                    if (node.has("nodes") || node.has("chainData")) {
+                        if (node.has("chainData")) {
+                            return Optional.of(node.get("chainData").toString());
+                        }
+                        return Optional.of(node.toString());
+                    }
+                } catch (Exception ignored) {
+                    // try next block
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
     private DistillResult distill(String featureFilter) throws IOException {
         List<LearningEvent> events = readAllEvents();
         Map<String, List<LearningEvent>> grouped = new LinkedHashMap<>();
@@ -114,6 +320,13 @@ public class ExecutorChainAiService {
             GateResult gate = evaluate(e);
             if (!gate.passed()) {
                 continue;
+            }
+            if (e.chainData() != null && !e.chainData().isBlank() && chainDataValidator != null) {
+                String code = e.chainCode() != null && !e.chainCode().isBlank()
+                        ? e.chainCode() : "draft-" + slug(e.feature());
+                if (!chainDataValidator.isValid(code, e.chainData())) {
+                    continue;
+                }
             }
             if (featureFilter != null && !featureFilter.isBlank()
                     && e.feature() != null
