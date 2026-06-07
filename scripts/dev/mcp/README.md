@@ -5,11 +5,13 @@
 | 层级 | 内容 | 频率 |
 |------|------|------|
 | **平台** | `zestflow-mcp.jar` → `~/.zestflow/tools/` | 装一次 / 升级时 |
-| **项目** | `.cursor/mcp.json` + `.zestflow/rules/project.md` | 每个业务工程（**可 `--init-dev` 自动生成**） |
+| **项目** | `.zestflow/rules/architecture.md` + IDE 适配 + MCP 配置 | 每个业务工程（**`--init-dev` 自动生成**） |
 
 模板资源随 `zestflow-starter` / `zestflow-dev-templates` 分发；初始化由 MCP CLI 写入项目目录。
 
 ## 1. 安装平台 JAR（一次）
+
+安装脚本会校验 JAR 内是否含 `architecture.md.template` 等 **--init-dev 模板**；过旧 JAR 会报错并提示在 **zestflow 根目录** 执行 `mvn -pl zestflow-mcp -am package`。
 
 ```powershell
 # Windows
@@ -31,12 +33,16 @@ powershell -File scripts/dev/init-dev-project.ps1 -ProjectRoot D:/work/my-app
 java -jar ~/.zestflow/tools/zestflow-mcp.jar --init-dev --project /path/to/my-app
 ```
 
-可选参数：`--app-code`、`--executor-url`、`--base-package`、`--ide cursor|vscode|claude|all`（默认 `all`）、`--force`。
+可选参数：`--app-code`、`--executor-url`、`--componentization full|hybrid`（默认 `full`）、`--component-package`（默认 `component`）、`--ide cursor|vscode|claude|all`（默认 `all`）、`--force`。
 
-会从 `application.yml` / `pom.xml` 推断 appCode、Executor 端口与包名，并生成：
+`--init-dev` 使用 `zestflow-dev-init.jar`（Java 8+）；MCP Server 使用 `zestflow-mcp.jar`（Java 17+，MCP SDK 要求）。
 
-- `.zestflow/rules/project.md`
-- `.cursor/mcp.json`（及 VS Code / Claude 示例）
+会从子模块 `application.yml` / `*Application.java` / `pom.xml` 推断 appCode、Executor 端口与包名，并生成：
+
+- `.zestflow/rules/architecture.md`（**规范源，跨 IDE**）
+- `.zestflow/rules/project.md`（MCP L2）
+- `.cursor/rules/zestflow-architecture.md` / `.github/copilot-instructions.md` / `CLAUDE.md`
+- `.cursor/mcp.json`（及 VS Code / Claude MCP 配置）
 - `.zestflow/learning/` 目录
 
 ### 手动复制（旧方式）

@@ -46,6 +46,8 @@
         <module>zestflow-executor</module>
         <module>zestflow-collector</module>
         <module>zestflow-dev-templates</module>
+        <module>zestflow-dev-init</module>
+        <module>zestflow-mcp</module>
         <module>zestflow-starter</module>
         <module>zestflow-admin</module>
         <module>zestflow-demo</module>
@@ -77,14 +79,14 @@
         <shedlock.version>5.16.0</shedlock.version>
 
         <!-- ============ 模块版本（独立管理，可各自发布） ============ -->
-        <zestflow-common.version>0.1.0</zestflow-common.version>
-        <zestflow-executor.version>0.1.0</zestflow-executor.version>
-        <collector-core.version>0.1.0</collector-core.version>
-        <collector-jdbc.version>0.1.0</collector-jdbc.version>
-        <collector-kafka.version>0.1.0</collector-kafka.version>
-        <collector-rabbitmq.version>0.1.0</collector-rabbitmq.version>
-        <zestflow-starter.version>0.1.0</zestflow-starter.version>
-        <zestflow-admin.version>0.1.0</zestflow-admin.version>
+        <zestflow-common.version>0.2.0</zestflow-common.version>
+        <zestflow-executor.version>0.2.0</zestflow-executor.version>
+        <collector-core.version>0.2.0</collector-core.version>
+        <collector-jdbc.version>0.2.0</collector-jdbc.version>
+        <collector-kafka.version>0.2.0</collector-kafka.version>
+        <collector-rabbitmq.version>0.2.0</collector-rabbitmq.version>
+        <zestflow-starter.version>0.2.0</zestflow-starter.version>
+        <zestflow-admin.version>0.2.0</zestflow-admin.version>
         <zestflow-mcp.version>0.1.0</zestflow-mcp.version>
         <mcp-sdk.version>0.10.0</mcp-sdk.version>
 
@@ -136,6 +138,11 @@
             <dependency>
                 <groupId>cn.zestflow.www</groupId>
                 <artifactId>zestflow-dev-templates</artifactId>
+                <version>0.1.0</version>
+            </dependency>
+            <dependency>
+                <groupId>cn.zestflow.www</groupId>
+                <artifactId>zestflow-dev-init</artifactId>
                 <version>0.1.0</version>
             </dependency>
             <dependency>
@@ -367,12 +374,6 @@
             </build>
         </profile>
         <!-- 公网试玩包：mvn package -pl zestflow-admin,zestflow-demo -am -Pdemo-dist -DskipTests -->
-        <profile>
-            <id>dev-mcp</id>
-            <modules>
-                <module>zestflow-mcp</module>
-            </modules>
-        </profile>
         <profile>
             <id>demo-dist</id>
             <build>

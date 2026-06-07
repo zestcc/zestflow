@@ -90,7 +90,7 @@ Add-Check "mcp-platform-patterns" $platformPatternsOk $(if ($jar) { "jar=$jar" }
 
 # 学习单测（AccuracyGate + ChainPlan）
 Push-Location $Root
-& mvn -Pdev-mcp -q test -pl zestflow-mcp "-Dtest=AccuracyGateTest,ChainPlanServiceTest"
+& mvn -q test -pl zestflow-mcp -am "-Dtest=AccuracyGateTest,ChainPlanServiceTest"
 $learningUnitOk = ($LASTEXITCODE -eq 0)
 Pop-Location
 Add-Check "mcp-learning-unit-tests" $learningUnitOk "exit=$LASTEXITCODE"
@@ -159,7 +159,7 @@ if ($jar) {
 
 # Maven MCP 单测（无运行时依赖）
 Push-Location $Root
-& mvn -Pdev-mcp -q test -pl zestflow-mcp
+& mvn -q test -pl zestflow-mcp -am
 $mvnOk = ($LASTEXITCODE -eq 0)
 Pop-Location
 Add-Check "mcp-maven-unit-tests" $mvnOk "exit=$LASTEXITCODE"

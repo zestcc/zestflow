@@ -356,5 +356,69 @@ if (result.getStatus() == ChainConstants.CHAIN_SUCCESS) {
 
 ---
 
-**版本**: v1.0  
-**更新日期**: 2026-06-06
+## 六、AI 集成快速参考
+
+> 完整设计见 [AI_COPILOT.md](./AI_COPILOT.md) · 安装见 [MCP_SETUP.md](./MCP_SETUP.md)
+
+### 6.1 双 Copilot
+
+| | Orchestration Copilot | Dev Copilot |
+|--|----------------------|-------------|
+| 载体 | Admin UI + 后端 | `zestflow-mcp.jar` + Cursor / Claude |
+| LLM | Admin 租户配置（BYOK） | IDE 侧模型 |
+| 落盘 | 设计器 diff → 人工发布 | IDE Apply（MCP 不写盘） |
+
+### 6.2 Dev 接入（两步）
+
+```powershell
+powershell -File scripts/dev/install-mcp.ps1
+powershell -File scripts/dev/init-dev-project.ps1 -ProjectRoot .
+```
+
+### 6.3 MCP Tools（12 个）
+
+| Tool | 用途 |
+|------|------|
+| `list_components` | 元件白名单 |
+| `read_project_file` | 读工程源码 |
+| `validate_chain` | 链 JSON 校验 |
+| `search_sources` | 关键词/glob 搜索 |
+| `scaffold_component` | Java 脚手架（仅文本） |
+| `export_task_package` | 导出任务包 Markdown |
+| `plan_chain` | 意图 → 链规划 |
+| `record_learning_event` | 记录学习事件 |
+| `search_patterns` | 检索平台+项目 Pattern |
+| `distill_patterns` | 事件蒸馏为 Pattern |
+| `gen_playground_scene` | 生成 Playground 场景 |
+| `share_pattern` | 导出 Pattern → Admin RAG |
+
+### 6.4 推荐链式调用
+
+```text
+plan_chain → scaffold_component → validate_chain → gen_playground_scene
+  → record_learning_event → distill_patterns
+```
+
+### 6.5 项目 Dev 目录
+
+```text
+.zestflow/rules/project.md      # L2 项目规则
+.zestflow/patterns/             # L2 蒸馏 Pattern
+.zestflow/learning/events.jsonl # L3 原始信号
+.zestflow/mcp-audit.jsonl       # Tool 审计（可选关闭）
+.cursor/mcp.json                # Cursor MCP 配置
+```
+
+### 6.6 Admin Copilot API（常用）
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/ai/copilot/suggest` | NL → 链草稿 |
+| POST | `/api/ai/copilot/explain` | 解释当前链 |
+| POST | `/api/ai/test` | 测试 LLM 连接 |
+| POST | `/api/ai/learning/events` | 学习事件（Admin 侧） |
+
+---
+
+**版本**: v1.1  
+**更新日期**: 2026-06-07

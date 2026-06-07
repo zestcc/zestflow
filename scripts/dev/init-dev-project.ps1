@@ -15,28 +15,27 @@ param(
     [string]$ProjectRoot,
     [string]$AppCode = "",
     [string]$ExecutorUrl = "",
-    [string]$BasePackage = "",
     [ValidateSet("cursor", "vscode", "claude", "all")]
     [string]$Ide = "all",
+    [ValidateSet("full", "hybrid")]
+    [string]$Componentization = "full",
+    [string]$ComponentPackage = "component",
     [switch]$Force,
     [switch]$NoGitignore
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "mcp-jar-verify.ps1")
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path
 $ProjectPath = (Resolve-Path $ProjectRoot).Path
 
-$ToolsJar = Join-Path $env:USERPROFILE ".zestflow\tools\zestflow-mcp.jar"
+$ToolsJar = Join-Path $env:USERPROFILE ".zestflow\tools\zestflow-dev-init.jar"
 if (-not (Test-Path $ToolsJar)) {
-    $pom = Join-Path $Root "pom.xml"
-    [xml]$xml = Get-Content $pom -Raw
-    $ver = $xml.project.properties.'zestflow-mcp.version'
-    if (-not $ver) { $ver = $xml.project.version }
-    $built = Join-Path $Root "zestflow-mcp/target/zestflow-mcp-$ver-all.jar"
+    $built = Join-Path $Root "zestflow-dev-init/target/zestflow-dev-init-0.1.0-all.jar"
     if (Test-Path $built) {
         $ToolsJar = $built
     } else {
-        throw "MCP JAR not found. Run: powershell -File scripts/dev/install-mcp.ps1"
+        throw "Dev-init JAR not found. Run from zestflow root: powershell -File scripts/dev/install-mcp.ps1"
     }
 }
 
@@ -48,7 +47,8 @@ $argsList = @(
 )
 if ($AppCode) { $argsList += @("--app-code", $AppCode) }
 if ($ExecutorUrl) { $argsList += @("--executor-url", $ExecutorUrl) }
-if ($BasePackage) { $argsList += @("--base-package", $BasePackage) }
+if ($Componentization) { $argsList += @("--componentization", $Componentization) }
+if ($ComponentPackage) { $argsList += @("--component-package", $ComponentPackage) }
 if ($Force) { $argsList += "--force" }
 if ($NoGitignore) { $argsList += "--no-gitignore" }
 

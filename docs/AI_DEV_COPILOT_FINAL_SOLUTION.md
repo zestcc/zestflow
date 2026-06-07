@@ -1,7 +1,7 @@
 # ZestFlow 开发态 AI 辅助：最终方案
 
 > **文档类型** 架构决策 / 最终方案（Final Solution）  
-> **版本** 1.3 · **状态** **已采纳 · Phase 1～3 已完成（含 Chain-first 学习）**  
+> **版本** 1.4 · **更新** 2026-06-07 · **状态** **已采纳 · Phase 1～3 已完成（含 Chain-first 学习 + `--init-dev`）**  
 > **前置阅读** [AI_DEV_COPILOT_ACADEMIC_SUMMARY.md](./AI_DEV_COPILOT_ACADEMIC_SUMMARY.md)  
 > **关联** [AI_COPILOT.md](./AI_COPILOT.md)（编排 Copilot，已实现）· [MCP_SETUP.md](./MCP_SETUP.md)（安装手册）
 
@@ -142,6 +142,11 @@ zestflow-mcp/
 | `--token` | 否 | Bearer，调 Admin API |
 | `--app-code` | 否 | 默认 app，可 Tool 参数覆盖 |
 | `--transport` | 否 | `stdio`（默认，IDE 用）或 `http`（团队网关，P2） |
+| `--init-dev` | 否 | 初始化业务工程 Dev 文件（见 [§4.4](#44-dev-工程一键初始化-init-dev)） |
+| `--ide` | 否 | 配合 `--init-dev`：`cursor` / `vscode` / `claude` / `all` |
+| `--base-package` | 否 | 覆盖 pom 推断的包名 |
+| `--force` | 否 | `--init-dev` 时覆盖已存在文件 |
+| `--no-gitignore` | 否 | `--init-dev` 时不追加 `.gitignore` 片段 |
 
 示例：
 
@@ -152,6 +157,38 @@ java -jar zestflow-mcp.jar \
   --token "${ZESTFLOW_TOKEN}" \
   --app-code demo
 ```
+
+### 4.4 Dev 工程一键初始化（`--init-dev`）
+
+**模块 `zestflow-dev-templates`**：打包 Dev 模板（`project.md`、IDE MCP JSON 等），随 `zestflow-mcp` classpath 分发，**不**要求每个项目复制 JAR。
+
+| 模板（classpath） | 写入工程路径 |
+|-------------------|--------------|
+| `rules/project.md.template` | `.zestflow/rules/project.md` |
+| `mcp/cursor.mcp.json.template` | `.cursor/mcp.json` |
+| `mcp/vscode.mcp.json.template` | `.vscode/mcp.json` |
+| `mcp/claude-desktop.config.json.template` | `.zestflow/mcp/claude-desktop.config.json.example` |
+| `gitignore.zestflow.snippet` | 追加到 `.gitignore`（可选） |
+
+**实现**：`DevProjectInitializer` + `ProjectMetadataResolver`（从 `pom.xml` / `application.yml` 推断元数据）。
+
+```powershell
+powershell -File scripts/dev/install-mcp.ps1
+powershell -File scripts/dev/init-dev-project.ps1 -ProjectRoot D:/work/my-app
+```
+
+```bash
+java -jar ~/.zestflow/tools/zestflow-mcp.jar --init-dev --project /path/to/my-app --ide all
+```
+
+**分层（对标 Stripe / Supabase MCP）**：
+
+```text
+平台层   ~/.zestflow/tools/zestflow-mcp.jar     ← install-mcp，全项目共用
+项目层   .cursor/mcp.json + .zestflow/rules/   ← --init-dev，每工程一份
+```
+
+详见 [MCP_SETUP.md](./MCP_SETUP.md) §2、[scripts/dev/mcp/README.md](../scripts/dev/mcp/README.md)。
 
 ---
 
@@ -243,15 +280,17 @@ Tool 描述（description）须写清调用顺序，例如：
     "zestflow": {
       "command": "java",
       "args": [
-        "-jar", "D:/tools/zestflow-mcp.jar",
-        "--project", "D:/work/my-demo",
-        "--admin-url", "https://admin.company.com",
-        "--token", "YOUR_TOKEN"
+        "-jar", "${userHome}/.zestflow/tools/zestflow-mcp.jar",
+        "--project", "${workspaceFolder}",
+        "--app-code", "my-app",
+        "--executor-url", "http://127.0.0.1:20550"
       ]
     }
   }
 }
 ```
+
+推荐由 `--init-dev` 生成；手动复制见 `scripts/dev/mcp/project.cursor.mcp.json.example`。
 
 ### 6.2 Claude Desktop
 
@@ -332,7 +371,17 @@ Tool 描述（description）须写清调用顺序，例如：
 
 > **状态** Phase 2 已完成（2026-06-07）。**不实施** `write_project_file`，见 §2.3、ADR-006。
 
-### Phase 3 — 可选（按需）
+### Phase 3 — Chain-first 学习（已完成）
+
+- [x] `plan_chain`、`record_learning_event`、`search_patterns`、`distill_patterns`  
+- [x] `gen_playground_scene`、`share_pattern`  
+- [x] 平台 Pattern（L0）`zestflow/patterns/platform/`  
+- [x] `AccuracyGate` 晋升门槛（≥97% validate 一次通过率）  
+- [x] `--init-dev` + `zestflow-dev-templates` 项目接入  
+
+详见 [AI_CHAIN_LEARNING.md](./AI_CHAIN_LEARNING.md)。
+
+### Phase 4 — 可选（按需）
 
 - [ ] HTTP transport（团队统一网关）  
 - [ ] 企业模式：Executor 只读 context 回传 Admin LLM（**非默认**）  
@@ -385,8 +434,11 @@ Tool 描述（description）须写清调用顺序，例如：
 | [AI_DEV_COPILOT_ACADEMIC_SUMMARY.md](./AI_DEV_COPILOT_ACADEMIC_SUMMARY.md) | 研讨学术总结 |
 | **本文档** | 最终方案（已采纳） |
 | [MCP_SETUP.md](./MCP_SETUP.md) | 安装与配置手册 |
-| `zestflow-mcp/target/zestflow-mcp-0.1.0-all.jar` | MCP Server 产物 |
-| `AI_COPILOT.md` v1.4 | 双 Copilot 章节 |
+| `~/.zestflow/tools/zestflow-mcp.jar` | 平台 MCP 入口（`install-mcp`） |
+| `zestflow-dev-templates` | Dev 工程模板（`--init-dev`） |
+| `scripts/dev/init-dev-project.ps1` | 初始化包装脚本 |
+| [AI_CHAIN_LEARNING.md](./AI_CHAIN_LEARNING.md) | Chain-first 学习与沉淀 |
+| `AI_COPILOT.md` v1.5 | 双 Copilot + §1.6 接入 |
 
 ---
 
@@ -396,4 +448,4 @@ Tool 描述（description）须写清调用顺序，例如：
 
 ---
 
-*本文档为已采纳的最终方案基线；`zestflow-mcp` 与 demo `.cursor/mcp.json` 已按 Phase 1～2 落地（Admin 无 Dev Tab）。*
+*本文档为已采纳的最终方案基线；`zestflow-mcp` Phase 1～3 与 `--init-dev` 已落地（Admin 无 Dev Tab）。*

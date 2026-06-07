@@ -55,15 +55,24 @@ public final class ResourceLoader {
     }
 
     public static String readProjectRules(Path projectRoot) {
+        return readProjectRulesFile(projectRoot, ".zestflow/rules/architecture.md")
+                + readProjectRulesFile(projectRoot, ".zestflow/rules/project.md");
+    }
+
+    private static String readProjectRulesFile(Path projectRoot, String relativePath) {
         if (projectRoot == null) {
             return "";
         }
-        Path rulesFile = projectRoot.resolve(".zestflow/rules/project.md");
+        Path rulesFile = projectRoot.resolve(relativePath);
         if (!Files.isRegularFile(rulesFile)) {
             return "";
         }
         try {
-            return Files.readString(rulesFile, StandardCharsets.UTF_8);
+            String text = Files.readString(rulesFile, StandardCharsets.UTF_8);
+            if (text.isBlank()) {
+                return "";
+            }
+            return text.strip() + "\n\n";
         } catch (IOException e) {
             return "";
         }

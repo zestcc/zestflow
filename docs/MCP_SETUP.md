@@ -26,7 +26,7 @@ bash scripts/dev/install-mcp.sh
 | `~/.zestflow/tools/zestflow-mcp-0.1.0-all.jar` | 带版本号备份 |
 | `zestflow-mcp/target/*.jar` | Maven 构建目录（开发用） |
 
-**默认 reactor 不含 `zestflow-mcp` 模块**，需 `-Pdev-mcp`。  
+`zestflow-mcp` 已纳入根 `pom.xml` 默认 `<modules>`，IDEA 重载 Maven 后即可识别为模块；`mvn package` 会一并构建 MCP fat JAR。  
 旧命令 `setup-demo-mcp.ps1` 仍可用，内部转发到 `install-mcp.ps1`。
 
 > **不必**每个项目复制 JAR 到 `dev-tools/`。
@@ -60,13 +60,26 @@ powershell -File scripts/dev/init-dev-project.ps1 -ProjectRoot D:/work/my-app
 
 | 参数 | 说明 |
 |------|------|
-| `--init-dev` | 生成 `.zestflow/rules/project.md`、IDE MCP 配置、learning 目录 |
+| `--init-dev` | 生成架构规范（见下表）、IDE MCP 配置、learning 目录 |
 | `--ide` | `cursor` / `vscode` / `claude` / `all`（默认 `all`） |
 | `--base-package` | 覆盖 pom 推断的包名 |
 | `--force` | 覆盖已存在文件 |
 | `--no-gitignore` | 不追加 `.gitignore` 条目 |
 
-**Maven 引入 `zestflow-starter` 的业务项目**同样适用：运行时靠 starter，Dev 文件靠上述命令一次性生成（MCP 与 Cursor 无强绑定）。
+**`--init-dev` 生成物（同源架构，跨 IDE）：**
+
+| 文件 | 用途 |
+|------|------|
+| `.zestflow/rules/architecture.md` | **规范源**（IDE 无关）：元件化、分层、禁止项 |
+| `.zestflow/rules/project.md` | MCP L2：Chain-first、学习沉淀 |
+| `.cursor/rules/zestflow-architecture.md` | Cursor Agent 自动加载 |
+| `.github/copilot-instructions.md` | VS Code Copilot |
+| `CLAUDE.md` | Claude Desktop / Claude Code |
+| `.cursor/mcp.json` 等 | MCP 连接配置 |
+
+修改架构请改 `architecture.md` 后 `--init-dev --force`，或只改规范源后同步各 IDE 文件。
+
+**Maven 引入 `zestflow-starter` 的业务项目**同样适用：运行时靠 starter，Dev 文件靠上述命令一次性生成。
 
 **本地日常开发（仅起 Executor）：**
 

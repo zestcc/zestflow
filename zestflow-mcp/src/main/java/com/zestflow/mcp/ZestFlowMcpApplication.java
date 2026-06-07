@@ -2,7 +2,7 @@ package com.zestflow.mcp;
 
 import com.zestflow.mcp.config.McpRuntimeConfig;
 import com.zestflow.mcp.config.McpRuntimeConfigParser;
-import com.zestflow.mcp.dev.DevInitCommandParser;
+import com.zestflow.devinit.DevInitCommandParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

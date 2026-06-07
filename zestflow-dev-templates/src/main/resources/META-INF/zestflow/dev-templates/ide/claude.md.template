@@ -1,0 +1,5 @@
+# ZestFlow 项目协作说明
+
+> 与 `.zestflow/rules/architecture.md` 同源。使用 zestflow MCP 时遵守 `zestflow://rules/project`。
+
+{{ARCHITECTURE_BODY}}

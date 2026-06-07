@@ -1,0 +1,5 @@
+# ZestFlow 项目 Copilot 指令
+
+> 与 `.zestflow/rules/architecture.md` 同源（`--init-dev` 生成）。架构变更请改该文件后 `--force` 重新生成。
+
+{{ARCHITECTURE_BODY}}

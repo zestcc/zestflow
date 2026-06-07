@@ -1,0 +1,7 @@
+---
+description: ZestFlow 元件化架构（与 .zestflow/rules/architecture.md 同源）
+globs: "**/*.{java,xml,yml}"
+alwaysApply: true
+---
+
+{{ARCHITECTURE_BODY}}

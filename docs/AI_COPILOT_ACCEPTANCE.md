@@ -51,7 +51,7 @@ Layer M  人工 UI 走查（设计器 / 设置页）    → 本文 §6 手工用
 | 脚本 | 覆盖 Layer | 说明 |
 |------|------------|------|
 | `mvn test -pl zestflow-admin -Dtest=Ai*Test` | U/I | Admin AI 单测 |
-| `mvn -Pdev-mcp test -pl zestflow-mcp` | U/I | MCP 单测 |
+| `mvn test -pl zestflow-mcp -am` | U/I | MCP 单测 |
 | `run-ai-copilot-e2e.ps1` | B | Admin Copilot API 全量 |
 | `run-ai-mcp-e2e.ps1` | M | MCP CLI + Executor 对齐 |
 | `run-ai-copilot-perf.ps1` | P | validate/RAG 并发压测 |
@@ -77,7 +77,7 @@ Layer M  人工 UI 走查（设计器 / 设置页）    → 本文 §6 手工用
 | TC-MCP-007 | P0 | B | 链校验（合法） | 提交含 `validateUser` 的 ChainDefinition | `valid=true` | `mcp-executor-validate-valid` |
 | TC-MCP-008 | P0 | B | 链校验（非法 componentId） | 提交 `component=__NOT_REGISTERED__` | `valid=false`，含错误信息 | `mcp-executor-validate-invalid` |
 | TC-MCP-009 | P1 | B | demo MCP 配置 | 检查 `zestflow-demo/.cursor/mcp.json` | `${userHome}/.zestflow/tools/` + `workspaceFolder`，`app-code=demo-app` | `mcp-demo-cursor-config` |
-| TC-MCP-010 | P1 | B | 生产打包隔离 | 默认 `mvn package` reactor | **不含** `zestflow-mcp` 模块 | 人工 / CI pom 审查 |
+| TC-MCP-010 | P1 | B | 默认构建含 MCP | 根 `pom.xml` `<modules>` | **含** `zestflow-mcp`（IDE 可识别；`mvn package` 产出 fat JAR） | 人工 / CI pom 审查 |
 | TC-MCP-011 | P1 | B | JAR 不进 demo 包 | `package-demo.ps1` 产物 | Spring Boot 内无 MCP JAR | 人工解压验收 |
 | TC-MCP-012 | P2 | M | Cursor 端到端 | Agent 调用 `list_components` → `scaffold_component` → Apply | Java 文件出现在约定包路径；`mvn compile` 通过 | 手工 |
 | TC-MCP-013 | P2 | M | 审计日志 | 调用任意 Tool 后 | `.zestflow/mcp-audit.jsonl` 追加一行 | 手工 |

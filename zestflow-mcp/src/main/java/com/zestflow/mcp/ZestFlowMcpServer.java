@@ -83,7 +83,7 @@ public class ZestFlowMcpServer {
     private String buildInstructions() {
         return """
                 你是 ZestFlow 元件/链条开发助手。必须按 Chain-first 编排链思路：plan → scaffold → compose → validate → HTTP Mode → 场景 → 反馈沉淀。
-                必须遵守 MCP Resources 中的官方规范与项目 rules/project。
+                必须遵守 MCP Resources 中的官方规范与项目规则（architecture.md + project.md，见 zestflow://rules/project）。
                 生成新元件前必须先 list_components；生成或修改链 JSON 后必须调用 validate_chain。
                 用户说「开发链路/注册链」→ plan_chain；「生成元件」→ scaffold_component；「生成场景」→ gen_playground_scene。
                 完成后 record_learning_event；积累足够高置信样本后 distill_patterns；团队共享 share_pattern。
@@ -106,7 +106,7 @@ public class ZestFlowMcpServer {
                 new McpSchema.Resource(
                         "zestflow://rules/project",
                         "project-rules",
-                        "项目自定义规则（.zestflow/rules/project.md，追加于官方规范）",
+                        "项目规则（.zestflow/rules/architecture.md + project.md，IDE 通用基线）",
                         "text/markdown",
                         null),
                 (exchange, request) -> {
@@ -124,9 +124,9 @@ public class ZestFlowMcpServer {
                             ## L1 官方规范摘要
                             """ + official + """
 
-                            ## L2 项目规则（.zestflow/rules/project.md）
+                            ## L2 项目规则（architecture.md + project.md）
                             """ + (projectRules.isBlank()
-                            ? "（未配置，可在项目根创建 `.zestflow/rules/project.md`）"
+                            ? "（未配置，请运行 `java -jar zestflow-mcp.jar --init-dev --project .`）"
                             : projectRules);
                     return new McpSchema.ReadResourceResult(List.of(
                             new McpSchema.TextResourceContents(

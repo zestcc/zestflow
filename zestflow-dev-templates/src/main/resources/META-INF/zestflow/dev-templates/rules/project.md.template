@@ -1,30 +1,22 @@
-# {{APP_CODE}} 项目级 Dev Copilot 规则（L2）
+# {{APP_CODE}} MCP 项目规则（L2）
 
-> L1 平台规范已内置在 `zestflow-mcp.jar`；本文件仅描述**本项目差异**。
+> **架构与元件化**见 `.zestflow/rules/architecture.md`（IDE 通用基线）。本文件仅补充 MCP / 学习沉淀约定。
 
-## 包与目录
+## MCP 连接
 
-- 业务元件放在 `{{BASE_PACKAGE}}.component`
-- 新元件类名以 `Handler` 或 `Component` 结尾
-- 包路径: {{BASE_PACKAGE}}.component
+- 初始化 CLI（Java 8+）：`~/.zestflow/tools/zestflow-dev-init.jar`
+- MCP Server（Java 17+）：`~/.zestflow/tools/zestflow-mcp.jar`
+- 配置：`.cursor/mcp.json` / `.vscode/mcp.json` / `.zestflow/mcp/`
+- appCode：**{{APP_CODE}}**，Executor：**{{EXECUTOR_URL}}**，元件化：**{{COMPONENTIZATION}}**
 
-## 命名
+## Chain-first 学习
 
-- `componentId` 使用 camelCase
-- 默认 appCode: **{{APP_CODE}}**
+- 原始事件：`.zestflow/learning/events.jsonl`
+- 蒸馏 Pattern：`.zestflow/patterns/`（建议提交 Git）
 
-## Dev Copilot（MCP）
+## 推荐链式调用
 
-- 平台 JAR 一次安装：`~/.zestflow/tools/zestflow-mcp.jar`（见 ZestFlow 文档 MCP_SETUP）
-- 本项目 MCP 配置：`.cursor/mcp.json`（Cursor）或 `.zestflow/mcp/` 下其他 IDE 示例
-- 重新生成：`java -jar ~/.zestflow/tools/zestflow-mcp.jar --init-dev --project . --force`
-
-## Chain-first 学习（L2 项目）
-
-- 学习事件：`.zestflow/learning/events.jsonl`（原始信号，建议 gitignore）
-- 蒸馏 Pattern：`.zestflow/patterns/`（建议提交 Git 团队继承）
-
-## 禁止
-
-- 不要自动提交 Git 或调用 Admin 发布 API
-- 源码落盘使用 IDE Apply，不用 MCP 写盘
+```text
+plan_chain → scaffold_component → validate_chain → gen_playground_scene
+  → record_learning_event → distill_patterns
+```

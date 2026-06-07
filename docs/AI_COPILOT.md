@@ -1,6 +1,6 @@
 # ZestFlow AI 集成方案（Copilot）
 
-> **版本** 1.4 · **更新** 2026-06-02 · **状态** 已实现（P0～P5 + Dev MCP Phase 1）  
+> **版本** 1.5 · **更新** 2026-06-07 · **状态** 已实现（P0～P5 + Dev MCP Phase 1～3 + `--init-dev`）  
 > **定位** 面向开发人员的编排辅助（Copilot），非自动上线（Autopilot）  
 > **运维** 见 [AI_COPILOT_OPS.md](./AI_COPILOT_OPS.md)  
 > **Dev Copilot（MCP）** 见 [AI_DEV_COPILOT_FINAL_SOLUTION.md](./AI_DEV_COPILOT_FINAL_SOLUTION.md) · [MCP_SETUP.md](./MCP_SETUP.md)
@@ -11,6 +11,7 @@
 
 - [1. 概述](#1-概述)
 - [1.5 双 Copilot 模型](#15-双-copilot-模型)
+- [1.6 Dev 工程接入（平台 JAR + init-dev）](#16-dev-工程接入平台-jar--init-dev)
 - [2. 产品原则](#2-产品原则)
 - [3. 多租户与数据隔离](#3-多租户与数据隔离)
 - [4. 功能范围与分期](#4-功能范围与分期)
@@ -78,6 +79,91 @@ ZestFlow AI 分为 **编排 Copilot**（本文档，Admin 内已实现）与 **�
 **口号**：Admin 设计链，MCP 连接规范与代码，Cursor 写元件。
 
 **业界对照**：Admin 编排 ≈ n8n AI Workflow / Temporal UI；Dev MCP ≈ [Stripe MCP](https://github.com/stripe/agent-toolkit)、[Supabase MCP](https://github.com/supabase-community/supabase-mcp) — 规范与 Tools 由官方 Server 提供，IDE 只改配置。
+
+---
+
+## 1.6 Dev 工程接入（平台 JAR + init-dev）
+
+> **2026-06 更新**：对标 Stripe / Supabase MCP — **平台 JAR 装一次、业务工程只配项目文件**；引入 `zestflow-dev-templates` 与 `--init-dev` 一键初始化。
+
+### 分层模型
+
+| 层级 | 路径 / 产物 | 频率 |
+|------|-------------|------|
+| **平台** | `~/.zestflow/tools/zestflow-mcp.jar` | 每台机器装一次（`install-mcp.ps1`） |
+| **模板 JAR** | `zestflow-dev-templates`（打入 `zestflow-mcp` classpath） | 随 ZestFlow 版本发布 |
+| **项目** | `.cursor/mcp.json`、`.zestflow/rules/project.md`、`.zestflow/learning/` | 每个业务工程（`--init-dev` 生成） |
+
+Maven 引入 `zestflow-starter` 的业务项目：**运行时靠 starter，Dev 文件靠 `--init-dev` 一次性生成**（MCP 与 Cursor 无强绑定）。`zestflow-mcp` 已纳入根 `pom.xml` 默认模块，IDEA 重载 Maven 即可识别。
+
+### 一键初始化
+
+```powershell
+# 1. 安装平台 JAR（每台机器一次）
+powershell -File scripts/dev/install-mcp.ps1
+
+# 2. 在业务工程根目录初始化 Dev 文件
+powershell -File scripts/dev/init-dev-project.ps1 -ProjectRoot D:/work/my-app
+```
+
+或：
+
+```bash
+java -jar ~/.zestflow/tools/zestflow-mcp.jar --init-dev --project /path/to/my-app
+```
+
+| 参数 | 说明 |
+|------|------|
+| `--init-dev` | 从 `zestflow-dev-templates` 解压模板到工程根 |
+| `--ide` | `cursor` / `vscode` / `claude` / `all`（默认 `all`） |
+| `--app-code` | 覆盖 pom / `application.yml` 推断的 appCode |
+| `--executor-url` | 默认 `http://127.0.0.1:20550` |
+| `--base-package` | 覆盖推断的基础包名 |
+| `--force` | 覆盖已存在文件 |
+| `--no-gitignore` | 不追加 `.gitignore` 片段 |
+
+**生成物：**
+
+```text
+.cursor/mcp.json                          # Cursor MCP（${workspaceFolder} + 平台 JAR）
+.vscode/mcp.json                          # VS Code（--ide 含 vscode 时）
+.zestflow/mcp/claude-desktop.config.json.example
+.zestflow/rules/project.md                # L2 项目规则（可 Git 提交）
+.zestflow/learning/                       # L3 学习事件目录
+```
+
+`--init-dev` 会从 `pom.xml` / `application.yml` 推断 `appCode`、Executor 端口与 `basePackage`。
+
+### Dev MCP Tools（12 个，Phase 1～3）
+
+| 阶段 | Tools |
+|------|-------|
+| Phase 1 | `list_components`、`read_project_file`、`validate_chain` |
+| Phase 2 | `search_sources`、`scaffold_component`、`export_task_package` |
+| Phase 3 | `plan_chain`、`record_learning_event`、`search_patterns`、`distill_patterns`、`gen_playground_scene`、`share_pattern` |
+
+**Chain-first 学习**（P1～P3）见 [AI_CHAIN_LEARNING.md](./AI_CHAIN_LEARNING.md)：
+
+```text
+plan_chain → scaffold_component(gap) → validate_chain → gen_playground_scene
+  → record_learning_event → distill_patterns → share_pattern
+```
+
+**97% 准确率**：非 LLM 自评；须 `validate_chain` 通过 + `AccuracyGate` 晋升门槛后才进入 Pattern / RAG。
+
+**审计**：Tool 调用默认写入 `{project}/.zestflow/mcp-audit.jsonl`（`--no-audit-log` 可关闭）。
+
+**明确不做**：MCP `write_project_file` — 写源码由 IDE diff + Apply 承担。
+
+### 文档索引
+
+| 文档 | 内容 |
+|------|------|
+| [MCP_SETUP.md](./MCP_SETUP.md) | 安装、启动参数、Cursor/Claude 配置、故障排查 |
+| [AI_DEV_COPILOT_FINAL_SOLUTION.md](./AI_DEV_COPILOT_FINAL_SOLUTION.md) | Dev Copilot 架构决策与 ADR |
+| [AI_CHAIN_LEARNING.md](./AI_CHAIN_LEARNING.md) | 意图工作流、Pattern 分层、晋升门槛 |
+| [AI_COPILOT_OPS.md](./AI_COPILOT_OPS.md) | Admin 编排 Copilot 运维 |
+| [scripts/dev/mcp/README.md](../scripts/dev/mcp/README.md) | 模板与手动接入说明 |
 
 ---
 
@@ -903,6 +989,7 @@ Admin `POST /api/ai/component/scaffold` 与元件页「AI 脚手架」已删除�
 - Cursor 打开 **`zestflow-demo`**（或业务 Executor 工程），配置 [MCP_SETUP.md](./MCP_SETUP.md)
 - 调用 MCP Tool **`scaffold_component`**（只返回 Java 文本，落盘由 IDE Apply）
 - 一次性准备：`powershell -File scripts/dev/install-mcp.ps1`（JAR 装到 `~/.zestflow/tools/`，全项目共用）
+- 业务工程接入：`powershell -File scripts/dev/init-dev-project.ps1 -ProjectRoot .`（见 [§1.6](#16-dev-工程接入平台-jar--init-dev)）
 
 ---
 

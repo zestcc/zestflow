@@ -85,11 +85,18 @@ plan_chain → scaffold_component(gap) → compose/validate → bind_http(Mode1/
 ## 7. 快速开始
 
 ```powershell
+# 平台 JAR（每台机器一次）
 powershell -File scripts/dev/install-mcp.ps1
-# Cursor 打开 zestflow-demo，对话：
+
+# 业务工程 Dev 文件（每个项目一次）
+powershell -File scripts/dev/init-dev-project.ps1 -ProjectRoot .
+
+# Cursor 打开业务工程，对话：
 # 「帮我开发注册链路」→ Agent 应调用 plan_chain
 # 完成后 record_learning_event → distill_patterns
 ```
+
+`--init-dev` 会生成 `.zestflow/rules/project.md`、`.cursor/mcp.json`、`.zestflow/learning/`。详见 [AI_COPILOT.md §1.6](./AI_COPILOT.md#16-dev-工程接入平台-jar--init-dev)。
 
 ---
 

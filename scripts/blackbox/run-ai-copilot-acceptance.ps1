@@ -34,7 +34,7 @@ if (-not $SkipMavenTest) {
     Add-Phase "maven-admin-ai-unit-tests" $adminMvnOk "exit=$LASTEXITCODE"
 
     Push-Location $Root
-    & mvn -Pdev-mcp test -pl zestflow-mcp -q
+    & mvn test -pl zestflow-mcp -am -q
     $mcpMvnOk = ($LASTEXITCODE -eq 0)
     Pop-Location
     Add-Phase "maven-mcp-unit-tests" $mcpMvnOk "exit=$LASTEXITCODE"

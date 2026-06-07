@@ -406,39 +406,63 @@ if (result.getStatus() == ChainConstants.CHAIN_SUCCESS) {
 
 ---
 
-## 十、未来规划
+## 十、AI 集成（Copilot + Dev MCP）
 
-### 10.1 短期目标
+> **更新** 2026-06-07 · 详见 [AI_COPILOT.md](./AI_COPILOT.md)
+
+ZestFlow AI 分为 **编排 Copilot**（Admin 内）与 **开发 Copilot**（`zestflow-mcp` + IDE），口号：**Admin 设计链，MCP 连接规范与代码，Cursor 写元件**。
+
+| 能力 | Orchestration Copilot | Dev Copilot（MCP） |
+|------|----------------------|-------------------|
+| 用户 | 业务 / 实施 / 编排人员 | 写 `@ZestComponent` 的开发者 |
+| LLM | Admin 租户 BYOK | IDE 侧模型 |
+| 典型功能 | NL→链草稿、表达式、日志诊断 | list 元件、validate 链、scaffold、plan_chain |
+| 落盘 | 设计器 diff → 人工发布 | IDE Apply（MCP 不写盘） |
+
+**Dev 接入（最新）**：
+
+1. `install-mcp.ps1` — 平台 JAR 装到 `~/.zestflow/tools/`（一次）
+2. `init-dev-project.ps1` / `--init-dev` — 生成 `.cursor/mcp.json`、`.zestflow/rules/project.md` 等
+3. MCP **12 个 Tools**，含 Chain-first 学习（`plan_chain` → `distill_patterns`）
+
+**文档索引**： [MCP_SETUP.md](./MCP_SETUP.md) · [AI_DEV_COPILOT_FINAL_SOLUTION.md](./AI_DEV_COPILOT_FINAL_SOLUTION.md) · [AI_CHAIN_LEARNING.md](./AI_CHAIN_LEARNING.md)
+
+---
+
+## 十一、未来规划
+
+### 11.1 短期目标
 
 - [ ] 完善剩余2个E2E测试用例
 - [ ] 添加更多组件示例（每组件20+）
 - [ ] 性能基准测试报告
 - [ ] 监控看板开发
 
-### 10.2 中期目标
+### 11.2 中期目标
 
 - [ ] 可视化流程设计器
 - [ ] 规则表达式DSL
 - [ ] 多租户支持
 - [ ] 分布式执行支持
 
-### 10.3 长期目标
+### 11.3 长期目标
 
-- [ ] AI Agent编排支持
+- [x] AI Copilot + Dev MCP（Phase 1～3，见 §十）
+- [ ] AI Agent 深度编排（HTTP transport、企业模式）
 - [ ] 云原生部署
 - [ ] 企业级特性增强
 
 ---
 
-## 十一、贡献指南
+## 十二、贡献指南
 
-### 11.1 代码规范
+### 12.1 代码规范
 
 - 遵循阿里巴巴Java开发规范
 - 使用Lombok简化代码
 - 单元测试覆盖率 > 80%
 
-### 11.2 提交规范
+### 12.2 提交规范
 
 ```
 feat: 新功能
@@ -450,6 +474,6 @@ test: 测试相关
 
 ---
 
-**文档版本**: v1.0  
-**更新日期**: 2026-06-06  
+**文档版本**: v1.1  
+**更新日期**: 2026-06-07  
 **维护团队**: ZestFlow Team

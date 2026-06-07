@@ -41,6 +41,8 @@ ZestFlow 是一个面向 Spring Boot 的业务流程编排引擎，把 Service �
 
 - 架构设计：[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - 公网部署：[docs/DEPLOY.md](docs/DEPLOY.md)
+- **AI 集成**：[docs/AI_COPILOT.md](docs/AI_COPILOT.md)（Admin 编排 Copilot + Dev MCP）
+- MCP 安装：[docs/MCP_SETUP.md](docs/MCP_SETUP.md)
 - 变更记录：[CHANGELOG.md](CHANGELOG.md)
 
 ## 特性
@@ -53,6 +55,7 @@ ZestFlow 是一个面向 Spring Boot 的业务流程编排引擎，把 Service �
 * **Cron 调度：** 支持多执行器注册、路由策略和 Failover。
 * **轻量嵌入：** 业务项目加一个 `zestflow-starter` 依赖即可。
 * **Playground：** 内置 32+ 演示场景，改完链可以马上跑。
+* **AI Copilot：** Admin 内链编排助手（NL → 链草稿、表达式、诊断）；IDE 侧 **Dev MCP**（`zestflow-mcp`）辅助元件开发，支持 `--init-dev` 一键接入。
 
 ## 什么场景适用
 

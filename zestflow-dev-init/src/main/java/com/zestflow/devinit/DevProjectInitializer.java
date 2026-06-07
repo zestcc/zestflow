@@ -1,9 +1,6 @@
-package com.zestflow.mcp.dev;
-
-import com.zestflow.mcp.io.ResourceLoader;
+package com.zestflow.devinit;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -23,8 +20,20 @@ public final class DevProjectInitializer {
 
     public static DevInitResult initialize(Path projectRoot, DevInitOptions options) throws IOException {
         Map<String, String> vars = buildVariables(projectRoot, options);
-        List<String> created = new ArrayList<>();
-        List<String> skipped = new ArrayList<>();
+        List<String> created = new ArrayList<String>();
+        List<String> skipped = new ArrayList<String>();
+
+        String architectureBody = substitute(
+                IoUtil.readClasspath(TEMPLATE_ROOT + "rules/architecture.md.template"), vars);
+        vars.put("ARCHITECTURE_BODY", architectureBody);
+
+        writeContent(
+                projectRoot,
+                ".zestflow/rules/architecture.md",
+                architectureBody,
+                options.force(),
+                created,
+                skipped);
 
         writeFromTemplate(
                 projectRoot,
@@ -44,6 +53,14 @@ public final class DevProjectInitializer {
                     options.force(),
                     created,
                     skipped);
+            writeFromTemplate(
+                    projectRoot,
+                    TEMPLATE_ROOT + "ide/cursor-rules.md.template",
+                    ".cursor/rules/zestflow-architecture.md",
+                    vars,
+                    options.force(),
+                    created,
+                    skipped);
         }
         if (options.ides().contains(DevInitOptions.IdeTarget.VSCODE)) {
             writeFromTemplate(
@@ -54,12 +71,28 @@ public final class DevProjectInitializer {
                     options.force(),
                     created,
                     skipped);
+            writeFromTemplate(
+                    projectRoot,
+                    TEMPLATE_ROOT + "ide/copilot-instructions.md.template",
+                    ".github/copilot-instructions.md",
+                    vars,
+                    options.force(),
+                    created,
+                    skipped);
         }
         if (options.ides().contains(DevInitOptions.IdeTarget.CLAUDE)) {
             writeFromTemplate(
                     projectRoot,
                     TEMPLATE_ROOT + "mcp/claude-desktop.config.json.template",
                     ".zestflow/mcp/claude-desktop.config.json.example",
+                    vars,
+                    options.force(),
+                    created,
+                    skipped);
+            writeFromTemplate(
+                    projectRoot,
+                    TEMPLATE_ROOT + "ide/claude.md.template",
+                    "CLAUDE.md",
                     vars,
                     options.force(),
                     created,
@@ -76,16 +109,40 @@ public final class DevProjectInitializer {
             appendGitignoreSnippet(projectRoot, created, skipped);
         }
 
-        return new DevInitResult(created, skipped, vars);
+        List<String> warnings = DevProjectHealthCheck.warnings(projectRoot);
+        return new DevInitResult(created, skipped, vars, warnings);
     }
 
     private static Map<String, String> buildVariables(Path projectRoot, DevInitOptions options) {
-        Map<String, String> vars = new LinkedHashMap<>();
+        Map<String, String> vars = new LinkedHashMap<String, String>();
         vars.put("APP_CODE", options.appCode());
         vars.put("EXECUTOR_URL", options.executorUrl());
-        vars.put("BASE_PACKAGE", options.basePackage());
+        vars.put("COMPONENTIZATION", options.componentization().cliValue());
+        vars.put("COMPONENTIZATION_SECTION", options.componentization().architectureSection());
+        vars.put("COMPONENT_PACKAGE", options.componentPackage());
         vars.put("PROJECT_PATH", projectRoot.toAbsolutePath().normalize().toString().replace('\\', '/'));
         return vars;
+    }
+
+    private static void writeContent(
+            Path projectRoot,
+            String relativeTarget,
+            String content,
+            boolean force,
+            List<String> created,
+            List<String> skipped) throws IOException {
+        Path target = projectRoot.resolve(relativeTarget).normalize();
+        if (!target.startsWith(projectRoot)) {
+            throw new IOException("非法目标路径: " + relativeTarget);
+        }
+        if (Files.exists(target) && !force) {
+            skipped.add(relativeTarget);
+            return;
+        }
+        boolean existed = Files.exists(target);
+        Files.createDirectories(target.getParent());
+        IoUtil.writeFile(target, content);
+        created.add(existed && force ? relativeTarget + " (overwritten)" : relativeTarget);
     }
 
     private static void writeFromTemplate(
@@ -105,23 +162,23 @@ public final class DevProjectInitializer {
             return;
         }
         boolean existed = Files.exists(target);
-        String template = ResourceLoader.readClasspath(classpathTemplate);
+        String template = IoUtil.readClasspath(classpathTemplate);
         String content = substitute(template, vars);
         Files.createDirectories(target.getParent());
-        Files.writeString(target, content, StandardCharsets.UTF_8);
+        IoUtil.writeFile(target, content);
         created.add(existed && force ? relativeTarget + " (overwritten)" : relativeTarget);
     }
 
     private static void appendGitignoreSnippet(Path projectRoot, List<String> created, List<String> skipped)
             throws IOException {
         Path gitignore = projectRoot.resolve(".gitignore");
-        String snippet = ResourceLoader.readClasspath(TEMPLATE_ROOT + "gitignore.zestflow.snippet").trim();
+        String snippet = IoUtil.readClasspath(TEMPLATE_ROOT + "gitignore.zestflow.snippet").trim();
         if (!Files.isRegularFile(gitignore)) {
-            Files.writeString(gitignore, snippet + System.lineSeparator(), StandardCharsets.UTF_8);
+            IoUtil.writeFile(gitignore, snippet + System.lineSeparator());
             created.add(".gitignore");
             return;
         }
-        String existing = Files.readString(gitignore, StandardCharsets.UTF_8);
+        String existing = IoUtil.readFile(gitignore);
         if (existing.contains(".zestflow/learning/")) {
             skipped.add(".gitignore (already contains zestflow entries)");
             return;
@@ -129,7 +186,7 @@ public final class DevProjectInitializer {
         String merged = existing.endsWith(System.lineSeparator()) || existing.isEmpty()
                 ? existing + System.lineSeparator() + snippet + System.lineSeparator()
                 : existing + System.lineSeparator() + System.lineSeparator() + snippet + System.lineSeparator();
-        Files.writeString(gitignore, merged, StandardCharsets.UTF_8);
+        IoUtil.writeFile(gitignore, merged);
         created.add(".gitignore (appended zestflow entries)");
     }
 
