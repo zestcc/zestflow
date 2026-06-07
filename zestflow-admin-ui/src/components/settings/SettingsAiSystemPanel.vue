@@ -56,7 +56,7 @@
       </el-tab-pane>
     </el-tabs>
 
-    <el-dialog v-model="editVisible" :title="$t('settings.ai.system.editProvider')" width="640px" destroy-on-close>
+    <el-dialog v-model="editVisible" :title="$t('settings.ai.system.editProvider')" width="720px" destroy-on-close>
       <el-form :model="editForm" label-width="120px">
         <el-form-item :label="$t('dict.label')">
           <el-input v-model="editForm.label" />
@@ -64,9 +64,7 @@
         <el-form-item :label="$t('dict.value')">
           <el-input v-model="editForm.value" disabled />
         </el-form-item>
-        <el-form-item :label="$t('settings.ai.system.extraJson')">
-          <el-input v-model="editForm.extra" type="textarea" :rows="12" class="extra-json" />
-        </el-form-item>
+        <AiProviderExtraForm v-model="editForm.extra" @tier-change="onTierChange" />
       </el-form>
       <template #footer>
         <el-button @click="editVisible = false">{{ $t('common.cancel') }}</el-button>
@@ -81,7 +79,9 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
+import AiProviderExtraForm from '@/components/settings/AiProviderExtraForm.vue'
 import { useDictLabel } from '@/composables/useDictLabel'
+import { tagTypeForAiProviderTier } from '@/utils/aiProviderExtra'
 import { dictApi, type DictDataVO } from '@/api/dict'
 import { useDictStore } from '@/stores/dict'
 
@@ -100,7 +100,7 @@ const providers = ref<DictDataVO[]>([])
 const models = ref<DictDataVO[]>([])
 const filterProvider = ref('')
 const editVisible = ref(false)
-const editForm = ref({ id: 0, label: '', value: '', extra: '' })
+const editForm = ref({ id: 0, label: '', value: '', extra: '', tagType: '' })
 
 const providerColumns = computed(() => [
   { prop: 'value', label: t('dict.code'), width: 140, showOverflowTooltip: true },
@@ -141,12 +141,17 @@ async function loadModels() {
   }
 }
 
+function onTierChange(_tier: string, tagType: string) {
+  editForm.value.tagType = tagType
+}
+
 function openEdit(row: DictDataVO) {
   editForm.value = {
     id: row.id,
     label: row.label,
     value: row.value,
     extra: row.extra ?? '',
+    tagType: row.tagType || tagTypeForAiProviderTier('B'),
   }
   editVisible.value = true
 }
@@ -157,6 +162,7 @@ async function saveProvider() {
     await dictApi.updateData(editForm.value.id, {
       label: editForm.value.label,
       extra: editForm.value.extra,
+      tagType: editForm.value.tagType || undefined,
     })
     dictStore.invalidate(AI_PROVIDER)
     dictStore.invalidate(AI_MODEL)
@@ -184,8 +190,4 @@ onMounted(() => {
   margin-top: 16px;
 }
 
-.extra-json :deep(textarea) {
-  font-family: ui-monospace, monospace;
-  font-size: 12px;
-}
 </style>

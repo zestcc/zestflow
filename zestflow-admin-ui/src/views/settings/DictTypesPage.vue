@@ -152,7 +152,7 @@
     <el-dialog
       v-model="dataDialogVisible"
       :title="isEditingData ? $t('dict.editData') : $t('dict.addData')"
-      :width="560"
+      :width="isAiProviderType ? 720 : 560"
       :close-on-click-modal="false"
       destroy-on-close
     >
@@ -163,45 +163,47 @@
         <el-form-item :label="$t('dict.value')" prop="value">
           <el-input v-model="dataForm.value" maxlength="128" />
         </el-form-item>
-        <el-form-item :label="$t('dict.parentId')">
-          <el-tree-select
-            v-model="dataForm.parentId"
-            :data="parentTreeOptions"
-            :props="{ value: 'id', label: 'label', children: 'children' }"
-            check-strictly
-            clearable
-            filterable
-            :placeholder="$t('dict.parentIdPlaceholder')"
-            style="width:100%"
-          />
-        </el-form-item>
-        <el-divider content-position="left">{{ $t('dict.crossCascade') }}</el-divider>
-        <el-form-item :label="$t('dict.parentTypeCode')">
-          <el-select
-            v-model="dataForm.parentTypeCode"
-            clearable
-            filterable
-            allow-create
-            :placeholder="$t('dict.parentTypeCode')"
-            style="width:100%"
-            @change="onParentTypeChange"
-          >
-            <el-option v-for="t in typeList" :key="t.code" :label="`${t.code} (${t.name})`" :value="t.code" />
-          </el-select>
-        </el-form-item>
-        <el-form-item :label="$t('dict.parentValue')">
-          <el-select
-            v-model="dataForm.parentValue"
-            clearable
-            filterable
-            allow-create
-            :disabled="!dataForm.parentTypeCode"
-            :placeholder="$t('dict.parentValuePlaceholder')"
-            style="width:100%"
-          >
-            <el-option v-for="opt in crossParentOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
-          </el-select>
-        </el-form-item>
+        <template v-if="!isAiProviderType">
+          <el-form-item :label="$t('dict.parentId')">
+            <el-tree-select
+              v-model="dataForm.parentId"
+              :data="parentTreeOptions"
+              :props="{ value: 'id', label: 'label', children: 'children' }"
+              check-strictly
+              clearable
+              filterable
+              :placeholder="$t('dict.parentIdPlaceholder')"
+              style="width:100%"
+            />
+          </el-form-item>
+          <el-divider content-position="left">{{ $t('dict.crossCascade') }}</el-divider>
+          <el-form-item :label="$t('dict.parentTypeCode')">
+            <el-select
+              v-model="dataForm.parentTypeCode"
+              clearable
+              filterable
+              allow-create
+              :placeholder="$t('dict.parentTypeCode')"
+              style="width:100%"
+              @change="onParentTypeChange"
+            >
+              <el-option v-for="t in typeList" :key="t.code" :label="`${t.code} (${t.name})`" :value="t.code" />
+            </el-select>
+          </el-form-item>
+          <el-form-item :label="$t('dict.parentValue')">
+            <el-select
+              v-model="dataForm.parentValue"
+              clearable
+              filterable
+              allow-create
+              :disabled="!dataForm.parentTypeCode"
+              :placeholder="$t('dict.parentValuePlaceholder')"
+              style="width:100%"
+            >
+              <el-option v-for="opt in crossParentOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+            </el-select>
+          </el-form-item>
+        </template>
         <el-form-item :label="$t('dict.sort')">
           <el-input v-model="dataForm.sort" type="number" min="0" style="width:180px" :placeholder="$t('dict.sortPlaceholder')" />
         </el-form-item>
@@ -219,7 +221,12 @@
         <el-form-item :label="$t('dict.remark')">
           <el-input v-model="dataForm.remark" type="textarea" maxlength="256" />
         </el-form-item>
-        <el-form-item :label="$t('dict.extra')">
+        <AiProviderExtraForm
+          v-if="isAiProviderType"
+          v-model="dataForm.extra"
+          @tier-change="onAiProviderTierChange"
+        />
+        <el-form-item v-else :label="$t('dict.extra')">
           <el-input v-model="dataForm.extra" type="textarea" :rows="4" />
         </el-form-item>
       </el-form>
@@ -238,7 +245,9 @@ import { Search } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { dictApi, type DictTypeVO, type DictDataVO, type DictDataTreeVO } from '@/api/dict'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
+import AiProviderExtraForm from '@/components/settings/AiProviderExtraForm.vue'
 import { useDict } from '@/composables/useDict'
+import { parseAiProviderExtra, tagTypeForAiProviderTier } from '@/utils/aiProviderExtra'
 import { useDictLabel } from '@/composables/useDictLabel'
 import { useDictStore } from '@/stores/dict'
 import { buildParentTreeOptions } from '@/utils/dictTreeUtils'
@@ -281,6 +290,8 @@ const filteredTypes = computed(() => {
 const parentTreeOptions = computed(() =>
   buildParentTreeOptions(dataTree.value, isEditingData.value ? editingDataId.value ?? undefined : undefined),
 )
+
+const isAiProviderType = computed(() => currentType.value?.code === 'ai_provider')
 
 const typeDialogVisible = ref(false)
 const isEditingType = ref(false)
@@ -403,11 +414,18 @@ function resetDataForm() {
   crossParentOptions.value = []
 }
 
+function onAiProviderTierChange(_tier: string, tagType: string) {
+  dataForm.tagType = tagType
+}
+
 function showCreateData(parentId?: number) {
   isEditingData.value = false
   editingDataId.value = null
   resetDataForm()
   if (parentId) dataForm.parentId = parentId
+  if (isAiProviderType.value) {
+    dataForm.tagType = tagTypeForAiProviderTier(parseAiProviderExtra('').tier)
+  }
   dataDialogVisible.value = true
 }
 
@@ -425,6 +443,9 @@ function showEditData(row: DictDataVO | DictDataTreeVO) {
   dataForm.defaultFlag = row.defaultFlag
   dataForm.remark = row.remark || ''
   dataForm.extra = row.extra || ''
+  if (isAiProviderType.value && !dataForm.tagType) {
+    dataForm.tagType = tagTypeForAiProviderTier(parseAiProviderExtra(dataForm.extra).tier)
+  }
   loadCrossParentOptions(dataForm.parentTypeCode)
   dataDialogVisible.value = true
 }
