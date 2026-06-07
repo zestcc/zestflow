@@ -86,19 +86,18 @@ public class McpToolFactory {
         tools.addAll(List.of(
                 tool("plan_chain", planChainProperties(),
                         """
-                                【意图：开发链路】Chain-first 业务链规划：拆解步骤、元件类型混用、白名单对比(gap)、检索平台/项目 Pattern。
-                                关键字：开发链路、注册链、规划链。完成后按 workflowNext 继续 scaffold/validate。
+                                【意图：开发链路】Chain-first 规划：AI 自行对标业界成熟方案拆步，元件类型混用、白名单 gap、检索 Pattern。
+                                禁止单节点黑盒；90%% happy path 可试跑。完成后 scaffold/compose/validate。
                                 """,
                         List.of("description"), this::handlePlanChain),
                 tool("record_learning_event", learningEventProperties(),
                         """
-                                【意图：反馈沉淀 P1】记录一次工作流结果（validate/采纳/Playground/修正）。
-                                仅高置信事件可被 distill_patterns 晋升（目标准确率≥97%）。
+                                【意图：反馈沉淀】记录 validate/采纳/Playground 结果。高置信（≥97%）时**自动 distill_patterns** 写入 .zestflow/patterns/ 供 search_patterns 检索。
                                 """,
                         List.of("intent", "feature"), this::handleRecordLearningEvent),
                 tool("search_patterns", searchPatternsProperties(),
                         """
-                                【意图：检索经验 P2】搜索平台(L1)+项目(L2) Pattern，plan_chain 前/后均可调用。
+                                【意图：检索 RAG】生成前必调：平台 Pattern + 蒸馏后的 .zestflow/patterns/，对标验收标准再生成。
                                 """,
                         List.of("query"), this::handleSearchPatterns),
                 tool("distill_patterns", distillPatternsProperties(),

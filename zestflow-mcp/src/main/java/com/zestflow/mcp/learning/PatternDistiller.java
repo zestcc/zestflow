@@ -87,8 +87,10 @@ public class PatternDistiller {
         sb.append("\n\n## 用户修正\n");
         sb.append(best.userCorrection() != null && !best.userCorrection().isBlank()
                 ? best.userCorrection() : "无");
-        sb.append("\n\n## 工作流\n");
-        sb.append("plan_chain → scaffold（gap）→ compose_chain → validate_chain → bind_http → gen_playground_scene → record_learning_event\n");
+        sb.append("\n\n## 验收规则\n");
+        sb.append("符合 ai-generation-acceptance：对标业界 + RAG 检索生成；本 Pattern 由自动蒸馏沉淀，生成前优先 search_patterns 复用。\n");
+        sb.append("\n## 工作流\n");
+        sb.append("search_patterns → plan_chain → scaffold → validate_chain → record_learning_event → auto distill\n");
         return sb.toString();
     }
 

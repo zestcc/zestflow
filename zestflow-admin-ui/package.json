@@ -19,6 +19,7 @@
     "@antv/x6-plugin-selection": "^2.2.2",
     "@antv/x6-plugin-snapline": "^2.1.7",
     "@antv/x6-plugin-transform": "^2.1.8",
+    "@dagrejs/dagre": "^3.0.0",
     "@element-plus/icons-vue": "^2.3.0",
     "axios": "^1.7.0",
     "element-plus": "^2.7.0",

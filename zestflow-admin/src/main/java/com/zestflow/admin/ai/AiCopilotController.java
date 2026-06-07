@@ -38,6 +38,7 @@ public class AiCopilotController {
     private final TenantAppContext tenantAppContext;
     private final PermissionService permissionService;
     private final ExecutorProxyService executorProxyService;
+    private final ExecutorChainAiClient executorChainAiClient;
 
     @GetMapping("/config")
     public Result<AiConfigStatusVO> getConfig() {
@@ -116,7 +117,14 @@ public class AiCopilotController {
                                          @RequestParam(required = false) String appCode,
                                          @RequestParam(required = false, defaultValue = "3") int limit) {
         Long tenantId = tenantAppContext.getCurrentTenantId();
-        return Result.success(aiRagService.retrieve(tenantId, appCode, q, limit));
+        java.util.ArrayList<String> merged = new java.util.ArrayList<>();
+        if (StringUtils.hasText(appCode)) {
+            merged.addAll(executorChainAiClient.searchRag(appCode, q, limit));
+        }
+        if (aiPlatformConfig.isRagEnabled()) {
+            merged.addAll(aiRagService.retrieve(tenantId, appCode, q, Math.max(1, limit / 2)));
+        }
+        return Result.success(merged.stream().limit(limit).toList());
     }
 
     @GetMapping("/rag/status")
@@ -230,8 +238,21 @@ public class AiCopilotController {
     }
 
     @PostMapping("/learning/events")
-    public Result<AiLearningEventVO> recordLearningEvent(@RequestBody AiLearningEventSaveDTO dto) {
-        return Result.success(aiLearningEventService.record(dto));
+    public Result<java.util.Map<String, Object>> recordLearningEvent(@RequestBody AiLearningEventSaveDTO dto) {
+        java.util.Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("intent", dto.getIntent());
+        body.put("feature", dto.getFeature());
+        body.put("appCode", dto.getAppCode());
+        body.put("chainCode", dto.getChainCode());
+        body.put("httpMode", dto.getHttpMode());
+        body.put("validatePassed", dto.getValidatePassed());
+        body.put("validateRounds", dto.getValidateRounds());
+        body.put("adopted", dto.getAdopted());
+        body.put("playgroundSuccess", dto.getPlaygroundSuccess());
+        body.put("userCorrection", dto.getUserCorrection());
+        body.put("reusedComponents", dto.getReusedComponents());
+        body.put("createdComponents", dto.getCreatedComponents());
+        return Result.success(executorChainAiClient.recordLearningEvent(dto.getAppCode(), body));
     }
 
     @GetMapping("/learning/events")

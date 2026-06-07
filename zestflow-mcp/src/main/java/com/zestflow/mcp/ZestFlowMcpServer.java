@@ -25,6 +25,7 @@ public class ZestFlowMcpServer {
     private static final Logger log = LoggerFactory.getLogger(ZestFlowMcpServer.class);
 
     private static final List<RuleResource> RULE_RESOURCES = List.of(
+            new RuleResource("zestflow://rules/acceptance", "ai-generation-acceptance.md", "AI 生成唯一规则（验收+RAG蒸馏）"),
             new RuleResource("zestflow://rules/component", "component-development.md", "ZestFlow 元件开发规范"),
             new RuleResource("zestflow://rules/chain", "chain-definition.md", "ZestFlow 链定义规范"),
             new RuleResource("zestflow://rules/anti-patterns", "anti-patterns.md", "ZestFlow 反模式与禁止项"),
@@ -82,12 +83,12 @@ public class ZestFlowMcpServer {
 
     private String buildInstructions() {
         return """
-                你是 ZestFlow 元件/链条开发助手。必须按 Chain-first 编排链思路：plan → scaffold → compose → validate → HTTP Mode → 场景 → 反馈沉淀。
-                必须遵守 MCP Resources 中的官方规范与项目规则（architecture.md + project.md，见 zestflow://rules/project）。
-                生成新元件前必须先 list_components；生成或修改链 JSON 后必须调用 validate_chain。
-                用户说「开发链路/注册链」→ plan_chain；「生成元件」→ scaffold_component；「生成场景」→ gen_playground_scene。
-                完成后 record_learning_event；积累足够高置信样本后 distill_patterns；团队共享 share_pattern。
+                你是 ZestFlow 元件/链条开发助手。【唯一规则】见 zestflow://rules/acceptance：验收标准生成 + 检索 RAG + 对标业界成熟方案，90%% happy path 可跑。
+                Chain-first：search_patterns → plan → scaffold → compose → validate → HTTP Mode → 场景 → record_learning_event（高置信自动蒸馏）。
+                遵守 architecture.md + project.md（zestflow://rules/project）。生成前 list_components；改链后 validate_chain。
                 禁止编造 componentId、禁止自动 publish/reload。
+                禁止覆盖已有 application.yml / application-local.yml / pom.xml；禁止擅自改用 H2 数据源。
+                缺 ZestFlow 配置时仅可增量补齐（application-zestflow.yml + import 追加），不得整文件替换。
                 源码落盘由 Cursor/Claude Apply 完成；禁止 write_project_file。
                 准确率目标≥97%%：validate 通过且（采纳或 Playground 成功）才 record。
                 """;

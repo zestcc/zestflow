@@ -10,6 +10,14 @@
 | 4 | createUser | EXECUTOR | NORMAL | 写库 |
 | 5 | sendNotify | EXECUTOR | NORMAL | **优先复用** |
 | 6 | parseRegisterResponse | PARSER | NORMAL | Mode1/2 HTTP 响应 |
+| 7 | formatRegisterError | PARSER | NORMAL | 已注册错误响应 |
+
+## 连线
+
+```text
+parse → validate → checkExists --可注册--> create → notify → response
+                              └--已存在--> formatRegisterError
+```
 
 ## chainCtx 键
 

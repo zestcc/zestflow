@@ -21,7 +21,7 @@ public final class LearningWorkflow {
             | 检索历史经验 | search_patterns | plan 前 |
             | 共享给团队 | share_pattern | Admin RAG import |
             
-            **准确率目标 ≥97%**：必须通过 validate_chain；采纳或 Playground 成功后再 record_learning_event。
+            **唯一规则 ai-generation-acceptance**：验收标准生成 + 检索 RAG + 对标业界；≥97% 时 record 后**自动蒸馏**（distill_patterns / Admin RAG）。
             """;
 
     private LearningWorkflow() {

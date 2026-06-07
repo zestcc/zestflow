@@ -144,6 +144,33 @@ public class HttpApiClient {
         }
     }
 
+    public String searchExecutorRag(String query, int limit) throws Exception {
+        requireExecutorUrl();
+        String q = query != null ? query : "";
+        return get(config.executorUrl() + "/api/ai/rag/search?q=" + urlEncode(q) + "&limit=" + limit, true);
+    }
+
+    public String recordExecutorLearningEvent(Map<String, Object> body) throws Exception {
+        requireExecutorUrl();
+        return post(config.executorUrl() + "/api/ai/learning/events",
+                MAPPER.writeValueAsString(body), true);
+    }
+
+    public String distillExecutorPatterns(String feature) throws Exception {
+        requireExecutorUrl();
+        String path = "/api/ai/patterns/distill";
+        if (feature != null && !feature.isBlank()) {
+            path += "?feature=" + urlEncode(feature);
+        }
+        return post(config.executorUrl() + path, "{}", true);
+    }
+
+    private void requireExecutorUrl() {
+        if (config.executorUrl() == null || config.executorUrl().isBlank()) {
+            throw new IllegalStateException("未配置 --executor-url，应用端 AI 知识库不可用");
+        }
+    }
+
     private static String urlEncode(String value) {
         return java.net.URLEncoder.encode(value, StandardCharsets.UTF_8);
     }

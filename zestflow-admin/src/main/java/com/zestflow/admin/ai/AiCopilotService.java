@@ -24,7 +24,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
@@ -51,6 +53,7 @@ public class AiCopilotService {
     private final AiCopilotMessageMapper messageMapper;
     private final AiQuotaService aiQuotaService;
     private final AiLearningEventService aiLearningEventService;
+    private final ExecutorChainAiClient executorChainAiClient;
 
     public AiExplainResponse explain(AiExplainRequest request) {
         requireCopilotEnabled();
@@ -96,6 +99,19 @@ public class AiCopilotService {
         try {
             String llmReply = chat(config, system, user, true, tenantId, request.getAppCode());
             ParsedChainProposal proposal = parseChainProposal(llmReply);
+            int qualityRetries = 0;
+            while (qualityRetries < aiPlatformConfig.getRepairMaxRounds()) {
+                AiChainQualityGate.QualityResult quality = AiChainQualityGate.assess(
+                        request.getUserMessage(), proposal.chainData());
+                if (quality.accepted()) {
+                    break;
+                }
+                qualityRetries++;
+                String retryUser = promptBuilder.buildQualityRetryUserPrompt(
+                        request.getUserMessage(), proposal.chainData(), quality.critique());
+                llmReply = chat(config, system, retryUser, true, tenantId, request.getAppCode());
+                proposal = parseChainProposal(llmReply);
+            }
 
             AiValidationVO validation = executorValidateClient.validate(
                     request.getAppCode(), proposal.chainData());
@@ -258,20 +274,21 @@ public class AiCopilotService {
         }
         session.setAdopted(dto.getAdopted());
         sessionMapper.updateById(session);
-        if (StringUtils.hasText(dto.getIntent()) || StringUtils.hasText(dto.getFeature())) {
-            AiLearningEventSaveDTO learning = new AiLearningEventSaveDTO();
-            learning.setSessionId(sessionId);
-            learning.setAppCode(session.getAppCode());
-            learning.setIntent(dto.getIntent() != null ? dto.getIntent() : session.getMode());
-            learning.setFeature(dto.getFeature());
-            learning.setChainCode(session.getChainCode());
-            learning.setHttpMode(dto.getHttpMode());
-            learning.setValidatePassed(dto.getValidatePassed());
-            learning.setValidateRounds(dto.getValidateRounds());
-            learning.setAdopted(dto.getAdopted() != null && dto.getAdopted() == 1);
-            learning.setPlaygroundSuccess(dto.getPlaygroundSuccess());
-            learning.setUserCorrection(dto.getUserCorrection());
-            aiLearningEventService.record(learning);
+        if (StringUtils.hasText(dto.getIntent()) || StringUtils.hasText(dto.getFeature())
+                || dto.getAdopted() != null || Boolean.TRUE.equals(dto.getPlaygroundSuccess())) {
+            Map<String, Object> event = new LinkedHashMap<>();
+            event.put("intent", dto.getIntent() != null ? dto.getIntent() : session.getMode());
+            event.put("feature", dto.getFeature() != null ? dto.getFeature() : session.getChainCode());
+            event.put("appCode", session.getAppCode());
+            event.put("chainCode", session.getChainCode());
+            event.put("httpMode", dto.getHttpMode());
+            event.put("validatePassed", dto.getValidatePassed());
+            event.put("validateRounds", dto.getValidateRounds());
+            event.put("adopted", dto.getAdopted() != null && dto.getAdopted() == 1);
+            event.put("playgroundSuccess", dto.getPlaygroundSuccess());
+            event.put("userCorrection", dto.getUserCorrection());
+            event.put("chainData", dto.getChainData());
+            executorChainAiClient.recordLearningEvent(session.getAppCode(), event);
         }
     }
 
@@ -292,17 +309,24 @@ public class AiCopilotService {
     }
 
     private String enrichSystemWithRag(String system, String userQuery, Long tenantId, String appCode) {
-        if (!aiPlatformConfig.isRagEnabled()) {
-            return system;
-        }
-        List<String> snippets = aiRagService.retrieve(tenantId, appCode, userQuery, aiPlatformConfig.getRagMaxChunks());
-        if (snippets.isEmpty()) {
-            return system;
-        }
         StringBuilder sb = new StringBuilder(system);
-        sb.append("\n\n参考知识库片段（请优先遵循）：\n");
-        for (String snippet : snippets) {
-            sb.append("---\n").append(snippet).append('\n');
+        List<String> executorSnippets = executorChainAiClient.searchRag(
+                appCode, userQuery, aiPlatformConfig.getRagMaxChunks());
+        if (!executorSnippets.isEmpty()) {
+            sb.append("\n\n【应用端 RAG — 优先遵循】\n");
+            for (String snippet : executorSnippets) {
+                sb.append("---\n").append(snippet).append('\n');
+            }
+        }
+        if (aiPlatformConfig.isRagEnabled()) {
+            List<String> tenantSnippets = aiRagService.retrieve(
+                    tenantId, appCode, userQuery, Math.max(1, aiPlatformConfig.getRagMaxChunks() / 2));
+            if (!tenantSnippets.isEmpty()) {
+                sb.append("\n\n【租户 RAG 补充】\n");
+                for (String snippet : tenantSnippets) {
+                    sb.append("---\n").append(snippet).append('\n');
+                }
+            }
         }
         return sb.toString();
     }

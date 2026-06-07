@@ -101,6 +101,7 @@ export interface AiSuggestResponse {
   summary: string
   validation: AiValidationResult
   sessionId?: string
+  repairRounds?: number
 }
 
 export interface AiValidateRequest {
@@ -136,6 +137,12 @@ export interface AiComponentParam {
 export interface AiFeedbackRequest {
   adopted: boolean
   comment?: string
+  intent?: string
+  feature?: string
+  validatePassed?: boolean
+  validateRounds?: number
+  playgroundSuccess?: boolean
+  chainData?: string
 }
 
 export interface AiDiagnoseRequest {

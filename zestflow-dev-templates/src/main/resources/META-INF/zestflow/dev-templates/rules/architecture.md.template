@@ -24,6 +24,10 @@
 - `@ZestComponent("camelCaseId")` + `@ZestExecute`
 - 新建/改元件前：`list_components`；改链后：`validate_chain`
 
+{{HTTP_MODE_SECTION}}
+
+{{CODING_STANDARDS_SECTION}}
+
 ## 运行时参数（init-dev 注入）
 
 | 参数 | 值 |
@@ -32,17 +36,21 @@
 | Executor | `{{EXECUTOR_URL}}` |
 | 元件化程度 | `{{COMPONENTIZATION}}`（`full` 默认；可选 `hybrid`） |
 | 元件包后缀 | `{{COMPONENT_PACKAGE}}` |
+| HTTP 模式 | `{{HTTP_MODE}}`（1=execute，2=chain-route，3=controller） |
 
 ## 禁止
 
 - 禁止编造未注册 `componentId`
 - 禁止 AI/MCP 自动 publish、reload、写生产配置
 - 禁止在 Controller 写核心业务逻辑
+- 禁止元件直接访问 Mapper（须经 Repo）
+- **禁止**覆盖/删除已有 `application*.yml`、`pom.xml`；**禁止**擅自改用 H2
 - MCP 不写盘；源码由 IDE Apply 落盘
 
 ## 重新生成
 
 ```bash
 java -jar ~/.zestflow/tools/zestflow-dev-init.jar --init-dev --project . --force
-# 可选：--componentization full|hybrid  --component-package component  --app-code ...  --executor-url ...
+# 可选：--componentization full|hybrid  --component-package component
+#       --http-mode 1|2|3  --app-code ...  --executor-url ...
 ```

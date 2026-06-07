@@ -52,8 +52,20 @@ public class PromptBuilder {
             case "expression" -> "请生成或修正 Aviator 表达式，并简要说明。";
             case "fix-errors" -> "请根据校验错误修复链定义，仅输出 JSON。";
             case "modify" -> "请在现有链基础上按用户描述修改，输出完整 chainData JSON。";
-            default -> "请根据用户描述生成完整 chainData JSON。";
+            default -> "请根据用户描述生成完整 chainData JSON。"
+                    + "自行对标业界成熟方案并结合知识库验收标准拆步，禁止单节点黑盒。";
         });
+        return sb.toString();
+    }
+
+    public String buildQualityRetryUserPrompt(String userMessage, String chainData, String critique) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("【质量复检未通过】").append(critique).append("\n\n");
+        sb.append("用户原始需求：").append(nullToEmpty(userMessage)).append("\n\n");
+        if (StringUtils.hasText(chainData)) {
+            sb.append("你上一版过于简化的 chainData：\n").append(chainData).append("\n\n");
+        }
+        sb.append("请重新思考并输出完整 JSON：对标业界主路径扩写，满足验收标准，90% happy path 可试跑。");
         return sb.toString();
     }
 
@@ -82,14 +94,13 @@ public class PromptBuilder {
     }
 
     private String buildSuggestSystem(String componentList) {
-        return """
-                你是 ZestFlow 链编排 Copilot，输出必须符合 ChainDefinitionDTO schema（nodes/edges/config）。
-                规则：
-                1. 只能使用 allowedComponents 中的 componentId：%s
-                2. 条件边使用 Aviator 表达式；上下文读取写法：chainCtx.get(ctx, 'key')
-                3. 禁止编造 chainCode 或发布指令
-                4. 仅输出 JSON，无 markdown 包裹；格式：{"chainData":{...},"summary":"..."}
-                5. 不确定时在 summary 中列出需人工确认项
+        return AiGenerationAcceptance.PROMPT_ANCHOR + """
+
+                你是 ZestFlow 链编排 Copilot（通用），输出须符合 ChainDefinitionDTO schema。
+                1. 只能使用 allowedComponents：%s
+                2. 条件边 Aviator；chainCtx.get(ctx, 'key')
+                3. 仅输出 JSON：{"chainData":{...},"summary":"..."}
+                4. 生成前检索知识库 ai-generation-acceptance 与租户 RAG；生成后 summary 注明可蒸馏要点
                 """.formatted(componentList);
     }
 

@@ -53,13 +53,18 @@ public class AiProperties {
     private int ragEmbeddingCandidateLimit = 12;
 
     /** RAG 注入 Prompt 的最大片段数 */
-    private int ragMaxChunks = 3;
+    private int ragMaxChunks = 5;
 
     /** 租户 RAG 文件目录（{dir}/{tenantId}/*.md） */
     private String ragTenantDataDir = "./data/ai-rag";
 
     /** 是否扫描租户 RAG 目录 */
     private boolean ragTenantFilesystemEnabled = true;
+
+    /**
+     * 学习事件是否自动晋升到租户 RAG（默认关闭；链条知识库主路径在应用端 Executor）。
+     */
+    private boolean tenantRagAutoPromote = false;
 
     /** 每租户 DB 文档上限 */
     private int ragTenantMaxDocuments = 200;

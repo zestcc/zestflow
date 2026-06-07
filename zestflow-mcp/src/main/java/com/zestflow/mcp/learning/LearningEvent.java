@@ -25,6 +25,7 @@ public record LearningEvent(
         Boolean adopted,
         Boolean playgroundSuccess,
         String userCorrection,
+        String chainData,
         Map<String, Object> metadata
 ) {
 }

@@ -20,8 +20,11 @@ param(
     [ValidateSet("full", "hybrid")]
     [string]$Componentization = "full",
     [string]$ComponentPackage = "component",
+    [ValidateSet("1", "2", "3", "execute", "chain-route", "controller")]
+    [string]$HttpMode = "3",
     [switch]$Force,
-    [switch]$NoGitignore
+    [switch]$NoGitignore,
+    [switch]$NoBootstrapConfig
 )
 
 $ErrorActionPreference = "Stop"
@@ -49,8 +52,10 @@ if ($AppCode) { $argsList += @("--app-code", $AppCode) }
 if ($ExecutorUrl) { $argsList += @("--executor-url", $ExecutorUrl) }
 if ($Componentization) { $argsList += @("--componentization", $Componentization) }
 if ($ComponentPackage) { $argsList += @("--component-package", $ComponentPackage) }
+if ($HttpMode) { $argsList += @("--http-mode", $HttpMode) }
 if ($Force) { $argsList += "--force" }
 if ($NoGitignore) { $argsList += "--no-gitignore" }
+if ($NoBootstrapConfig) { $argsList += "--no-bootstrap-config" }
 
 & java @argsList
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

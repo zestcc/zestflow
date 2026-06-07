@@ -35,8 +35,9 @@ public final class DevProjectHealthCheck {
         }
         if (!hasExecutorPortInYaml(projectRoot)) {
             warnings.add(
-                    "未在 application.yml 中发现 zestflow.executor.port。\n"
-                            + "将使用默认 20550；若实际端口不同，请在 yml 中配置或 init-dev 时传 --executor-url。");
+                    "未在 application*.yml 中发现 zestflow.executor.port。\n"
+                            + "可重新执行 init-dev（不加 --no-bootstrap-config）以增量生成 application-zestflow.yml；\n"
+                            + "或将 .zestflow/bootstrap/ 下 snippet 手动合并。默认端口 20550；可用 --executor-url 指定。");
         }
         return warnings;
     }

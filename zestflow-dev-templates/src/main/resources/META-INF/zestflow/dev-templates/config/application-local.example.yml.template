@@ -1,0 +1,29 @@
+# ============================================================
+# 本地开发数据库（模板）— 复制为 application-local.yml 后使用
+# 由 zestflow-dev-init 生成；默认 MySQL root/root（请按环境修改）
+# 禁止在 application.yml 中使用 H2，除非团队明确约定
+# ============================================================
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/{{DB_BUSINESS}}?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+zestflow:
+  executor:
+    datasource:
+      url: jdbc:mysql://localhost:3306/{{DB_BUSINESS}}?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+      username: root
+      password: root
+      driver-class-name: com.mysql.cj.jdbc.Driver
+  collector:
+    datasource:
+      url: jdbc:mysql://localhost:3306/{{DB_LOG}}?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+      username: root
+      password: root
+      driver-class-name: com.mysql.cj.jdbc.Driver

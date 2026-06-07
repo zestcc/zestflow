@@ -41,6 +41,7 @@ import com.zestflow.executor.scanner.ComponentScanner;
 import com.zestflow.executor.chain.ChainRepository;
 import com.zestflow.executor.chain.ChainRuntimeRegistrar;
 import com.zestflow.executor.design.DesignRepository;
+import com.zestflow.executor.ai.ExecutorChainAiService;
 import com.zestflow.executor.server.ExecutorServer;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -82,6 +83,12 @@ public class ExecutorAutoConfig {
         return new ExecutionIdempotencyGuard();
     }
 
+    @Bean
+    @ConditionalOnMissingBean
+    public ExecutorChainAiService executorChainAiService(ExecutorProperties properties) {
+        return new ExecutorChainAiService(properties);
+    }
+
     @Bean(initMethod = "start", destroyMethod = "stop")
     public ExecutorServer executorServer(ExecutorProperties properties,
                                           ChainExecutionEngine chainExecutionEngine,
@@ -89,10 +96,13 @@ public class ExecutorAutoConfig {
                                           DesignRepository designRepo,
                                           ComponentScanner componentScanner,
                                           ChainLoader chainLoader,
-                                          ExecutionIdempotencyGuard idempotencyGuard) {
-        return new ExecutorServer(properties.getPort(), chainExecutionEngine,
+                                          ExecutionIdempotencyGuard idempotencyGuard,
+                                          ExecutorChainAiService chainAiService) {
+        ExecutorServer server = new ExecutorServer(properties.getPort(), chainExecutionEngine,
                 chainRepo, designRepo, componentScanner, chainLoader,
                 properties.getAccessToken(), properties, idempotencyGuard);
+        server.setChainAiService(chainAiService);
+        return server;
     }
 
     @Bean

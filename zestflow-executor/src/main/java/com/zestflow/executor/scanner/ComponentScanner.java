@@ -303,6 +303,14 @@ public class ComponentScanner implements ApplicationContextAware {
         }
     }
 
+    private void applyDescriptionFromJavaDoc(ComponentMeta meta, Class<?> targetClass, Method method) {
+        String current = meta.getDescription();
+        String resolved = JavaDocDescriptionResolver.resolve(method, targetClass, current);
+        if (resolved != null && !resolved.isBlank()) {
+            meta.setDescription(resolved);
+        }
+    }
+
     private void applyDisplayNameDefault(ComponentMeta meta) {
         if (meta.getName() == null || meta.getName().isEmpty()) {
             meta.setName(meta.getExecuteId());
@@ -395,6 +403,8 @@ public class ComponentScanner implements ApplicationContextAware {
                 }
             }
         }
+
+        applyDescriptionFromJavaDoc(meta, targetClass, method);
 
         // 扫描 @ZestOutput（简单类型返回值写入 DataBus）
         ZestOutput output = method.getAnnotation(ZestOutput.class);

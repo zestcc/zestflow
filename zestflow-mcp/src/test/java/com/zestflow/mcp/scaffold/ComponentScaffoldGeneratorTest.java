@@ -18,6 +18,9 @@ class ComponentScaffoldGeneratorTest {
                 tempDir, "deductStock", "EXECUTOR", "order", "扣库存", null);
         assertTrue(json.contains("deductStock"));
         assertTrue(json.contains("@ZestExecute"));
+        assertTrue(json.contains("Repo"));
+        assertTrue(json.contains("Command"));
+        assertTrue(json.contains("@param command"));
         assertTrue(json.contains("suggestedRelativePath"));
         assertTrue(json.contains("Cursor/Claude Apply"));
     }

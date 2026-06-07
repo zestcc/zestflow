@@ -20,6 +20,7 @@ import com.zestflow.executor.engine.ChainExecutionEngine;
 import com.zestflow.executor.engine.ExecutionIdempotencyGuard;
 import com.zestflow.executor.http.ChainExecuteFacade;
 import com.zestflow.executor.http.HttpChainRequestAdapter;
+import com.zestflow.executor.ai.ExecutorChainAiService;
 import com.zestflow.executor.registry.ExecutorProperties;
 import com.zestflow.executor.scanner.ComponentScanner;
 import io.netty.buffer.ByteBuf;
@@ -81,6 +82,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
     private ChainDeclarationRegistry chainDeclarationRegistry;
     private ExecutorChainProperties chainProperties;
     private com.zestflow.executor.schedule.ScheduleRouteHandler scheduleRouteHandler;
+    private ExecutorChainAiService chainAiService;
 
     private final AtomicBoolean acceptingExecuteRequests = new AtomicBoolean(true);
 
@@ -201,6 +203,11 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
         if (method == HttpMethod.GET && "/api/playground/config".equals(uri)) {
             handlePlaygroundConfig(ctx);
             return true;
+        }
+
+        // 应用端链条 AI 知识库（学习事件 / RAG / 蒸馏）
+        if (uri.startsWith("/api/ai/")) {
+            return dispatchAiRoutes(ctx, method, uri, body);
         }
 
         // 业务演示 API（/api/orders 等）：进程内转发 Spring MVC，不经 Tomcat
@@ -696,6 +703,52 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
                     "{\"code\":404,\"message\":\"设计或链不存在\"}");
         }
         return true;
+    }
+
+    // ==================== 应用端 AI 知识库 ====================
+
+    private boolean dispatchAiRoutes(ChannelHandlerContext ctx, HttpMethod method, String uri, String body)
+            throws Exception {
+        if (chainAiService == null) {
+            writeResponse(ctx, HttpResponseStatus.SERVICE_UNAVAILABLE,
+                    Result.fail(503, "ChainAiService 未启用").toString());
+            return true;
+        }
+        if (method == HttpMethod.GET && uri.startsWith("/api/ai/rag/search")) {
+            Map<String, String> params = parseQueryParams(uri);
+            String q = params.getOrDefault("q", "");
+            int limit = parseIntParam(params.get("limit"), 5);
+            List<String> snippets = chainAiService.searchRag(q, limit);
+            writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(Result.success(snippets)));
+            return true;
+        }
+        if (method == HttpMethod.POST && "/api/ai/learning/events".equals(stripQuery(uri))) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> payload = body != null && !body.isBlank()
+                    ? MAPPER.readValue(body, Map.class) : Map.of();
+            Map<String, Object> result = chainAiService.recordLearningEvent(payload);
+            writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(Result.success(result)));
+            return true;
+        }
+        if (method == HttpMethod.POST && uri.startsWith("/api/ai/patterns/distill")) {
+            Map<String, String> params = parseQueryParams(uri);
+            Map<String, Object> result = chainAiService.distillPatterns(params.get("feature"));
+            writeResponse(ctx, HttpResponseStatus.OK, MAPPER.writeValueAsString(Result.success(result)));
+            return true;
+        }
+        writeResponse(ctx, HttpResponseStatus.NOT_FOUND, Result.fail(404, "未知 AI 路由").toString());
+        return true;
+    }
+
+    private static int parseIntParam(String raw, int defaultValue) {
+        if (raw == null || raw.isBlank()) {
+            return defaultValue;
+        }
+        try {
+            return Integer.parseInt(raw);
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
     }
 
     // ==================== 热加载（事件驱动） ====================

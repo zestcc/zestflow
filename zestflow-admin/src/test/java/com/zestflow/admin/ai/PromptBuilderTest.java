@@ -33,6 +33,9 @@ class PromptBuilderTest {
         assertThat(system).contains("payOrder");
         assertThat(system).contains("chainData");
         assertThat(system).contains("Aviator");
+        assertThat(system).contains("唯一规则");
+        assertThat(system).contains("90%");
+        assertThat(system).contains("RAG");
     }
 
     @Test

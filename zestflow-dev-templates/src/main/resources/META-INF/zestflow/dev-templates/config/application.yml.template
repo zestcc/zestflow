@@ -1,0 +1,20 @@
+# 由 zestflow-dev-init 生成（仅当目标模块尚无 application.yml 时创建，不会覆盖已有文件）
+server:
+  port: 8080
+  address: 127.0.0.1
+
+spring:
+  application:
+    name: {{APP_CODE}}
+  config:
+    import:
+      - optional:classpath:application-local.yml
+      - optional:classpath:application-zestflow.yml
+  flyway:
+    enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus

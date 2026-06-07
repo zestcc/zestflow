@@ -1,5 +1,8 @@
 # ZestFlow Copilot 链定义要点
 
+## 唯一规则
+见 `ai-generation-acceptance.md`：验收标准 + 检索 RAG + 对标业界 + 高置信自动蒸馏闭环。
+
 ## chainData 结构
 - 顶层含 `nodes` 与 `edges` 数组
 - 节点需有唯一 `id`；业务节点引用已注册 `componentId`

@@ -7,7 +7,28 @@
 - 初始化 CLI（Java 8+）：`~/.zestflow/tools/zestflow-dev-init.jar`
 - MCP Server（Java 17+）：`~/.zestflow/tools/zestflow-mcp.jar`
 - 配置：`.cursor/mcp.json` / `.vscode/mcp.json` / `.zestflow/mcp/`
-- appCode：**{{APP_CODE}}**，Executor：**{{EXECUTOR_URL}}**，元件化：**{{COMPONENTIZATION}}**
+- appCode：**{{APP_CODE}}**，Executor：**{{EXECUTOR_URL}}**
+- 元件化：**{{COMPONENTIZATION}}**，HTTP Mode：**{{HTTP_MODE}}**
+
+## AI 生成唯一规则（`ai-generation-acceptance`）
+
+- **链条知识库在应用端 Executor**：`{dataDir}/ai/patterns/` + `learning/events.jsonl`；Admin/MCP 通过 HTTP 代理，不存业务链蒸馏。
+- **验收标准生成**：检索应用端 RAG → 对标业界 → validate → `record_learning_event` → **自动蒸馏**。
+- MCP 须配置 `--executor-url`；Admin 设计器 Copilot 自动拉取应用端 RAG。
+
+## 新功能标准工作流（完整交付）
+
+```text
+plan_chain
+  → scaffold_component（元件 + Repo + DTO/VO + Mode{{HTTP_MODE}} Controller 若需）
+  → compose_chain + validate_chain
+  → 设计图 graph_data 与链同步（设计器节点与元件 id 一致）
+  → bind_http / @ZestChain
+  → gen_playground_scene → record_learning_event
+```
+
+- **禁止**只提交单个 Handler 而无链、无设计图、无 HTTP 绑定（除非用户明确仅改元件）。
+- 链与设计图草稿由 MCP 生成；Admin 发布需人工确认。
 
 ## Chain-first 学习
 

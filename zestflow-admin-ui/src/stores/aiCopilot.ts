@@ -36,6 +36,8 @@ export const useAiCopilotStore = defineStore('aiCopilot', () => {
   const pendingSummary = ref<string | null>(null)
   const validation = ref<AiValidationResult | null>(null)
   const sessionId = ref<string | null>(null)
+  const repairRounds = ref<number>(0)
+  const lastUserMessage = ref<string | null>(null)
   const loading = ref(false)
   const lastContext = ref<AiCopilotContext | null>(null)
 
@@ -59,6 +61,8 @@ export const useAiCopilotStore = defineStore('aiCopilot', () => {
     pendingSummary.value = null
     validation.value = null
     sessionId.value = null
+    repairRounds.value = 0
+    lastUserMessage.value = null
     lastContext.value = null
   }
 
@@ -87,6 +91,7 @@ export const useAiCopilotStore = defineStore('aiCopilot', () => {
     pendingSummary.value = res.summary
     validation.value = res.validation
     sessionId.value = res.sessionId ?? null
+    repairRounds.value = res.repairRounds ?? 0
   }
 
   function setPendingProposal(chainData: string, summary?: string | null) {
@@ -126,6 +131,7 @@ export const useAiCopilotStore = defineStore('aiCopilot', () => {
     mode: 'generate' | 'modify' | 'fix-errors' = 'modify',
   ) {
     lastContext.value = context
+    lastUserMessage.value = userMessage
     appendMessage('user', userMessage)
     const assistantMsg = appendMessage('assistant', '', true)
     loading.value = true
@@ -192,10 +198,18 @@ export const useAiCopilotStore = defineStore('aiCopilot', () => {
     }
   }
 
-  async function submitFeedback(adopted: boolean, comment?: string) {
+  async function submitFeedback(adopted: boolean, extra?: Partial<import('@/api/ai').AiFeedbackRequest>) {
     if (!sessionId.value) return
     try {
-      await aiApi.submitFeedback(sessionId.value, { adopted, comment })
+      await aiApi.submitFeedback(sessionId.value, {
+        adopted,
+        intent: 'COMPOSE_CHAIN',
+        feature: lastUserMessage.value || lastContext.value?.chainCode || undefined,
+        validatePassed: validation.value?.valid,
+        validateRounds: repairRounds.value,
+        chainData: pendingProposal.value || undefined,
+        ...extra,
+      })
     } catch { /* ignore */ }
   }
 
@@ -212,6 +226,8 @@ export const useAiCopilotStore = defineStore('aiCopilot', () => {
     pendingSummary,
     validation,
     sessionId,
+    repairRounds,
+    lastUserMessage,
     loading,
     lastContext,
     copilotAvailable,

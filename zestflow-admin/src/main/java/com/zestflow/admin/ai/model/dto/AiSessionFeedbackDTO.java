@@ -16,4 +16,6 @@ public class AiSessionFeedbackDTO {
     private Boolean playgroundSuccess;
     private String userCorrection;
     private Integer httpMode;
+    /** 采纳的 chainData JSON（沉淀到应用端知识库） */
+    private String chainData;
 }

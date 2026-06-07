@@ -29,10 +29,12 @@ class DevProjectInitializerTest {
                 "http://127.0.0.1:30550",
                 ComponentizationMode.FULL,
                 "component",
+                HttpExposureMode.MODE3,
                 EnumSet.of(
                         DevInitOptions.IdeTarget.CURSOR,
                         DevInitOptions.IdeTarget.VSCODE,
                         DevInitOptions.IdeTarget.CLAUDE),
+                false,
                 false,
                 false);
         DevInitResult result = DevProjectInitializer.initialize(projectRoot, options);
@@ -46,6 +48,11 @@ class DevProjectInitializerTest {
         assertTrue(architectureMd.contains("{模块根包}.component"));
         assertTrue(architectureMd.contains("full"));
         assertTrue(architectureMd.contains("@ZestComponent"));
+        assertTrue(architectureMd.contains("@ZestChain"));
+        assertTrue(architectureMd.contains("Repo"));
+        assertTrue(architectureMd.contains("HTTP 模式"));
+        assertTrue(architectureMd.contains("配置安全"));
+        assertTrue(architectureMd.contains("H2"));
         assertTrue(!architectureMd.contains("zestory"));
         assertTrue(!architectureMd.contains("AuthService"));
 
@@ -65,8 +72,10 @@ class DevProjectInitializerTest {
                 "http://127.0.0.1:20550",
                 ComponentizationMode.HYBRID,
                 "component",
+                HttpExposureMode.MODE1,
                 EnumSet.of(DevInitOptions.IdeTarget.CURSOR),
                 true,
+                false,
                 false);
         DevProjectInitializer.initialize(projectRoot, options);
 

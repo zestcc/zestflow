@@ -72,6 +72,10 @@ const props = defineProps<{
   chainCode?: string
 }>()
 
+const emit = defineEmits<{
+  'execute-success': [result: PlaygroundExecuteResult]
+}>()
+
 const router = useRouter()
 const { labelOf: executionResultLabel, tagTypeOf: executionResultTagType } = useDictLabel('execution_result')
 const expanded = ref(false)
@@ -136,6 +140,9 @@ async function handleExecute() {
       return
     }
     lastResult.value = await executePlaygroundScene(selectedSceneCode.value, params)
+    if (lastResult.value?.status === 1) {
+      emit('execute-success', lastResult.value)
+    }
   } catch (e: any) {
     ElMessage.error(e?.message || '试跑失败')
   } finally {

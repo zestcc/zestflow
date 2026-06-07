@@ -13,7 +13,7 @@ class AccuracyGateTest {
         LearningEvent e = new LearningEvent(
                 "1", null, "COMPOSE_CHAIN", "userRegister", "demo-app", "CHN_USER_REGISTER",
                 1, List.of("sendNotify"), List.of("createUser"),
-                1, true, true, true, null, null);
+                1, true, true, true, null, null, null);
         AccuracyGate.GateResult r = AccuracyGate.evaluate(e);
         assertTrue(r.passed());
         assertTrue(r.score() >= AccuracyGate.PROMOTION_SCORE_THRESHOLD);
@@ -23,7 +23,7 @@ class AccuracyGateTest {
     void validateFailed_rejected() {
         LearningEvent e = new LearningEvent(
                 "1", null, "COMPOSE_CHAIN", "userRegister", "demo-app", null,
-                null, null, null, 2, false, true, true, null, null);
+                null, null, null, 2, false, true, true, null, null, null);
         assertFalse(AccuracyGate.evaluate(e).passed());
     }
 }

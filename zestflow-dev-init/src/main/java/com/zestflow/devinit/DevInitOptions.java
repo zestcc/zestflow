@@ -47,25 +47,31 @@ public final class DevInitOptions {
     private final String executorUrl;
     private final ComponentizationMode componentization;
     private final String componentPackage;
+    private final HttpExposureMode httpMode;
     private final Set<IdeTarget> ides;
     private final boolean force;
     private final boolean appendGitignore;
+    private final boolean bootstrapConfig;
 
     public DevInitOptions(
             String appCode,
             String executorUrl,
             ComponentizationMode componentization,
             String componentPackage,
+            HttpExposureMode httpMode,
             Set<IdeTarget> ides,
             boolean force,
-            boolean appendGitignore) {
+            boolean appendGitignore,
+            boolean bootstrapConfig) {
         this.appCode = appCode;
         this.executorUrl = executorUrl;
         this.componentization = componentization;
         this.componentPackage = componentPackage;
+        this.httpMode = httpMode == null ? HttpExposureMode.MODE3 : httpMode;
         this.ides = ides == null ? Collections.<IdeTarget>emptySet() : ides;
         this.force = force;
         this.appendGitignore = appendGitignore;
+        this.bootstrapConfig = bootstrapConfig;
     }
 
     public String appCode() {
@@ -84,6 +90,10 @@ public final class DevInitOptions {
         return componentPackage;
     }
 
+    public HttpExposureMode httpMode() {
+        return httpMode;
+    }
+
     public Set<IdeTarget> ides() {
         return ides;
     }
@@ -94,5 +104,9 @@ public final class DevInitOptions {
 
     public boolean appendGitignore() {
         return appendGitignore;
+    }
+
+    public boolean bootstrapConfig() {
+        return bootstrapConfig;
     }
 }

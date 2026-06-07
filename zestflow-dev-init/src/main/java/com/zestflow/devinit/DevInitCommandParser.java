@@ -49,19 +49,24 @@ public final class DevInitCommandParser {
                 detected.executorUrl());
         ComponentizationMode componentization = ComponentizationMode.parse(cli.get("componentization"));
         String componentPackage = firstNonBlank(cli.get("component-package"), "component");
+        HttpExposureMode httpMode = HttpExposureMode.parse(
+                firstNonBlank(cli.get("http-mode"), cli.get("mode")));
         Set<DevInitOptions.IdeTarget> ides = DevInitOptions.IdeTarget.parseAll(cli.get("ide"));
         boolean force = "true".equalsIgnoreCase(cli.get("force"));
         boolean noGitignore = "true".equalsIgnoreCase(cli.get("no-gitignore"));
         boolean appendGitignore = !noGitignore;
+        boolean bootstrapConfig = !"true".equalsIgnoreCase(cli.get("no-bootstrap-config"));
 
         DevInitOptions options = new DevInitOptions(
                 appCode,
                 executorUrl,
                 componentization,
                 componentPackage,
+                httpMode,
                 ides,
                 force,
-                appendGitignore);
+                appendGitignore,
+                bootstrapConfig);
         return DevProjectInitializer.initialize(projectRoot, options);
     }
 

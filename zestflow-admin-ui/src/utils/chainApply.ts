@@ -1,3 +1,4 @@
+import dagre from '@dagrejs/dagre'
 import { normalizeNodeType, getShapeForNodeType, getNodeSize } from '@/utils/nodeType'
 import { defaultNodeFieldValues, getNodeTypeMeta, hydrateNodeDataFromConfig } from '@/config/nodeTypeRegistry'
 
@@ -43,6 +44,81 @@ export interface GraphApplyAdapter {
   addEdge(source: string, target: string, label?: string): void
   hasEdge(source: string, target: string, label?: string): boolean
   getLayoutMetrics(): { centerX: number; nextY: number; rowGap: number }
+}
+
+export interface DagreLayoutOptions {
+  rankdir?: 'TB' | 'LR'
+  nodesep?: number
+  ranksep?: number
+}
+
+/** 基于 dagre 计算节点左上角坐标（相对布局，不含画布偏移） */
+export function computeDagrePositions(
+  nodes: ChainNodeDTO[],
+  edges: ChainEdgeDTO[],
+  nodeSize: (node: ChainNodeDTO) => [number, number],
+  options: DagreLayoutOptions = {},
+): Map<string, { x: number; y: number }> {
+  const g = new dagre.graphlib.Graph()
+  g.setGraph({
+    rankdir: options.rankdir ?? 'TB',
+    nodesep: options.nodesep ?? 48,
+    ranksep: options.ranksep ?? 72,
+    marginx: 0,
+    marginy: 0,
+  })
+  g.setDefaultEdgeLabel(() => ({}))
+
+  nodes.forEach((chainNode) => {
+    if (!chainNode?.id) return
+    const id = String(chainNode.id)
+    const [w, h] = nodeSize(chainNode)
+    g.setNode(id, { width: w, height: h })
+  })
+
+  edges.forEach((edge) => {
+    if (!edge?.source || !edge?.target) return
+    const source = String(edge.source)
+    const target = String(edge.target)
+    if (!g.hasNode(source) || !g.hasNode(target)) return
+    g.setEdge(source, target)
+  })
+
+  dagre.layout(g)
+
+  const positions = new Map<string, { x: number; y: number }>()
+  nodes.forEach((chainNode) => {
+    if (!chainNode?.id) return
+    const id = String(chainNode.id)
+    const laid = g.node(id)
+    if (!laid) return
+    positions.set(id, { x: laid.x - laid.width / 2, y: laid.y - laid.height / 2 })
+  })
+  return positions
+}
+
+function anchorDagrePositions(
+  positions: Map<string, { x: number; y: number }>,
+  centerX: number,
+  startY: number,
+): Map<string, { x: number; y: number }> {
+  if (positions.size === 0) return positions
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  positions.forEach((p) => {
+    minX = Math.min(minX, p.x)
+    minY = Math.min(minY, p.y)
+    maxX = Math.max(maxX, p.x)
+  })
+  const graphCenter = minX + (maxX - minX) / 2
+  const offsetX = centerX - graphCenter
+  const offsetY = startY - minY
+  const anchored = new Map<string, { x: number; y: number }>()
+  positions.forEach((p, id) => {
+    anchored.set(id, { x: p.x + offsetX, y: p.y + offsetY })
+  })
+  return anchored
 }
 
 function buildBaseNodeData(type: string, label: string, inlinePredId: () => string): Record<string, any> {
@@ -124,7 +200,14 @@ export function applyChainDefinitionToGraph(
   const nodes = Array.isArray(chain.nodes) ? chain.nodes : []
   const edges = Array.isArray(chain.edges) ? chain.edges : []
   const metrics = adapter.getLayoutMetrics()
-  let row = 0
+
+  const nodeSize = (chainNode: ChainNodeDTO): [number, number] => {
+    const nodeType = normalizeNodeType(chainNode.type || 'NORMAL')
+    return getNodeSize(nodeType)
+  }
+
+  const rawPositions = computeDagrePositions(nodes, edges, nodeSize)
+  const positions = anchorDagrePositions(rawPositions, metrics.centerX, metrics.nextY)
 
   nodes.forEach((chainNode) => {
     if (!chainNode?.id) return
@@ -136,10 +219,10 @@ export function applyChainDefinitionToGraph(
       return
     }
     const nodeType = normalizeNodeType(chainNode.type || 'NORMAL')
-    const [w, h] = getNodeSize(nodeType)
-    const x = metrics.centerX - w / 2
-    const y = metrics.nextY + row * metrics.rowGap
-    row += 1
+    const [w, h] = nodeSize(chainNode)
+    const pos = positions.get(String(chainNode.id))
+    const x = pos?.x ?? metrics.centerX - w / 2
+    const y = pos?.y ?? metrics.nextY
     adapter.addNode({
       id: String(chainNode.id),
       shape: getShapeForNodeType(nodeType),

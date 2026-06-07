@@ -53,26 +53,70 @@ public class ComponentScaffoldGenerator {
 
     private String buildJavaClass(String pkg, String className, String group, String annotation,
                                   String componentId, String methodName, String desc) {
+        String commandClass = toCommandClassName(componentId);
+        String repoClass = toRepoClassName(componentId);
+        String voClass = toVoClassName(componentId);
+        String basePkg = pkg.contains(".component") ? pkg.substring(0, pkg.lastIndexOf(".component")) : pkg;
+
         StringBuilder sb = new StringBuilder();
         sb.append("package ").append(pkg).append(";\n\n");
         sb.append("import com.zestflow.executor.annotation.*;\n");
-        sb.append("import com.zestflow.executor.context.ChainContext;\n");
+        sb.append("import lombok.RequiredArgsConstructor;\n");
         sb.append("import lombok.extern.slf4j.Slf4j;\n");
         sb.append("import org.springframework.stereotype.Component;\n\n");
-        sb.append("@Slf4j\n@Component\n");
+        sb.append("/**\n");
+        sb.append(" * ").append(desc).append("\n");
+        sb.append(" * <p>防腐：通过 ").append(repoClass).append(" 访问持久化，禁止直接注入 Mapper。\n");
+        sb.append(" */\n");
+        sb.append("@Slf4j\n@Component\n@RequiredArgsConstructor\n");
         sb.append("@ZestComponent(\"").append(group).append("\")\n");
         sb.append("public class ").append(className).append(" {\n\n");
-        sb.append("    /**\n     * ").append(desc).append("\n     */\n");
-        sb.append("    ").append(annotation).append("(\"").append(componentId).append("\")\n");
-        sb.append("    public Object ").append(methodName).append("(ChainContext ctx) {\n");
-        sb.append("        log.debug(\"").append(methodName).append(" 开始执行\");\n");
-        sb.append("        // TODO: ").append(desc).append("\n");
-        sb.append("        Object result = null;\n");
-        sb.append("        log.debug(\"").append(methodName).append(" 执行完成\");\n");
+        sb.append("    private final ").append(repoClass).append(" ").append(lowerFirst(repoClass)).append(";\n\n");
+        sb.append("    /**\n");
+        sb.append("     * ").append(desc).append("\n");
+        sb.append("     *\n");
+        sb.append("     * @param command 业务入参（必填字段在 ").append(commandClass).append(" 上标注校验）\n");
+        sb.append("     * @return ").append(voClass).append(" 业务结果；无数据时返回 null\n");
+        sb.append("     */\n");
+        sb.append("    ").append(annotation).append("(value = \"")
+                .append(componentId).append("\", name = \"").append(desc).append("\", description = \"")
+                .append(desc).append("\")\n");
+        sb.append("    public ").append(voClass).append(" ").append(methodName).append("(\n");
+        sb.append("            @ZestParam(\"command\") ").append(commandClass).append(" command) {\n");
+        sb.append("        log.debug(\"{} 开始, command={}\", \"").append(componentId).append("\", command);\n");
+        sb.append("        // TODO: ").append(desc).append("；经 ").append(lowerFirst(repoClass)).append(" 读写 DO\n");
+        sb.append("        ").append(voClass).append(" result = null;\n");
+        sb.append("        log.debug(\"{} 完成\", \"").append(componentId).append("\");\n");
         sb.append("        return result;\n");
         sb.append("    }\n");
         sb.append("}\n");
+        sb.append("\n// 须同步生成（同模块）：\n");
+        sb.append("// - ").append(basePkg).append(".repo.").append(repoClass)
+                .append(" / ").append(repoClass).append("Impl → *Mapper\n");
+        sb.append("// - ").append(basePkg).append(".dto.").append(commandClass)
+                .append("（入参对象，平铺参数>2 时必须）\n");
+        sb.append("// - ").append(basePkg).append(".dto.").append(voClass).append("（出参 VO）\n");
+        sb.append("// - 完整新功能：compose_chain + 设计图 graph_data + HTTP Mode 绑定（Mode3 含 @ZestChain Controller）\n");
         return sb.toString();
+    }
+
+    private static String toCommandClassName(String componentId) {
+        return toClassName(componentId) + "Command";
+    }
+
+    private static String toRepoClassName(String componentId) {
+        return toClassName(componentId) + "Repo";
+    }
+
+    private static String toVoClassName(String componentId) {
+        return toClassName(componentId) + "VO";
+    }
+
+    private static String lowerFirst(String name) {
+        if (name == null || name.isEmpty()) {
+            return name;
+        }
+        return Character.toLowerCase(name.charAt(0)) + name.substring(1);
     }
 
     static String resolvePackageName(Path projectRoot, String explicit) throws IOException {
@@ -116,9 +160,10 @@ public class ComponentScaffoldGenerator {
     private static List<String> buildChecklist(String componentId) {
         List<String> list = new ArrayList<>();
         list.add("由 IDE diff/Apply 保存到 suggestedRelativePath");
-        list.add("补全 TODO 业务逻辑");
-        list.add("mvn compile / package 并部署");
-        list.add("Admin 发布/reload 后确认元件 " + componentId + " 已注册");
+        list.add("同步生成 *Repo、*Command/*Query、*VO 及完整 JavaDoc（含 @param 必填/可选）");
+        list.add("禁止 Handler 直接注入 Mapper；须经 Repo 防腐");
+        list.add("compose_chain + 设计图 graph_data + validate_chain + HTTP 绑定");
+        list.add("mvn compile / package 并部署；Admin 确认元件 " + componentId + " 备注含 JavaDoc");
         return list;
     }
 

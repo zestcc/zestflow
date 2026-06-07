@@ -118,7 +118,10 @@ public class ChainPlanService {
                                     List.of("userId", "phone"), List.of()),
                             step("response", "parseRegisterResponse", "PARSER", "NORMAL",
                                     "Mode1/2 HTTP 终态响应",
-                                    List.of("userId"), List.of())
+                                    List.of("userId"), List.of()),
+                            step("dupError", "formatRegisterError", "PARSER", "NORMAL",
+                                    "用户已存在时的错误响应",
+                                    List.of("userExists"), List.of())
                     ));
         }
 

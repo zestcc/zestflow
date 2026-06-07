@@ -33,7 +33,7 @@ powershell -File scripts/dev/init-dev-project.ps1 -ProjectRoot D:/work/my-app
 java -jar ~/.zestflow/tools/zestflow-mcp.jar --init-dev --project /path/to/my-app
 ```
 
-可选参数：`--app-code`、`--executor-url`、`--componentization full|hybrid`（默认 `full`）、`--component-package`（默认 `component`）、`--ide cursor|vscode|claude|all`（默认 `all`）、`--force`。
+可选参数：`--app-code`、`--executor-url`、`--componentization full|hybrid`（默认 `full`）、`--component-package`（默认 `component`）、`--http-mode 1|2|3`（默认 `3`，Mode3 生成 `@ZestChain` Controller 约束）、`--ide cursor|vscode|claude|all`（默认 `all`）、`--force`。
 
 `--init-dev` 使用 `zestflow-dev-init.jar`（Java 8+）；MCP Server 使用 `zestflow-mcp.jar`（Java 17+，MCP SDK 要求）。
 

@@ -61,6 +61,7 @@
         :enabled="enabled && !!playgroundChainCode"
         :app-code="playgroundAppCode"
         :chain-code="playgroundChainCode"
+        @execute-success="handlePlaygroundSuccess"
       />
 
       <div class="ai-copilot-actions">
@@ -221,6 +222,10 @@ function handleApply() {
   emit('apply-proposal', store.pendingProposal)
   void store.submitFeedback(true)
   store.clearProposal()
+}
+
+function handlePlaygroundSuccess() {
+  void store.submitFeedback(false, { playgroundSuccess: true })
 }
 
 function goPlayground() {

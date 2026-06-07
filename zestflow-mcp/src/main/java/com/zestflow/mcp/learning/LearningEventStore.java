@@ -46,6 +46,7 @@ public class LearningEventStore {
                 draft.adopted(),
                 draft.playgroundSuccess(),
                 draft.userCorrection(),
+                draft.chainData(),
                 draft.metadata());
         String line = mapper.writeValueAsString(event);
         Files.writeString(eventsFile, line + System.lineSeparator(), StandardCharsets.UTF_8,

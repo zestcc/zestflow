@@ -13,6 +13,7 @@ import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.util.SecurityUtils;
 import com.zestflow.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -25,8 +26,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * P1～P3 租户级学习事件 — Orchestration Copilot 与 Dev 摘要统一沉淀。
+ * 租户级学习事件审计与可选补充 RAG。
+ * <p>链条知识库主路径在应用端 Executor（{@code {dataDir}/ai/}）；本服务仅作 Admin 侧审计留痕，
+ * 租户 RAG 自动晋升为辅，不得替代应用端蒸馏。
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AiLearningEventService {
@@ -36,6 +40,7 @@ public class AiLearningEventService {
     private final AiLearningEventMapper learningEventMapper;
     private final TenantAiConfigService tenantAiConfigService;
     private final AiRagDocumentService ragDocumentService;
+    private final AiProperties aiProperties;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public AiLearningEventVO record(AiLearningEventSaveDTO dto) {
@@ -61,6 +66,9 @@ public class AiLearningEventService {
         po.setUserCorrection(truncate(dto.getUserCorrection(), 1000));
         po.setPromotedToRag(0);
         learningEventMapper.insert(po);
+        if (aiProperties.isTenantRagAutoPromote() && eval.eligible()) {
+            tryAutoPromoteToRag(po);
+        }
         return toVo(po);
     }
 
@@ -84,6 +92,19 @@ public class AiLearningEventService {
         if (po.getPromotedToRag() != null && po.getPromotedToRag() == 1) {
             throw new BizException(ErrorCode.VALIDATION_ERROR, "已晋升到 RAG");
         }
+        return doPromoteToRag(po);
+    }
+
+    private void tryAutoPromoteToRag(AiLearningEventPO po) {
+        try {
+            doPromoteToRag(po);
+            log.info("学习事件自动蒸馏进 RAG eventId={} feature={}", po.getId(), po.getFeature());
+        } catch (Exception e) {
+            log.warn("学习事件自动蒸馏失败 eventId={}", po.getId(), e);
+        }
+    }
+
+    private AiRagDocumentVO doPromoteToRag(AiLearningEventPO po) {
         String markdown = buildRagMarkdown(po);
         AiRagDocumentSaveDTO save = new AiRagDocumentSaveDTO();
         save.setTitle("[Pattern] " + po.getFeature() + " / " + po.getIntent());
@@ -93,6 +114,7 @@ public class AiLearningEventService {
         AiRagDocumentVO doc = ragDocumentService.save(save);
         po.setPromotedToRag(1);
         learningEventMapper.updateById(po);
+        ragDocumentService.rebuildIndex();
         return doc;
     }
 
@@ -121,8 +143,8 @@ public class AiLearningEventService {
                 ## 用户修正
                 %s
 
-                ## 说明
-                由 Admin 学习事件晋升（P3）；Dev 侧可用 share_pattern + RAG import 同步。
+                ## 验收与蒸馏
+                符合 ai-generation-acceptance 唯一规则；由学习事件自动/手动晋升 RAG，供后续 Copilot 检索。
                 """.formatted(
                 po.getId(),
                 po.getIntent(),

@@ -2,6 +2,7 @@ package com.zestflow.admin.ai;
 
 import com.zestflow.admin.ai.model.dto.AiDiagnoseRequest;
 import com.zestflow.admin.ai.model.dto.AiExplainRequest;
+import com.zestflow.admin.ai.model.dto.AiSessionFeedbackDTO;
 import com.zestflow.admin.ai.model.dto.AiSuggestRequest;
 import com.zestflow.admin.ai.model.vo.AiDiagnoseResponse;
 import com.zestflow.admin.ai.model.vo.AiExplainResponse;
@@ -42,6 +43,7 @@ class AiCopilotServiceTest {
     @Mock private AiCopilotMessageMapper messageMapper;
     @Mock private AiQuotaService aiQuotaService;
     @Mock private AiLearningEventService aiLearningEventService;
+    @Mock private ExecutorChainAiClient executorChainAiClient;
 
     private AiPlatformConfig aiPlatformConfig;
     private AiCopilotService service;
@@ -54,6 +56,7 @@ class AiCopilotServiceTest {
         aiPlatformConfig = AiPlatformConfigTestFixtures.fromYaml(yaml);
 
         lenient().when(aiRagService.retrieve(anyLong(), any(), anyString(), anyInt())).thenReturn(List.of());
+        lenient().when(executorChainAiClient.searchRag(anyString(), anyString(), anyInt())).thenReturn(List.of());
 
         service = new AiCopilotService(
                 aiPlatformConfig,
@@ -66,7 +69,8 @@ class AiCopilotServiceTest {
                 sessionMapper,
                 messageMapper,
                 aiQuotaService,
-                aiLearningEventService
+                aiLearningEventService,
+                executorChainAiClient
         );
 
         lenient().when(tenantAiConfigService.getCurrentTenantId()).thenReturn(1L);
@@ -114,7 +118,10 @@ class AiCopilotServiceTest {
         when(tenantAiConfigService.isCopilotEnabledForTenant(1L)).thenReturn(true);
         when(tenantAiConfigService.resolveEffectiveConfig(1L)).thenReturn(effectiveConfig());
 
-        String invalidJson = "{\"chainData\":{\"nodes\":[]},\"summary\":\"初稿\"}";
+        String invalidJson = "{\"chainData\":{\"nodes\":["
+                + "{\"id\":\"n1\",\"type\":\"NORMAL\"},{\"id\":\"n2\",\"type\":\"NORMAL\"},"
+                + "{\"id\":\"n3\",\"type\":\"CONDITION\"},{\"id\":\"n4\",\"type\":\"NORMAL\"}"
+                + "]},\"summary\":\"初稿\"}";
         String fixedJson = "{\"chainData\":{\"nodes\":[{\"id\":\"n1\"}]},\"summary\":\"修复后\"}";
 
         when(aiChatClient.chat(anyList(), any()))
@@ -136,6 +143,31 @@ class AiCopilotServiceTest {
         assertThat(response.getRepairRounds()).isEqualTo(1);
         assertThat(response.getSummary()).isEqualTo("修复后");
         verify(aiChatClient, times(2)).chat(anyList(), any());
+    }
+
+    @Test
+    void recordFeedback_playgroundSuccessOnly_forwardsToExecutor() {
+        AiCopilotSessionPO session = new AiCopilotSessionPO();
+        session.setId(9L);
+        session.setTenantId(1L);
+        session.setAppCode("demo");
+        session.setMode("COMPOSE_CHAIN");
+        session.setChainCode("userRegister");
+        when(sessionMapper.selectById(9L)).thenReturn(session);
+        when(tenantAiConfigService.getCurrentTenantId()).thenReturn(1L);
+
+        AiSessionFeedbackDTO dto = new AiSessionFeedbackDTO();
+        dto.setPlaygroundSuccess(true);
+        dto.setIntent("COMPOSE_CHAIN");
+        dto.setFeature("userRegister");
+        dto.setChainData("{\"nodes\":[]}");
+
+        service.recordFeedback(9L, dto);
+
+        verify(executorChainAiClient).recordLearningEvent(eq("demo"), argThat(event ->
+                Boolean.TRUE.equals(event.get("playgroundSuccess"))
+                        && "COMPOSE_CHAIN".equals(event.get("intent"))));
+        verify(sessionMapper).updateById(any(AiCopilotSessionPO.class));
     }
 
     @Test

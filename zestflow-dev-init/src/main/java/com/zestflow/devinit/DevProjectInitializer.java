@@ -109,6 +109,10 @@ public final class DevProjectInitializer {
             appendGitignoreSnippet(projectRoot, created, skipped);
         }
 
+        Map<String, String> configVars = ApplicationConfigBootstrap.configVariables(options);
+        configVars.putAll(vars);
+        ApplicationConfigBootstrap.bootstrap(projectRoot, options, configVars, created, skipped);
+
         List<String> warnings = DevProjectHealthCheck.warnings(projectRoot);
         return new DevInitResult(created, skipped, vars, warnings);
     }
@@ -120,6 +124,9 @@ public final class DevProjectInitializer {
         vars.put("COMPONENTIZATION", options.componentization().cliValue());
         vars.put("COMPONENTIZATION_SECTION", options.componentization().architectureSection());
         vars.put("COMPONENT_PACKAGE", options.componentPackage());
+        vars.put("HTTP_MODE", options.httpMode().cliValue());
+        vars.put("HTTP_MODE_SECTION", options.httpMode().architectureSection());
+        vars.put("CODING_STANDARDS_SECTION", CodingStandards.architectureSection());
         vars.put("PROJECT_PATH", projectRoot.toAbsolutePath().normalize().toString().replace('\\', '/'));
         return vars;
     }
@@ -134,6 +141,10 @@ public final class DevProjectInitializer {
         Path target = projectRoot.resolve(relativeTarget).normalize();
         if (!target.startsWith(projectRoot)) {
             throw new IOException("非法目标路径: " + relativeTarget);
+        }
+        if (ProtectedProjectPaths.isProtected(projectRoot, target)) {
+            skipped.add(relativeTarget + " (protected: 禁止覆盖 application/pom 等)");
+            return;
         }
         if (Files.exists(target) && !force) {
             skipped.add(relativeTarget);
@@ -156,6 +167,10 @@ public final class DevProjectInitializer {
         Path target = projectRoot.resolve(relativeTarget).normalize();
         if (!target.startsWith(projectRoot)) {
             throw new IOException("非法目标路径: " + relativeTarget);
+        }
+        if (ProtectedProjectPaths.isProtected(projectRoot, target)) {
+            skipped.add(relativeTarget + " (protected: 禁止覆盖 application/pom 等)");
+            return;
         }
         if (Files.exists(target) && !force) {
             skipped.add(relativeTarget);

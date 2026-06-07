@@ -87,6 +87,10 @@ public class ExecutorServer {
         this.serverHandler.setChainProperties(chainProperties);
     }
 
+    public void setChainAiService(com.zestflow.executor.ai.ExecutorChainAiService chainAiService) {
+        this.serverHandler.setChainAiService(chainAiService);
+    }
+
     public void start() throws InterruptedException {
         bossGroup = new NioEventLoopGroup(1, r -> {
             Thread t = new Thread(r, "zestflow-server-boss");
