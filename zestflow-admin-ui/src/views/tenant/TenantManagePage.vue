@@ -37,8 +37,8 @@
           <el-button type="primary" link @click="openDetail(row)">{{ row.code }}</el-button>
         </template>
         <template #status="{ row }">
-          <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
-            {{ row.status === 1 ? $t('tenant.active') : $t('tenant.inactive') }}
+          <el-tag :type="statusTagType(row.status)" size="small">
+            {{ statusLabel(row.status) }}
           </el-tag>
         </template>
         <template #actions="{ row }">
@@ -86,8 +86,9 @@
         </el-form-item>
         <el-form-item :label="$t('common.status')" prop="status" v-if="isEditing">
           <el-radio-group v-model="form.status">
-            <el-radio :value="1">{{ $t('tenant.active') }}</el-radio>
-            <el-radio :value="0">{{ $t('tenant.inactive') }}</el-radio>
+            <el-radio v-for="item in enableStatusOptions" :key="item.value" :value="item.bindValue">
+              {{ item.label }}
+            </el-radio>
           </el-radio-group>
         </el-form-item>
       </el-form>
@@ -113,8 +114,8 @@
           <el-descriptions-item :label="$t('tenant.name')">{{ currentTenant.name }}</el-descriptions-item>
           <el-descriptions-item :label="$t('tenant.description')">{{ currentTenant.description || '-' }}</el-descriptions-item>
           <el-descriptions-item :label="$t('common.status')">
-            <el-tag :type="currentTenant.status === 1 ? 'success' : 'info'" size="small">
-              {{ currentTenant.status === 1 ? $t('tenant.active') : $t('tenant.inactive') }}
+            <el-tag :type="statusTagType(currentTenant.status)" size="small">
+              {{ statusLabel(currentTenant.status) }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item :label="$t('common.createdBy')">{{ currentTenant.createdBy || '-' }}</el-descriptions-item>
@@ -135,12 +136,14 @@ import type { FormInstance, FormRules } from 'element-plus'
 import type { TenantVO } from '@/api/tenant'
 import { tenantApi } from '@/api/tenant'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
+import { useDictLabel } from '@/composables/useDictLabel'
 import { useResponsiveDrawerSize } from '@/composables/useResponsiveDrawerSize'
 import { useResponsivePagination } from '@/composables/useResponsivePagination'
 
 const { t } = useI18n()
 const { drawerSize } = useResponsiveDrawerSize(400)
 const { paginationLayout } = useResponsivePagination()
+const { labelOf: statusLabel, tagTypeOf: statusTagType, dictOptions: enableStatusOptions } = useDictLabel('enable_status')
 
 const tenantColumns = computed(() => [
   { prop: 'code', label: t('tenant.code'), minWidth: 160, showOverflowTooltip: true },

@@ -278,8 +278,9 @@
             <template v-if="normalizeNodeType(selectedNodeData.nodeType) === 'CONDITION'">
               <el-form-item :label="$t('design.predicateMode')">
                 <el-radio-group v-model="selectedNodeData.predicateMode" @change="onPredicateModeChange">
-                  <el-radio value="script">{{ $t('design.predicateModeScript') }}</el-radio>
-                  <el-radio value="bind">{{ $t('design.predicateModeBind') }}</el-radio>
+                  <el-radio v-for="item in predicateModeOptions" :key="item.value" :value="item.value">
+                    {{ item.label }}
+                  </el-radio>
                 </el-radio-group>
               </el-form-item>
               <el-form-item :label="$t('design.componentId')">
@@ -1163,6 +1164,7 @@ watch([selectedNodeData, selectedEdgeData], ([node, edge]) => {
 
 const { options: executeStrategyOptions } = useDict('execute_strategy')
 const { options: designLineTypeOptions } = useDict('design_line_type')
+const { options: predicateModeOptions } = useDict('predicate_mode')
 
 const chainSettings = reactive({
   transactionEnabled: false,

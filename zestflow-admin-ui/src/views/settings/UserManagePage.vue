@@ -18,16 +18,10 @@
         <el-input v-model="filter.email" :placeholder="$t('common.email')" clearable class="page-filter-control" />
       </el-form-item>
       <el-form-item :label="$t('common.status')">
-        <el-select v-model="filter.status" :placeholder="$t('common.all')" clearable class="page-filter-control--sm">
-          <el-option :label="$t('settings.enabled')" :value="1" />
-          <el-option :label="$t('settings.disabled')" :value="0" />
-        </el-select>
+        <DictSelect v-model="filter.status" type-code="enable_status" class="page-filter-control--sm" />
       </el-form-item>
       <el-form-item :label="$t('settings.isSuperAdmin')">
-        <el-select v-model="filter.isSuperAdmin" :placeholder="$t('common.all')" clearable class="page-filter-control--sm">
-          <el-option :label="$t('settings.yes')" :value="1" />
-          <el-option :label="$t('settings.no')" :value="0" />
-        </el-select>
+        <DictSelect v-model="filter.isSuperAdmin" type-code="yes_no" class="page-filter-control--sm" />
       </el-form-item>
       <el-form-item class="filter-actions-item">
         <el-button type="primary" @click="handleSearch">{{ $t('common.search') }}</el-button>
@@ -45,13 +39,13 @@
       :actions-width="230"
     >
       <template #status="{ row }">
-        <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
-          {{ row.status === 1 ? $t('settings.enabled') : $t('settings.disabled') }}
+        <el-tag :type="statusTagType(row.status)" size="small">
+          {{ statusLabel(row.status) }}
         </el-tag>
       </template>
       <template #isSuperAdmin="{ row }">
-        <el-tag :type="row.isSuperAdmin === 1 ? 'warning' : 'info'" size="small">
-          {{ row.isSuperAdmin === 1 ? $t('settings.yes') : $t('settings.no') }}
+        <el-tag :type="yesNoTagType(row.isSuperAdmin)" size="small">
+          {{ yesNoLabel(row.isSuperAdmin) }}
         </el-tag>
       </template>
       <template #appRoles="{ row }">{{ row.appRoles?.length || 0 }}</template>
@@ -246,11 +240,15 @@ import { executorApi } from '@/api/executor'
 import type { UserManageVO, UserUpdateDTO, RoleVO } from '@/api/user-manage'
 import type { AppOption } from '@/api/executor'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
+import DictSelect from '@/components/common/DictSelect.vue'
+import { useDictLabel } from '@/composables/useDictLabel'
 import { useResponsivePagination } from '@/composables/useResponsivePagination'
 
 const userStore = useUserStore()
 const { t } = useI18n()
 const { paginationLayout } = useResponsivePagination()
+const { labelOf: statusLabel, tagTypeOf: statusTagType } = useDictLabel('enable_status')
+const { labelOf: yesNoLabel, tagTypeOf: yesNoTagType } = useDictLabel('yes_no')
 
 const userColumns = computed(() => [
   { prop: 'username', label: t('common.username'), showOverflowTooltip: true },

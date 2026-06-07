@@ -70,6 +70,10 @@ public final class SystemDictSeeds {
                 item("0", "停用", "danger"),
                 item("1", "启用", "success")
         )));
+        seeds.add(new Seed("yes_no", "是否", List.of(
+                item("0", "否", "info"),
+                item("1", "是", "success")
+        )));
         seeds.add(new Seed("registry_status", "注册中心状态", List.of(
                 item("0", "离线", "info"),
                 item("1", "在线", "success"),
@@ -83,6 +87,10 @@ public final class SystemDictSeeds {
         seeds.add(new Seed("schedule_job_type", "调度任务类型", List.of(
                 item("CHAIN", "链路调度", "primary"),
                 item("PLATFORM", "平台任务", "info")
+        )));
+        seeds.add(new Seed("schedule_trigger_type", "调度触发方式", List.of(
+                item("cron", "定时触发", "primary"),
+                item("manual", "手动触发", "warning")
         )));
         seeds.add(new Seed("platform_module", "平台任务模块", List.of(
                 item("admin", "Admin", "primary"),
@@ -99,9 +107,18 @@ public final class SystemDictSeeds {
                 item("CHAIN_COMPLETED", "链完成", "success"),
                 item("CHAIN_FAILED", "链失败", "danger"),
                 item("CHAIN_TIMEOUT", "链超时", "warning"),
+                item("CHAIN_COMPENSATED", "链已补偿", "info"),
                 item("NODE_STARTED", "节点开始", "info"),
                 item("NODE_COMPLETED", "节点完成", "success"),
-                item("NODE_FAILED", "节点失败", "danger")
+                item("NODE_FAILED", "节点失败", "danger"),
+                item("NODE_TIMEOUT", "节点超时", "warning"),
+                item("NODE_RETRYING", "节点重试中", "warning"),
+                item("NODE_RETRY_EXHAUSTED", "重试耗尽", "danger"),
+                item("NODE_FALLBACK_START", "降级开始", "warning"),
+                item("NODE_FALLBACK_SUCCESS", "降级成功", "success"),
+                item("NODE_FALLBACK_FAILED", "降级失败", "danger"),
+                item("NODE_COMPENSATING", "节点补偿中", "warning"),
+                item("NODE_COMPENSATED", "节点已补偿", "info")
         )));
         seeds.add(new Seed("execution_result", "执行结果", List.of(
                 item("0", "失败", "danger"),

@@ -71,8 +71,8 @@
         :actions-width="activeTab === 'platform' ? 200 : 240"
       >
         <template #jobType="{ row }">
-          <el-tag size="small" :type="row.jobType === 'PLATFORM' ? 'info' : 'primary'">
-            {{ row.jobType === 'PLATFORM' ? $t('schedules.platformJob') : $t('schedules.chainJob') }}
+          <el-tag size="small" :type="jobTypeTagType(row.jobType)">
+            {{ jobTypeLabel(row.jobType) }}
           </el-tag>
         </template>
         <template #module="{ row }">
@@ -88,8 +88,8 @@
           <span v-else>-</span>
         </template>
         <template #status="{ row }">
-          <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
-            {{ row.status === 1 ? $t('schedules.enabled') : $t('schedules.disabled') }}
+          <el-tag :type="enableStatusTagType(row.status)" size="small">
+            {{ enableStatusLabel(row.status) }}
           </el-tag>
         </template>
         <template #actions="{ row }">
@@ -142,12 +142,12 @@
       </el-row>
       <ResponsiveTable :data="logList" :columns="logColumns" :show-actions="true" :actions-label="$t('common.actions')" :actions-width="120">
         <template #triggerType="{ row }">
-          <el-tag size="small" :type="row.triggerType === 'cron' ? '' : 'warning'">
-            {{ row.triggerType === 'cron' ? $t('schedules.cronTrigger') : $t('schedules.manual') }}
+          <el-tag size="small" :type="triggerTypeTagType(row.triggerType)">
+            {{ triggerTypeLabel(row.triggerType) }}
           </el-tag>
         </template>
         <template #status="{ row }">
-          <el-tag :type="statusTagType(row.status)" size="small">{{ statusText(row.status) }}</el-tag>
+          <el-tag :type="logStatusTagType(row.status)" size="small">{{ logStatusLabel(row.status) }}</el-tag>
         </template>
         <template #actions="{ row }">
           <el-button
@@ -209,12 +209,12 @@
       </template>
       <ResponsiveTable :data="logList" :columns="logColumns" :show-actions="true" :actions-label="$t('common.actions')" :actions-width="120">
         <template #triggerType="{ row }">
-          <el-tag size="small" :type="row.triggerType === 'cron' ? '' : 'warning'">
-            {{ row.triggerType === 'cron' ? $t('schedules.cronTrigger') : $t('schedules.manual') }}
+          <el-tag size="small" :type="triggerTypeTagType(row.triggerType)">
+            {{ triggerTypeLabel(row.triggerType) }}
           </el-tag>
         </template>
         <template #status="{ row }">
-          <el-tag :type="statusTagType(row.status)" size="small">{{ statusText(row.status) }}</el-tag>
+          <el-tag :type="logStatusTagType(row.status)" size="small">{{ logStatusLabel(row.status) }}</el-tag>
         </template>
         <template #actions="{ row }">
           <el-button
@@ -325,8 +325,11 @@ const formRef = ref<any>(null)
 const form = reactive({ chainCode: '', chainName: '', cron: '', routeStrategy: 'round_robin', remark: '' })
 const chainOptions = ref<ChainVO[]>([])
 const { options: routeStrategyOptions } = useDict('route_strategy')
-const { dictOptions: enableStatusOptions } = useDictLabel('enable_status')
+const { dictOptions: enableStatusOptions, labelOf: enableStatusLabel, tagTypeOf: enableStatusTagType } = useDictLabel('enable_status')
 const { dictOptions: scheduleLogStatusOptions } = useDictLabel('schedule_log_status')
+const { labelOf: logStatusLabel, tagTypeOf: logStatusTagType } = useDictLabel('schedule_log_status')
+const { labelOf: jobTypeLabel, tagTypeOf: jobTypeTagType } = useDictLabel('schedule_job_type')
+const { labelOf: triggerTypeLabel, tagTypeOf: triggerTypeTagType } = useDictLabel('schedule_trigger_type')
 const { options: platformModuleOptions } = useDict('platform_module')
 
 const logDialogVisible = ref(false)
@@ -345,13 +348,6 @@ const logDialogTitle = computed(() => {
 const rules: Record<string, any[]> = {
   chainCode: [{ required: true, message: t('schedules.selectChain'), trigger: 'change' }],
   cron: [{ required: true, message: t('validation.required', { field: t('schedules.cron') }), trigger: 'blur' }],
-}
-
-function statusTagType(status: number): string {
-  return status === 0 ? 'warning' : status === 1 ? 'success' : 'danger'
-}
-function statusText(status: number): string {
-  return status === 0 ? t('schedules.running') : status === 1 ? t('schedules.success') : t('schedules.failed')
 }
 
 function currentJobType() {

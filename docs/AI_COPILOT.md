@@ -1,6 +1,6 @@
 # ZestFlow AI 集成方案（Copilot）
 
-> **版本** 1.2 · **更新** 2026-06-02 · **状态** 已实现（P0～P4 + P5 集成增强）  
+> **版本** 1.3 · **更新** 2026-06-06 · **状态** 已实现（P0～P4 + P5 集成增强）  
 > **定位** 面向开发人员的编排辅助（Copilot），非自动上线（Autopilot）  
 > **运维** 见 [AI_COPILOT_OPS.md](./AI_COPILOT_OPS.md)
 
@@ -113,7 +113,18 @@ flowchart LR
 | Copilot 会话与审计 | `tenant_id` + `user_id` + `app_code` |
 | Prompt 上下文 | 仅当前租户 + 当前 app 的设计、链、元件 |
 | 日志诊断 | 仅查询当前 `tenant_id` 的执行记录 |
-| 全局 `zestflow.ai.*` | 仅作默认值，租户配置优先 |
+| 全局 `zestflow.ai.*` | 平台参数见 `sys_config`（租户 1）；yaml 仅冷启动兜底；租户 AI 配置优先 |
+
+### 3.4 平台配置与字典（2026-06）
+
+| 层 | 存储 | 说明 |
+|----|------|------|
+| 部署/密钥 | yaml + 环境变量 | JWT、`env-keys`、registry-token 等 |
+| 枚举/级联 | 字典 `ai_provider` / `ai_model` | 提供商与模型；`ai-providers.yaml` 仅空库种子 |
+| 平台可调参数 | `sys_config`（租户 1） | `ai.enabled`、RAG 阈值、超时等；DB 优先，热更新 |
+| 租户 AI 运行时 | `zf_ai_tenant_config` | preset、Key、配额、租户 RAG |
+
+运行时有效值：`sys_config` > `application.yml`。运维详见 [AI_COPILOT_OPS.md](./AI_COPILOT_OPS.md)。
 
 可选：**租户策略** `allowedPresets: [ollama, custom]`，限制可用预设（金融客户仅本地模型）。
 
@@ -126,7 +137,7 @@ flowchart LR
 | 功能 | 说明 |
 |------|------|
 | 租户 AI 配置 | `zf_ai_tenant_config` + 设置页 |
-| 提供商预设 | `ai-providers.yaml`（Tier A/B + custom） |
+| 提供商预设 | 字典 `ai_provider` / `ai_model`（`ai-providers.yaml` 空库种子） |
 | OpenAI 兼容客户端 | `OpenAiCompatibleClient` |
 | 链校验 API | Executor `POST /api/chains/validate-definition` |
 | 元件上下文 API | 白名单 + meta |
@@ -259,6 +270,8 @@ flowchart TB
 
 ### 7.1 策略
 
+预设定义维护在 **系统字典**（`ai_provider` → `ai_model` 树状级联）。`ai-providers.yaml` 仅在**空库首次启动**时写入种子，之后通过 Admin「字典管理」或 API 维护，无需重启。
+
 | 做 | 不做 |
 |----|------|
 | 内置官方可文档化的 **Provider Preset** | 平台托管免费模型、代填 Key |
@@ -338,7 +351,8 @@ API Key:    [ ******** ]  [如何获取 Key →]
 
 ### 7.6 与多租户
 
-- **预设列表：** 全局 `ai-providers.yaml`，无 Key
+- **预设列表：** 字典 `ai_provider` / `ai_model`（全局只读展示，无 Key）
+- **平台开关/阈值：** `sys_config` 租户 1（如 `ai.enabled`、`ai.rag-max-chunks`）
 - **生效配置：** `zf_ai_tenant_config` 按租户存储
 - **可选策略：** 租户级 `allowedPresets` 白名单
 
@@ -354,23 +368,25 @@ zestflow-admin/src/main/java/com/zestflow/admin/ai/
   AiCopilotService.java
   TenantAiConfigService.java
   OpenAiCompatibleClient.java
-  AiProviderPresetRegistry.java
+  AiProviderPresetRegistry.java   # 读字典 ai_provider / ai_model
+  AiProviderDictLoader.java
   PromptBuilder.java
-  ExecutorValidateClient.java
-  model/
-    AiSuggestRequest.java
-    AiSuggestResponse.java
-    AiTenantConfigPO.java
-    AiCopilotSessionPO.java
-  repository/
-    AiTenantConfigMapper.java
-    AiCopilotSessionMapper.java
+  ...
+
+zestflow-admin/src/main/java/com/zestflow/admin/config/
+  PlatformConfigReader.java       # sys_config 运行时（租户 1）
+  AiPlatformConfig.java           # AI 平台参数门面
+  SystemConfigSeeder.java         # 冷启动补齐 sys_config
 
 zestflow-admin/src/main/resources/
-  ai-providers.yaml
+  ai-providers.yaml               # 空库种子，非 live source
 ```
 
 ### 8.2 全局配置
+
+**运行时：** `sys_config`（租户 1）优先；`PlatformConfigReader` 带缓存，CRUD 后 `invalidate()`。
+
+**yaml 兜底（冷启动 / 缺键时）：**
 
 ```yaml
 zestflow:
@@ -386,6 +402,8 @@ zestflow:
   tenant:
     mode: multi   # SaaS；私有化可用 single
 ```
+
+运维可在 **设置 → 系统配置** 修改 `ai.*` 等平台键，立即生效（告警扫描间隔除外需重启）。
 
 ### 8.3 API 清单
 
@@ -665,7 +683,7 @@ CREATE TABLE zf_ai_rag_document (
 
 | 阶段 | 周期 | 交付 |
 |------|------|------|
-| **P0** | 2～3 周 | `ai-providers.yaml`（Tier A 8 + Tier B 12 + custom）、租户配置表、OpenAiCompatibleClient、validate API、审计表、设置页、测试连接 |
+| **P0** | 2～3 周 | 字典 `ai_provider`/`ai_model` + yaml 种子、租户配置表、OpenAiCompatibleClient、validate API、审计表、设置页、测试连接 |
 | **P1** | 4～6 周 | 设计器 Copilot（explain / suggest / expression / diff / repair） |
 | **P2** | 3～4 周 | Playground 联动、日志诊断、chain_key 提示 |
 | **P3** | 按需 | 元件脚手架、AI 模板库、RAG（轻量 classpath 检索） |
@@ -683,7 +701,7 @@ CREATE TABLE zf_ai_rag_document (
 **推荐落地顺序：**
 
 1. Executor `POST /api/chains/validate-definition` + Admin 代理
-2. `ai-providers.yaml` + `TenantAiConfigService` + `/api/ai/test`
+2. 字典 `ai_provider`/`ai_model` + `TenantAiConfigService` + `/api/ai/test`
 3. `/api/ai/design/explain`（只读，风险低）
 4. `/api/ai/design/suggest` + `AiCopilotDrawer.vue`
 5. 表达式助手 + repair loop
@@ -728,11 +746,13 @@ CREATE TABLE zf_ai_rag_document (
 | 中间表示 | n8n workflow JSON | `ChainDefinitionDTO` |
 | 试跑 | n8n test / Playground | Playground 按钮 |
 | 不自动上线 | Temporal 思路 | 人工 publish/reload |
-| 多模型接入 | OpenAI SDK 兼容生态 | `OpenAiCompatibleClient` + preset yaml |
+| 多模型接入 | OpenAI SDK 兼容生态 | `OpenAiCompatibleClient` + 字典预设 |
 
 ---
 
-## 附录 A：ai-providers.yaml 示例
+## 附录 A：ai-providers.yaml 示例（空库种子）
+
+> 以下 yaml **仅用于首次空库启动**写入字典 `ai_provider` / `ai_model`；运行时与 UI 维护以字典为准。
 
 ```yaml
 version: "2026-06"
@@ -892,7 +912,8 @@ presets:
 ## 文档维护
 
 - 架构变更请同步 [ARCHITECTURE.md](./ARCHITECTURE.md) §14 演进路线
-- 预设变更更新 `ai-providers.yaml` 的 `version` 字段
+- 预设变更在字典 `ai_provider` / `ai_model` 维护；`ai-providers.yaml` 仅同步空库种子
+- 平台 AI 参数变更走 **设置 → 系统配置**（`sys_config` 租户 1）
 - E2E 可增加 `run-ai-copilot-e2e.ps1`（mock LLM 或 test Key）
 
 ---
