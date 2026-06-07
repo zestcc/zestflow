@@ -42,12 +42,15 @@ function Invoke-Api($method, $url, $body, [int]$TimeoutSec = 30) {
 function Resolve-McpJar {
     param([string]$Explicit)
     if ($Explicit -and (Test-Path $Explicit)) { return (Resolve-Path $Explicit).Path }
+    $userHome = if ($env:USERPROFILE) { $env:USERPROFILE } else { $env:HOME }
     $candidates = @(
-        (Join-Path $DemoRoot "dev-tools/zestflow-mcp-0.1.0-all.jar"),
-        (Join-Path $Root "zestflow-mcp/target/zestflow-mcp-0.1.0-all.jar")
+        (Join-Path $userHome ".zestflow/tools/zestflow-mcp.jar"),
+        $env:ZESTFLOW_MCP_JAR,
+        (Join-Path $Root "zestflow-mcp/target/zestflow-mcp-0.1.0-all.jar"),
+        (Join-Path $DemoRoot "dev-tools/zestflow-mcp-0.1.0-all.jar")
     )
     foreach ($c in $candidates) {
-        if (Test-Path $c) { return (Resolve-Path $c).Path }
+        if ($c -and (Test-Path $c)) { return (Resolve-Path $c).Path }
     }
     return $null
 }
@@ -55,14 +58,14 @@ function Resolve-McpJar {
 Write-Host "=== AI MCP E2E ===" -ForegroundColor Cyan
 
 $jar = Resolve-McpJar $McpJar
-Add-Check "mcp-jar-present" ([bool]$jar) $(if ($jar) { $jar } else { "run setup-demo-mcp.ps1" })
+Add-Check "mcp-jar-present" ([bool]$jar) $(if ($jar) { $jar } else { "run install-mcp.ps1" })
 
 # demo Cursor 集成
 $mcpJson = Join-Path $DemoRoot ".cursor/mcp.json"
 $mcpCfgOk = $false
 if (Test-Path $mcpJson) {
     $raw = Get-Content $mcpJson -Raw
-    $mcpCfgOk = ($raw -match 'dev-tools/zestflow-mcp') -and ($raw -match 'demo-app') -and ($raw -match '20550')
+    $mcpCfgOk = ($raw -match '\.zestflow/tools/zestflow-mcp\.jar|userHome') -and ($raw -match 'workspaceFolder') -and ($raw -match 'demo-app') -and ($raw -match '20550')
 }
 Add-Check "mcp-demo-cursor-config" $mcpCfgOk "path=$mcpJson"
 

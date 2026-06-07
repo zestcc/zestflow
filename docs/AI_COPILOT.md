@@ -902,7 +902,7 @@ Admin `POST /api/ai/component/scaffold` 与元件页「AI 脚手架」已删除�
 
 - Cursor 打开 **`zestflow-demo`**（或业务 Executor 工程），配置 [MCP_SETUP.md](./MCP_SETUP.md)
 - 调用 MCP Tool **`scaffold_component`**（只返回 Java 文本，落盘由 IDE Apply）
-- 一次性准备：`powershell -File scripts/dev/setup-demo-mcp.ps1`
+- 一次性准备：`powershell -File scripts/dev/install-mcp.ps1`（JAR 装到 `~/.zestflow/tools/`，全项目共用）
 
 ---
 

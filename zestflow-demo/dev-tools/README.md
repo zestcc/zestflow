@@ -1,34 +1,21 @@
-# 本地 Dev Copilot（MCP）— 仅开发使用
+# Dev Copilot（MCP）— 开发专用
 
-本目录用于存放 **`zestflow-mcp` 可执行 JAR**，**不会**打进 `zestflow-demo` 生产/试玩 Spring Boot 包。
+> **不再在此目录存放 JAR。** 平台 MCP 统一安装到用户目录 `~/.zestflow/tools/zestflow-mcp.jar`。
 
-## 一次性准备
-
-在仓库根目录执行：
+## 一次性准备（全机 / 全团队各装一次）
 
 ```powershell
-powershell -File scripts/dev/setup-demo-mcp.ps1
+powershell -File scripts/dev/install-mcp.ps1
 ```
 
-或：
+## demo 用法
 
-```bash
-mvn -Pdev-mcp -pl zestflow-mcp package -DskipTests
-# 手动复制 target/zestflow-mcp-0.1.0-all.jar 到本目录
-```
+1. 执行上述安装
+2. Cursor **打开 `zestflow-demo` 文件夹**（已含 [`.cursor/mcp.json`](../.cursor/mcp.json)）
+3. 启动 demo Executor（`:20550`）
 
-## Cursor 配置
+## 其它业务项目
 
-已提供 [`../.cursor/mcp.json`](../.cursor/mcp.json)，打开 **`zestflow-demo` 文件夹** 作为工作区即可。
+复制 [`scripts/dev/mcp/project.cursor.mcp.json.example`](../../scripts/dev/mcp/project.cursor.mcp.json.example) 到项目 `.cursor/mcp.json`，改 `app-code` 即可。
 
-## 前置条件
-
-1. 启动 `zestflow-demo`（Executor `:20550`）
-2. Java 17+
-3. Java 17+
-
-## 说明
-
-- 元件开发请用 **Cursor + MCP**（见 [MCP_SETUP.md](../../docs/MCP_SETUP.md)），Admin 内不提供 Dev 助手页
-- 审计日志：`.zestflow/mcp-audit.jsonl`
-- 项目规则：`.zestflow/rules/project.md`
+详见 [MCP_SETUP.md](../../docs/MCP_SETUP.md)、[scripts/dev/mcp/README.md](../../scripts/dev/mcp/README.md)。

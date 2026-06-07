@@ -41,7 +41,7 @@ Layer M  人工 UI 走查（设计器 / 设置页）    → 本文 §6 手工用
 | Admin | `:8080`，`admin/admin123` |
 | Demo Executor | `:20550`，`app-code=demo-app` |
 | MySQL | 已执行 `scripts/init.ps1` + `initData.ps1` |
-| MCP JAR | `powershell -File scripts/dev/setup-demo-mcp.ps1`（Layer M 必跑） |
+| MCP JAR | `powershell -File scripts/dev/install-mcp.ps1`（Layer M 必跑，装到 `~/.zestflow/tools/`） |
 | LLM（可选） | Ollama `qwen2.5:7b` 或 `-UseMockLlm` |
 
 ---
@@ -76,7 +76,7 @@ Layer M  人工 UI 走查（设计器 / 设置页）    → 本文 §6 手工用
 | TC-MCP-006 | P0 | B | 元件白名单 | MCP 等价 HTTP `GET :20550/api/components` | 200，含 `validateUser` 等 demo 元件 | `mcp-executor-list-components` |
 | TC-MCP-007 | P0 | B | 链校验（合法） | 提交含 `validateUser` 的 ChainDefinition | `valid=true` | `mcp-executor-validate-valid` |
 | TC-MCP-008 | P0 | B | 链校验（非法 componentId） | 提交 `component=__NOT_REGISTERED__` | `valid=false`，含错误信息 | `mcp-executor-validate-invalid` |
-| TC-MCP-009 | P1 | B | demo MCP 配置 | 检查 `zestflow-demo/.cursor/mcp.json` | 指向 `dev-tools/*.jar`，`app-code=demo-app` | `mcp-demo-cursor-config` |
+| TC-MCP-009 | P1 | B | demo MCP 配置 | 检查 `zestflow-demo/.cursor/mcp.json` | `${userHome}/.zestflow/tools/` + `workspaceFolder`，`app-code=demo-app` | `mcp-demo-cursor-config` |
 | TC-MCP-010 | P1 | B | 生产打包隔离 | 默认 `mvn package` reactor | **不含** `zestflow-mcp` 模块 | 人工 / CI pom 审查 |
 | TC-MCP-011 | P1 | B | JAR 不进 demo 包 | `package-demo.ps1` 产物 | Spring Boot 内无 MCP JAR | 人工解压验收 |
 | TC-MCP-012 | P2 | M | Cursor 端到端 | Agent 调用 `list_components` → `scaffold_component` → Apply | Java 文件出现在约定包路径；`mvn compile` 通过 | 手工 |
@@ -235,7 +235,7 @@ $env:JAVA_HOME = "D:\IT\JDK17\jdk-17.0.19+10"   # 按本机修改
 cd D:\project\2\zestflow
 
 # 1. MCP JAR（Layer M 前置）
-powershell -File scripts/dev/setup-demo-mcp.ps1
+powershell -File scripts/dev/install-mcp.ps1
 
 # 2. 启动 Admin:8080 + demo:20550 后：
 

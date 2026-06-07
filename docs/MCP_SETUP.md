@@ -6,13 +6,30 @@
 
 ---
 
-## 1. 构建 Dev MCP（**不进** demo/admin 试玩包）：
+## 1. 安装平台 MCP（**一次**，全项目共用）
+
+对标 Stripe / Supabase：**一个 JAR 装到用户目录**，各业务工程只配 `.cursor/mcp.json`。
 
 ```powershell
-powershell -File scripts/dev/setup-demo-mcp.ps1
+powershell -File scripts/dev/install-mcp.ps1
 ```
 
-产物：`zestflow-mcp/target/zestflow-mcp-0.1.0-all.jar`（含依赖的可执行包）。**默认 reactor 不含本模块**，需 `-Pdev-mcp`。
+```bash
+bash scripts/dev/install-mcp.sh
+```
+
+产物：
+
+| 路径 | 说明 |
+|------|------|
+| `~/.zestflow/tools/zestflow-mcp.jar` | 稳定入口（Cursor 配置引用此路径） |
+| `~/.zestflow/tools/zestflow-mcp-0.1.0-all.jar` | 带版本号备份 |
+| `zestflow-mcp/target/*.jar` | Maven 构建目录（开发用） |
+
+**默认 reactor 不含 `zestflow-mcp` 模块**，需 `-Pdev-mcp`。  
+旧命令 `setup-demo-mcp.ps1` 仍可用，内部转发到 `install-mcp.ps1`。
+
+> **不必**每个项目复制 JAR 到 `dev-tools/`。
 
 ---
 
@@ -52,7 +69,9 @@ java -jar zestflow-mcp.jar \
 
 ## 3. Cursor 配置
 
-文件：项目 `.cursor/mcp.json` 或用户 `~/.cursor/mcp.json`
+### 推荐：项目级（`${workspaceFolder}` 自动指向当前工程）
+
+每个业务项目根目录 `.cursor/mcp.json`（可从 [`scripts/dev/mcp/project.cursor.mcp.json.example`](../scripts/dev/mcp/project.cursor.mcp.json.example) 复制）：
 
 ```json
 {
@@ -60,9 +79,9 @@ java -jar zestflow-mcp.jar \
     "zestflow": {
       "command": "java",
       "args": [
-        "-jar", "D:/tools/zestflow-mcp-0.1.0-all.jar",
-        "--project", "D:/work/zestflow/zestflow-demo",
-        "--app-code", "demo",
+        "-jar", "${userHome}/.zestflow/tools/zestflow-mcp.jar",
+        "--project", "${workspaceFolder}",
+        "--app-code", "my-app",
         "--executor-url", "http://127.0.0.1:20550"
       ]
     }
@@ -70,13 +89,23 @@ java -jar zestflow-mcp.jar \
 }
 ```
 
+| 占位符 | 含义 |
+|--------|------|
+| `${userHome}/.zestflow/tools/zestflow-mcp.jar` | **平台 JAR**（`install-mcp` 安装，全项目共用） |
+| `${workspaceFolder}` | **当前 Cursor 打开的工程根**（含 `pom.xml`） |
+| `--app-code` | **本项目** Executor 的 appCode |
+
 重启 Cursor 或在设置中刷新 MCP；对话中可 `@zestflow` 或让 Agent 自动调用 Tools。
 
-### zestflow-demo 快速集成
+### zestflow-demo 快速体验
 
-1. `powershell -File scripts/dev/setup-demo-mcp.ps1` → JAR 复制到 `zestflow-demo/dev-tools/`
-2. 用 Cursor **打开 `zestflow-demo` 目录**（已含 `.cursor/mcp.json`）
-3. 启动 demo（Executor `:20550`）
+1. `powershell -File scripts/dev/install-mcp.ps1`（**每台机器一次**）
+2. Cursor 打开 **`zestflow-demo` 目录**（已含 `.cursor/mcp.json`）
+3. 启动 demo Executor（`:20550`）
+
+### 可选：用户级全局模板
+
+若多个项目共用相同 `executor-url`，也可写 `~/.cursor/mcp.json`；**仍建议 `--project` 用 `${workspaceFolder}`**，避免写死路径。
 
 ---
 
@@ -90,8 +119,8 @@ java -jar zestflow-mcp.jar \
     "zestflow": {
       "command": "java",
       "args": [
-        "-jar", "/path/zestflow-mcp-0.1.0.jar",
-        "--project", "/path/zestflow-demo",
+        "-jar", "${userHome}/.zestflow/tools/zestflow-mcp.jar",
+        "--project", "${workspaceFolder}",
         "--executor-url", "http://127.0.0.1:20550"
       ]
     }
@@ -201,7 +230,7 @@ MCP 通过 `zestflow://rules/project` 合并官方规范与项目规则。**L0 �
 
 | 现象 | 处理 |
 |------|------|
-| MCP 未出现在 Cursor | 检查 Java 17+、JAR 路径、重启 IDE |
+| MCP 未出现在 Cursor | 先跑 `install-mcp.ps1`；检查 `~/.zestflow/tools/zestflow-mcp.jar` 存在、Java 17+ |
 | `list_components` 失败 | 确认 Executor 已启动且 `--executor-url` 正确 |
 | 远程 Admin 401 | 补 `--token` 或换 `--executor-url` 直连 |
 | 日志污染 MCP | 本 Server 日志走 **stderr**，勿改 stdout |

@@ -85,7 +85,7 @@ plan_chain → scaffold_component(gap) → compose/validate → bind_http(Mode1/
 ## 7. 快速开始
 
 ```powershell
-powershell -File scripts/dev/setup-demo-mcp.ps1
+powershell -File scripts/dev/install-mcp.ps1
 # Cursor 打开 zestflow-demo，对话：
 # 「帮我开发注册链路」→ Agent 应调用 plan_chain
 # 完成后 record_learning_event → distill_patterns

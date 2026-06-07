@@ -12,6 +12,12 @@
 - 分组名与现有 `@ZestComponent` 一致：`cache`、`order` 等
 - 默认 appCode: **demo-app**
 
+## Dev Copilot（MCP）
+
+- 平台 JAR **一次安装**：`powershell -File scripts/dev/install-mcp.ps1` → `~/.zestflow/tools/zestflow-mcp.jar`
+- Cursor 打开本目录即可（`.cursor/mcp.json` 已配置 `${workspaceFolder}`）
+- 详见 [MCP_SETUP.md](../../docs/MCP_SETUP.md)
+
 ## Chain-first 学习（L2 项目）
 
 - 学习事件：`.zestflow/learning/events.jsonl`（原始信号，可 gitignore）
