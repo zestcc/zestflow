@@ -2,6 +2,7 @@ package com.zestflow.collector.jdbc.server;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zestflow.collector.jdbc.alert.CollectorSlaAlertService;
 import com.zestflow.collector.jdbc.metrics.CollectorMetricsProvider;
 import com.zestflow.collector.jdbc.service.ChainGraphSnapshotService;
 import com.zestflow.collector.spi.EventQueryService;
@@ -54,6 +55,7 @@ public class CollectorServerHandler extends SimpleChannelInboundHandler<FullHttp
     private final String accessToken;
     private final ExecutorService queryExecutor;
     private final CollectorMetricsProvider metricsProvider;
+    private final CollectorSlaAlertService slaAlertService;
 
     public CollectorServerHandler(EventQueryService eventQueryService,
                                   InvocationPayloadService invocationPayloadService,
@@ -61,7 +63,8 @@ public class CollectorServerHandler extends SimpleChannelInboundHandler<FullHttp
                                   EventCollector eventCollector,
                                   String accessToken,
                                   ExecutorService queryExecutor,
-                                  CollectorMetricsProvider metricsProvider) {
+                                  CollectorMetricsProvider metricsProvider,
+                                  CollectorSlaAlertService slaAlertService) {
         this.eventQueryService = eventQueryService;
         this.invocationPayloadService = invocationPayloadService;
         this.snapshotService = snapshotService;
@@ -69,6 +72,7 @@ public class CollectorServerHandler extends SimpleChannelInboundHandler<FullHttp
         this.accessToken = accessToken;
         this.queryExecutor = queryExecutor;
         this.metricsProvider = metricsProvider != null ? metricsProvider : noopMetricsProvider();
+        this.slaAlertService = slaAlertService;
     }
 
     private static CollectorMetricsProvider noopMetricsProvider() {
@@ -118,6 +122,21 @@ public class CollectorServerHandler extends SimpleChannelInboundHandler<FullHttp
         if (!checkToken(request)) {
             writeResponse(ctx, HttpResponseStatus.UNAUTHORIZED,
                     toJson(Result.fail(401, "UNAUTHORIZED", "Invalid collector token")));
+            return true;
+        }
+
+        // POST /collector/alerts/scan
+        if (parts.length == 4 && "alerts".equals(parts[2]) && "scan".equals(parts[3])
+                && method == HttpMethod.POST) {
+            if (slaAlertService == null) {
+                writeResponse(ctx, HttpResponseStatus.SERVICE_UNAVAILABLE,
+                        toJson(Result.fail(503, "SLA alert service not enabled")));
+                return true;
+            }
+            String summary = slaAlertService.scan();
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("summary", summary);
+            writeResponse(ctx, HttpResponseStatus.OK, toJson(Result.success(data)));
             return true;
         }
 

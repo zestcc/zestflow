@@ -144,6 +144,12 @@ public class ExecutorProperties implements EnvironmentAware {
     /** 并发重复请求等待在途执行的最长时间（毫秒） */
     private long idempotencyWaitMs = 60_000;
 
+    /** 调度分片序号（0..shardTotal-1），多 Executor 同 app 时必填 */
+    private int shardIndex = 0;
+
+    /** 本实例声明的分片总数，与 zf_schedule.shard_total 对齐 */
+    private int shardTotal = 1;
+
     public int resolveExecutePoolCoreSize() {
         int cpus = Runtime.getRuntime().availableProcessors();
         return executePoolCoreSize > 0 ? executePoolCoreSize : cpus;

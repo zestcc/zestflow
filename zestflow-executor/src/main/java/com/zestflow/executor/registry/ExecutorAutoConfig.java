@@ -1,5 +1,6 @@
 package com.zestflow.executor.registry;
 
+import com.zestflow.common.spi.schedule.ScheduleDriver;
 import com.zestflow.common.spi.EventCollector;
 import com.zestflow.executor.event.AsyncEventPublisher;
 import com.zestflow.executor.event.EventPublisher;
@@ -45,6 +46,11 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import com.zestflow.executor.config.ScheduleServerConfig;
+import com.zestflow.executor.schedule.*;
+import com.zestflow.executor.schedule.external.ExternalScheduleDriver;
+import com.zestflow.executor.schedule.external.XxlJobScheduleConfiguration;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.beans.factory.ObjectProvider;
@@ -66,8 +72,9 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @AutoConfiguration
-@EnableConfigurationProperties({ExecutorProperties.class, ExecutorChainProperties.class, ExecutorEventProperties.class})
-@Import({ExecutorSchedulingConfig.class, ChainRouteWebConfig.class})
+@EnableConfigurationProperties({ExecutorProperties.class, ExecutorChainProperties.class, ExecutorEventProperties.class,
+        ExecutorScheduleProperties.class})
+@Import({ExecutorSchedulingConfig.class, ChainRouteWebConfig.class, ScheduleServerConfig.class, XxlJobScheduleConfiguration.class})
 public class ExecutorAutoConfig {
 
     @Bean
@@ -414,6 +421,58 @@ public class ExecutorAutoConfig {
     public DesignRepository designRepository(@Qualifier("executorJdbcTemplate") org.springframework.jdbc.core.JdbcTemplate jdbcTemplate,
                                              ExecutorProperties properties) {
         return new DesignRepository(jdbcTemplate, properties.getTenantId());
+    }
+
+    @Bean
+    public ScheduleRepository scheduleRepository(
+            @Qualifier("executorJdbcTemplate") org.springframework.jdbc.core.JdbcTemplate jdbcTemplate,
+            ExecutorProperties properties) {
+        return new ScheduleRepository(jdbcTemplate, properties.getTenantId(), properties.getAppCode());
+    }
+
+    @Bean
+    public ScheduleTriggerService scheduleTriggerService(ScheduleRepository scheduleRepository,
+                                                         ChainExecuteFacade chainExecuteFacade,
+                                                         ExecutorProperties properties) {
+        return new ScheduleTriggerService(scheduleRepository, chainExecuteFacade, properties);
+    }
+
+    @Bean
+    public ScheduleRouteHandler scheduleRouteHandler(ScheduleRepository scheduleRepository,
+                                                     ScheduleTriggerService scheduleTriggerService) {
+        return new ScheduleRouteHandler(scheduleRepository, scheduleTriggerService);
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "zestflow.executor.schedule", name = "driver", havingValue = "noop")
+    public NoopScheduleDriver noopScheduleDriver() {
+        return new NoopScheduleDriver();
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "zestflow.executor.schedule", name = "driver", havingValue = "embedded", matchIfMissing = true)
+    public EmbeddedScheduleDriver embeddedScheduleDriver(ScheduleRepository scheduleRepository,
+                                                         ScheduleTriggerService scheduleTriggerService,
+                                                         ExecutorProperties executorProperties,
+                                                         ExecutorScheduleProperties scheduleProperties) {
+        return new EmbeddedScheduleDriver(scheduleRepository, scheduleTriggerService,
+                executorProperties, scheduleProperties);
+    }
+
+    @Bean
+    ApplicationRunner scheduleDriverStarter(java.util.Optional<EmbeddedScheduleDriver> embeddedScheduleDriver,
+                                            java.util.Optional<ExternalScheduleDriver> externalScheduleDriver,
+                                            java.util.Optional<NoopScheduleDriver> noopScheduleDriver) {
+        return args -> {
+            ScheduleDriver driver = embeddedScheduleDriver.<ScheduleDriver>map(d -> d)
+                    .or(() -> externalScheduleDriver.map(d -> d))
+                    .or(() -> noopScheduleDriver.map(d -> d))
+                    .orElse(null);
+            if (driver != null) {
+                driver.start();
+                log.info("ScheduleDriver 已启动 driverId={}", driver.driverId());
+            }
+        };
     }
 
     // ==================== 降级策略 ====================

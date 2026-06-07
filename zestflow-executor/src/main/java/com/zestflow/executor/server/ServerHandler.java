@@ -80,6 +80,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
     private ChainExecuteFacade chainExecuteFacade;
     private ChainDeclarationRegistry chainDeclarationRegistry;
     private ExecutorChainProperties chainProperties;
+    private com.zestflow.executor.schedule.ScheduleRouteHandler scheduleRouteHandler;
 
     private final AtomicBoolean acceptingExecuteRequests = new AtomicBoolean(true);
 
@@ -167,6 +168,11 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
         if ("/api/components/register".equals(uri) && method == HttpMethod.POST) {
             handleRegisterComponent(ctx, body);
             return true;
+        }
+
+        // 业务链调度 CRUD（业务库 zf_schedule）
+        if (uri.startsWith("/api/schedules") && scheduleRouteHandler != null) {
+            return scheduleRouteHandler.dispatch(ctx, method, uri, body, this::writeResponse);
         }
 
         // 链 CRUD

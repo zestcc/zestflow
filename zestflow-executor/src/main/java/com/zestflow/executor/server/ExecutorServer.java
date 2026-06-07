@@ -77,6 +77,10 @@ public class ExecutorServer {
         this.serverHandler.setChainExecuteFacade(chainExecuteFacade);
     }
 
+    public void setScheduleRouteHandler(com.zestflow.executor.schedule.ScheduleRouteHandler scheduleRouteHandler) {
+        this.serverHandler.setScheduleRouteHandler(scheduleRouteHandler);
+    }
+
     public void setChainDeclarationGuard(ChainDeclarationRegistry chainDeclarationRegistry,
                                           ExecutorChainProperties chainProperties) {
         this.serverHandler.setChainDeclarationRegistry(chainDeclarationRegistry);

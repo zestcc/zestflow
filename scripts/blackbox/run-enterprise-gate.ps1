@@ -88,6 +88,7 @@ try {
 
 if (-not $adminUp) {
     Add-Phase "runtime-e2e" $false "Admin :8080 not reachable"
+    Add-Phase "scheduling-registry-sla-e2e" $false "skipped-no-admin"
     Add-Phase "tenant-multi-e2e" $false "skipped-no-admin"
     Add-Phase "ip-demo-e2e" $false "skipped-no-admin"
     Add-Phase "security-token-e2e" $false "skipped-no-admin"
@@ -99,6 +100,9 @@ if (-not $adminUp) {
 
 & "$PSScriptRoot\run-full-e2e.ps1" -E2eProfile fullGreen -SceneTimeoutSec $SceneTimeoutSec
 Add-Phase "full-e2e-fullGreen" ($LASTEXITCODE -eq 0) "exit=$LASTEXITCODE"
+
+& "$PSScriptRoot\run-scheduling-registry-sla-e2e.ps1"
+Add-Phase "scheduling-registry-sla-e2e" ($LASTEXITCODE -eq 0) "exit=$LASTEXITCODE"
 
 & "$PSScriptRoot\run-ai-copilot-e2e.ps1" -AllowSkip -AllowLlmSkip
 switch ($LASTEXITCODE) {

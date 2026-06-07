@@ -45,14 +45,6 @@ public class AiProviderDictLoader {
     @PostConstruct
     void seedFromYamlIfEmpty() {
         ensureDictTypes();
-        Long count = dictDataMapper.selectCount(
-                new LambdaQueryWrapper<DictDataPO>()
-                        .eq(DictDataPO::getTenantId, TEMPLATE_TENANT_ID)
-                        .eq(DictDataPO::getTypeCode, TYPE_PROVIDER));
-        if (count != null && count > 0) {
-            log.info("AI 提供商字典已存在，跳过 yaml 种子 count={}", count);
-            return;
-        }
         try (InputStream in = new ClassPathResource("ai-providers.yaml").getInputStream()) {
             Yaml yaml = new Yaml();
             @SuppressWarnings("unchecked")
@@ -70,12 +62,18 @@ public class AiProviderDictLoader {
                 return;
             }
             int sort = 1;
+            int inserted = 0;
             for (Map.Entry<String, Object> entry : presetMap.entrySet()) {
                 AiProviderPreset preset = mapYamlPreset(entry.getKey(), entry.getValue());
-                insertProvider(TEMPLATE_TENANT_ID, preset, sort++);
+                if (!providerExists(TEMPLATE_TENANT_ID, preset.getId())) {
+                    insertProvider(TEMPLATE_TENANT_ID, preset, sort);
+                    inserted++;
+                }
                 insertModels(TEMPLATE_TENANT_ID, preset);
+                sort++;
             }
-            log.info("AI 提供商 yaml 已写入字典 providers={} version={}", presetMap.size(), registryVersion);
+            log.info("AI 提供商 yaml 已同步字典 inserted={} total={} version={}",
+                    inserted, presetMap.size(), registryVersion);
         } catch (Exception e) {
             log.error("AI 提供商字典种子失败", e);
         }
@@ -178,11 +176,20 @@ public class AiProviderDictLoader {
     private void insertModels(long tenantId, AiProviderPreset preset) {
         int i = 1;
         for (String model : preset.getModels()) {
+            String storageValue = modelStorageValue(preset.getId(), model);
+            Long exists = dictDataMapper.selectCount(
+                    new LambdaQueryWrapper<DictDataPO>()
+                            .eq(DictDataPO::getTenantId, tenantId)
+                            .eq(DictDataPO::getTypeCode, TYPE_MODEL)
+                            .eq(DictDataPO::getValue, storageValue));
+            if (exists != null && exists > 0) {
+                continue;
+            }
             DictDataPO po = new DictDataPO();
             po.setTypeCode(TYPE_MODEL);
             po.setParentTypeCode(TYPE_PROVIDER);
             po.setParentValue(preset.getId());
-            po.setValue(model);
+            po.setValue(storageValue);
             po.setLabel(model);
             po.setSort(i++);
             po.setStatus(1);
@@ -190,6 +197,29 @@ public class AiProviderDictLoader {
             po.setTenantId(tenantId);
             dictDataMapper.insert(po);
         }
+    }
+
+    private boolean providerExists(long tenantId, String providerId) {
+        Long count = dictDataMapper.selectCount(
+                new LambdaQueryWrapper<DictDataPO>()
+                        .eq(DictDataPO::getTenantId, tenantId)
+                        .eq(DictDataPO::getTypeCode, TYPE_PROVIDER)
+                        .eq(DictDataPO::getValue, providerId));
+        return count != null && count > 0;
+    }
+
+    /** 字典 value 需租户内唯一；同名校型跨提供商用 providerId::model 区分，label 仍为 API 模型名。 */
+    private static String modelStorageValue(String providerId, String model) {
+        return providerId + "::" + model;
+    }
+
+    private static String modelDisplayName(DictDataPO row) {
+        if (row.getLabel() != null && !row.getLabel().isBlank()) {
+            return row.getLabel();
+        }
+        String value = row.getValue();
+        int sep = value != null ? value.indexOf("::") : -1;
+        return sep >= 0 ? value.substring(sep + 2) : value;
     }
 
     private AiProviderPreset toPreset(DictDataPO row, List<DictDataPO> models) {
@@ -200,9 +230,10 @@ public class AiProviderDictLoader {
         List<String> modelNames = new ArrayList<>();
         String defaultModel = preset.getDefaultModel();
         for (DictDataPO m : models) {
-            modelNames.add(m.getValue());
+            String modelName = modelDisplayName(m);
+            modelNames.add(modelName);
             if (m.getDefaultFlag() != null && m.getDefaultFlag() == 1) {
-                defaultModel = m.getValue();
+                defaultModel = modelName;
             }
         }
         preset.setModels(modelNames);

@@ -9,7 +9,7 @@ class AdminClusterBuildSupportTest {
     @Test
     void clusterArtifactReflectsClasspath() {
         boolean clusterOnClasspath = classOnClasspath(
-                "com.zestflow.admin.schedule.cluster.ClusterScheduleMonitor");
+                "com.zestflow.admin.config.cluster.ClusterOfflineMonitor");
         assertThat(AdminClusterBuildSupport.isClusterArtifact()).isEqualTo(clusterOnClasspath);
     }
 

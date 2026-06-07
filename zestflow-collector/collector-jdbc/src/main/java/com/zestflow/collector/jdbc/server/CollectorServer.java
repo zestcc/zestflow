@@ -1,5 +1,6 @@
 package com.zestflow.collector.jdbc.server;
 
+import com.zestflow.collector.jdbc.alert.CollectorSlaAlertService;
 import com.zestflow.collector.jdbc.metrics.CollectorMetricsProvider;
 import com.zestflow.collector.jdbc.service.ChainGraphSnapshotService;
 import com.zestflow.collector.spi.EventQueryService;
@@ -43,7 +44,8 @@ public class CollectorServer {
                            ChainGraphSnapshotService snapshotService,
                            EventCollector eventCollector,
                            String accessToken,
-                           CollectorMetricsProvider metricsProvider) {
+                           CollectorMetricsProvider metricsProvider,
+                           CollectorSlaAlertService slaAlertService) {
         this.port = port;
         this.queryExecutor = Executors.newFixedThreadPool(
                 Math.max(2, Runtime.getRuntime().availableProcessors()),
@@ -53,7 +55,7 @@ public class CollectorServer {
                     return t;
                 });
         this.serverHandler = new CollectorServerHandler(eventQueryService, invocationPayloadService,
-                snapshotService, eventCollector, accessToken, queryExecutor, metricsProvider);
+                snapshotService, eventCollector, accessToken, queryExecutor, metricsProvider, slaAlertService);
     }
 
     public void start() throws InterruptedException {

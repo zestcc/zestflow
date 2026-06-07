@@ -36,6 +36,7 @@ class CollectorRegistryServiceImplTest {
 
     @Mock private CollectorRegistryMapper collectorRegistryMapper;
     @Mock private TenantAppContext tenantAppContext;
+    @Mock private com.zestflow.admin.registry.RegistryLifecycleService registryLifecycleService;
 
     private RegistryLiveStore liveStore;
     private CollectorRegistryServiceImpl collectorRegistryService;
@@ -44,7 +45,7 @@ class CollectorRegistryServiceImplTest {
     void setUp() {
         liveStore = new InMemoryRegistryLiveStore();
         collectorRegistryService = new CollectorRegistryServiceImpl(
-                collectorRegistryMapper, tenantAppContext, liveStore);
+                collectorRegistryMapper, tenantAppContext, liveStore, registryLifecycleService);
     }
 
     @Captor private ArgumentCaptor<CollectorRegistryPO> poCaptor;

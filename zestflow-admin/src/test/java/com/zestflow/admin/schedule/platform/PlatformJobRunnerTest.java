@@ -41,8 +41,8 @@ class PlatformJobRunnerTest {
     void setUp() {
         job = new SchedulePO();
         job.setId(10L);
-        job.setJobKey(PlatformJobKeys.OFFLINE_CHECK);
-        job.setChainName("离线检测");
+        job.setJobKey(PlatformJobKeys.OFFLINE_CLEANUP);
+        job.setChainName("异常记录清理");
         job.setStatus(1);
         job.setRemote(0);
         job.setTenantId(1L);
@@ -53,21 +53,21 @@ class PlatformJobRunnerTest {
     void skipsWhenJobDisabled() {
         job.setStatus(0);
 
-        platformJobRunner.runScheduledByKey(PlatformJobKeys.OFFLINE_CHECK);
+        platformJobRunner.runScheduledByKey(PlatformJobKeys.OFFLINE_CLEANUP);
 
         verify(scheduleLogMapper, never()).insert(any(ScheduleLogPO.class));
     }
 
     @Test
     void writesSuccessLog() throws Exception {
-        when(handlerRegistry.get(PlatformJobKeys.OFFLINE_CHECK)).thenReturn(() -> "ok");
+        when(handlerRegistry.get(PlatformJobKeys.OFFLINE_CLEANUP)).thenReturn(() -> "ok");
 
-        platformJobRunner.runScheduledByKey(PlatformJobKeys.OFFLINE_CHECK);
+        platformJobRunner.runScheduledByKey(PlatformJobKeys.OFFLINE_CLEANUP);
 
         ArgumentCaptor<ScheduleLogPO> captor = ArgumentCaptor.forClass(ScheduleLogPO.class);
         verify(scheduleLogMapper).insert(captor.capture());
         verify(scheduleLogMapper).updateById(any(ScheduleLogPO.class));
-        assertThat(captor.getValue().getJobKey()).isEqualTo(PlatformJobKeys.OFFLINE_CHECK);
+        assertThat(captor.getValue().getJobKey()).isEqualTo(PlatformJobKeys.OFFLINE_CLEANUP);
         assertThat(captor.getValue().getTriggerType()).isEqualTo("cron");
     }
 }

@@ -3,14 +3,16 @@ package com.zestflow.admin.controller;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.zestflow.admin.alert.AlertConfigService;
 import com.zestflow.admin.alert.AlertHistoryService;
+import com.zestflow.admin.alert.CollectorSlaTriggerService;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.model.dto.AlertConfigSaveDTO;
 import com.zestflow.admin.model.vo.AlertConfigVO;
 import com.zestflow.admin.model.vo.AlertHistoryVO;
 import com.zestflow.admin.model.vo.AlertScanResultVO;
-import com.zestflow.admin.model.vo.ScheduleLogVO;
-import com.zestflow.admin.schedule.platform.PlatformJobKeys;
-import com.zestflow.admin.schedule.platform.PlatformJobRunner;
+import com.zestflow.admin.model.dto.AlertConfigSaveDTO;
+import com.zestflow.admin.model.vo.AlertConfigVO;
+import com.zestflow.admin.model.vo.AlertHistoryVO;
+import com.zestflow.admin.model.vo.AlertScanResultVO;
 import com.zestflow.admin.service.TenantAppContext;
 import com.zestflow.common.exception.BizException;
 import com.zestflow.common.model.Result;
@@ -31,7 +33,7 @@ public class AlertController {
     private final AlertConfigService alertConfigService;
     private final AlertHistoryService alertHistoryService;
     private final TenantAppContext tenantAppContext;
-    private final PlatformJobRunner platformJobRunner;
+    private final CollectorSlaTriggerService collectorSlaTriggerService;
 
     @GetMapping("/config")
     public Result<AlertConfigVO> getConfig() {
@@ -58,21 +60,17 @@ public class AlertController {
     @PostMapping("/scan")
     public Result<AlertScanResultVO> scanNow() {
         requireAuthenticated();
+        long start = System.currentTimeMillis();
         try {
-            ScheduleLogVO log = platformJobRunner.runManual(PlatformJobKeys.EXECUTION_SLA_ALERT);
-            if (log == null) {
-                return Result.success(AlertScanResultVO.builder()
-                        .success(false)
-                        .errorMessage("平台任务未登记或已停用")
-                        .build());
-            }
+            String summary = collectorSlaTriggerService.triggerScan();
+            boolean ok = summary != null && !summary.contains("error=");
             return Result.success(AlertScanResultVO.builder()
-                    .success(log.getStatus() != null && log.getStatus() == 1)
-                    .summary(log.getResultData())
-                    .errorMessage(log.getErrorMessage())
-                    .costMs(log.getCostMs())
+                    .success(ok)
+                    .summary(summary)
+                    .errorMessage(ok ? null : summary)
+                    .costMs(System.currentTimeMillis() - start)
                     .build());
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (Exception e) {
             throw new BizException(ErrorCode.VALIDATION_ERROR, e.getMessage());
         }
     }

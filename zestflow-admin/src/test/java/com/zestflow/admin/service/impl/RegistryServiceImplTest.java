@@ -33,6 +33,7 @@ class RegistryServiceImplTest {
 
     @Mock private ExecutorRegistryMapper executorRegistryMapper;
     @Mock private DictTypeService dictTypeService;
+    @Mock private com.zestflow.admin.registry.RegistryLifecycleService registryLifecycleService;
 
     private RegistryLiveStore liveStore;
     private RegistryServiceImpl registryService;
@@ -41,7 +42,8 @@ class RegistryServiceImplTest {
     @BeforeEach
     void setUp() {
         liveStore = new InMemoryRegistryLiveStore();
-        registryService = new RegistryServiceImpl(executorRegistryMapper, dictTypeService, liveStore);
+        registryService = new RegistryServiceImpl(executorRegistryMapper, dictTypeService, liveStore,
+                registryLifecycleService);
     }
 
     @Test

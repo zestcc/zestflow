@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.model.entity.CollectorRegistryPO;
 import com.zestflow.admin.model.vo.CollectorRegistryVO;
+import com.zestflow.admin.registry.RegistryLifecycleService;
 import com.zestflow.admin.registry.RegistryLiveStore;
 import com.zestflow.admin.registry.RegistryLiveTimeSupport;
 import com.zestflow.admin.repository.CollectorRegistryMapper;
@@ -32,6 +33,7 @@ public class CollectorRegistryServiceImpl implements CollectorRegistryService {
     private final CollectorRegistryMapper collectorRegistryMapper;
     private final TenantAppContext tenantAppContext;
     private final RegistryLiveStore liveStore;
+    private final RegistryLifecycleService registryLifecycleService;
 
     @Transactional(rollbackFor = Exception.class)
     public void register(RegisterDTO dto) {
@@ -122,12 +124,14 @@ public class CollectorRegistryServiceImpl implements CollectorRegistryService {
             }
         }
         liveStore.touchCollector(collectorId);
+        registryLifecycleService.onCollectorHeartbeat(collectorId);
         log.trace("采集器心跳 collectorId={}", collectorId);
     }
 
     @Transactional(rollbackFor = Exception.class)
     public void deregister(String collectorId) {
         liveStore.removeCollector(collectorId);
+        registryLifecycleService.onCollectorRemoved(collectorId);
         CollectorRegistryPO po = findById(collectorId);
         if (po == null) {
             return;

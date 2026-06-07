@@ -68,6 +68,9 @@ public class RegistryTokenFilter extends OncePerRequestFilter {
         if (HttpMethod.POST.matches(method) && AdminApiPaths.of("/chains/sync").equals(uri)) {
             return true;
         }
+        if (uri.startsWith(AdminApiPaths.of("/internal/alerts"))) {
+            return HttpMethod.GET.matches(method) || HttpMethod.POST.matches(method);
+        }
         if (!uri.startsWith(AdminApiPaths.of("/registry/"))) {
             return false;
         }

@@ -1,7 +1,9 @@
 package com.zestflow.collector.jdbc.config;
 
-import com.zestflow.collector.async.AsyncEventCollector;
 import com.zestflow.collector.jdbc.collector.JdbcEventCollector;
+import com.zestflow.collector.async.AsyncEventCollector;
+import com.zestflow.collector.jdbc.alert.CollectorSlaAlertMonitor;
+import com.zestflow.collector.jdbc.alert.CollectorSlaAlertService;
 import com.zestflow.collector.jdbc.controller.CollectorController;
 import com.zestflow.collector.jdbc.controller.GraphSnapshotController;
 import com.zestflow.collector.jdbc.mapper.ChainEventMapper;
@@ -24,6 +26,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.env.Environment;
 import com.zestflow.collector.http.ZestFlowHttpClient;
@@ -32,6 +35,7 @@ import com.zestflow.collector.http.ZestFlowHttpClient;
  * Collector JDBC 自动配置
  */
 @AutoConfiguration
+@Import(CollectorSchedulingConfiguration.class)
 @EnableConfigurationProperties({CollectorProperties.class, CollectorRegistryProperties.class})
 public class CollectorAutoConfig {
 
@@ -87,6 +91,22 @@ public class CollectorAutoConfig {
      * 端口取自 zestflow.collector.registry.port，线程模型对标 ExecutorServer。
      * 当 zestflow.collector.netty-enabled=false 时降级为 Spring MVC Controller。
      */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "zestflow.collector.alert", name = "enabled", havingValue = "true", matchIfMissing = true)
+    public CollectorSlaAlertService collectorSlaAlertService(EventQueryService eventQueryService,
+                                                             ZestFlowHttpClient collectorAdminHttpClient,
+                                                             CollectorRegistryProperties properties) {
+        return new CollectorSlaAlertService(eventQueryService, collectorAdminHttpClient, properties);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "zestflow.collector.alert", name = "enabled", havingValue = "true", matchIfMissing = true)
+    public CollectorSlaAlertMonitor collectorSlaAlertMonitor(CollectorSlaAlertService slaAlertService) {
+        return new CollectorSlaAlertMonitor(slaAlertService);
+    }
+
     @Bean(initMethod = "start", destroyMethod = "stop")
     @ConditionalOnProperty(prefix = "zestflow.collector", name = "netty-enabled", havingValue = "true", matchIfMissing = true)
     public CollectorServer collectorServer(EventQueryService eventQueryService,
@@ -95,10 +115,12 @@ public class CollectorAutoConfig {
                                             EventCollector eventCollector,
                                             CollectorRegistryProperties registryProperties,
                                             CollectorProperties collectorProperties,
-                                            CollectorMetricsProvider metricsProvider) {
+                                            CollectorMetricsProvider metricsProvider,
+                                            org.springframework.beans.factory.ObjectProvider<CollectorSlaAlertService> slaAlertService) {
         int port = registryProperties.getPort() > 0 ? registryProperties.getPort() : 20650;
         return new CollectorServer(port, eventQueryService, invocationPayloadService, snapshotService,
-                eventCollector, collectorProperties.getAccessToken(), metricsProvider);
+                eventCollector, collectorProperties.getAccessToken(), metricsProvider,
+                slaAlertService.getIfAvailable());
     }
 
     // ==================== REST 控制器（Netty 禁用时降级）====================

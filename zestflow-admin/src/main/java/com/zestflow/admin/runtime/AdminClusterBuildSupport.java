@@ -5,15 +5,15 @@ package com.zestflow.admin.runtime;
  */
 public final class AdminClusterBuildSupport {
 
-    private static final String CLUSTER_SCHEDULE_MONITOR =
-            "com.zestflow.admin.schedule.cluster.ClusterScheduleMonitor";
+    private static final String CLUSTER_OFFLINE_MONITOR =
+            "com.zestflow.admin.config.cluster.ClusterOfflineMonitor";
 
     private AdminClusterBuildSupport() {
     }
 
     public static boolean isClusterArtifact() {
         try {
-            Class.forName(CLUSTER_SCHEDULE_MONITOR);
+            Class.forName(CLUSTER_OFFLINE_MONITOR);
             return true;
         } catch (ClassNotFoundException ignored) {
             return false;

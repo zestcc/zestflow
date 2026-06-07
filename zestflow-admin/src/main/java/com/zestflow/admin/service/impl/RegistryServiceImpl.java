@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
 import com.zestflow.admin.registry.DeclaredChainKeysSupport;
+import com.zestflow.admin.registry.RegistryLifecycleService;
 import com.zestflow.admin.registry.RegistryLiveStore;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import com.zestflow.admin.service.DictTypeService;
@@ -30,6 +31,7 @@ public class RegistryServiceImpl implements RegistryService {
     private final ExecutorRegistryMapper executorRegistryMapper;
     private final DictTypeService dictTypeService;
     private final RegistryLiveStore liveStore;
+    private final RegistryLifecycleService registryLifecycleService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -68,6 +70,7 @@ public class RegistryServiceImpl implements RegistryService {
         po.setDeclaredChainKeys(DeclaredChainKeysSupport.toJson(
                 DeclaredChainKeysSupport.normalize(dto.getDeclaredChainKeys())));
         executorRegistryMapper.insert(po);
+        registryLifecycleService.onExecutorHeartbeat(dto.getExecutorId());
         log.info("执行器首次注册 executorId={} appCode={} appName={} host={}:{}",
                 dto.getExecutorId(), dto.getAppCode(), dto.getAppName(), dto.getHost(), dto.getPort());
 
@@ -112,6 +115,7 @@ public class RegistryServiceImpl implements RegistryService {
             syncComponentDict(dto);
         }
         executorRegistryMapper.updateById(po);
+        registryLifecycleService.onExecutorHeartbeat(dto.getExecutorId());
         if (needRevive) {
             log.info("执行器恢复在线 executorId={} host={}:{}", dto.getExecutorId(), dto.getHost(), dto.getPort());
         } else {
@@ -156,6 +160,7 @@ public class RegistryServiceImpl implements RegistryService {
         if (dto.getDeclaredChainKeys() != null) {
             persistDeclaredChainKeys(executorId, dto.getDeclaredChainKeys());
         }
+        registryLifecycleService.onExecutorHeartbeat(executorId);
         log.trace("执行器心跳 executorId={}", executorId);
     }
 
@@ -177,6 +182,7 @@ public class RegistryServiceImpl implements RegistryService {
     @Transactional(rollbackFor = Exception.class)
     public void deregister(String executorId) {
         liveStore.removeExecutor(executorId);
+        registryLifecycleService.onExecutorRemoved(executorId);
         ExecutorRegistryPO po = findById(executorId);
         if (po == null) {
             return;

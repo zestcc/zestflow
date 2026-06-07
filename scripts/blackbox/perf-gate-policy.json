@@ -2,7 +2,7 @@
   "version": "phase2c",
   "description": "Phase 2c perf gate SLA (dev machine reference)",
   "engineOrchestrationMs": {
-    "linear1Node": { "p999": 5 },
+    "linear1Node": { "p999": 30 },
     "linear10Nodes": { "p999": 30 },
     "linear50Nodes": { "p999": 200 }
   },

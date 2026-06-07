@@ -147,8 +147,8 @@ mvn spring-boot:run -pl zestflow-demo
 **能用于生产吗？**  
 v0.1.0，适合个人项目和小团队试用。有 prod 配置守卫和 E2E 测试，但社区还在早期，核心链路建议先灰度。
 
-**Admin 挂了怎么办？**  
-Executor 本地已加载的链还能跑，调度和日志查询会受影响。Admin 集群 HA 还没做。
+**Admin 挂了怎么办？**
+Executor 本地已加载的链还能跑；**业务 Cron 由 Executor 读业务库自治**（不依赖 Admin 在线）。链发布、控制台改调度、查日志需 Admin 恢复。详见 [docs/adr/SCHEDULING.md](docs/adr/SCHEDULING.md)。
 
 ## 参与贡献
 

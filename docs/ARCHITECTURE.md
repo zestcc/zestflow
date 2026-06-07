@@ -790,10 +790,12 @@ graph TB
     end
 
     subgraph Schedule["调度子系统"]
-        SM[ScheduleMonitor 15s]
-        SS[ScheduleServiceImpl]
-        RS2[RouteStrategy<br/>RR/Hash/Random]
-        SL[schedule_log]
+        SS[ScheduleServiceImpl<br/>Hub CRUD/代理]
+        SCP[ScheduleChainProxyService]
+        PJR[PlatformJobRunner<br/>平台 Cron]
+        ESD[EmbeddedScheduleDriver<br/>Executor 15s]
+        RS2[RouteStrategy<br/>local/RR/Hash]
+        ZFS[(zf_schedule<br/>业务库)]
     end
 
     subgraph Governance["治理子系统"]
@@ -827,8 +829,10 @@ graph TB
     JWT --> SEC
     EPS --> RS
     CC --> CRS
-    SM --> SS
-    SS --> EPS
+    SS --> SCP
+    SS --> PJR
+    SCP --> EPS
+    ESD --> ZFS
     LC --> CC
     MS --> SMTP
     MS --> NOOP
@@ -843,15 +847,25 @@ graph LR
         T[tenant]
         ER[executor_registry]
         CR[collector_registry]
-        SCH[schedule]
+        SCH[schedule<br/>仅 PLATFORM 任务]
         DICT[sys_dict_*]
         PG[playground_*]
     end
 
-    subgraph ProxyData["代理到 Executor（不存 Admin）"]
+    subgraph BizDB["业务库（Executor 直连）"]
+        ZFSCH[zf_schedule]
+        ZFSLOG[zf_schedule_log]
         CHAIN[zf_chain]
         DESIGN[zf_design]
         COMP[元件注册表]
+    end
+
+    subgraph ProxyData["Admin 代理到 Executor"]
+        CHAIN
+        DESIGN
+        COMP
+        ZFSCH
+        ZFSLOG
     end
 
     subgraph CollectorData["代理到 Collector"]
@@ -881,32 +895,50 @@ flowchart TD
 
 #### 5.5.4 调度子系统
 
+> 完整 ADR 见 [docs/adr/SCHEDULING.md](./adr/SCHEDULING.md)
+
+**职责分离**：
+
+| 类型 | 配置存储 | 触发方 | Admin 角色 |
+|------|---------|--------|-----------|
+| **CHAIN**（业务链 Cron） | 业务库 `zf_schedule` | Executor `EmbeddedScheduleDriver` | CRUD/查询/手动触发 **HTTP 代理** |
+| **PLATFORM**（平台任务） | Admin 库 `schedule` | Admin `PlatformJobRunner` + ShedLock | 本地管理 |
+
 ```mermaid
 sequenceDiagram
-    participant SM as ScheduleMonitor
+    participant UI as Admin UI
     participant SS as ScheduleServiceImpl
-    participant RS as RouteStrategy
+    participant SCP as ScheduleChainProxyService
     participant EX as Executor Netty
-    participant LOG as schedule_log
+    participant ESD as EmbeddedScheduleDriver
+    participant DB as zf_schedule
+    participant F as ChainExecuteFacade
 
+    Note over UI,F: 配置路径（CHAIN）
+    UI->>SS: CRUD / 手动触发
+    SS->>SCP: 代理
+    SCP->>EX: /api/schedules*
+    EX->>DB: 读写 zf_schedule
+
+    Note over ESD,F: 定时触发（默认 embedded，Admin 不参与）
     loop 每 15 秒
-        SM->>SM: 扫描 status=1 的 schedule
-        SM->>SM: CronExpression.next() <= now?
-        SM->>SS: doTrigger(schedule, "cron")
-        SS->>RS: 选择 Executor 实例
-        RS->>EX: POST /execute {chainCode, params}
-        EX-->>SS: ChainExecuteResultDTO
-        SS->>LOG: 记录触发结果
+        ESD->>DB: 扫描 status=1
+        ESD->>ESD: Cron + 分片过滤
+        ESD->>F: 进程内 execute(chainCode)
+        ESD->>DB: 写 zf_schedule_log
     end
 ```
 
-**路由策略**：
+**路由策略**（手动触发 / 非 local Cron 时使用）：
 
 | 策略 | 实现 | 说明 |
 |------|------|------|
+| `local` | 本实例 | **默认**；Cron 由 Embedded 本地执行 |
 | `round_robin` | `RoundRobinStrategy` | AtomicInteger 轮询 |
 | `hash` | `HashRouteStrategy` | 按 chainCode 哈希 |
 | `random` | `RandomRouteStrategy` | 随机选择 |
+
+**分片**：`zf_schedule.shard_total` + Executor 配置 `shard-index` / `shard-total`。
 
 #### 5.5.5 Admin REST Controller 矩阵
 

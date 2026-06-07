@@ -7,37 +7,26 @@ import com.zestflow.admin.constant.ErrorCode;
 
 import com.zestflow.admin.model.dto.ScheduleCreateDTO;
 import com.zestflow.admin.model.dto.ScheduleUpdateDTO;
-import com.zestflow.admin.model.entity.ExecutorRegistryPO;
 import com.zestflow.admin.model.entity.ScheduleLogPO;
 import com.zestflow.admin.model.entity.SchedulePO;
 import com.zestflow.admin.model.vo.ScheduleLogStatsVO;
 import com.zestflow.admin.model.vo.ScheduleLogVO;
 import com.zestflow.admin.model.vo.ScheduleVO;
-import com.zestflow.admin.registry.RegistryLiveStore;
-import com.zestflow.admin.registry.RegistryOnlineQuerySupport;
-import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import com.zestflow.admin.repository.ScheduleLogMapper;
 import com.zestflow.admin.repository.ScheduleMapper;
-import com.zestflow.admin.schedule.ScheduleIdempotencyKeys;
+import com.zestflow.admin.schedule.ScheduleChainProxyService;
 import com.zestflow.admin.schedule.platform.PlatformJobRunner;
 import com.zestflow.admin.schedule.platform.ScheduleJobType;
-import com.zestflow.admin.schedule.ExecutorClient;
-import com.zestflow.admin.schedule.RouteStrategy;
-import com.zestflow.admin.schedule.ScheduleExecutorFailover;
 import com.zestflow.admin.service.ScheduleService;
 import com.zestflow.admin.service.TenantAppContext;
-import com.zestflow.common.constant.RegistryConstants;
 import com.zestflow.common.exception.BizException;
-import com.zestflow.common.model.dto.ChainExecuteResultDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -48,15 +37,15 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     private final ScheduleMapper scheduleMapper;
     private final ScheduleLogMapper scheduleLogMapper;
-    private final ExecutorRegistryMapper executorRegistryMapper;
-    private final RegistryLiveStore liveStore;
-    private final ExecutorClient executorClient;
     private final TenantAppContext tenantAppContext;
-    private final List<RouteStrategy> routeStrategies;
     private final PlatformJobRunner platformJobRunner;
+    private final ScheduleChainProxyService scheduleChainProxyService;
 
     @Override
     public IPage<ScheduleVO> list(String keyword, String jobType, Integer status, Integer page, Integer size) {
+        if (ScheduleJobType.CHAIN.equals(jobType)) {
+            return scheduleChainProxyService.list(resolvePrimaryAppCode(), keyword, status, page, size);
+        }
         LambdaQueryWrapper<SchedulePO> wrapper = new LambdaQueryWrapper<>();
         if (jobType != null && !jobType.isBlank()) {
             wrapper.eq(SchedulePO::getJobType, jobType);
@@ -86,98 +75,82 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     @Override
     public ScheduleVO getById(Long id) {
-        SchedulePO po = scheduleMapper.selectById(id);
-        if (po == null) {
-            throw new BizException(ErrorCode.SCHEDULE_NOT_FOUND);
+        SchedulePO platform = scheduleMapper.selectById(id);
+        if (platform != null && ScheduleJobType.PLATFORM.equals(platform.getJobType())) {
+            return toVO(platform);
         }
-        return toVO(po);
+        return scheduleChainProxyService.getById(resolveAppCodeForChainSchedule(id), id);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ScheduleVO create(ScheduleCreateDTO dto, String username) {
-        SchedulePO po = new SchedulePO();
-        po.setChainCode(dto.getChainCode());
-        po.setChainName(dto.getChainName());
-        po.setCron(dto.getCron());
-        po.setRouteStrategy(dto.getRouteStrategy() != null ? dto.getRouteStrategy() : "round_robin");
-        po.setParams(dto.getParams());
-        po.setStatus(1);
-        po.setRemark(dto.getRemark());
-        po.setCreatedBy(username);
-        po.setJobType(ScheduleJobType.CHAIN);
-        po.setScheduleKind("CRON");
-        po.setEditable(1);
-        po.setRemote(0);
-        po.setTenantId(tenantAppContext.getCurrentTenantId());
-        // 自动关联用户首个可访问应用（若无显式 appCode）
-        Set<String> accessibleCodes = tenantAppContext.getCurrentUserAppCodes();
-        if (accessibleCodes != null && !accessibleCodes.isEmpty()) {
-            po.setAppCode(accessibleCodes.iterator().next());
-        }
-
-        scheduleMapper.insert(po);
-
-        log.info("调度创建成功 scheduleId={} chainCode={} cron={}", po.getId(), dto.getChainCode(), dto.getCron());
-        return toVO(po);
+        return scheduleChainProxyService.create(resolvePrimaryAppCode(), dto, username);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ScheduleVO update(Long id, ScheduleUpdateDTO dto) {
         SchedulePO po = scheduleMapper.selectById(id);
-        if (po == null) {
-            throw new BizException(ErrorCode.SCHEDULE_NOT_FOUND);
+        if (po != null && ScheduleJobType.PLATFORM.equals(po.getJobType())) {
+            if (po.getEditable() != null && po.getEditable() == 0) {
+                throw new BizException(ErrorCode.SCHEDULE_NOT_FOUND, "平台内置任务不可编辑");
+            }
+            if (dto.getCron() != null) {
+                po.setCron(dto.getCron());
+            }
+            if (dto.getRouteStrategy() != null) {
+                po.setRouteStrategy(dto.getRouteStrategy());
+            }
+            if (dto.getParams() != null) {
+                po.setParams(dto.getParams());
+            }
+            if (dto.getRemark() != null) {
+                po.setRemark(dto.getRemark());
+            }
+            if (dto.getStatus() != null) {
+                po.setStatus(dto.getStatus());
+            }
+            scheduleMapper.updateById(po);
+            log.info("调度更新成功 scheduleId={}", id);
+            return toVO(po);
         }
-        if (ScheduleJobType.PLATFORM.equals(po.getJobType())) {
-            throw new BizException(ErrorCode.SCHEDULE_NOT_FOUND, "平台内置任务不可编辑");
-        }
-        if (dto.getCron() != null) po.setCron(dto.getCron());
-        if (dto.getRouteStrategy() != null) po.setRouteStrategy(dto.getRouteStrategy());
-        if (dto.getParams() != null) po.setParams(dto.getParams());
-        if (dto.getRemark() != null) po.setRemark(dto.getRemark());
-        if (dto.getStatus() != null) po.setStatus(dto.getStatus());
-
-        scheduleMapper.updateById(po);
-        log.info("调度更新成功 scheduleId={}", id);
-        return toVO(po);
+        return scheduleChainProxyService.update(resolveAppCodeForChainSchedule(id), id, dto);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
         SchedulePO po = scheduleMapper.selectById(id);
-        if (po == null) {
-            throw new BizException(ErrorCode.SCHEDULE_NOT_FOUND);
+        if (po != null && ScheduleJobType.PLATFORM.equals(po.getJobType())) {
+            if (po.getEditable() != null && po.getEditable() == 0) {
+                throw new BizException(ErrorCode.SCHEDULE_NOT_FOUND, "平台内置任务不可删除");
+            }
+            scheduleMapper.deleteById(id);
+            log.info("调度删除成功 scheduleId={} chainCode={}", id, po.getChainCode());
+            return;
         }
-        if (ScheduleJobType.PLATFORM.equals(po.getJobType())) {
-            throw new BizException(ErrorCode.SCHEDULE_NOT_FOUND, "平台内置任务不可删除");
-        }
-        scheduleMapper.deleteById(id);
-        log.info("调度删除成功 scheduleId={} chainCode={}", id, po.getChainCode());
+        scheduleChainProxyService.delete(resolveAppCodeForChainSchedule(id), id);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void toggleStatus(Long id) {
         SchedulePO po = scheduleMapper.selectById(id);
-        if (po == null) {
-            throw new BizException(ErrorCode.SCHEDULE_NOT_FOUND);
+        if (po != null && ScheduleJobType.PLATFORM.equals(po.getJobType())) {
+            int newStatus = po.getStatus() == 1 ? 0 : 1;
+            po.setStatus(newStatus);
+            scheduleMapper.updateById(po);
+            log.info("调度状态切换 scheduleId={} newStatus={}", id, newStatus);
+            return;
         }
-        int newStatus = po.getStatus() == 1 ? 0 : 1;
-        po.setStatus(newStatus);
-
-        scheduleMapper.updateById(po);
-        log.info("调度状态切换 scheduleId={} newStatus={}", id, newStatus);
+        scheduleChainProxyService.toggleStatus(resolveAppCodeForChainSchedule(id), id);
     }
 
     @Override
     public ScheduleLogVO trigger(Long id) {
         SchedulePO schedule = scheduleMapper.selectById(id);
-        if (schedule == null) {
-            throw new BizException(ErrorCode.SCHEDULE_NOT_FOUND);
-        }
-        if (ScheduleJobType.PLATFORM.equals(schedule.getJobType())) {
+        if (schedule != null && ScheduleJobType.PLATFORM.equals(schedule.getJobType())) {
             if (schedule.getRemote() != null && schedule.getRemote() == 1) {
                 throw new BizException(ErrorCode.SCHEDULE_NOT_FOUND, "节点本地任务请在对应节点查看执行状态");
             }
@@ -187,11 +160,21 @@ public class ScheduleServiceImpl implements ScheduleService {
                 throw new BizException(ErrorCode.SCHEDULE_NOT_FOUND, e.getMessage());
             }
         }
-        return doTrigger(schedule, "manual");
+        return scheduleChainProxyService.trigger(resolveAppCodeForChainSchedule(id), id);
     }
 
     @Override
     public IPage<ScheduleLogVO> listLogs(Long scheduleId, String jobType, String keyword, Integer status, Integer page, Integer size) {
+        if (ScheduleJobType.CHAIN.equals(jobType)) {
+            return scheduleChainProxyService.listLogs(resolvePrimaryAppCode(), scheduleId, keyword, status, page, size);
+        }
+        if (scheduleId != null) {
+            SchedulePO po = scheduleMapper.selectById(scheduleId);
+            if (po == null || !ScheduleJobType.PLATFORM.equals(po.getJobType())) {
+                return scheduleChainProxyService.listLogs(resolveAppCodeForChainSchedule(scheduleId),
+                        scheduleId, keyword, status, page, size);
+            }
+        }
         LambdaQueryWrapper<ScheduleLogPO> wrapper = new LambdaQueryWrapper<ScheduleLogPO>()
                 .eq(scheduleId != null, ScheduleLogPO::getScheduleId, scheduleId)
                 .eq(status != null, ScheduleLogPO::getStatus, status)
@@ -224,107 +207,27 @@ public class ScheduleServiceImpl implements ScheduleService {
         return voPage;
     }
 
-    public ScheduleLogVO doTrigger(SchedulePO schedule, String triggerType) {
-        String idempotencyKey = "manual".equals(triggerType)
-                ? ScheduleIdempotencyKeys.forManualTrigger(schedule.getId())
-                : null;
-        return doTrigger(schedule, triggerType, idempotencyKey);
-    }
-
-    /**
-     * 执行一次调度触发（供调度扫描与 trigger() 调用）
-     *
-     * @param idempotencyKey 幂等键；cron 扫描应传入 {@link ScheduleIdempotencyKeys#forCronFire}
-     */
-    public ScheduleLogVO doTrigger(SchedulePO schedule, String triggerType, String idempotencyKey) {
-        long startTime = System.currentTimeMillis();
-        LocalDateTime now = LocalDateTime.now();
-
-        // 1. 查找当前应用下的在线执行器
-        List<ExecutorRegistryPO> onlineExecutors = findOnlineExecutors(schedule.getAppCode());
-
-        ScheduleLogPO logPo = new ScheduleLogPO();
-        logPo.setScheduleId(schedule.getId());
-        logPo.setChainCode(schedule.getChainCode());
-        logPo.setTriggerType(triggerType);
-        logPo.setParams(schedule.getParams());
-        logPo.setTriggeredAt(now);
-        logPo.setStatus(0); // 运行中
-
-        if (onlineExecutors.isEmpty()) {
-            logPo.setStatus(2);
-            logPo.setErrorMessage("无可用在线执行器");
-            logPo.setCostMs(System.currentTimeMillis() - startTime);
-            scheduleLogMapper.insert(logPo);
-            log.warn("调度触发失败，无在线执行器 scheduleId={}", schedule.getId());
-            return toLogVO(logPo);
-        }
-
-        // 2. 路由 + failover 执行（对标 xxl-job 失败切换）
-        RouteStrategy strategy = findStrategy(schedule.getRouteStrategy());
-        @SuppressWarnings("unchecked")
-        Map<String, Object> params = parseParams(schedule.getParams());
-        ScheduleExecutorFailover.FailoverResult failover = ScheduleExecutorFailover.executeWithFailover(
-                onlineExecutors, strategy, schedule.getChainCode(), params, idempotencyKey, executorClient);
-
-        ExecutorRegistryPO target = failover.getExecutor();
-        ChainExecuteResultDTO result = failover.getResult();
-        if (target == null) {
-            logPo.setStatus(2);
-            logPo.setErrorMessage(result != null ? result.getErrorMessage() : "路由失败");
-            logPo.setCostMs(System.currentTimeMillis() - startTime);
-            scheduleLogMapper.insert(logPo);
-            return toLogVO(logPo);
-        }
-
-        logPo.setExecutorId(target.getExecutorId());
-        logPo.setExecutorAddress(target.getExecutorHost() + ":" + target.getExecutorPort());
-        logPo.setRouteStrategy(strategy.name());
-
-        // 3. 记录结果
-        long costMs = System.currentTimeMillis() - startTime;
-        logPo.setCostMs(costMs);
-        if (ScheduleExecutorFailover.isSuccess(result)) {
-            logPo.setStatus(1); // 成功
-        } else {
-            logPo.setStatus(2); // 失败
-            if (failover.getAttempted() > 1) {
-                log.warn("调度 failover 全部失败 scheduleId={} attempted={} lastError={}",
-                        schedule.getId(), failover.getAttempted(), result.getErrorMessage());
-            }
-        }
-        logPo.setErrorMessage(result.getErrorMessage());
-        if (result.getInstanceId() != null && !result.getInstanceId().isBlank()) {
-            logPo.setExecutionId(result.getInstanceId());
-        }
-        scheduleLogMapper.insert(logPo);
-
-        log.info("调度触发完成 scheduleId={} chainCode={} executor={}:{} status={} cost={}ms attempted={}",
-                schedule.getId(), schedule.getChainCode(),
-                target.getExecutorHost(), target.getExecutorPort(),
-                logPo.getStatus(), costMs, failover.getAttempted());
-
-        return toLogVO(logPo);
-    }
-
     @Override
     public ScheduleLogStatsVO getLogStats(Integer hours) {
         int windowHours = hours != null && hours > 0 ? hours : 24;
-        LocalDateTime since = LocalDateTime.now().minusHours(windowHours);
-        List<ScheduleLogPO> logs = scheduleLogMapper.selectList(
-                new LambdaQueryWrapper<ScheduleLogPO>()
-                        .ge(ScheduleLogPO::getTriggeredAt, since));
+        ScheduleLogStatsVO chainStats = scheduleChainProxyService.logStats(resolvePrimaryAppCode(), windowHours);
 
-        long total = logs.size();
-        long success = logs.stream().filter(l -> l.getStatus() != null && l.getStatus() == 1).count();
-        long failed = logs.stream().filter(l -> l.getStatus() != null && l.getStatus() == 2).count();
-        long running = logs.stream().filter(l -> l.getStatus() != null && l.getStatus() == 0).count();
+        LocalDateTime since = LocalDateTime.now().minusHours(windowHours);
+        List<ScheduleLogPO> platformLogs = scheduleLogMapper.selectList(
+                new LambdaQueryWrapper<ScheduleLogPO>()
+                        .ge(ScheduleLogPO::getTriggeredAt, since)
+                        .isNotNull(ScheduleLogPO::getJobKey));
+
+        long pTotal = platformLogs.size();
+        long pSuccess = platformLogs.stream().filter(l -> l.getStatus() != null && l.getStatus() == 1).count();
+        long pFailed = platformLogs.stream().filter(l -> l.getStatus() != null && l.getStatus() == 2).count();
+        long pRunning = platformLogs.stream().filter(l -> l.getStatus() != null && l.getStatus() == 0).count();
+
+        long total = chainStats.getTotalCount() + pTotal;
+        long success = chainStats.getSuccessCount() + pSuccess;
+        long failed = chainStats.getFailedCount() + pFailed;
+        long running = chainStats.getRunningCount() + pRunning;
         double rate = (success + failed) > 0 ? (double) success / (success + failed) * 100.0 : 0.0;
-        double avgCost = logs.stream()
-                .filter(l -> l.getCostMs() != null && l.getCostMs() > 0)
-                .mapToLong(ScheduleLogPO::getCostMs)
-                .average()
-                .orElse(0D);
 
         return ScheduleLogStatsVO.builder()
                 .totalCount(total)
@@ -332,29 +235,39 @@ public class ScheduleServiceImpl implements ScheduleService {
                 .failedCount(failed)
                 .runningCount(running)
                 .successRate(Math.round(rate * 10) / 10.0)
-                .avgCostMs(Math.round(avgCost * 10) / 10.0)
+                .avgCostMs(chainStats.getAvgCostMs())
                 .build();
     }
 
-    List<ExecutorRegistryPO> findOnlineExecutors(String appCode) {
-        return RegistryOnlineQuerySupport.listLiveOnlineExecutors(executorRegistryMapper, liveStore, appCode);
-    }
-
-    private RouteStrategy findStrategy(String name) {
-        for (RouteStrategy s : routeStrategies) {
-            if (s.name().equals(name)) return s;
+    private String resolvePrimaryAppCode() {
+        Set<String> codes = tenantAppContext.getCurrentUserAppCodes();
+        if (codes == null || codes.isEmpty()) {
+            throw new BizException(ErrorCode.SCHEDULE_NOT_FOUND, "无可用应用模块");
         }
-        return routeStrategies.get(0);
+        return codes.iterator().next();
     }
 
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> parseParams(String params) {
-        if (params == null || params.isBlank()) return Collections.emptyMap();
+    private String resolveAppCodeForChainSchedule(Long scheduleId) {
+        String primary = resolvePrimaryAppCode();
         try {
-            return new com.fasterxml.jackson.databind.ObjectMapper().readValue(params, Map.class);
-        } catch (Exception e) {
-            log.warn("解析调度参数失败，使用空参数", e);
-            return Collections.emptyMap();
+            scheduleChainProxyService.getById(primary, scheduleId);
+            return primary;
+        } catch (BizException e) {
+            Set<String> codes = tenantAppContext.getCurrentUserAppCodes();
+            if (codes != null) {
+                for (String code : codes) {
+                    if (code.equals(primary)) {
+                        continue;
+                    }
+                    try {
+                        scheduleChainProxyService.getById(code, scheduleId);
+                        return code;
+                    } catch (BizException ignored) {
+                        // try next app
+                    }
+                }
+            }
+            throw e;
         }
     }
 

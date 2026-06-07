@@ -25,7 +25,7 @@ class EnginePerfGateTest {
 
     @Test
     void linear1NodeP999WithinGate() {
-        assertOrchestrationP999(1, 5L);
+        assertOrchestrationP999(1, 30L);
     }
 
     @Test

@@ -322,7 +322,7 @@ const isEditing = ref(false)
 const editingId = ref<number | null>(null)
 const submitting = ref(false)
 const formRef = ref<any>(null)
-const form = reactive({ chainCode: '', chainName: '', cron: '', routeStrategy: 'round_robin', remark: '' })
+const form = reactive({ chainCode: '', chainName: '', cron: '', routeStrategy: 'local', remark: '' })
 const chainOptions = ref<ChainVO[]>([])
 const { options: routeStrategyOptions } = useDict('route_strategy')
 const { dictOptions: enableStatusOptions, labelOf: enableStatusLabel, tagTypeOf: enableStatusTagType } = useDictLabel('enable_status')
@@ -437,7 +437,7 @@ function resetForm() {
   form.chainCode = ''
   form.chainName = ''
   form.cron = ''
-  form.routeStrategy = 'round_robin'
+  form.routeStrategy = 'local'
   form.remark = ''
 }
 
@@ -459,7 +459,7 @@ async function showEdit(row: ScheduleVO) {
   form.chainCode = row.chainCode
   form.chainName = row.chainName
   form.cron = row.cron
-  form.routeStrategy = row.routeStrategy || 'round_robin'
+  form.routeStrategy = row.routeStrategy || 'local'
   form.remark = row.remark || ''
   dialogVisible.value = true
 }

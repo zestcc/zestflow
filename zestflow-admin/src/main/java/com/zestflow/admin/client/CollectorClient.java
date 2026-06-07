@@ -230,6 +230,36 @@ public class CollectorClient {
         return null;
     }
 
+    /**
+     * 触发 Collector 侧 SLA 扫描（手动 / 黑盒）。
+     */
+    public String triggerSlaScan() {
+        String baseUrl = resolveBaseUrl();
+        if (baseUrl == null) {
+            return "scopes=0 alerts=0 emails=0 error=no-collector";
+        }
+        try {
+            String url = baseUrl + "/collector/alerts/scan";
+            HttpEntity<Void> entity = new HttpEntity<>(buildHeaders());
+            @SuppressWarnings("unchecked")
+            Map<String, Object> body = restTemplate.exchange(url, HttpMethod.POST, entity, Map.class).getBody();
+            if (body == null) {
+                return "scopes=0 alerts=0 emails=0";
+            }
+            Object data = body.get("data");
+            if (data instanceof String s) {
+                return s;
+            }
+            if (data instanceof Map<?, ?> map && map.get("summary") != null) {
+                return String.valueOf(map.get("summary"));
+            }
+            return String.valueOf(data);
+        } catch (Exception e) {
+            log.error("触发 Collector SLA 扫描失败", e);
+            return "scopes=0 alerts=0 emails=0 error=" + e.getMessage();
+        }
+    }
+
     private String buildUrl(CollectorRegistryVO vo) {
         return protocol + "://" + vo.getCollectorHost() + ":" + vo.getCollectorPort();
     }
