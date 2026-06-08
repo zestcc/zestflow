@@ -1,6 +1,6 @@
 # 快速入门
 
-> **版本** 0.1.0 · **更新** 2026-06-08 · **预计耗时** 30 分钟
+> **版本** 0.1.0 · **更新** 2026-06-08 · **预计耗时** 30 分钟 · [English](GETTING_STARTED.en.md)
 
 本教程带你从零在本地运行 ZestFlow，并完成第一次链执行。完成后你将理解 Admin、Executor、Collector 三端协作关系。
 
@@ -67,6 +67,7 @@ mvn spring-boot:run -pl zestflow-demo -Dspring-boot.run.profiles=local
 - Admin 日志出现 Flyway migrate 成功
 - Demo 日志出现 `Executor register success` 与 Collector 注册信息
 - 浏览器访问 http://localhost:8080 ，默认账号 `admin` / `admin123`（仅本地开发）
+- （可选）OpenAPI 文档 http://localhost:8080/swagger-ui.html（local profile 开启 springdoc UI）
 
 ---
 

@@ -1,6 +1,6 @@
 # ZestFlow 项目总结文档
 
-> **版本** 0.1.0 · **更新** 2026-06-08 · **类型** Explanation  
+> **版本** 0.1.0 · **更新** 2026-06-08 · **类型** Explanation · [English](PROJECT_SUMMARY.en.md)
 > 执行引擎与元件体系概要。完整架构见 [ARCHITECTURE.md](ARCHITECTURE.md)。
 
 ## 一、项目概述

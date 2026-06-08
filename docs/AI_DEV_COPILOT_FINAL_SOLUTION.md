@@ -1,6 +1,6 @@
 # ZestFlow 开发态 AI 辅助：最终方案
 
-> **文档类型** 架构决策 / 最终方案（Final Solution）  
+> **文档类型** 架构决策 / 最终方案（Final Solution） · [English](AI_DEV_COPILOT_FINAL_SOLUTION.en.md)
 > **版本** 1.4 · **更新** 2026-06-07 · **状态** **已采纳 · Phase 1～3 已完成（含 Chain-first 学习 + `--init-dev`）**  
 > **前置阅读** [AI_DEV_COPILOT_ACADEMIC_SUMMARY.md](./AI_DEV_COPILOT_ACADEMIC_SUMMARY.md)  
 > **关联** [AI_COPILOT.md](./AI_COPILOT.md)（编排 Copilot，已实现）· [MCP_SETUP.md](./MCP_SETUP.md)（安装手册）

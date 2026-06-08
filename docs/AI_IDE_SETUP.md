@@ -1,6 +1,6 @@
 # ZestFlow AI 辅助开发 — 全 IDE 接入指南
 
-> **版本** 1.0 · **更新** 2026-06-08 · **类型** Tutorial · [← 文档中心](README.md)  
+> **版本** 1.0 · **更新** 2026-06-08 · **类型** Tutorial · [← 文档中心](README.md) · [English](AI_IDE_SETUP.en.md)
 > **定位** 一套 `zestflow-mcp.jar` 适配市面主流 AI 编程场景  
 > **关联** [MCP_SETUP.md](MCP_SETUP.md) · [AI_COPILOT.md](AI_COPILOT.md) · [guides/COMPONENT_DEVELOPMENT.md](guides/COMPONENT_DEVELOPMENT.md)
 

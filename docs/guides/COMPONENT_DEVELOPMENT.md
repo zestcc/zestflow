@@ -1,6 +1,6 @@
 # 元件开发指南
 
-> **版本** 0.1.0 · **更新** 2026-06-08 · **类型** How-to Guide
+> **版本** 0.1.0 · **更新** 2026-06-08 · **类型** How-to Guide · [English](COMPONENT_DEVELOPMENT.en.md)
 
 本指南说明如何在 Spring Boot 业务项目中编写 ZestFlow 元件（Component），并在 Admin 中被扫描、编排与执行。
 
@@ -35,27 +35,41 @@
 
 ---
 
-## 3. 基础示例
+## 3. 基础示例（来自 zestflow-demo）
 
 ```java
-@Component
+@Slf4j
 @ZestComponent("order")
 public class OrderHandler {
 
     @ZestExecute(value = "createOrder", name = "创建订单")
-    public OrderResult createOrder(
-            @ZestParam(value = "userId", required = true) String userId,
-            @ZestParam(value = "amount", required = true) Double amount) {
-        // 业务逻辑
-        return new OrderResult("ORD-" + System.currentTimeMillis(), amount);
+    public OrderResults.OrderCreatedResult createOrder(
+            @ZestParam(value = "userId", defaultValue = "U001") String userId,
+            @ZestParam(value = "productId", defaultValue = "PROD-DEMO") String productId,
+            @ZestParam(value = "quantity", defaultValue = "1") int quantity,
+            @ZestParam(value = "amount", defaultValue = "99.9") double amount) {
+        String orderId = "ORD-" + System.currentTimeMillis();
+        log.info("创建订单 userId={} orderId={}", userId, orderId);
+        return new OrderResults.OrderCreatedResult(orderId, amount);
     }
 
-    @ZestPredicate("isVip")
-    public boolean isVip(@ZestParam("userId") String userId) {
-        return userId.startsWith("VIP");
+    @ZestPredicate(value = "auditAfterSale", name = "售后审核")
+    @ZestTag(name = "同意", value = "true")
+    public boolean auditAfterSale(@ZestParam("applyId") String applyId) {
+        return true;
     }
 }
 ```
+
+**试跑（Netty）：**
+
+```bash
+curl -X POST http://localhost:20550/execute \
+  -H "Content-Type: application/json" \
+  -d '{"chainCode":"YOUR_CHAIN_CODE","params":{"userId":"U001","amount":99.9}}'
+```
+
+响应字段见 [API.md](../reference/API.md) §2.1。
 
 **约定：**
 

@@ -36,6 +36,8 @@ public class SecurityConfig {
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                // OpenAPI 文档（生产 profile 通过 springdoc.*.enabled=false 关闭）
+                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 // 用户认证相关（登录/注册/找回密码等）
                 .requestMatchers(AdminApiPaths.of("/auth/**"), "/uploads/**").permitAll()
                 .requestMatchers(AdminApiPaths.of("/public/**")).permitAll()

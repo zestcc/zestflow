@@ -1,6 +1,6 @@
 # 外部调度接入（xxl-job / SPI external）
 
-> **版本** 0.1.0 · **更新** 2026-06-08 · **类型** ADR · [← 文档中心](../README.md)
+> **版本** 0.1.0 · **更新** 2026-06-08 · **类型** ADR · [← 文档中心](../README.md) · [English](SCHEDULING_SPI_XXLJOB.en.md)
 
 ZestFlow 默认使用 **EmbeddedScheduleDriver**（Executor 读业务库 `zf_schedule` 本地 Cron）。
 

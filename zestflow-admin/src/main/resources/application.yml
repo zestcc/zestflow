@@ -179,6 +179,19 @@ management:
       percentiles:
         zestflow.chain.duration: 0.5,0.95,0.99,0.999
 
+# OpenAPI 3（springdoc）；静态导出见 scripts/docs/export-openapi.ps1
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: false
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  show-actuator: false
+  packages-to-scan: com.zestflow.admin
+
 logging:
   level:
     # 生产环境建议 info，本地开发在 application-local.yml 中覆盖为 debug

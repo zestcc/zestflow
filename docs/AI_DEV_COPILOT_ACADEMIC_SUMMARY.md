@@ -1,6 +1,6 @@
 # ZestFlow 开发态 AI 辅助体系：学术型总结
 
-> **文档类型** 架构研讨总结（Academic Summary）  
+> **文档类型** 架构研讨总结（Academic Summary） · [English](AI_DEV_COPILOT_ACADEMIC_SUMMARY.en.md)
 > **版本** 1.0 · **日期** 2026-06-02  
 > **来源** 产品/架构对话纪要（Admin Hub 模型、Dev Bridge、MCP 路线）  
 > **关联** [AI_COPILOT.md](./AI_COPILOT.md)（已实现编排 Copilot）、[AI_DEV_COPILOT_FINAL_SOLUTION.md](./AI_DEV_COPILOT_FINAL_SOLUTION.md)（最终方案）

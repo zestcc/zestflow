@@ -1,7 +1,7 @@
 # 配置参考
 
-> **版本** 0.1.0 · **更新** 2026-06-08 · **类型** Reference  
-> **源码权威来源**：各模块 `src/main/resources/application.yml` 及 `*Properties.java`
+> **版本** 0.1.0 · **更新** 2026-06-08 · **类型** Reference · [← 文档中心](../README.md) · [English](CONFIGURATION.en.md)
+> **源码权威来源**：各模块 `application.yml` + `*Properties.java`
 
 本文档汇总 ZestFlow 主要配置前缀。业务项目只需覆盖 `zestflow.executor.*` 与 `zestflow.collector.*`；Admin 部署见 `zestflow.admin.*`。
 
@@ -40,6 +40,12 @@
 | `execute-response-mode` | `BODY` | Tomcat 成功响应：BODY / DETAIL |
 | `execute-failure-policy` | `PROPAGATE` | PROPAGATE / ERROR_HANDLER / WRAPPED |
 | `timeout-ms` | `5000` | 注册/心跳 HTTP 超时 |
+| `tenant-id` | `1` | 租户 ID |
+| `data-dir` | `./zestflow-data` | 链/设计/AI 知识库目录 |
+| `idempotency-enabled` | `true` | `/execute` 幂等去重 |
+| `idempotency-ttl-ms` | `300000` | 幂等缓存 TTL |
+| `shard-index` / `shard-total` | `0` / `1` | Cron 分片 |
+| `ai-localhost-only` | `true` | 无 accessToken 时 AI API 仅本机 |
 
 ### zestflow.executor.chain.*
 
@@ -71,9 +77,21 @@
 | 属性 | 默认 | 说明 |
 |------|------|------|
 | `enabled` | `true` | Executor 侧调度开关 |
-| `poll-interval-ms` | `1000` | 调度轮询 |
+| `driver` | `embedded` | `embedded` / `xxl-job` / `noop` |
+| `poll-interval-ms` | `15000` | 调度扫描间隔 |
 
-详见 [adr/SCHEDULING.md](../adr/SCHEDULING.md)。
+### zestflow.executor.ai.*
+
+| 属性 | 默认 | 说明 |
+|------|------|------|
+| `llm-enabled` | `false` | Executor 侧 LLM suggest |
+| `base-url` | `http://localhost:11434/v1` | OpenAI 兼容 API |
+| `model` | `llama3.2` | 模型名 |
+| `rag-mode` | `hybrid` | RAG 检索模式 |
+| `temperature` | `0.2` | 生成温度 |
+| `repair-max-rounds` | `2` | validate 失败修复轮次 |
+
+详见 [adr/SCHEDULING.md](../adr/SCHEDULING.md)、[AI_CHAIN_LEARNING.md](../AI_CHAIN_LEARNING.md)。
 
 ---
 
@@ -85,7 +103,9 @@
 | `registry.port` | `9998`（模块默认）；Demo/生产推荐 `20650` | Collector Netty 端口 |
 | `registry.admin-addresses` | 同 executor | Admin 注册地址 |
 | `access-token` | 空 | Admin 查询 `X-Collector-Token` |
-| `api-url` | — | 独立 Collector 时的 API 基址 |
+| `batch-size` | `200` | 批量写入大小 |
+| `queue-capacity` | `8192` | 异步队列容量 |
+| `async-enabled` | `true` | 异步采集开关 |
 
 Kafka / RabbitMQ 实现见 `zestflow.collector.kafka.topic`、`zestflow.collector.rabbitmq.exchange`。
 

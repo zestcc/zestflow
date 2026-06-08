@@ -147,6 +147,13 @@ logging:
   level:
     com.zestflow: info
 
+# 生产环境关闭 OpenAPI（AdminProductionGuard 强制校验）
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
 # Redis（多 Admin 副本 deploy-mode=cluster 时启用，须 mvn -Pcluster 构建）：
 # spring.data.redis.host / port / password
 # zestflow.admin.deploy-mode: cluster

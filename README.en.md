@@ -39,18 +39,19 @@ Personal open-source project, currently **v0.1.0**, published on [Maven Central]
 
 ## Documentation
 
-**[📖 Documentation hub](docs/README.md)** — full index (Tutorial / How-to / Reference)
+**[📖 Documentation hub (English)](docs/README.en.md)** · [简体中文文档中心](docs/README.en.md) — full index (Tutorial / How-to / Reference). All **35** articles are available in Chinese and English.
 
 | Scenario | Document |
 |----------|----------|
-| Get running in 30 min | [Getting started](docs/GETTING_STARTED.md) |
-| Architecture | [ARCHITECTURE.md](docs/ARCHITECTURE.md) |
-| Components & chains | [Component guide](docs/guides/COMPONENT_DEVELOPMENT.md) · [Chain orchestration](docs/guides/CHAIN_ORCHESTRATION.md) |
-| Configuration | [Configuration reference](docs/reference/CONFIGURATION.md) · [Glossary](docs/reference/GLOSSARY.md) |
-| Production deploy | [DEPLOY.md](docs/DEPLOY.md) |
-| AI integration | [AI_COPILOT.md](docs/AI_COPILOT.md) · [MCP_SETUP.md](docs/MCP_SETUP.md) |
-| Contributing | [CONTRIBUTING.md](CONTRIBUTING.md) |
-| Changelog | [CHANGELOG.md](CHANGELOG.md) |
+| Get running in 30 min | [Getting started](docs/GETTING_STARTED.en.md) |
+| Full catalog (bilingual) | [CATALOG.en.md](docs/CATALOG.en.md) |
+| Architecture | [ARCHITECTURE.en.md](docs/ARCHITECTURE.en.md) |
+| Components & chains | [Component guide](docs/guides/COMPONENT_DEVELOPMENT.en.md) · [Chain orchestration](docs/guides/CHAIN_ORCHESTRATION.en.md) |
+| Configuration | [Configuration reference](docs/reference/CONFIGURATION.en.md) · [API](docs/reference/API.en.md) · [OpenAPI](docs/reference/OPENAPI.en.md) |
+| Production deploy | [DEPLOY.en.md](docs/DEPLOY.en.md) |
+| AI integration | [AI_COPILOT.en.md](docs/AI_COPILOT.en.md) · [MCP_SETUP.en.md](docs/MCP_SETUP.en.md) |
+| Contributing | [CONTRIBUTING.en.md](CONTRIBUTING.en.md) |
+| Changelog | [CHANGELOG.en.md](CHANGELOG.en.md) |
 
 ## Features
 
@@ -88,7 +89,7 @@ Business app (Spring Boot)
     └── Collector (:20650)  collect events → MySQL
 ```
 
-Admin does not own your chain data — it governs and proxies. Chain definitions, designs, and events live in three MySQL schemas on the business side. See [ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Admin does not own your chain data — it governs and proxies. Chain definitions, designs, and events live in three MySQL schemas on the business side. See [ARCHITECTURE.md](docs/ARCHITECTURE.en.md).
 
 ## Quick start
 

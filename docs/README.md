@@ -1,8 +1,8 @@
 # ZestFlow 文档中心
 
-> **版本** 0.1.0 · **更新** 2026-06-08 · **完整清单** [CATALOG.md](CATALOG.md) · **维护规范** [DOCUMENTATION_MAINTENANCE.md](DOCUMENTATION_MAINTENANCE.md)
+> **版本** 0.1.0 · **更新** 2026-06-08 · **语言** 简体中文 · [English](README.en.md) · **完整清单** [CATALOG.md](CATALOG.md) · **维护规范** [DOCUMENTATION_MAINTENANCE.md](DOCUMENTATION_MAINTENANCE.md)
 
-欢迎查阅 ZestFlow 官方文档（共 **30** 篇，见 [完整清单](CATALOG.md)）。采用 [Diátaxis](https://diataxis.fr/) 框架组织。
+欢迎查阅 ZestFlow 官方文档（共 **35** 篇，见 [完整清单](CATALOG.md)）。每篇均提供 [English](README.en.md) 镜像。采用 [Diátaxis](https://diataxis.fr/) 框架组织。
 
 ---
 
@@ -27,7 +27,6 @@
 |------|------|
 | [GETTING_STARTED.md](GETTING_STARTED.md) | 本地环境 → Admin/Demo → Playground 首跑 |
 | [MCP_SETUP.md](MCP_SETUP.md) | Dev MCP 安装、`--init-dev`、Cursor 配置 |
-| [AI_IDE_SETUP.md](AI_IDE_SETUP.md) | Cursor / Claude / VS Code 等全 IDE 接入对照 |
 | [AI_IDE_SETUP.md](AI_IDE_SETUP.md) | Cursor / Claude / VS Code / Windsurf 全场景 MCP |
 
 ---
@@ -61,11 +60,21 @@
 
 ## Reference（参考 · 查阅导向）
 
+与源码同步维护的 API / 注解 / 配置专篇。
+
 | 文档 | 说明 |
 |------|------|
-| [QUICK_REFERENCE.md](QUICK_REFERENCE.md) | 注解、常量、核心 API |
+| [QUICK_REFERENCE.md](QUICK_REFERENCE.md) | 速查表（摘要 + 链到专篇） |
+| [reference/API.md](reference/API.md) | Admin REST + Netty 接口、参数、返回值 |
+| [reference/OPENAPI.md](reference/OPENAPI.md) | OpenAPI 3 / Swagger UI / 静态导出 |
+| [openapi/admin-api.json](openapi/admin-api.json) | Admin API 机器可读规范快照 |
+| [reference/ANNOTATIONS.md](reference/ANNOTATIONS.md) | 全部注解属性与示例 |
+| [reference/EXECUTION_ENGINE.md](reference/EXECUTION_ENGINE.md) | ChainExecutionEngine 编程 API |
+| [reference/SPI.md](reference/SPI.md) | EventCollector、ScheduleDriver 扩展 |
 | [reference/CONFIGURATION.md](reference/CONFIGURATION.md) | `zestflow.*` 配置项 |
-| [reference/GLOSSARY.md](reference/GLOSSARY.md) | 术语表（中英文） |
+| [reference/GLOSSARY.md](reference/GLOSSARY.md) | 术语表 |
+| [reference/OPENAPI.md](reference/OPENAPI.md) | OpenAPI 3 / Swagger UI / 导出 |
+| [openapi/README.md](openapi/README.md) | 规范快照目录 |
 | [CHANGELOG.md](../CHANGELOG.md) | 版本变更 |
 
 ---
@@ -105,7 +114,7 @@ AI_COPILOT.md（主方案）
 | [PUBLISH_HANDOFF.md](PUBLISH_HANDOFF.md) | Maven Central 发版交接 |
 | [AUDIT_REPORT.md](AUDIT_REPORT.md) | 代码审计与文档质量报告 |
 | [DOCUMENTATION_MAINTENANCE.md](DOCUMENTATION_MAINTENANCE.md) | 文档更新机制 |
-| [CATALOG.md](CATALOG.md) | **全部 30 篇文档索引** |
+| [CATALOG.md](CATALOG.md) | **全部 35 篇文档索引** |
 
 ---
 
@@ -171,7 +180,8 @@ flowchart TB
 
 | 维度 | 标准 |
 |------|------|
-| **完整性** | 30 篇全部纳入 [CATALOG.md](CATALOG.md)；含 AI / 验收 / ADR 专项 |
+| **完整性** | 35 篇全部纳入 [CATALOG.md](CATALOG.md)；Reference 专篇与源码对齐 |
+| **双语** | 每篇用户文档均有 `*.en.md`；头部 `[English]` / `[简体中文]` 互链 |
 | **准确性** | 配置与代码同步；专项长文以代码实现为准定期复核 |
 | **清晰度** | Diátaxis 分类 + AI 阅读路径 |
 | **实用性** | 验收文档绑定 `scripts/blackbox/` 脚本 |

@@ -1,6 +1,6 @@
 # ZestFlow 公网部署指南
 
-> **版本** 0.1.0 · **更新** 2026-06-08 · **类型** How-to · [← 文档中心](README.md)  
+> **版本** 0.1.0 · **更新** 2026-06-08 · **类型** How-to · [← 文档中心](README.md) · [English](DEPLOY.en.md)
 > 适用：**个人开源项目 v0.1.0** 单机/小规模公网部署。对标 xxl-job「调度中心 + 执行器内网隔离」模型。
 
 ---
@@ -112,6 +112,7 @@ java -jar zestflow-admin\target\zestflow-admin-0.1.0.jar --spring.profiles.activ
 - 三台机器令牌已配置且 ≥16 字符
 - JWT 非 dev 默认值
 - 禁止 `admin123`、禁止 `playground.enabled=true`、禁止 `ip-demo-mode=enabled`
+- 禁止 `springdoc.api-docs.enabled=true`、`springdoc.swagger-ui.enabled=true`（`AdminProductionGuard` 强制）
 
 ### 2.4 业务应用（Executor + Collector 嵌入式）
 

@@ -63,6 +63,16 @@ public class AdminProductionGuard {
             failed = true;
         }
 
+        if (Boolean.TRUE.equals(environment.getProperty("springdoc.swagger-ui.enabled", Boolean.class, Boolean.FALSE))) {
+            log.error("[prod] springdoc.swagger-ui.enabled 必须为 false（公网勿暴露 API 调试 UI）");
+            failed = true;
+        }
+
+        if (Boolean.TRUE.equals(environment.getProperty("springdoc.api-docs.enabled", Boolean.class, Boolean.TRUE))) {
+            log.error("[prod] springdoc.api-docs.enabled 必须为 false（公网勿暴露 OpenAPI JSON）");
+            failed = true;
+        }
+
         if (!Boolean.TRUE.equals(environment.getProperty("spring.flyway.enabled", Boolean.class))) {
             log.error("[prod] spring.flyway.enabled 必须为 true（表结构由 Flyway db/migration 维护）");
             failed = true;

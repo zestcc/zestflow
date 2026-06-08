@@ -1,5 +1,7 @@
 # 贡献指南
 
+> **语言** 简体中文 · [English](CONTRIBUTING.en.md)
+
 感谢你对 ZestFlow 的关注。本文说明如何参与代码与文档贡献。
 
 ---

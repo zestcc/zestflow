@@ -1,6 +1,6 @@
 # ZestFlow MCP 开发助手安装指南
 
-> **版本** 0.1.0 · **更新** 2026-06-08 · **类型** Tutorial · [← 文档中心](README.md)  
+> **版本** 0.1.0 · **更新** 2026-06-08 · **类型** Tutorial · [← 文档中心](README.md) · [English](MCP_SETUP.en.md)
 > **适用** Cursor、Claude Desktop、Claude Code、VS Code / Cline、Windsurf 等任意 MCP 客户端  
 > **全场景对照** [AI_IDE_SETUP.md](./AI_IDE_SETUP.md) · **架构** [AI_DEV_COPILOT_FINAL_SOLUTION.md](./AI_DEV_COPILOT_FINAL_SOLUTION.md)  
 > **对标** [Model Context Protocol](https://modelcontextprotocol.io)、[Supabase MCP](https://github.com/supabase-community/supabase-mcp)、[Stripe MCP](https://github.com/stripe/agent-toolkit)

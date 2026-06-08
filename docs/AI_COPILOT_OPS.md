@@ -1,6 +1,6 @@
 # ZestFlow Copilot 运维指南
 
-> **版本** 1.1 · **更新** 2026-06-06 · **类型** How-to · [← 文档中心](README.md) · 配合 [AI_COPILOT.md](./AI_COPILOT.md) P5 使用
+> **版本** 1.1 · **更新** 2026-06-06 · **类型** How-to · [← 文档中心](README.md) · 配合 [AI_COPILOT.md](./AI_COPILOT.md) P5 使用 · [English](AI_COPILOT_OPS.en.md)
 
 本文面向平台运维与租户管理员，说明 AI 预设维护、租户 RAG 知识库、用量看板与常见部署配置。
 

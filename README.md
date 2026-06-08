@@ -39,19 +39,19 @@ ZestFlow 是一个面向 Spring Boot 的业务流程编排引擎，把 Service �
 
 ## 文档
 
-**[📖 文档中心](docs/README.md)** — 完整索引（Tutorial / How-to / Reference）
+**[📖 文档中心](docs/README.md)** · **[English hub](docs/README.en.md)** — 完整索引（Tutorial / How-to / Reference）。**35 篇**用户文档均提供中英文版本。
 
 | 场景 | 文档 |
 |------|------|
-| 本地 30 分钟跑通 | [快速入门](docs/GETTING_STARTED.md) |
-| **全部 30 篇文档索引** | **[文档中心](docs/README.md)** · **[完整清单](docs/CATALOG.md)** |
-| 架构与设计 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| 本地 30 分钟跑通 | [快速入门](docs/GETTING_STARTED.md) · [EN](docs/GETTING_STARTED.en.md) |
+| **全部文档索引** | **[完整清单](docs/CATALOG.md)** · **[EN](docs/CATALOG.en.md)** |
+| 架构与设计 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) · [EN](docs/ARCHITECTURE.en.md) |
 | 写元件 / 建链 | [元件开发](docs/guides/COMPONENT_DEVELOPMENT.md) · [链编排](docs/guides/CHAIN_ORCHESTRATION.md) |
-| 配置查阅 | [配置参考](docs/reference/CONFIGURATION.md) · [术语表](docs/reference/GLOSSARY.md) |
+| 配置查阅 | [配置参考](docs/reference/CONFIGURATION.md) · [API](docs/reference/API.md) · [OpenAPI](docs/reference/OPENAPI.md) |
 | 公网部署 | [DEPLOY.md](docs/DEPLOY.md) |
 | AI 集成 | [AI_COPILOT.md](docs/AI_COPILOT.md) · [MCP_SETUP.md](docs/MCP_SETUP.md) |
-| 参与贡献 | [CONTRIBUTING.md](CONTRIBUTING.md) |
-| 变更记录 | [CHANGELOG.md](CHANGELOG.md) |
+| 参与贡献 | [CONTRIBUTING.md](CONTRIBUTING.md) · [EN](CONTRIBUTING.en.md) |
+| 变更记录 | [CHANGELOG.md](CHANGELOG.md) · [EN](CHANGELOG.en.md) |
 
 ## 特性
 

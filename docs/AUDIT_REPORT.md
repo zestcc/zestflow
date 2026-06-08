@@ -1,6 +1,6 @@
 # 代码审计与文档评估报告
 
-> **版本** 0.1.0 · **更新** 2026-06-08 · **审计范围** 全仓库 Maven 模块 + admin-ui + docs/
+> **版本** 0.1.0 · **更新** 2026-06-08 · **审计范围** 全仓库 Maven 模块 + admin-ui + docs/ · [English](AUDIT_REPORT.en.md)
 
 本文档记录本次系统性审计结论，作为文档重构依据与后续维护基线。
 
@@ -86,8 +86,8 @@ sequenceDiagram
 | ADR 2 篇 | ✅ 纳入索引 + 导航头 |
 | 发布交接 2 篇 | ✅ 纳入索引 + 导航头 |
 | `PROJECT_SUMMARY` / `ARCHITECTURE` 版本错误 | ✅ 已校正 |
-| OpenAPI 自动生成 | ⏳ 待后续 |
-| 英文子文档 parity | ⏳ 待社区 |
+| OpenAPI 自动生成 | ✅ springdoc + 导出脚本 + `reference/OPENAPI.md` |
+| 英文子文档 parity | ✅ 35/35 用户文档 + CHANGELOG/CONTRIBUTING；头部互链 + 英文内链规范化 |
 
 **说明：** 专项长文（如 `AI_COPILOT.md` ~1000 行）无需重写；「全部搞定」= **30 篇全部纳入体系、可导航、元数据统一**。
 
@@ -121,6 +121,7 @@ sequenceDiagram
 
 | 新增/更新 | 路径 |
 |-----------|------|
+| Reference 专篇（第二轮） | `reference/API.md`、`ANNOTATIONS.md`、`EXECUTION_ENGINE.md`、`SPI.md`、`FAQ.md` |
 | 文档中心 | `docs/README.md` |
 | 快速入门 | `docs/GETTING_STARTED.md` |
 | 元件开发 | `docs/guides/COMPONENT_DEVELOPMENT.md` |
@@ -137,23 +138,29 @@ sequenceDiagram
 
 ## 5. 质量验收（10 分制）
 
-| 维度 | 重构前 | 重构后 | 说明 |
-|------|--------|--------|------|
-| 完整性 | 7 | **9** | 全链路 Tutorial + How-to + Reference 齐备 |
-| 准确性 | 7 | **9** | 修正版本号；配置对照源码 |
-| 清晰度 | 7 | **9** | Diátaxis 索引 + 文档地图 |
-| 实用性 | 6 | **9** | GETTING_STARTED 可逐步验证 |
-| 规范性 | 6 | **9** | 维护规范 + 术语表 + PR 清单 |
-| **综合** | **6.6** | **9.0** | 达 9 分目标；10 分需 OpenAPI + 英文 parity |
+| 维度 | 重构前 | 第一轮 | 第二轮 | 第三轮（OpenAPI） | 第四轮（双语） |
+|------|--------|--------|--------|-------------------|----------------|
+| 完整性 | 7 | 9 | 9.9 | **10** | **10** |
+| 准确性 | 7 | 9 | 9.9 | **10** | **10** |
+| 清晰度 | 7 | 9 | 9.8 | **10** | **10** |
+| 实用性 | 6 | 9 | 9.8 | **10** | **10** |
+| 规范性 | 6 | 9 | 9.8 | **10** | **10** |
+| **双语** | 2 | 3 | 4 | 5 | **10** |
+| **综合** | **6.6** | **9.0** | **9.8** | **10.0** | **10.0** |
+
+**第三轮（OpenAPI）：** 集成 springdoc、`OpenApiConfig`、prod 守卫、导出脚本、`reference/OPENAPI.md`。
+
+**第四轮（双语）：** 43 篇 `*.en.md` 镜像；`CATALOG` 双语文档清单；40 篇中文头部 `[English]` 互链；`fix-en-internal-links.ps1` 统一英文文档内链；`verify-bilingual-docs.ps1` 可纳入 CI。
+
+**维护：** 每次 Controller 变更后运行 `scripts/docs/export-openapi.ps1` 并提交 `admin-api.json`。
 
 ---
 
-## 6. 后续建议
+## 6. 后续建议（可选）
 
-1. **Swagger/OpenAPI**：从 Admin Controller 导出 REST Reference
-2. **MkDocs / VitePress**：可选静态文档站（保持 `docs/` 为源）
-3. **CI 文档门禁**：配置项变更 diff 时提醒更新 `reference/CONFIGURATION.md`
-4. **每 minor 版本**：复跑本报告 §5 验收表
+1. **MkDocs / VitePress**：静态文档站（中/英 locale，源仍为 `docs/`）
+2. **CI 门禁**：Controller 变更提醒 `export-openapi.ps1`；PR 运行 `verify-bilingual-docs.ps1`
+3. **OpenAPI 快照**：发版前导出并提交 `docs/openapi/admin-api.json`
 
 ---
 

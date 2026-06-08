@@ -59,3 +59,8 @@ mybatis-plus:
 logging:
   level:
     com.zestflow: debug
+
+# 本地开发开启 Swagger UI（http://localhost:8080/swagger-ui.html）
+springdoc:
+  swagger-ui:
+    enabled: true

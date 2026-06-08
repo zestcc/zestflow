@@ -1,5 +1,7 @@
 # Changelog
 
+> **语言** 简体中文 · [English](CHANGELOG.en.md)
+
 ## [0.1.0] - 2026-06-03
 
 ### Added

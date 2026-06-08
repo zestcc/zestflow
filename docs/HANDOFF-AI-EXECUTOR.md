@@ -1,6 +1,6 @@
 # ZestFlow AI / Executor 知识库 — 跨机续跑交接摘要
 
-> **版本** 0.1.0 · **更新** 2026-06-08 · **类型** 交接 · [← 文档中心](README.md)  
+> **版本** 0.1.0 · **更新** 2026-06-08 · **类型** 交接 · [← 文档中心](README.md) · [English](HANDOFF-AI-EXECUTOR.en.md)
 > 适用：在另一台机器拉代码后继续开发或验证。  
 > 远端：`https://gitee.com/zestcc/zestflow.git`，分支 **`master`**。
 

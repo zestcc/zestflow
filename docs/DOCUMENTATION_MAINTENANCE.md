@@ -1,6 +1,6 @@
 # 文档维护规范
 
-> **版本** 0.1.0 · **更新** 2026-06-08
+> **版本** 0.1.0 · **更新** 2026-06-08 · [English](DOCUMENTATION_MAINTENANCE.en.md)
 
 本文定义 ZestFlow 文档的版本控制、更新触发条件与质量检查清单，确保文档与代码长期一致。
 
@@ -26,11 +26,27 @@
 每篇面向用户的文档头部须包含：
 
 ```markdown
-> **版本** 0.1.0 · **更新** YYYY-MM-DD · **类型** Tutorial|How-to|...
+> **版本** 0.1.0 · **更新** YYYY-MM-DD · **类型** Tutorial|How-to|... · [English](同名.en.md)
 ```
 
 - **版本**：与根 `pom.xml` `<version>` 对齐（发版时批量更新）
 - **更新**：最后一次实质性修改日期
+- **双语**：中文 `*.md` 与英文 `*.en.md` 成对维护；英文文首使用 `[简体中文](同名.md)` 回链
+
+---
+
+## 2.1 双语维护规则
+
+| 规则 | 说明 |
+|------|------|
+| 命名 | 英文镜像与中文同目录，文件名加 `.en` 后缀，如 `API.md` ↔ `API.en.md` |
+| 同步 | 修改中文用户文档时，**同一 PR** 更新对应 `.en.md`（或明确标注 follow-up Issue） |
+| 互链 | 中文头 `[English](xxx.en.md)`；英文头 `[简体中文](xxx.md)` |
+| 索引 | 新增文档时更新 `CATALOG.md`、`CATALOG.en.md`、`README.md`、`README.en.md` |
+| 工具 | 批量补链：`scripts/docs/add-bilingual-headers.ps1` |
+| 校验 | 发版或 CI 运行：`scripts/docs/verify-bilingual-docs.ps1` |
+| 英文内链 | 批量修正：`scripts/docs/fix-en-internal-links.ps1` |
+| 中文回链 | 修正英文页 `[简体中文]` 头：`scripts/docs/fix-zh-crosslinks.ps1` |
 
 ---
 
@@ -38,12 +54,14 @@
 
 | 代码变更 | 必须更新的文档 |
 |---------|---------------|
-| 新增/修改 `zestflow.*` 配置 | `reference/CONFIGURATION.md`、对应 `application.yml` 注释、`ARCHITECTURE.md` §11 |
-| 新增注解 / API | `QUICK_REFERENCE.md`、`guides/COMPONENT_DEVELOPMENT.md` |
-| 新增 REST 端点 | `ARCHITECTURE.md` §8 API 矩阵 |
-| Flyway 新版本 | `FLYWAY_POLICY.md`、迁移 README |
-| 端口/部署流程变更 | `DEPLOY.md`、`GETTING_STARTED.md`、`reference/GLOSSARY.md` |
-| 发版 | `CHANGELOG.md`、README 版本徽章、各文档头部版本 |
+| 配置项变更 | `reference/CONFIGURATION.md` + `.en.md`、`*Properties.java`、对应 `application.yml` |
+| 新增/修改 Admin REST 端点 | `reference/API.md` + `.en.md`、运行 `export-openapi.ps1` |
+| 新增注解 / 引擎 API | `reference/ANNOTATIONS.md`、`EXECUTION_ENGINE.md` 及英文镜像、`QUICK_REFERENCE.md` |
+| 新增 SPI | `reference/SPI.md` + `.en.md`、`ARCHITECTURE.md` §12 |
+| 用户高频问题 | `reference/FAQ.md` + `.en.md` |
+| Flyway 新版本 | `FLYWAY_POLICY.md` + `.en.md`、迁移 README |
+| 端口/部署流程变更 | `DEPLOY.md`、`GETTING_STARTED.md`、`GLOSSARY.md` 及英文镜像 |
+| 发版 | `CHANGELOG.md` + `CHANGELOG.en.md`、README 版本徽章、各文档头部版本 |
 | 架构决策 | 新增 `docs/adr/*.md` |
 
 ---
@@ -57,6 +75,9 @@
 - [ ] 示例命令在 Windows / Linux 均可理解（或注明平台）？
 - [ ] 新术语是否加入 `reference/GLOSSARY.md`？
 - [ ] 无重复大段内容（应交叉引用而非复制）？
+- [ ] 中英文镜像是否同步更新？
+- [ ] 运行 `scripts/docs/verify-bilingual-docs.ps1` 通过？
+- [ ] 新文档是否已加入 CATALOG（中/英）与文档中心？
 - [ ] 前端改动是否说明需 `pnpm build`？
 
 ---
@@ -89,8 +110,8 @@
 
 | 项 | 状态 | 说明 |
 |----|------|------|
-| OpenAPI/Swagger 导出 | 待建 | 可从 Controller 注解生成 API Reference |
-| 英文文档 parity | 部分 | `README.en.md` 已覆盖；子文档以中文为主 |
+| OpenAPI/Swagger 导出 | ✅ | `springdoc` + `scripts/docs/export-openapi.ps1` + `docs/openapi/` |
+| 英文文档 parity | ✅ | 35/35 用户文档 + CHANGELOG/CONTRIBUTING 英文镜像 |
 | 视频教程 | 无 | 可选社区贡献 |
 
 ---

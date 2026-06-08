@@ -1,6 +1,6 @@
 # ZestFlow 开源发布就绪清单
 
-> **版本** 0.1.0 · **更新** 2026-06-08 · **类型** 发布 · [← 文档中心](README.md)  
+> **版本** 0.1.0 · **更新** 2026-06-08 · **类型** 发布 · [← 文档中心](README.md) · [English](RELEASE_READINESS.en.md)
 > 目标：在开源收尾前，用可重复脚本证明**主链路可靠**；公网部署须 `prod` profile + [DEPLOY.md](./DEPLOY.md)。
 
 ---
