@@ -1,6 +1,7 @@
 package com.zestflow.executor.chain;
 
 import com.zestflow.common.constant.ChainDeliveryLifecycle;
+import com.zestflow.executor.registry.ExecutorProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
