@@ -18,6 +18,14 @@
 
 当前最新 **V3** → 下一增量 **`V4__描述.sql`**
 
+## IDE / 构建缓存
+
+Rebaseline 或删除/重命名 `V*.sql` 后，须执行 **`mvn clean compile -pl zestflow-admin`**（或 IDEA **Rebuild Project**）。否则 `target/classes/db/migration/` 可能残留旧脚本，启动报：
+
+`Found more than one migration with version N`
+
+另：`application.yml` 默认 `spring.flyway.enabled=false`；本地 Flyway 请在 **application-local.yml** 开启，勿改默认 yml。
+
 ## 开发库 Rebaseline
 
 ```powershell
