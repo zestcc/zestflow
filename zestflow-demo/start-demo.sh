@@ -31,9 +31,10 @@ APP_LOG_FILE="$LOG_DIR/${APP_NAME}.log"
 # 加载配置（config/start-demo.env）
 # ==================================
 _load_config() {
-  JVM_XMS=1g
-  JVM_XMX=1g
-  JVM_GC=zgc
+  # 无 start-demo.env 时的兜底；4G 同机 MySQL 请在 env 中显式设为 512m~768m + g1
+  JVM_XMS=512m
+  JVM_XMX=768m
+  JVM_GC=g1
   JVM_METASPACE=256m
   JVM_DIRECT_MEMORY=256m
   JVM_ZGC_CONC_THREADS=2

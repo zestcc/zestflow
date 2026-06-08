@@ -32,7 +32,8 @@ public class CollectorDataSourceAutoConfiguration {
     @Bean(name = "collectorDataSource")
     HikariDataSource collectorDataSource(Environment env) {
         var settings = ZestFlowDataSourcePropertiesResolver.resolve(env, DATASOURCE_PREFIX, "Collector");
-        return ZestFlowDataSourcePropertiesResolver.createHikariDataSource(settings);
+        return ZestFlowDataSourcePropertiesResolver.createHikariDataSource(
+                env, settings, DATASOURCE_PREFIX, "ZestFlowCollectorPool");
     }
 
     @Bean(name = "collectorSqlSessionFactory")

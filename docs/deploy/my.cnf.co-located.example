@@ -1,0 +1,37 @@
+# ============================================================
+# MySQL 8 — 4G 小机同机部署示例（Admin + Demo + MySQL）
+# 复制为 /etc/my.cnf 后：
+#   mysqld --defaults-file=/etc/my.cnf --validate-config
+#   systemctl daemon-reload && systemctl restart mysqld
+#
+# 注意：
+# - 第一行必须是 [mysqld]，前面不能有空行/BOM/注释以外的内容
+# - 已有数据的库不要改小 innodb_log_file_size
+# - 4G 机器 buffer pool 不要超过 512M
+# ============================================================
+
+[mysqld]
+basedir=/opt/module/mysql/mysql8
+datadir=/opt/module/mysql/mysql8/data
+port=3306
+socket=/tmp/mysql.sock
+user=mysql
+character-set-server=utf8mb4
+skip-name-resolve
+lower_case_table_names=1
+
+innodb_buffer_pool_size=512M
+innodb_buffer_pool_instances=1
+max_connections=80
+
+performance_schema_max_table_instances=200
+table_definition_cache=200
+table_open_cache=128
+
+[mysql]
+default-character-set=utf8mb4
+
+[client]
+default-character-set=utf8mb4
+port=3306
+socket=/tmp/mysql.sock

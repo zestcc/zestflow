@@ -25,7 +25,8 @@ public class ExecutorDataSourceAutoConfiguration {
     HikariDataSource executorDataSource(Environment env) {
         JdbcConnectionSettings settings = ZestFlowDataSourcePropertiesResolver.resolve(
                 env, DATASOURCE_PREFIX, "Executor");
-        return ZestFlowDataSourcePropertiesResolver.createHikariDataSource(settings);
+        return ZestFlowDataSourcePropertiesResolver.createHikariDataSource(
+                env, settings, DATASOURCE_PREFIX, "ZestFlowExecutorPool");
     }
 
     @Bean(name = "executorJdbcTemplate")

@@ -12,13 +12,17 @@ spring:
   application:
     name: demo-app
   datasource:
-    url: jdbc:mysql://localhost:3306/zestflow_app_bussiness?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=true
+    url: jdbc:mysql://127.0.0.1:3306/zestflow_app_bussiness?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&tcpKeepAlive=true
     username: your-db-username
     password: your-db-password
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
-      maximum-pool-size: 10
+      maximum-pool-size: 8
       minimum-idle: 2
+      connection-timeout: 10000
+      idle-timeout: 600000
+      max-lifetime: 1740000
+      keepalive-time: 120000
   flyway:
     enabled: false
 
@@ -30,14 +34,22 @@ zestflow:
     chain-route-enabled: false
     execute-response-mode: BODY
     execute-failure-policy: PROPAGATE
+    # 未配置 url 时回落 spring.datasource；分库/云 RDS 时单独指定
     datasource:
-      url: jdbc:mysql://pc-j6ckqye1k9j22oj9p.rwlb.rds.aliyuncs.com:3306/room_cloud_ota?useSSL=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8
-      username: xwd_zest_0894631
-      password: d7w0g%nxg!3EW%@aw10gRFd7w*i0
+      url: jdbc:mysql://127.0.0.1:3306/zestflow_app_bussiness?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&tcpKeepAlive=true
+      username: your-db-username
+      password: your-db-password
       driver-class-name: com.mysql.cj.jdbc.Driver
+      hikari:
+        maximum-pool-size: 8
+        minimum-idle: 2
+        connection-timeout: 10000
+        idle-timeout: 600000
+        max-lifetime: 1740000
+        keepalive-time: 120000
     admin-addresses: http://127.0.0.1:8080
-    registry-token: NU8POE4PkE90pwaTfZ7WUSu94c0lPe
-    access-token: hYwax6ntmMY0KGCBhx6qvDPjJ85ywI9z
+    registry-token: change-me-registry-token-min-16-chars
+    access-token: change-me-executor-access-token-min-16
     timeout-ms: 5000
     execute-pool-core-size: 8
     execute-pool-max-size: 16
@@ -47,13 +59,20 @@ zestflow:
       declaration-delete-guard-enabled: true
   collector:
     datasource:
-      url: jdbc:mysql://pc-j6ckqye1k9j22oj9p.rwlb.rds.aliyuncs.com:3306/room_cloud_ota?useSSL=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8
-      username: xwd_zest_0894631
-      password: d7w0g%nxg!3EW%@aw10gRFd7w*i0
+      url: jdbc:mysql://127.0.0.1:3306/zestflow_app_log?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&tcpKeepAlive=true
+      username: your-db-username
+      password: your-db-password
       driver-class-name: com.mysql.cj.jdbc.Driver
+      hikari:
+        maximum-pool-size: 8
+        minimum-idle: 2
+        connection-timeout: 10000
+        idle-timeout: 600000
+        max-lifetime: 1740000
+        keepalive-time: 120000
     registry:
       port: 20650
       admin-addresses: http://127.0.0.1:8080
-      registry-token: NU8POE4PkE90pwaTfZ7WUSu94c0lPe
-    access-token: Llg2V23WS6bBeultNDF3A5MSH1FVLF7W
+      registry-token: change-me-registry-token-min-16-chars
+    access-token: change-me-collector-access-token-min-16
     disk-fallback-enabled: true

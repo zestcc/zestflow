@@ -13,15 +13,17 @@ spring:
     out-of-order: true
     clean-disabled: true
   datasource:
-    url: jdbc:mysql://localhost:3306/zestflow_admin?useUnicode=true&characterEncoding=utf-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    url: jdbc:mysql://localhost:3306/zestflow_admin?useUnicode=true&characterEncoding=utf-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false&tcpKeepAlive=true
     username: root
     password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
-      idle-timeout: 30000
+      maximum-pool-size: 10
+      minimum-idle: 2
       connection-timeout: 10000
+      idle-timeout: 600000
+      max-lifetime: 1740000
+      keepalive-time: 120000
   mail:
     # SMTP 服务器配置（按实际邮件服务商填写）
     host: smtp.your-email.com

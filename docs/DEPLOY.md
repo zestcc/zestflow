@@ -200,3 +200,95 @@ powershell -File scripts/blackbox/run-security-token-e2e.ps1
 - [RELEASE_READINESS.md](./RELEASE_READINESS.md) — 质量门禁分层
 - [BLACKBOX_TEST_REPORT.md](./BLACKBOX_TEST_REPORT.md) — 黑盒拓扑
 - [PUBLISH_HANDOFF.md](./PUBLISH_HANDOFF.md) — Maven Central 首发
+
+---
+
+## 7. 小内存同机部署（4G VPS：MySQL + Admin + Demo）
+
+适用香港/海外小机：**MySQL、Admin、Demo 跑在同一台 4G 内存机器**。内存分配不当会导致 MySQL 断连、Admin 保存失败、Demo 反复重连——表现多为 JDBC `Communications link failure` + `EOFException`（`last packet ... 2 milliseconds ago`），根因通常是 **MySQL 进程重启/OOM/配置错误**，而非 Hikari 单独问题。
+
+### 7.1 推荐内存预算
+
+| 组件 | 4G 同机 | 8G+ / DB 外置 |
+|------|---------|---------------|
+| MySQL `innodb_buffer_pool_size` | **512M** | 768M ~ 1G |
+| Admin JVM (`JVM_XMX`) | **768m** | 1g |
+| Demo JVM (`JVM_XMX`) | **768m** | 1g |
+| OS 预留 | ~1G | ~1G |
+
+### 7.2 MySQL
+
+模板：[deploy/my.cnf.co-located.example](./deploy/my.cnf.co-located.example)
+
+```bash
+cp docs/deploy/my.cnf.co-located.example /etc/my.cnf
+# 按实际 basedir/datadir/port 修改；port 非 3306 时同步改 JDBC URL
+mysqld --defaults-file=/etc/my.cnf --validate-config
+systemctl daemon-reload
+systemctl reset-failed mysqld   # 若曾 start-limit
+systemctl restart mysqld
+mysql -h127.0.0.1 -P3306 -uroot -p -e "SHOW VARIABLES LIKE 'innodb_buffer_pool_size';"
+```
+
+**常见踩坑：**
+
+- `/etc/my.cnf` 第 1 行必须是 `[mysqld]`（无 BOM、无前置裸参数）→ 否则 `Found option without preceding group`
+- **不要**在已有库上改小 `innodb_log_file_size`
+- 4G 机器 **不要**设 `innodb_buffer_pool_size=1G`
+
+### 7.3 Admin / Demo JVM
+
+`config/start-admin.env`、`config/start-demo.env`（仓库已含 512m/768m + g1 模板）：
+
+```bash
+JVM_XMS=512m
+JVM_XMX=768m
+JVM_GC=g1
+```
+
+改后：`./start-admin.sh restart`、`./start-demo.sh restart`。
+
+### 7.4 Hikari（Admin 主库 + Demo 三池）
+
+Admin `application-prod.yml`：
+
+```yaml
+spring:
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/zestflow_admin?...&tcpKeepAlive=true
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      idle-timeout: 600000
+      max-lifetime: 1740000
+      keepalive-time: 120000
+```
+
+Demo 的 **Executor / Collector 独立池**（`zestflow.executor.datasource` / `zestflow.collector.datasource`）由 `ZestFlowDataSourcePropertiesResolver` 自动套用相同 Hikari 默认值，并回落 `spring.datasource.hikari.*`；未配专库 URL 时与主库同址。
+
+MySQL 非 3306（如 2882）时，**JDBC URL 端口必须与 my.cnf 一致**。
+
+### 7.5 故障排查速查
+
+| 现象 | 优先检查 |
+|------|----------|
+| 保存随机失败 + Hikari validate WARN | `systemctl status mysqld`、`tail .../data/*.err` |
+| Demo 每 ~90s 重连 | Admin 8080 是否响应；MySQL 是否刚重启 |
+| `EOFException read 0 bytes` | MySQL error log 同一秒是否有 `ready for connections`（重启） |
+| `mysqld.service failed` | `mysqld --validate-config`；my.cnf 语法 |
+
+```bash
+ss -lntp | grep mysql
+tail -50 /opt/module/mysql/mysql8/data/*.err
+free -h && df -h
+dmesg -T | grep -iE "oom|killed" | tail -10
+curl -sf http://127.0.0.1:8080/actuator/health
+```
+
+### 7.6 启动顺序
+
+```text
+MySQL → Admin → Demo
+```
+
+MySQL 未就绪时启动 Admin/Demo 会产生连接风暴，恢复后需 **restart** Java 进程。
