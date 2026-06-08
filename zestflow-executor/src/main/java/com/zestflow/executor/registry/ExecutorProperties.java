@@ -4,6 +4,7 @@ import com.zestflow.common.constant.RegistryConstants;
 import com.zestflow.common.protocol.ChainFailurePolicy;
 import com.zestflow.common.protocol.ChainHttpResponseMode;
 import jakarta.annotation.PostConstruct;
+import com.zestflow.executor.ai.ExecutorAiProperties;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.EnvironmentAware;
@@ -118,6 +119,9 @@ public class ExecutorProperties implements EnvironmentAware {
      * 未配置 {@link #accessToken} 时，AI API（{@code /api/ai/*}）是否仅允许本机访问。
      */
     private boolean aiLocalhostOnly = true;
+
+    /** Executor 侧 AI（LLM suggest + Hybrid RAG） */
+    private ExecutorAiProperties ai = new ExecutorAiProperties();
 
     /** 链默认超时（毫秒） */
     private long chainDefaultTimeoutMs = 60000;

@@ -70,6 +70,28 @@ class ExecutorChainAiServiceTest {
         assertTrue(suggest.get("proposedChainData") == null);
     }
 
+    @Test
+    void searchRag_hybridRanksDistilledPattern() throws Exception {
+        ExecutorProperties props = new ExecutorProperties();
+        props.setDataDir(tempDir.toString());
+        props.getAi().setRagMode("hybrid");
+        ExecutorChainAiService service = new ExecutorChainAiService(props);
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("intent", "COMPOSE_CHAIN");
+        body.put("feature", "paymentRefund");
+        body.put("chainCode", "CHN_REFUND");
+        body.put("validatePassed", true);
+        body.put("validateRounds", 1);
+        body.put("adopted", true);
+        body.put("chainData", "{\"nodes\":[{\"id\":\"a\",\"type\":\"NORMAL\",\"label\":\"退款\"}],\"edges\":[]}");
+        service.recordLearningEvent(body);
+
+        List<String> rag = service.searchRag("payment refund 退款", 5);
+        assertFalse(rag.isEmpty());
+        assertTrue(rag.get(0).contains("paymentRefund") || rag.get(0).contains("退款"));
+    }
+
     private static Map<String, Object> baseEventBody() {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("intent", "COMPOSE_CHAIN");

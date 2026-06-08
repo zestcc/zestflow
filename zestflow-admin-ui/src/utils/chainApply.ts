@@ -50,6 +50,92 @@ export interface DagreLayoutOptions {
   rankdir?: 'TB' | 'LR'
   nodesep?: number
   ranksep?: number
+  /** CONDITION 分支左右间距（px），对标 BPMN True/False 分列 */
+  conditionBranchOffset?: number
+}
+
+const TRUE_LABELS = /^(true|yes|是|成功|通过|y)$/i
+const FALSE_LABELS = /^(false|no|否|失败|拒绝|n)$/i
+
+function isConditionType(type?: string): boolean {
+  const t = (type || 'NORMAL').toUpperCase()
+  return t === 'CONDITION' || t === 'SELECTOR' || t === 'MULTICONDITION'
+}
+
+function classifyBranchLabel(label?: string): 'true' | 'false' | 'other' {
+  const l = (label || '').trim()
+  if (!l) return 'other'
+  if (TRUE_LABELS.test(l)) return 'true'
+  if (FALSE_LABELS.test(l)) return 'false'
+  return 'other'
+}
+
+/** 从 condition 节点沿单条出边收集可达子图（不穿越兄弟分支起点） */
+export function collectBranchSubgraph(
+  conditionId: string,
+  branchTargetId: string,
+  edges: ChainEdgeDTO[],
+): Set<string> {
+  const siblingTargets = new Set(
+    edges.filter((e) => e.source === conditionId).map((e) => String(e.target)),
+  )
+  siblingTargets.delete(branchTargetId)
+
+  const result = new Set<string>()
+  const queue = [branchTargetId]
+  while (queue.length > 0) {
+    const id = queue.shift()!
+    if (result.has(id)) continue
+    result.add(id)
+    for (const e of edges) {
+      if (e.source !== id) continue
+      const target = String(e.target)
+      if (siblingTargets.has(target) && target !== branchTargetId) continue
+      queue.push(target)
+    }
+  }
+  return result
+}
+
+/**
+ * CONDITION 多分支布局后处理：True 左 / False 右（对标 Camunda/BPMN 读法）。
+ * 在 dagre TB 布局之后调用。
+ */
+export function adjustConditionBranchLayout(
+  nodes: ChainNodeDTO[],
+  edges: ChainEdgeDTO[],
+  positions: Map<string, { x: number; y: number }>,
+  branchOffset = 120,
+): Map<string, { x: number; y: number }> {
+  const adjusted = new Map(positions)
+
+  for (const node of nodes) {
+    if (!node?.id || !isConditionType(node.type)) continue
+    const conditionId = String(node.id)
+    const condPos = adjusted.get(conditionId)
+    if (!condPos) continue
+
+    const outgoing = edges.filter((e) => e?.source === conditionId)
+    if (outgoing.length < 2) continue
+
+    for (const edge of outgoing) {
+      const kind = classifyBranchLabel(edge.label)
+      if (kind === 'other') continue
+      const targetId = String(edge.target)
+      const pos = adjusted.get(targetId)
+      if (!pos) continue
+      const targetCenterX = kind === 'true' ? condPos.x - branchOffset : condPos.x + branchOffset
+      const delta = targetCenterX - pos.x
+      if (delta === 0) continue
+      const subgraph = collectBranchSubgraph(conditionId, targetId, edges)
+      subgraph.forEach((nodeId) => {
+        const p = adjusted.get(nodeId)
+        if (p) adjusted.set(nodeId, { x: p.x + delta, y: p.y })
+      })
+    }
+  }
+
+  return adjusted
 }
 
 /** 基于 dagre 计算节点左上角坐标（相对布局，不含画布偏移） */
@@ -94,7 +180,13 @@ export function computeDagrePositions(
     if (!laid) return
     positions.set(id, { x: laid.x - laid.width / 2, y: laid.y - laid.height / 2 })
   })
-  return positions
+
+  return adjustConditionBranchLayout(
+    nodes,
+    edges,
+    positions,
+    options.conditionBranchOffset ?? 120,
+  )
 }
 
 function anchorDagrePositions(

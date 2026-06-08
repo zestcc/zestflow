@@ -25,7 +25,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -37,13 +36,15 @@ public class ExecutorChainAiService {
 
     private static final double PROMOTION_THRESHOLD = 0.97;
     private static final String ACCEPTANCE_RESOURCE = "zestflow-ai/ai-generation-acceptance.md";
-    private static final Pattern CHAIN_JSON_BLOCK = Pattern.compile("```json\\s*([\\s\\S]*?)```", Pattern.CASE_INSENSITIVE);
-
     private final Path aiRoot;
     private final Path eventsFile;
     private final Path patternsDir;
     private final Path indexFile;
     private final ObjectMapper mapper;
+    private final ExecutorAiProperties aiProps;
+    private final ExecutorRagIndexEngine ragIndexEngine;
+    private final ExecutorOpenAiClient openAiClient;
+    private final ExecutorChainSuggester chainSuggester;
 
     @Setter
     private ChainDataValidator chainDataValidator;
@@ -56,6 +57,10 @@ public class ExecutorChainAiService {
         this.mapper = new ObjectMapper()
                 .registerModule(new JavaTimeModule())
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        this.aiProps = properties.getAi() != null ? properties.getAi() : new ExecutorAiProperties();
+        this.ragIndexEngine = new ExecutorRagIndexEngine();
+        this.openAiClient = this.aiProps.llmReady() ? new ExecutorOpenAiClient() : null;
+        this.chainSuggester = new ExecutorChainSuggester(this.aiProps, this.openAiClient);
     }
 
     public Map<String, Object> ragStatus() throws IOException {
@@ -66,6 +71,9 @@ public class ExecutorChainAiService {
         out.put("eventsFile", eventsFile.toString());
         out.put("eventCount", events.size());
         out.put("patternCount", patterns.size());
+        out.put("llmEnabled", aiProps.isLlmEnabled());
+        out.put("llmReady", aiProps.llmReady());
+        out.put("ragMode", aiProps.getRagMode());
         out.put("patterns", patterns.stream()
                 .sorted(Comparator.comparingDouble(PatternDoc::confidence).reversed())
                 .limit(20)
@@ -152,55 +160,14 @@ public class ExecutorChainAiService {
     }
 
     public List<String> searchRag(String query, int limit) throws IOException {
-        return searchRagChunks(query, limit).stream().map(RagChunk::text).toList();
+        return searchRagChunks(query, limit).stream().map(ExecutorRagChunk::text).toList();
     }
 
     public Map<String, Object> suggestChain(String userMessage, String chainCode, List<String> allowedComponents)
             throws IOException {
         String q = userMessage != null ? userMessage : "";
-        List<RagChunk> chunks = searchRagChunks(q, 8);
-        String proposed = null;
-        String source = "executor-rag-empty";
-        String summary = "未找到可复用的应用端 pattern，请补充学习事件或手动建链。";
-
-        for (RagChunk chunk : chunks) {
-            Optional<String> json = extractChainJson(chunk.text());
-            if (json.isPresent()) {
-                proposed = json.get();
-                source = "executor-pattern:" + chunk.id();
-                summary = "基于应用端蒸馏 pattern（" + chunk.id() + "）生成链草稿，请校验后采纳。";
-                break;
-            }
-        }
-
-        if (proposed == null && !chunks.isEmpty()) {
-            summary = "检索到 " + chunks.size() + " 条 RAG 片段但无链 JSON；摘要："
-                    + truncate(chunks.get(0).text().replace('\n', ' '), 200);
-            source = "executor-rag-hints";
-        }
-
-        Map<String, Object> validation = new LinkedHashMap<>();
-        validation.put("valid", false);
-        validation.put("errors", List.of());
-        if (proposed != null && chainDataValidator != null) {
-            String code = chainCode != null && !chainCode.isBlank() ? chainCode : "draft-suggest";
-            boolean ok = chainDataValidator.isValid(code, proposed);
-            validation.put("valid", ok);
-            if (!ok) {
-                validation.put("errors", List.of("应用端 validate-definition 未通过"));
-            }
-        }
-
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("summary", summary);
-        out.put("source", source);
-        out.put("proposedChainData", proposed);
-        out.put("validation", validation);
-        out.put("ragSnippetCount", chunks.size());
-        if (allowedComponents != null && !allowedComponents.isEmpty()) {
-            out.put("allowedComponents", allowedComponents);
-        }
-        return out;
+        List<ExecutorRagChunk> chunks = searchRagChunks(q, aiProps.getRagMaxChunks());
+        return chainSuggester.suggest(q, chainCode, allowedComponents, chunks, chainDataValidator);
     }
 
     public Map<String, Object> distillPatterns(String featureFilter) throws IOException {
@@ -212,21 +179,42 @@ public class ExecutorChainAiService {
         return out;
     }
 
-    private List<RagChunk> searchRagChunks(String query, int limit) throws IOException {
-        int cap = Math.max(1, Math.min(limit, 10));
-        List<RagChunk> chunks = new ArrayList<>();
+    List<ExecutorRagChunk> searchRagChunks(String query, int limit) throws IOException {
+        List<ExecutorRagChunk> corpus = buildRagCorpus(query);
+        ExecutorAiProperties searchProps = copyAiPropsForLimit(limit);
+        return ragIndexEngine.search(corpus, query, searchProps, openAiClient);
+    }
+
+    private ExecutorAiProperties copyAiPropsForLimit(int limit) {
+        ExecutorAiProperties p = new ExecutorAiProperties();
+        p.setLlmEnabled(aiProps.isLlmEnabled());
+        p.setBaseUrl(aiProps.getBaseUrl());
+        p.setApiKey(aiProps.getApiKey());
+        p.setModel(aiProps.getModel());
+        p.setEmbeddingModel(aiProps.getEmbeddingModel());
+        p.setTemperature(aiProps.getTemperature());
+        p.setMaxTokens(aiProps.getMaxTokens());
+        p.setTimeoutMs(aiProps.getTimeoutMs());
+        p.setRepairMaxRounds(aiProps.getRepairMaxRounds());
+        p.setRagMode(aiProps.getRagMode());
+        p.setRagUseEmbedding(aiProps.isRagUseEmbedding());
+        p.setRagEmbeddingCandidateLimit(aiProps.getRagEmbeddingCandidateLimit());
+        p.setRagMaxChunks(Math.max(1, Math.min(limit, aiProps.getRagMaxChunks())));
+        p.setPatternFallbackEnabled(aiProps.isPatternFallbackEnabled());
+        return p;
+    }
+
+    private List<ExecutorRagChunk> buildRagCorpus(String query) throws IOException {
+        List<ExecutorRagChunk> corpus = new ArrayList<>();
         loadClasspathAcceptance().ifPresent(text ->
-                chunks.add(new RagChunk("platform:acceptance", text, scoreText(text, query) + 1.0)));
+                corpus.add(new ExecutorRagChunk("platform:acceptance", text, scoreText(text, query) + 1.0)));
         for (PatternDoc doc : listPatterns()) {
             double s = scoreText(doc.markdown(), query) + doc.confidence() * 0.5;
             if (matches(doc, query) || s > 0.35) {
-                chunks.add(new RagChunk(doc.id(), doc.markdown(), s));
+                corpus.add(new ExecutorRagChunk(doc.id(), doc.markdown(), s));
             }
         }
-        return chunks.stream()
-                .sorted(Comparator.comparingDouble(RagChunk::score).reversed())
-                .limit(cap)
-                .toList();
+        return corpus;
     }
 
     private static double scoreText(String text, String query) {
@@ -287,30 +275,6 @@ public class ExecutorChainAiService {
         } catch (Exception e) {
             return Integer.toHexString(s.hashCode());
         }
-    }
-
-    private Optional<String> extractChainJson(String markdown) {
-        if (markdown == null) {
-            return Optional.empty();
-        }
-        Matcher m = CHAIN_JSON_BLOCK.matcher(markdown);
-        while (m.find()) {
-            String block = m.group(1).trim();
-            if (block.contains("\"nodes\"") || block.contains("nodes")) {
-                try {
-                    JsonNode node = mapper.readTree(block);
-                    if (node.has("nodes") || node.has("chainData")) {
-                        if (node.has("chainData")) {
-                            return Optional.of(node.get("chainData").toString());
-                        }
-                        return Optional.of(node.toString());
-                    }
-                } catch (Exception ignored) {
-                    // try next block
-                }
-            }
-        }
-        return Optional.empty();
     }
 
     private DistillResult distill(String featureFilter) throws IOException {
@@ -523,9 +487,6 @@ public class ExecutorChainAiService {
             List<String> createdComponents, Integer validateRounds, Boolean validatePassed,
             Boolean adopted, Boolean playgroundSuccess, String userCorrection,
             String chainData, Map<String, Object> metadata) {
-    }
-
-    private record RagChunk(String id, String text, double score) {
     }
 
     private record PatternDoc(String id, String title, String feature, List<String> tags,

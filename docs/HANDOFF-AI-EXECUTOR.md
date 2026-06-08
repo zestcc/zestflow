@@ -189,10 +189,12 @@ zestflow:
 
 ### 建议下一台机器优先做
 
-1. **Executor 侧 LLM suggest** — 当前 suggest 只从 pattern 抽 JSON，无 LLM
-2. **Embedding RAG** — 现为分词/关键词，蒸馏多了以后命中率会瓶颈
-3. **复杂 CONDITION 布局** — dagre 单图，多分支仍可能挤
+1. ~~**Executor 侧 LLM suggest**~~ ✅ v2：OpenAI 兼容 LLM + 质量门禁 + validate 修复 + pattern 回落
+2. ~~**Embedding RAG**~~ ✅ v2：keyword / hybrid / TF-IDF + 可选 embedding 重排
+3. ~~**复杂 CONDITION 布局**~~ ✅ v2：True 左 / False 右分支偏移（chainApply）
 4. **业务工程（如 zestory）** — 跑 `--init-dev`、恢复被改坏的 `application.yml`（在业务仓库）
+
+验收：`docs/acceptance/AI_EXECUTOR_V2_ACCEPTANCE.md`
 
 ---
 

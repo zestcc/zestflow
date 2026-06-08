@@ -27,6 +27,10 @@ zestflow:
     # 嵌入模式：Executor 侧异步发布事件；Collector 侧建议同步写入（见下方 collector.async-enabled）
     event:
       async-enabled: true
+    # AI 知识库与 LLM suggest（完整项见 zestflow-executor/application.yml → zestflow.executor.ai）
+    ai:
+      llm-enabled: false
+      rag-mode: hybrid
   playground:
     scan-packages:
       - com.zestflow.demo.controller

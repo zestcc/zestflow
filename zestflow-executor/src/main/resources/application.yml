@@ -84,6 +84,24 @@ zestflow:
     # 队列容量
     execute-pool-queue-capacity: 256
 
+    # ---- AI 知识库（Executor 主路径 {data-dir}/ai/） ----
+    # llm-enabled=true 时 /api/ai/chains/suggest 走 OpenAI 兼容 LLM + Hybrid RAG
+    ai:
+      llm-enabled: false
+      base-url: http://localhost:11434/v1
+      api-key:
+      model: llama3.2
+      embedding-model: nomic-embed-text
+      temperature: 0.2
+      max-tokens: 4096
+      timeout-ms: 60000
+      repair-max-rounds: 2
+      rag-mode: hybrid
+      rag-use-embedding: true
+      rag-embedding-candidate-limit: 12
+      rag-max-chunks: 8
+      pattern-fallback-enabled: true
+
   # ---- 试验场 / 端点扫描 ----
   playground:
     # 控制器扫描包（端点导入白名单，空则不限制）
