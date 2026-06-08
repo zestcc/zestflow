@@ -782,7 +782,7 @@ import { useResponsivePagination } from '@/composables/useResponsivePagination'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
 import AiCopilotDrawer from '@/components/ai/AiCopilotDrawer.vue'
 import AiExpressionAssist from '@/components/ai/AiExpressionAssist.vue'
-import { aiApi } from '@/api/ai'
+import { aiApi, isCopilotAvailable } from '@/api/ai'
 import { useAiCopilotStore } from '@/stores/aiCopilot'
 import { applyChainDefinitionToGraph, type ChainDefinitionDTO } from '@/utils/chainApply'
 import {
@@ -926,7 +926,7 @@ function openComposeCopilot() {
 async function loadCopilotConfig() {
   try {
     const cfg = await aiApi.getConfig()
-    copilotEnabled.value = !!(cfg?.enabled && cfg?.configured && cfg?.globalEnabled !== false)
+    copilotEnabled.value = isCopilotAvailable(cfg)
   } catch {
     copilotEnabled.value = false
   }

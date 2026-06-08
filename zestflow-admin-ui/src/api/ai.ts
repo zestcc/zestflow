@@ -1,12 +1,19 @@
 import http from './index'
 
-export interface AiConfigVO {
-  enabled: boolean
-  configured: boolean
+export interface AiConfigStatusVO {
+  globallyEnabled: boolean
+  tenantEnabled: boolean
+  copilotAvailable: boolean
   preset?: string
   model?: string
-  globalEnabled?: boolean
-  message?: string
+  presetDisplayName?: string
+}
+
+/** 与 {@link AiConfigStatusVO} 同义，兼容旧引用 */
+export type AiConfigVO = AiConfigStatusVO
+
+export function isCopilotAvailable(cfg: AiConfigStatusVO | null | undefined): boolean {
+  return cfg?.copilotAvailable === true
 }
 
 export interface AiProviderPreset {
@@ -266,7 +273,7 @@ export interface AiComponentContextItem {
 
 export const aiApi = {
   getConfig() {
-    return http.get<AiConfigVO>('/ai/config')
+    return http.get<AiConfigStatusVO>('/ai/config')
   },
 
   getProviders() {

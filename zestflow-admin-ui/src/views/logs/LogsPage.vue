@@ -289,7 +289,7 @@ import { Graph } from '@antv/x6'
 import { Export } from '@antv/x6-plugin-export'
 import type { EventQueryParams, ExecutionTrace, NodeExecutionDetail } from '@/api/logs'
 import { queryExecutionTraces, getExecutionTrace, getSnapshot, getNodeExecutionDetail } from '@/api/logs'
-import { aiApi, type AiDiagnoseResponse, type AiConfigVO } from '@/api/ai'
+import { aiApi, isCopilotAvailable, type AiDiagnoseResponse, type AiConfigStatusVO } from '@/api/ai'
 import { executorApi, type AppOption } from '@/api/executor'
 import { chainApi, type ChainVO } from '@/api/chain'
 import ChainDetailDrawer from '@/components/ChainDetailDrawer.vue'
@@ -409,13 +409,10 @@ const nodeDetailVisible = ref(false)
 const nodeDetailLoading = ref(false)
 const nodeDetail = ref<NodeExecutionDetail | null>(null)
 
-const aiConfig = ref<AiConfigVO | null>(null)
+const aiConfig = ref<AiConfigStatusVO | null>(null)
 const diagnoseLoading = ref(false)
 const diagnoseResult = ref<AiDiagnoseResponse | null>(null)
-const copilotAvailable = computed(() => {
-  if (!aiConfig.value) return false
-  return aiConfig.value.globalEnabled !== false && aiConfig.value.enabled && aiConfig.value.configured
-})
+const copilotAvailable = computed(() => isCopilotAvailable(aiConfig.value))
 
 function resolveChainCode(row: ExecutionTrace | null | undefined): string | undefined {
   if (!row) return undefined
@@ -638,7 +635,7 @@ onMounted(async () => {
   try {
     aiConfig.value = await aiApi.getConfig()
   } catch {
-    aiConfig.value = { enabled: false, configured: false }
+    aiConfig.value = { globallyEnabled: false, tenantEnabled: false, copilotAvailable: false }
   }
   await fetchApps()
   await loadGlobalStats()

@@ -2,7 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import {
   aiApi,
-  type AiConfigVO,
+  isCopilotAvailable,
+  type AiConfigStatusVO,
   type AiSuggestResponse,
   type AiValidationResult,
 } from '@/api/ai'
@@ -30,7 +31,7 @@ function nextMessageId() {
 }
 
 export const useAiCopilotStore = defineStore('aiCopilot', () => {
-  const config = ref<AiConfigVO | null>(null)
+  const config = ref<AiConfigStatusVO | null>(null)
   const messages = ref<AiCopilotMessage[]>([])
   const pendingProposal = ref<string | null>(null)
   const pendingSummary = ref<string | null>(null)
@@ -41,16 +42,13 @@ export const useAiCopilotStore = defineStore('aiCopilot', () => {
   const loading = ref(false)
   const lastContext = ref<AiCopilotContext | null>(null)
 
-  const copilotAvailable = computed(() => {
-    if (!config.value) return false
-    return config.value.globalEnabled !== false && config.value.enabled && config.value.configured
-  })
+  const copilotAvailable = computed(() => isCopilotAvailable(config.value))
 
   async function fetchConfig() {
     try {
       config.value = await aiApi.getConfig()
     } catch {
-      config.value = { enabled: false, configured: false }
+      config.value = { globallyEnabled: false, tenantEnabled: false, copilotAvailable: false }
     }
     return config.value
   }
