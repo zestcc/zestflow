@@ -21,6 +21,8 @@ class AdminProductionGuardTest {
         env.setProperty("spring.flyway.enabled", "true");
         env.setProperty("spring.flyway.validate-on-migrate", "true");
         env.setProperty("spring.flyway.out-of-order", "false");
+        env.setProperty("springdoc.swagger-ui.enabled", "false");
+        env.setProperty("springdoc.api-docs.enabled", "false");
         return env;
     }
 
@@ -116,6 +118,19 @@ class AdminProductionGuardTest {
     void validateProductionConfig_flywayValidateDisabled_fails() {
         MockEnvironment env = validProdEnv();
         env.setProperty("spring.flyway.validate-on-migrate", "false");
+
+        AdminDeployProperties deploy = new AdminDeployProperties();
+        deploy.setDeployMode("standalone");
+
+        AdminProductionGuard guard = new AdminProductionGuard(env, deploy);
+        assertThatThrownBy(guard::validateProductionConfig)
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void validateProductionConfig_springdocApiDocsEnabled_fails() {
+        MockEnvironment env = validProdEnv();
+        env.setProperty("springdoc.api-docs.enabled", "true");
 
         AdminDeployProperties deploy = new AdminDeployProperties();
         deploy.setDeployMode("standalone");
