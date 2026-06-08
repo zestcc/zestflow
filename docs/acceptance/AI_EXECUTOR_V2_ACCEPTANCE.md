@@ -1,5 +1,6 @@
 # Executor AI v2 生产验收清单
 
+> **版本** 0.1.0 · **更新** 2026-06-08 · **类型** 验收 · [← 文档中心](../README.md)  
 > 2026-06-08 · LLM suggest + Hybrid RAG + CONDITION 布局
 
 ## 1. Executor LLM suggest

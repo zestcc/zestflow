@@ -1,7 +1,8 @@
 # ZestFlow MCP 开发助手安装指南
 
-> **适用** Cursor、Claude Desktop、VS Code MCP 扩展等任意 MCP 客户端  
-> **架构** 见 [AI_DEV_COPILOT_FINAL_SOLUTION.md](./AI_DEV_COPILOT_FINAL_SOLUTION.md)  
+> **版本** 0.1.0 · **更新** 2026-06-08 · **类型** Tutorial · [← 文档中心](README.md)  
+> **适用** Cursor、Claude Desktop、Claude Code、VS Code / Cline、Windsurf 等任意 MCP 客户端  
+> **全场景对照** [AI_IDE_SETUP.md](./AI_IDE_SETUP.md) · **架构** [AI_DEV_COPILOT_FINAL_SOLUTION.md](./AI_DEV_COPILOT_FINAL_SOLUTION.md)  
 > **对标** [Model Context Protocol](https://modelcontextprotocol.io)、[Supabase MCP](https://github.com/supabase-community/supabase-mcp)、[Stripe MCP](https://github.com/stripe/agent-toolkit)
 
 ---
@@ -61,7 +62,7 @@ powershell -File scripts/dev/init-dev-project.ps1 -ProjectRoot D:/work/my-app
 | 参数 | 说明 |
 |------|------|
 | `--init-dev` | 生成架构规范（见下表）、IDE MCP 配置、learning 目录 |
-| `--ide` | `cursor` / `vscode` / `claude` / `all`（默认 `all`） |
+| `--ide` | `cursor` / `vscode` / `cline` / `claude` / `claude-code` / `windsurf` / `all`（默认 `all`） |
 | `--base-package` | 覆盖 pom 推断的包名 |
 | `--force` | 覆盖已存在文件 |
 | `--no-gitignore` | 不追加 `.gitignore` 条目 |
@@ -146,6 +147,8 @@ java -jar zestflow-mcp.jar \
 
 ## 4. Claude Desktop 配置
 
+> Claude **Code** 使用项目根 `.mcp.json`，见 [AI_IDE_SETUP.md §4.3](../docs/AI_IDE_SETUP.md#43-claude-codecli--终端-agent)。
+
 `claude_desktop_config.json`（路径见 [Anthropic 文档](https://modelcontextprotocol.io/docs/develop/connect-local-servers)）：
 
 ```json
@@ -164,6 +167,15 @@ java -jar zestflow-mcp.jar \
 ```
 
 **同一 JAR、同一套 args** — 仅配置文件位置不同（与 Stripe/Supabase 官方 MCP 模式一致）。
+
+### Windsurf / Claude Code
+
+| 客户端 | 配置位置 |
+|--------|----------|
+| Claude Code | 项目根 `.mcp.json`（`--init-dev` 生成） |
+| Windsurf | 全局 `~/.codeium/windsurf/mcp_config.json`（合并 `.zestflow/mcp/windsurf.mcp_config.json.example`） |
+
+详见 [AI_IDE_SETUP.md](./AI_IDE_SETUP.md)。
 
 ---
 

@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "zestflow": {
+      "command": "java",
+      "args": [
+        "-jar", "${userHome}/.zestflow/tools/zestflow-mcp.jar",
+        "--project", "D:/work/your-app",
+        "--app-code", "YOUR_APP_CODE",
+        "--executor-url", "http://127.0.0.1:20550"
+      ]
+    }
+  }
+}

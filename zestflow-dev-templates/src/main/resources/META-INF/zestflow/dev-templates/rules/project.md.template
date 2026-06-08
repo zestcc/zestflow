@@ -6,7 +6,12 @@
 
 - 初始化 CLI（Java 8+）：`~/.zestflow/tools/zestflow-dev-init.jar`
 - MCP Server（Java 17+）：`~/.zestflow/tools/zestflow-mcp.jar`
-- 配置：`.cursor/mcp.json` / `.vscode/mcp.json` / `.zestflow/mcp/`
+- **按 IDE 选配置**（详见 `.zestflow/mcp/README.md`）：
+  - Cursor → `.cursor/mcp.json`
+  - VS Code / Cline → `.vscode/mcp.json`
+  - Claude Code → `.mcp.json`（项目根）
+  - Claude Desktop → `.zestflow/mcp/claude-desktop.config.json.example` → 用户目录
+  - Windsurf → `.zestflow/mcp/windsurf.mcp_config.json.example` → 全局 `mcp_config.json`
 - appCode：**{{APP_CODE}}**，Executor：**{{EXECUTOR_URL}}**
 - 元件化：**{{COMPONENTIZATION}}**，HTTP Mode：**{{HTTP_MODE}}**
 

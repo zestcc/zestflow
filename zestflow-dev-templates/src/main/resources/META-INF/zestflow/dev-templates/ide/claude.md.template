@@ -1,5 +1,6 @@
 # ZestFlow 项目协作说明
 
-> 与 `.zestflow/rules/architecture.md` 同源。使用 zestflow MCP 时遵守 `zestflow://rules/project`。
+> 与 `.zestflow/rules/architecture.md` 同源。使用 zestflow MCP 时遵守 `zestflow://rules/project`。  
+> **MCP 接入步骤**：见 `.zestflow/mcp/README.md`（Cursor / Claude Desktop / Claude Code / VS Code / Windsurf）。
 
 {{ARCHITECTURE_BODY}}

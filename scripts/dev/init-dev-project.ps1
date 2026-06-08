@@ -15,7 +15,7 @@ param(
     [string]$ProjectRoot,
     [string]$AppCode = "",
     [string]$ExecutorUrl = "",
-    [ValidateSet("cursor", "vscode", "claude", "all")]
+    [ValidateSet("cursor", "vscode", "cline", "claude", "claude-code", "windsurf", "all")]
     [string]$Ide = "all",
     [ValidateSet("full", "hybrid")]
     [string]$Componentization = "full",

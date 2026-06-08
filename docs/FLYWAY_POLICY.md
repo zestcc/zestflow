@@ -1,5 +1,6 @@
 # ZestFlow Flyway 策略（Admin / Demo）
 
+> **版本** 0.1.0 · **更新** 2026-06-08 · **类型** How-to · [← 文档中心](README.md)  
 > **目标**：开发环境升级 jar **不因 Beta history 漂移挡启动**；生产环境 **严格顺序 + 校验**，保证可预期。  
 > **脚本目录**：`zestflow-admin/src/main/resources/db/migration/`
 

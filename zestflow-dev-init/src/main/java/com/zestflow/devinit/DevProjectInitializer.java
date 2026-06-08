@@ -98,6 +98,35 @@ public final class DevProjectInitializer {
                     created,
                     skipped);
         }
+        if (options.ides().contains(DevInitOptions.IdeTarget.CLAUDE_CODE)) {
+            writeFromTemplate(
+                    projectRoot,
+                    TEMPLATE_ROOT + "mcp/claude-code.mcp.json.template",
+                    ".mcp.json",
+                    vars,
+                    options.force(),
+                    created,
+                    skipped);
+        }
+        if (options.ides().contains(DevInitOptions.IdeTarget.WINDSURF)) {
+            writeFromTemplate(
+                    projectRoot,
+                    TEMPLATE_ROOT + "mcp/windsurf.mcp_config.json.example.template",
+                    ".zestflow/mcp/windsurf.mcp_config.json.example",
+                    vars,
+                    options.force(),
+                    created,
+                    skipped);
+        }
+
+        writeFromTemplate(
+                projectRoot,
+                TEMPLATE_ROOT + "mcp/ide-setup.md.template",
+                ".zestflow/mcp/README.md",
+                vars,
+                options.force(),
+                created,
+                skipped);
 
         Path learningDir = projectRoot.resolve(".zestflow/learning");
         if (!Files.isDirectory(learningDir)) {

@@ -1,0 +1,5 @@
+<!-- 将以下内容合并到可执行模块 pom.xml 的 <dependencies> 中（init-dev 检测到缺失时生成，不修改原 pom） -->
+<dependency>
+  <groupId>cn.zestflow.www</groupId>
+  <artifactId>zestflow-starter</artifactId>
+</dependency>

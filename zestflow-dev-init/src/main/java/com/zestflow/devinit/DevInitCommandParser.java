@@ -105,11 +105,13 @@ public final class DevInitCommandParser {
         }
         System.out.println("Next:");
         System.out.println("1. 安装平台 JAR（一次）并启动本地 Executor");
-        System.out.println("2. 刷新 MCP（Cursor / VS Code / Claude Desktop）");
+        System.out.println("2. 刷新 MCP（见 .zestflow/mcp/README.md）");
         System.out.println("3. IDE 规则已同源生成：.zestflow/rules/architecture.md（规范源）");
-        System.out.println("   - Cursor: .cursor/rules/zestflow-architecture.md");
-        System.out.println("   - VS Code Copilot: .github/copilot-instructions.md");
-        System.out.println("   - Claude: CLAUDE.md");
+        System.out.println("   - Cursor: .cursor/mcp.json + .cursor/rules/zestflow-architecture.md");
+        System.out.println("   - VS Code / Cline: .vscode/mcp.json + .github/copilot-instructions.md");
+        System.out.println("   - Claude Desktop: .zestflow/mcp/claude-desktop.config.json.example → 用户目录");
+        System.out.println("   - Claude Code: .mcp.json（项目根，可提交 Git）");
+        System.out.println("   - Windsurf: .zestflow/mcp/windsurf.mcp_config.json.example → 全局配置");
         System.out.println();
         System.out.println("init-dev 可用 Java 8+；MCP Server（zestflow-mcp.jar）运行需 Java 17+。");
     }

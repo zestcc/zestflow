@@ -1,5 +1,6 @@
 # Chain-first AI 学习与沉淀（P1～P3）
 
+> **版本** 0.1.0 · **更新** 2026-06-08 · **类型** Explanation · [← 文档中心](README.md)  
 > **目标**：意图驱动 + 越用越准（Learning RAG）+ 平台/项目分层 + 晋升门槛 **≥97%**  
 > **对标**：LangSmith Feedback、Mem0 策展、Cursor Rules 分层、Stripe MCP 规范绑定
 

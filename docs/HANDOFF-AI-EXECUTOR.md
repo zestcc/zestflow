@@ -1,5 +1,6 @@
 # ZestFlow AI / Executor 知识库 — 跨机续跑交接摘要
 
+> **版本** 0.1.0 · **更新** 2026-06-08 · **类型** 交接 · [← 文档中心](README.md)  
 > 适用：在另一台机器拉代码后继续开发或验证。  
 > 远端：`https://gitee.com/zestcc/zestflow.git`，分支 **`master`**。
 
@@ -146,14 +147,22 @@ zestflow:
     data-dir: ./zestflow-data        # 知识库在 {dataDir}/ai/
 ```
 
-**MCP（cursor.mcp.json 等）：**
+**MCP（按 IDE 选配置文件，详见 [AI_IDE_SETUP.md](./AI_IDE_SETUP.md)）：**
+
+| IDE | 文件 |
+|-----|------|
+| Cursor | `.cursor/mcp.json` |
+| Claude Code | `.mcp.json` |
+| VS Code / Cline | `.vscode/mcp.json` |
+| Claude Desktop | 用户目录 `claude_desktop_config.json` |
+| Windsurf | 全局 `mcp_config.json` |
 
 ```json
 "args": [
   "-jar", ".../zestflow-mcp.jar",
   "--project", "${workspaceFolder}",
   "--executor-url", "http://127.0.0.1:20550",
-  "--executor-access-token", "..."
+  "--executor-token", "..."
 ]
 ```
 

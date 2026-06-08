@@ -1,5 +1,8 @@
 # ZestFlow 项目总结文档
 
+> **版本** 0.1.0 · **更新** 2026-06-08 · **类型** Explanation  
+> 执行引擎与元件体系概要。完整架构见 [ARCHITECTURE.md](ARCHITECTURE.md)。
+
 ## 一、项目概述
 
 ZestFlow 是一个基于 Spring Boot 的业务流程编排引擎，旨在将 Service 中的方法调用拆分为可复用的执行节点，并自动记录每个节点的输入参数、输出参数、耗时和异常信息。
@@ -17,10 +20,11 @@ ZestFlow 是一个基于 Spring Boot 的业务流程编排引擎，旨在将 Ser
 
 ### 1.2 技术栈
 
-- **Java**: JDK 8-21
-- **Spring Boot**: 2.x-3.x
-- **数据库**: MySQL / PostgreSQL / H2
-- **构建工具**: Maven
+- **Java**: 17+（项目基线）
+- **Spring Boot**: 3.2.5
+- **数据库**: MySQL 8.x（默认）；Demo 测试可用 H2
+- **前端**: Vue 3 + Element Plus + Vite + TypeScript
+- **构建工具**: Maven 多模块
 
 ---
 

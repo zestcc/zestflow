@@ -1,9 +1,10 @@
 # ZestFlow AI 集成方案（Copilot）
 
-> **版本** 1.5 · **更新** 2026-06-07 · **状态** 已实现（P0～P5 + Dev MCP Phase 1～3 + `--init-dev`）  
+> **版本** 1.5 · **更新** 2026-06-07 · **类型** Explanation · [← 文档中心](README.md)  
+> **状态** 已实现（P0～P5 + Dev MCP Phase 1～3 + `--init-dev`）  
 > **定位** 面向开发人员的编排辅助（Copilot），非自动上线（Autopilot）  
 > **运维** 见 [AI_COPILOT_OPS.md](./AI_COPILOT_OPS.md)  
-> **Dev Copilot（MCP）** 见 [AI_DEV_COPILOT_FINAL_SOLUTION.md](./AI_DEV_COPILOT_FINAL_SOLUTION.md) · [MCP_SETUP.md](./MCP_SETUP.md)
+> **Dev Copilot（MCP）** 见 [AI_DEV_COPILOT_FINAL_SOLUTION.md](./AI_DEV_COPILOT_FINAL_SOLUTION.md) · [MCP_SETUP.md](./MCP_SETUP.md) · [AI_IDE_SETUP.md](./AI_IDE_SETUP.md)
 
 ---
 

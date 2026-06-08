@@ -13,7 +13,11 @@ public final class DevInitOptions {
     public enum IdeTarget {
         CURSOR,
         VSCODE,
-        CLAUDE;
+        CLAUDE,
+        /** Claude Code CLI：项目根 {@code .mcp.json}（可提交 Git） */
+        CLAUDE_CODE,
+        /** Windsurf Cascade：全局 {@code ~/.codeium/windsurf/mcp_config.json} 示例 */
+        WINDSURF;
 
         public static IdeTarget parse(String raw) {
             if (Strings.isBlank(raw)) {
@@ -26,18 +30,28 @@ public final class DevInitOptions {
             if ("vscode".equals(value) || "vs-code".equals(value)) {
                 return VSCODE;
             }
+            if ("cline".equals(value)) {
+                return VSCODE;
+            }
             if ("claude".equals(value) || "claude-desktop".equals(value)) {
                 return CLAUDE;
+            }
+            if ("claude-code".equals(value) || "claudecode".equals(value)) {
+                return CLAUDE_CODE;
+            }
+            if ("windsurf".equals(value) || "codeium".equals(value)) {
+                return WINDSURF;
             }
             if ("all".equals(value)) {
                 throw new IllegalArgumentException("use parseAll for 'all'");
             }
-            throw new IllegalArgumentException("未知 --ide: " + raw + "（可选 cursor|vscode|claude|all）");
+            throw new IllegalArgumentException(
+                    "未知 --ide: " + raw + "（可选 cursor|vscode|cline|claude|claude-code|windsurf|all）");
         }
 
         public static Set<IdeTarget> parseAll(String raw) {
             if (Strings.isBlank(raw) || "all".equalsIgnoreCase(raw)) {
-                return EnumSet.of(CURSOR, VSCODE, CLAUDE);
+                return EnumSet.of(CURSOR, VSCODE, CLAUDE, CLAUDE_CODE, WINDSURF);
             }
             return EnumSet.of(parse(raw));
         }

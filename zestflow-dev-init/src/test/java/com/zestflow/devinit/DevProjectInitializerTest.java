@@ -33,7 +33,9 @@ class DevProjectInitializerTest {
                 EnumSet.of(
                         DevInitOptions.IdeTarget.CURSOR,
                         DevInitOptions.IdeTarget.VSCODE,
-                        DevInitOptions.IdeTarget.CLAUDE),
+                        DevInitOptions.IdeTarget.CLAUDE,
+                        DevInitOptions.IdeTarget.CLAUDE_CODE,
+                        DevInitOptions.IdeTarget.WINDSURF),
                 false,
                 false,
                 false);
@@ -42,6 +44,8 @@ class DevProjectInitializerTest {
         assertTrue(result.created().contains(".zestflow/rules/architecture.md"));
         assertTrue(result.created().contains(".cursor/mcp.json"));
         assertTrue(result.created().contains(".cursor/rules/zestflow-architecture.md"));
+        assertTrue(result.created().contains(".mcp.json"));
+        assertTrue(result.created().contains(".zestflow/mcp/README.md"));
 
         String architectureMd = readUtf8(projectRoot.resolve(".zestflow/rules/architecture.md"));
         assertTrue(architectureMd.contains("bookstore-app"));

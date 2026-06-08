@@ -39,9 +39,18 @@ Personal open-source project, currently **v0.1.0**, published on [Maven Central]
 
 ## Documentation
 
-- Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- Deployment: [docs/DEPLOY.md](docs/DEPLOY.md)
-- Changelog: [CHANGELOG.md](CHANGELOG.md)
+**[📖 Documentation hub](docs/README.md)** — full index (Tutorial / How-to / Reference)
+
+| Scenario | Document |
+|----------|----------|
+| Get running in 30 min | [Getting started](docs/GETTING_STARTED.md) |
+| Architecture | [ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| Components & chains | [Component guide](docs/guides/COMPONENT_DEVELOPMENT.md) · [Chain orchestration](docs/guides/CHAIN_ORCHESTRATION.md) |
+| Configuration | [Configuration reference](docs/reference/CONFIGURATION.md) · [Glossary](docs/reference/GLOSSARY.md) |
+| Production deploy | [DEPLOY.md](docs/DEPLOY.md) |
+| AI integration | [AI_COPILOT.md](docs/AI_COPILOT.md) · [MCP_SETUP.md](docs/MCP_SETUP.md) |
+| Contributing | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| Changelog | [CHANGELOG.md](CHANGELOG.md) |
 
 ## Features
 

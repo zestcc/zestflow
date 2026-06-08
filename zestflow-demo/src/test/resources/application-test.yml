@@ -50,6 +50,10 @@ zestflow:
       declaration-sync-enabled: false
       declaration-delete-guard-enabled: true
       reload-polling-enabled: false
+    ai:
+      llm-enabled: false
+      rag-mode: keyword
+      rag-use-embedding: false
     execute-pool-queue-capacity: 64
     event:
       queue-capacity: 8192

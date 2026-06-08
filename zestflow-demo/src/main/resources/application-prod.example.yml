@@ -57,6 +57,15 @@ zestflow:
     chain:
       declaration-sync-enabled: true
       declaration-delete-guard-enabled: true
+    # 生产环境按需启用 Executor LLM（Ollama / OpenAI 兼容）
+    ai:
+      llm-enabled: false
+      base-url: http://127.0.0.1:11434/v1
+      model: llama3.2
+      embedding-model: nomic-embed-text
+      rag-mode: hybrid
+      rag-use-embedding: true
+      pattern-fallback-enabled: true
   collector:
     datasource:
       url: jdbc:mysql://127.0.0.1:3306/zestflow_app_log?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&tcpKeepAlive=true

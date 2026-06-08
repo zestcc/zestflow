@@ -33,7 +33,7 @@ powershell -File scripts/dev/init-dev-project.ps1 -ProjectRoot D:/work/my-app
 java -jar ~/.zestflow/tools/zestflow-mcp.jar --init-dev --project /path/to/my-app
 ```
 
-可选参数：`--app-code`、`--executor-url`、`--componentization full|hybrid`（默认 `full`）、`--component-package`（默认 `component`）、`--http-mode 1|2|3`（默认 `3`，Mode3 生成 `@ZestChain` Controller 约束）、`--ide cursor|vscode|claude|all`（默认 `all`）、`--force`。
+可选参数：`--app-code`、`--executor-url`、`--componentization full|hybrid`（默认 `full`）、`--component-package`（默认 `component`）、`--http-mode 1|2|3`（默认 `3`，Mode3 生成 `@ZestChain` Controller 约束）、`--ide cursor|vscode|cline|claude|claude-code|windsurf|all`（默认 `all`）、`--force`。
 
 `--init-dev` 使用 `zestflow-dev-init.jar`（Java 8+）；MCP Server 使用 `zestflow-mcp.jar`（Java 17+，MCP SDK 要求）。
 
@@ -42,8 +42,11 @@ java -jar ~/.zestflow/tools/zestflow-mcp.jar --init-dev --project /path/to/my-ap
 - `.zestflow/rules/architecture.md`（**规范源，跨 IDE**）
 - `.zestflow/rules/project.md`（MCP L2）
 - `.cursor/rules/zestflow-architecture.md` / `.github/copilot-instructions.md` / `CLAUDE.md`
-- `.cursor/mcp.json`（及 VS Code / Claude MCP 配置）
+- `.cursor/mcp.json`、`.vscode/mcp.json`、`.mcp.json`（Claude Code）
+- `.zestflow/mcp/`（Claude Desktop / Windsurf 示例 + README）
 - `.zestflow/learning/` 目录
+
+全 IDE 对照见 [docs/AI_IDE_SETUP.md](../../../docs/AI_IDE_SETUP.md)。
 
 ### 手动复制（旧方式）
 
