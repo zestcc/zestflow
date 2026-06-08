@@ -44,6 +44,9 @@ class DevProjectInitializerTest {
         assertTrue(result.created().contains(".zestflow/rules/architecture.md"));
         assertTrue(result.created().contains(".cursor/mcp.json"));
         assertTrue(result.created().contains(".cursor/rules/zestflow-architecture.md"));
+        assertTrue(result.created().contains(".cursor/rules/zestflow-delivery-gate.md"));
+        assertTrue(result.created().contains(".zestflow/acceptance/journeys.yml"));
+        assertTrue(result.created().contains(".zestflow/patterns/README.md"));
         assertTrue(result.created().contains(".mcp.json"));
         assertTrue(result.created().contains(".zestflow/mcp/README.md"));
 

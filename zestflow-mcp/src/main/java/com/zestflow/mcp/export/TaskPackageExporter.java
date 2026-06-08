@@ -16,7 +16,8 @@ public class TaskPackageExporter {
     private static final String[] RULE_FILES = {
             "rules/component-development.md",
             "rules/chain-definition.md",
-            "rules/anti-patterns.md"
+            "rules/anti-patterns.md",
+            "rules/delivery-gate.md"
     };
 
     private final McpRuntimeConfig config;
@@ -48,11 +49,12 @@ public class TaskPackageExporter {
             appendSampleHits(md);
         }
         md.append("\n## 推荐 MCP Tools 调用顺序\n\n");
-        md.append("1. `list_components`\n");
-        md.append("2. `search_sources` / `read_project_file`\n");
-        md.append("3. `scaffold_component`（仅返回文本）\n");
-        md.append("4. IDE Apply 保存\n");
-        md.append("5. `validate_chain`（若涉及链）\n");
+        md.append("1. `search_patterns` → `plan_chain`\n");
+        md.append("2. `list_components` → `scaffold_component`（gap）\n");
+        md.append("3. `compose_chain` → `validate_chain`\n");
+        md.append("4. `gen_smoke_suite` → `run_acceptance_suite`\n");
+        md.append("5. **`validate_delivery(passed=true)`** — 未完成禁止宣称交付\n");
+        md.append("6. `gen_playground_scene` → `record_learning_event`\n");
         return md.toString();
     }
 

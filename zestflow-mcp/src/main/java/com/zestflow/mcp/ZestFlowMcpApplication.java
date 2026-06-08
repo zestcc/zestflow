@@ -2,6 +2,7 @@ package com.zestflow.mcp;
 
 import com.zestflow.mcp.config.McpRuntimeConfig;
 import com.zestflow.mcp.config.McpRuntimeConfigParser;
+import com.zestflow.mcp.delivery.DeliveryToolService;
 import com.zestflow.devinit.DevInitCommandParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +27,12 @@ public final class ZestFlowMcpApplication {
 
         McpRuntimeConfig config = McpRuntimeConfigParser.parse(args);
 
+        if (isValidateDeliveryCommand(args)) {
+            boolean strict = !hasArg(args, "--no-strict");
+            DeliveryToolService.runValidateDeliveryCli(config.projectRoot(), config.appCode(), strict);
+            return;
+        }
+
         if (config.exportTaskPackage()) {
             ZestFlowMcpServer.exportTaskPackage(config);
             return;
@@ -39,5 +46,23 @@ public final class ZestFlowMcpApplication {
         Runtime.getRuntime().addShutdownHook(new Thread(server::closeGracefully, "zestflow-mcp-shutdown"));
         server.start();
         Thread.currentThread().join();
+    }
+
+    private static boolean isValidateDeliveryCommand(String[] args) {
+        for (String arg : args) {
+            if ("--validate-delivery".equals(arg) || "--validate_delivery".equals(arg)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasArg(String[] args, String flag) {
+        for (String arg : args) {
+            if (flag.equals(arg)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

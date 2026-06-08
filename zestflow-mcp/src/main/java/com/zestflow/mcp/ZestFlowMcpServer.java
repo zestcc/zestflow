@@ -26,6 +26,7 @@ public class ZestFlowMcpServer {
 
     private static final List<RuleResource> RULE_RESOURCES = List.of(
             new RuleResource("zestflow://rules/acceptance", "ai-generation-acceptance.md", "AI 生成唯一规则（验收+RAG蒸馏）"),
+            new RuleResource("zestflow://rules/delivery-gate", "delivery-gate.md", "交付门禁 DoD（validate_delivery 必调）"),
             new RuleResource("zestflow://rules/component", "component-development.md", "ZestFlow 元件开发规范"),
             new RuleResource("zestflow://rules/chain", "chain-definition.md", "ZestFlow 链定义规范"),
             new RuleResource("zestflow://rules/anti-patterns", "anti-patterns.md", "ZestFlow 反模式与禁止项"),
@@ -61,7 +62,7 @@ public class ZestFlowMcpServer {
                 .resources(buildResources())
                 .tools(toolFactory.buildAll().toArray(McpServerFeatures.SyncToolSpecification[]::new))
                 .build();
-        log.info("zestflow-mcp ready (stdio), tools=12, audit={}", config.auditEnabled());
+        log.info("zestflow-mcp ready (stdio), tools=16, audit={}", config.auditEnabled());
     }
 
     public static void exportTaskPackage(McpRuntimeConfig config) throws Exception {
@@ -83,8 +84,12 @@ public class ZestFlowMcpServer {
 
     private String buildInstructions() {
         return """
-                你是 ZestFlow 元件/链条开发助手。【唯一规则】见 zestflow://rules/acceptance：验收标准生成 + 检索 RAG + 对标业界成熟方案，90%% happy path 可跑。
-                Chain-first：search_patterns → plan → scaffold → compose → validate → HTTP Mode → 场景 → record_learning_event（高置信自动蒸馏）。
+                你是 ZestFlow 元件/链条开发助手。【唯一规则】见 zestflow://rules/acceptance + zestflow://rules/delivery-gate。
+                标准管道（不可跳过）：search_patterns → plan_chain → scaffold_component → compose_chain
+                → validate_chain → gen_smoke_suite → run_acceptance_suite → validate_delivery(passed=true)
+                → gen_playground_scene → record_learning_event（高置信自动 distill）。
+                禁止单节点黑盒；禁止 Seeder/占位链冒充 production 交付。
+                未完成 validate_delivery(passed=true) **禁止**向用户声明功能完成。
                 遵守 architecture.md + project.md（zestflow://rules/project）。生成前 list_components；改链后 validate_chain。
                 禁止编造 componentId、禁止自动 publish/reload。
                 禁止覆盖已有 application.yml / application-local.yml / pom.xml；禁止擅自改用 H2 数据源。

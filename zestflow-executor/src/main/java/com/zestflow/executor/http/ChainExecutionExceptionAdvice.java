@@ -1,9 +1,9 @@
 package com.zestflow.executor.http;
 
 import com.zestflow.common.exception.ChainExecutionException;
+import com.zestflow.common.util.ChainExecutionHttpStatus;
 import com.zestflow.common.model.dto.ChainExecuteResultDTO;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -35,6 +35,7 @@ public class ChainExecutionExceptionAdvice {
         } else {
             body.put("errorMessage", ex.getMessage());
         }
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
+        return ResponseEntity.status(ChainExecutionHttpStatus.resolve(
+                result != null ? result.getErrorCode() : null)).body(body);
     }
 }

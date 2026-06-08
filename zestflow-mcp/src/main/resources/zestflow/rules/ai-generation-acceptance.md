@@ -22,4 +22,6 @@
 
 高置信结果（validate 通过 + 采纳或 Playground 成功，≥97%）须 `record_learning_event`，并**自动** `distill_patterns` / Admin RAG 晋升，供下次 `search_patterns` 检索。
 
+**交付完成**：还须 `validate_delivery(passed=true)` 且 `usable_score ≥ 0.95`（见 zestflow://rules/delivery-gate）。
+
 **引入 AI 的价值**：可验收的生成 + 可积累的知识；不蒸馏则与一次性 Prompt 无异。

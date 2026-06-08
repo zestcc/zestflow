@@ -5,6 +5,7 @@ import com.zestflow.mcp.audit.AuditedToolHandler;
 import com.zestflow.mcp.audit.McpAuditLogger;
 import com.zestflow.mcp.client.HttpApiClient;
 import com.zestflow.mcp.config.McpRuntimeConfig;
+import com.zestflow.mcp.delivery.DeliveryToolService;
 import com.zestflow.mcp.learning.LearningToolService;
 import com.zestflow.mcp.export.TaskPackageExporter;
 import com.zestflow.mcp.io.ResourceLoader;
@@ -36,6 +37,7 @@ public class McpToolFactory {
     private final ProjectSourceSearcher sourceSearcher = new ProjectSourceSearcher();
     private final ComponentScaffoldGenerator scaffoldGenerator = new ComponentScaffoldGenerator();
     private final LearningToolService learningTools;
+    private final DeliveryToolService deliveryTools;
 
     public McpToolFactory(McpRuntimeConfig config, ObjectMapper objectMapper,
                           HttpApiClient apiClient, McpAuditLogger auditLogger) {
@@ -44,6 +46,7 @@ public class McpToolFactory {
         this.apiClient = apiClient;
         this.auditLogger = auditLogger;
         this.learningTools = new LearningToolService(config, apiClient);
+        this.deliveryTools = new DeliveryToolService(config, apiClient);
     }
 
     public List<McpServerFeatures.SyncToolSpecification> buildAll() {
@@ -64,6 +67,20 @@ public class McpToolFactory {
                                 生成或修改链 JSON 后必须调用；valid=false 时不得视为可发布。
                                 """,
                         List.of("chainDefinitionJson"), this::handleValidateChain),
+                tool("validate_delivery", validateDeliveryProperties(),
+                        """
+                                【交付门禁 · 必调】汇总链拓扑、Pattern、Acceptance、反模式与 usable_score。
+                                strictMode=true 时 score≥0.95 且 blocking=0 方可向用户声明功能完成。
+                                未完成 validate_delivery(passed=true) 禁止宣称交付完成。
+                                """,
+                        List.of(), this::handleValidateDelivery),
+                tool("compose_chain", composeChainProperties(),
+                        """
+                                【组链 · 必调】按平台 Pattern 模板实例化 production 多节点链（非单节点占位）。
+                                Pattern: auth-owned-write | guest-gated-read | publish-workflow | paginated-list | admin-decision。
+                                输出 chainDefinitionJson + graphDataJson，随后 validate_chain + validate_delivery。
+                                """,
+                        List.of("chainCode"), this::handleComposeChain),
                 tool("search_sources", searchProperties(),
                         """
                                 在 --project 内按关键词搜索源码（默认 **/*.java）。
@@ -114,7 +131,18 @@ public class McpToolFactory {
                         """
                                 【意图：共享 P3】导出 Pattern 为 Admin RAG import 载荷，供团队继承。
                                 """,
-                        List.of("patternId"), this::handleSharePattern)
+                        List.of("patternId"), this::handleSharePattern),
+                tool("gen_smoke_suite", genSmokeSuiteProperties(),
+                        """
+                                【冒烟 · 必调】扫描 @ZestChain + Controller 路由，生成 .zestflow/acceptance/journeys.yml。
+                                """,
+                        List.of(), this::handleGenSmokeSuite),
+                tool("run_acceptance_suite", runAcceptanceSuiteProperties(),
+                        """
+                                【冒烟 · 必调】执行 journeys.yml HTTP 步骤；无 baseUrl 时 dryRun 结构校验。
+                                结果写入 .zestflow/acceptance/last-run.json 供 validate_delivery 读取。
+                                """,
+                        List.of(), this::handleRunAcceptanceSuite)
         ));
         return tools;
     }
@@ -152,6 +180,22 @@ public class McpToolFactory {
             log.warn("read_project_file failed", e);
             return McpToolResults.error("read_project_file 失败: " + e.getMessage());
         }
+    }
+
+    private McpSchema.CallToolResult handleValidateDelivery(Map<String, Object> arguments) {
+        return deliveryCall("validate_delivery", () -> deliveryTools.validateDelivery(arguments));
+    }
+
+    private McpSchema.CallToolResult handleComposeChain(Map<String, Object> arguments) {
+        return deliveryCall("compose_chain", () -> deliveryTools.composeChain(arguments));
+    }
+
+    private McpSchema.CallToolResult handleGenSmokeSuite(Map<String, Object> arguments) {
+        return deliveryCall("gen_smoke_suite", () -> deliveryTools.genSmokeSuite(arguments));
+    }
+
+    private McpSchema.CallToolResult handleRunAcceptanceSuite(Map<String, Object> arguments) {
+        return deliveryCall("run_acceptance_suite", () -> deliveryTools.runAcceptanceSuite(arguments));
     }
 
     private McpSchema.CallToolResult handleValidateChain(Map<String, Object> arguments) {
@@ -237,6 +281,14 @@ public class McpToolFactory {
     }
 
     private McpSchema.CallToolResult learningCall(String name, LearningCallable callable) {
+        return wrappedCall(name, callable::call);
+    }
+
+    private McpSchema.CallToolResult deliveryCall(String name, LearningCallable callable) {
+        return wrappedCall(name, callable::call);
+    }
+
+    private McpSchema.CallToolResult wrappedCall(String name, LearningCallable callable) {
         try {
             return McpToolResults.text(callable.call());
         } catch (Exception e) {
@@ -318,6 +370,34 @@ public class McpToolFactory {
         Map<String, Object> p = new LinkedHashMap<>();
         p.put("appCode", McpJsonSchemas.stringProperty("应用编码；默认 --app-code"));
         p.put("chainDefinitionJson", McpJsonSchemas.stringProperty("ChainDefinition JSON"));
+        return p;
+    }
+
+    private static Map<String, Object> validateDeliveryProperties() {
+        Map<String, Object> p = new LinkedHashMap<>();
+        p.put("appCode", McpJsonSchemas.stringProperty("应用编码；默认 --app-code"));
+        p.put("strictMode", Map.of("type", "boolean", "description", "默认 true；score≥0.95 且 blocking=0"));
+        return p;
+    }
+
+    private static Map<String, Object> composeChainProperties() {
+        Map<String, Object> p = new LinkedHashMap<>();
+        p.put("patternId", McpJsonSchemas.stringProperty(
+                "模板：auth-owned-write|guest-gated-read|publish-workflow|paginated-list|admin-decision"));
+        p.put("chainCode", McpJsonSchemas.stringProperty("链编码，如 CHN_BOOK_LISTING_UPDATE"));
+        p.put("chainName", McpJsonSchemas.stringProperty("链显示名"));
+        p.put("componentBindings", Map.of("type", "object", "description", "节点 bindingKey → componentId"));
+        return p;
+    }
+
+    private static Map<String, Object> genSmokeSuiteProperties() {
+        return new LinkedHashMap<>();
+    }
+
+    private static Map<String, Object> runAcceptanceSuiteProperties() {
+        Map<String, Object> p = new LinkedHashMap<>();
+        p.put("baseUrl", McpJsonSchemas.stringProperty("应用 baseUrl，如 http://127.0.0.1:8081"));
+        p.put("dryRun", Map.of("type", "boolean", "description", "无 baseUrl 时默认 true"));
         return p;
     }
 

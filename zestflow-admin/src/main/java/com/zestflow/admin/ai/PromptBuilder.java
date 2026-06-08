@@ -100,7 +100,9 @@ public class PromptBuilder {
                 1. 只能使用 allowedComponents：%s
                 2. 条件边 Aviator；chainCtx.get(ctx, 'key')
                 3. 仅输出 JSON：{"chainData":{...},"summary":"..."}
-                4. 生成前检索知识库 ai-generation-acceptance 与租户 RAG；生成后 summary 注明可蒸馏要点
+                4. chainData.config.lifecycle 必须为 production（禁止 bootstrap 占位链）
+                5. 优先调用 Admin API /ai/delivery/patterns + /ai/chains/compose 按 Pattern 实例化，再 validate
+                6. 生成前检索知识库 ai-generation-acceptance；未完成 validate_delivery(passed=true) 禁止宣称完成
                 """.formatted(componentList);
     }
 

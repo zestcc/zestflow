@@ -39,6 +39,7 @@ public class AiCopilotController {
     private final PermissionService permissionService;
     private final ExecutorProxyService executorProxyService;
     private final ExecutorChainAiClient executorChainAiClient;
+    private final AiDeliveryService aiDeliveryService;
 
     @GetMapping("/config")
     public Result<AiConfigStatusVO> getConfig() {
@@ -234,6 +235,35 @@ public class AiCopilotController {
             requireAppEditor(request.getAppCode());
         }
         return Result.success(aiCopilotService.validate(request));
+    }
+
+    @GetMapping("/delivery/patterns")
+    public Result<List<java.util.Map<String, String>>> listDeliveryPatterns() {
+        return Result.success(aiDeliveryService.listPlatformPatterns());
+    }
+
+    @PostMapping("/chains/compose")
+    public Result<java.util.Map<String, Object>> composeChain(@RequestBody AiComposeChainRequest request) {
+        requireAppEditor(request.getAppCode());
+        try {
+            return Result.success(aiDeliveryService.composeChain(request));
+        } catch (BizException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BizException(ErrorCode.SERVER_ERROR, e.getMessage());
+        }
+    }
+
+    @PostMapping("/delivery/validate")
+    public Result<java.util.Map<String, Object>> validateDelivery(@RequestBody AiDeliveryValidateRequest request) {
+        requireAppEditor(request.getAppCode());
+        try {
+            return Result.success(aiDeliveryService.validateDelivery(request));
+        } catch (BizException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BizException(ErrorCode.SERVER_ERROR, e.getMessage());
+        }
     }
 
     @PostMapping("/expression/suggest")

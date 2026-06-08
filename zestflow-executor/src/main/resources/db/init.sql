@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS `zf_chain` (
     `description` VARCHAR(500) DEFAULT NULL,
     `status`      TINYINT      NOT NULL DEFAULT 1   COMMENT '0-停用 1-未设计 2-未发布 3-发布中 4-已发布',
     `version`     INT          NOT NULL DEFAULT 1   COMMENT '当前发布版本号',
+    `delivery_lifecycle` VARCHAR(16) NOT NULL DEFAULT 'bootstrap' COMMENT '交付生命周期：bootstrap-占位 production-生产',
     `created_by`  VARCHAR(64)  DEFAULT NULL         COMMENT '创建人',
     `updated_by`  VARCHAR(64)  DEFAULT NULL         COMMENT '最后修改人',
     `tenant_id`   BIGINT       DEFAULT 1            COMMENT '租户ID',

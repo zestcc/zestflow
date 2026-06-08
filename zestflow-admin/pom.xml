@@ -27,6 +27,20 @@
             <groupId>cn.zestflow.www</groupId>
             <artifactId>zestflow-common</artifactId>
         </dependency>
+        <dependency>
+            <groupId>cn.zestflow.www</groupId>
+            <artifactId>zestflow-mcp</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.modelcontextprotocol.sdk</groupId>
+                    <artifactId>mcp</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-simple</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
         <!-- Spring Boot -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

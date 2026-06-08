@@ -1,6 +1,6 @@
 package com.zestflow.executor.chain;
 
-import com.zestflow.executor.registry.ExecutorProperties;
+import com.zestflow.common.constant.ChainDeliveryLifecycle;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -42,14 +42,15 @@ public class ChainRuntimeRegistrar {
             }
             try {
                 jdbcTemplate.update(
-                        "INSERT INTO zf_chain (code, name, description, status, version, tenant_id, app_code, "
+                        "INSERT INTO zf_chain (code, name, description, status, version, delivery_lifecycle, tenant_id, app_code, "
                                 + "created_by, updated_by, created_at, updated_at, is_deleted) "
-                                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         chainCode,
                         name != null ? name : chainCode,
                         "Runtime loaded chain",
                         ChainLifecycleStatus.PUBLISHED,
                         1,
+                        ChainDeliveryLifecycle.PRODUCTION,
                         tenantId,
                         appCode,
                         "runtime",
@@ -66,8 +67,8 @@ public class ChainRuntimeRegistrar {
 
     private void markPublishedRow(String chainCode, String now) {
         jdbcTemplate.update(
-                "UPDATE zf_chain SET status = ?, updated_at = ? WHERE code = ? AND tenant_id = ?",
-                ChainLifecycleStatus.PUBLISHED, now, chainCode, tenantId);
+                "UPDATE zf_chain SET status = ?, delivery_lifecycle = ?, updated_at = ? WHERE code = ? AND tenant_id = ?",
+                ChainLifecycleStatus.PUBLISHED, ChainDeliveryLifecycle.PRODUCTION, now, chainCode, tenantId);
     }
 
     private static Object lockFor(String chainCode) {

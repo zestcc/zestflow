@@ -2,6 +2,7 @@ package com.zestflow.executor.route;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zestflow.common.exception.ChainExecutionException;
+import com.zestflow.common.util.ChainExecutionHttpStatus;
 import com.zestflow.executor.http.ChainExecuteFacade;
 import com.zestflow.executor.http.ChainHttpResponseWriter;
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,7 +36,9 @@ public class ChainRouteHttpRequestHandler implements HttpRequestHandler {
     }
 
     static void writeFailureResponse(HttpServletResponse response, ChainExecutionException ex) throws IOException {
-        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        int status = ChainExecutionHttpStatus.resolve(
+                ex.getResult() != null ? ex.getResult().getErrorCode() : null);
+        response.setStatus(status);
         response.setContentType("application/json;charset=UTF-8");
         response.getOutputStream().write(JSON.writeValueAsBytes(ChainHttpResponseWriter.wrappedFailure(ex.getResult())));
     }

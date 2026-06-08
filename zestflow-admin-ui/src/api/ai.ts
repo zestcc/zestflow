@@ -368,4 +368,34 @@ export const aiApi = {
   submitFeedback(sessionId: string, data: AiFeedbackRequest) {
     return http.post<void>(`/ai/sessions/${sessionId}/feedback`, data)
   },
+
+  listDeliveryPatterns() {
+    return http.get<Array<{ id: string; title: string; topology: string }>>('/ai/delivery/patterns')
+  },
+
+  composeChain(data: {
+    appCode: string
+    patternId?: string
+    chainCode: string
+    chainName?: string
+    componentBindings?: Record<string, string>
+  }) {
+    return http.post<Record<string, unknown>>('/ai/chains/compose', data)
+  },
+
+  validateDelivery(data: {
+    appCode: string
+    chainCode?: string
+    chainData?: string
+    graphData?: string
+    projectRoot?: string
+    strictMode?: boolean
+  }) {
+    return http.post<{
+      passed: boolean
+      blocking?: string[]
+      warnings?: string[]
+      next_actions?: string[]
+    }>('/ai/delivery/validate', data)
+  },
 }

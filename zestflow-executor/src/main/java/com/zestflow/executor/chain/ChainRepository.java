@@ -1,5 +1,6 @@
 package com.zestflow.executor.chain;
 
+import com.zestflow.common.constant.ChainDeliveryLifecycle;
 import com.zestflow.common.util.CodeGenerator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -31,6 +32,7 @@ public class ChainRepository {
         po.setCreatedAt(rs.getString("created_at"));
         po.setUpdatedAt(rs.getString("updated_at"));
         try { po.setIsDeleted(rs.getInt("is_deleted")); } catch (Exception ignored) {}
+        try { po.setDeliveryLifecycle(rs.getString("delivery_lifecycle")); } catch (Exception ignored) {}
         return po;
     };
 
@@ -107,9 +109,10 @@ public class ChainRepository {
         }
         String code = CodeGenerator.generate("CHN");
         String creator = updatedBy != null ? updatedBy : appCode;
-        jdbc.update("INSERT INTO zf_chain(code, chain_key, name, description, status, version, app_code, tenant_id, created_by, updated_by, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+        jdbc.update("INSERT INTO zf_chain(code, chain_key, name, description, status, version, delivery_lifecycle, app_code, tenant_id, created_by, updated_by, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 code, chainKey.trim(), name != null ? name : chainKey,
                 description, ChainLifecycleStatus.DESIGNING, 1,
+                ChainDeliveryLifecycle.BOOTSTRAP,
                 appCode, tenantId, creator, creator, now, now);
         log.info("链声明占位创建 code={} chainKey={} appCode={}", code, chainKey, appCode);
         return new UpsertDeclarationResult(get(code), true);
@@ -128,8 +131,9 @@ public class ChainRepository {
         String code = CodeGenerator.generate("CHN");
         String now = LocalDateTime.now().format(DTF);
         String creator = updatedBy != null ? updatedBy : (appCode != null ? appCode : "");
-        jdbc.update("INSERT INTO zf_chain(code, name, description, status, version, app_code, tenant_id, created_by, updated_by, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+        jdbc.update("INSERT INTO zf_chain(code, name, description, status, version, delivery_lifecycle, app_code, tenant_id, created_by, updated_by, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
                 code, name, description, status != null ? status : 1, 1,
+                ChainDeliveryLifecycle.BOOTSTRAP,
                 appCode, tenantId, creator, creator, now, now);
         log.info("链创建成功 code={} name={} createdBy={}", code, name, creator);
         return get(code);
@@ -195,13 +199,34 @@ public class ChainRepository {
      */
     public void markPublished(String code, String updatedBy) {
         String now = LocalDateTime.now().format(DTF);
-        jdbc.update("UPDATE zf_chain SET status=?, updated_by=?, updated_at=? WHERE code=? AND tenant_id=?",
+        jdbc.update("UPDATE zf_chain SET status=?, delivery_lifecycle=?, updated_by=?, updated_at=? WHERE code=? AND tenant_id=?",
                 ChainLifecycleStatus.PUBLISHED,
+                ChainDeliveryLifecycle.PRODUCTION,
                 updatedBy != null ? updatedBy : "",
                 now,
                 code,
                 tenantId);
         log.info("链已标记为已发布 code={} updatedBy={}", code, updatedBy);
+    }
+
+    /**
+     * 设计保存后同步绑定链的 delivery_lifecycle（flowValid 且 chainData 达标时为 production）。
+     */
+    public void syncBoundDeliveryLifecycleAfterDesignSave(String designCode, String lifecycle, String updatedBy) {
+        if (lifecycle == null || lifecycle.isBlank()) {
+            return;
+        }
+        int updated = jdbc.update("UPDATE zf_chain SET delivery_lifecycle = ?, updated_by = ?, updated_at = ?"
+                        + " WHERE code IN (SELECT chain_code FROM zf_design_binding WHERE design_code = ? AND tenant_id = ?)"
+                        + " AND is_deleted = 0 AND tenant_id = ?",
+                lifecycle,
+                updatedBy != null ? updatedBy : "",
+                LocalDateTime.now().format(DTF),
+                designCode,
+                tenantId,
+                tenantId);
+        log.info("设计保存同步 delivery_lifecycle designCode={} lifecycle={} updated={}",
+                designCode, lifecycle, updated);
     }
 
     /**

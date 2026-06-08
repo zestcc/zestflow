@@ -61,6 +61,14 @@ public final class DevProjectInitializer {
                     options.force(),
                     created,
                     skipped);
+            writeFromTemplate(
+                    projectRoot,
+                    TEMPLATE_ROOT + "ide/delivery-gate-cursor.md.template",
+                    ".cursor/rules/zestflow-delivery-gate.md",
+                    vars,
+                    options.force(),
+                    created,
+                    skipped);
         }
         if (options.ides().contains(DevInitOptions.IdeTarget.VSCODE)) {
             writeFromTemplate(
@@ -134,6 +142,8 @@ public final class DevProjectInitializer {
             created.add(".zestflow/learning/");
         }
 
+        bootstrapDeliveryAssets(projectRoot, vars, options.force(), created, skipped);
+
         if (options.appendGitignore()) {
             appendGitignoreSnippet(projectRoot, created, skipped);
         }
@@ -144,6 +154,38 @@ public final class DevProjectInitializer {
 
         List<String> warnings = DevProjectHealthCheck.warnings(projectRoot);
         return new DevInitResult(created, skipped, vars, warnings);
+    }
+
+    private static void bootstrapDeliveryAssets(
+            Path projectRoot,
+            Map<String, String> vars,
+            boolean force,
+            List<String> created,
+            List<String> skipped) throws IOException {
+        writeFromTemplate(
+                projectRoot,
+                TEMPLATE_ROOT + "acceptance/journeys.yml.template",
+                ".zestflow/acceptance/journeys.yml",
+                vars,
+                force,
+                created,
+                skipped);
+        writeFromTemplate(
+                projectRoot,
+                TEMPLATE_ROOT + "patterns/README.md.template",
+                ".zestflow/patterns/README.md",
+                vars,
+                force,
+                created,
+                skipped);
+        writeFromTemplate(
+                projectRoot,
+                TEMPLATE_ROOT + "ci/zestflow-acceptance.yml.template",
+                ".github/workflows/zestflow-acceptance.yml",
+                vars,
+                force,
+                created,
+                skipped);
     }
 
     private static Map<String, String> buildVariables(Path projectRoot, DevInitOptions options) {

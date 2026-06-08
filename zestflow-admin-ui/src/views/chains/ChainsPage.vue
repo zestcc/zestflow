@@ -671,6 +671,10 @@ const publishResults = ref<Array<{ url: string; ok: boolean; message: string }>>
 const currentPublishingChain = ref<any>(null)
 
 async function handlePublish(row: any) {
+  if ((row.deliveryLifecycle || 'bootstrap') === 'bootstrap') {
+    ElMessage.error(t('chains.bootstrapPublishBlocked'))
+    return
+  }
   currentPublishingChain.value = row
   publishResults.value = []
   publishProgressPercent.value = 0

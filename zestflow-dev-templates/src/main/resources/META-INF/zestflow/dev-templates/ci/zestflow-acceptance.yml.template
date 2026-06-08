@@ -1,0 +1,36 @@
+name: ZestFlow Acceptance
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+
+jobs:
+  zestflow-delivery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install zestflow-mcp (local)
+        run: |
+          mvn -q -pl zestflow-mcp -am install -DskipTests
+        working-directory: ${{ github.workspace }}
+        continue-on-error: true
+      - name: Validate delivery (structure)
+        run: |
+          java -jar ~/.zestflow/tools/zestflow-mcp.jar \
+            --project . \
+            --app-code {{APP_CODE}} \
+            --validate-delivery --no-strict
+        continue-on-error: true
+      - name: Run acceptance dry-run
+        run: |
+          java -jar ~/.zestflow/tools/zestflow-mcp.jar \
+            --project . \
+            --app-code {{APP_CODE}} \
+            --export-task-package 2>/dev/null || true
+        continue-on-error: true

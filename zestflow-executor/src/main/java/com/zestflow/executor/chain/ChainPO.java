@@ -25,4 +25,6 @@ public class ChainPO {
     private Integer isDeleted;
     /** 应用侧稳定链标识，如 heytrip.ota.getHotels */
     private String chainKey;
+    /** 交付生命周期：bootstrap / production */
+    private String deliveryLifecycle;
 }

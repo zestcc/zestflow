@@ -201,6 +201,7 @@ export default {
     designModifyConfirm: '该设计关联的链已发布，保存后链状态将回退到未发布，是否继续？',
     publishSuccess: '发布成功',
     publishFailed: '发布失败',
+    bootstrapPublishBlocked: '占位链（bootstrap）不可发布，请先通过 Pattern compose 生成 production 链并通过 validate_delivery。',
     enableSuccess: '启用成功',
     disableSuccess: '停用成功',
     deleteSuccess: '删除成功',
@@ -999,6 +1000,10 @@ export default {
     saveDespiteInvalid: '流程未通过校验，保存后关联链状态将变为「设计中」:\n{errors}\n\n确定继续保存吗？',
     saveGraphDesigning: '流程图已保存（关联链状态：设计中）',
     cycleConfirm: '流程图存在死环:\n{warnings}\n\n确定继续保存吗？',
+    bootstrapBannerTitle: '占位链（bootstrap）',
+    bootstrapBannerDesc: '当前为 DeclarationSync / Seeder 占位拓扑，不满足生产交付。请通过 Pattern compose 生成 production 链并完成 validate_delivery。',
+    composeFromPattern: '从 Pattern compose（Copilot）',
+    deliveryGateFailed: '交付门禁未通过（仍要保存吗？）:\n{errors}',
   },
   components: {
     title: '元件列表',

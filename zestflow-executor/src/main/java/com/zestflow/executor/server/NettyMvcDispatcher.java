@@ -2,6 +2,7 @@ package com.zestflow.executor.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zestflow.common.exception.ChainExecutionException;
+import com.zestflow.common.util.ChainExecutionHttpStatus;
 import com.zestflow.executor.http.ChainExecuteFacade;
 import com.zestflow.executor.http.ChainHttpResponseWriter;
 import com.zestflow.executor.route.ChainRouteEntry;
@@ -115,9 +116,11 @@ public class NettyMvcDispatcher {
         } catch (ChainExecutionException ex) {
             byte[] bytes = JSON.writeValueAsBytes(ChainHttpResponseWriter.wrappedFailure(ex.getResult()));
             String content = new String(bytes, StandardCharsets.UTF_8);
-            log.info("Netty 链路由执行失败 method={} uri={} chainCode={}", httpMethod, uri,
-                    route.get().getChainCode());
-            return new DispatchResult(500, content, true);
+            int status = ChainExecutionHttpStatus.resolve(
+                    ex.getResult() != null ? ex.getResult().getErrorCode() : null);
+            log.info("Netty 链路由执行失败 method={} uri={} chainCode={} httpStatus={}", httpMethod, uri,
+                    route.get().getChainCode(), status);
+            return new DispatchResult(status, content, true);
         }
     }
 

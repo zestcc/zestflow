@@ -1,5 +1,75 @@
 [
   {
+    "id": "platform-delivery-dod",
+    "title": "Delivery DoD 生产级交付定义",
+    "feature": "delivery",
+    "tags": ["validate_delivery", "dod", "acceptance", "smoke"],
+    "confidenceScore": 0.99,
+    "sampleCount": 1,
+    "updatedAt": "2026-06-08T00:00:00Z",
+    "file": "delivery-dod.md"
+  },
+  {
+    "id": "platform-bootstrap-minimal-graph",
+    "title": "Bootstrap 占位链最小拓扑",
+    "feature": "bootstrap",
+    "tags": ["seeder", "lifecycle", "graph"],
+    "confidenceScore": 0.99,
+    "sampleCount": 1,
+    "updatedAt": "2026-06-08T00:00:00Z",
+    "file": "bootstrap-minimal-graph.md"
+  },
+  {
+    "id": "platform-auth-owned-write",
+    "title": "归属鉴权写操作链",
+    "feature": "authOwnedWrite",
+    "tags": ["authorize", "mutate", "owned-resource"],
+    "confidenceScore": 0.98,
+    "sampleCount": 10,
+    "updatedAt": "2026-06-08T00:00:00Z",
+    "file": "auth-owned-write.md"
+  },
+  {
+    "id": "platform-guest-gated-read",
+    "title": "游客试读/登录门禁读",
+    "feature": "guestGatedRead",
+    "tags": ["preview", "403", "guest", "read"],
+    "confidenceScore": 0.98,
+    "sampleCount": 10,
+    "updatedAt": "2026-06-08T00:00:00Z",
+    "file": "guest-gated-read.md"
+  },
+  {
+    "id": "platform-publish-workflow",
+    "title": "发布/上架工作流",
+    "feature": "publishWorkflow",
+    "tags": ["publish", "draft", "audit"],
+    "confidenceScore": 0.97,
+    "sampleCount": 8,
+    "updatedAt": "2026-06-08T00:00:00Z",
+    "file": "publish-workflow.md"
+  },
+  {
+    "id": "platform-paginated-list",
+    "title": "分页列表链",
+    "feature": "paginatedList",
+    "tags": ["list", "page", "query"],
+    "confidenceScore": 0.97,
+    "sampleCount": 15,
+    "updatedAt": "2026-06-08T00:00:00Z",
+    "file": "paginated-list.md"
+  },
+  {
+    "id": "platform-admin-decision",
+    "title": "审核/决策链",
+    "feature": "adminDecision",
+    "tags": ["audit", "approve", "reject"],
+    "confidenceScore": 0.97,
+    "sampleCount": 6,
+    "updatedAt": "2026-06-08T00:00:00Z",
+    "file": "admin-decision.md"
+  },
+  {
     "id": "platform-http-three-mode",
     "title": "HTTP 三 Mode 暴露策略",
     "feature": "httpIntegration",

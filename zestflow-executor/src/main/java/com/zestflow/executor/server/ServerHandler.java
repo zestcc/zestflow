@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.zestflow.common.constant.ChainDeliveryLifecycle;
 import com.zestflow.common.model.dto.ChainExecuteRequestDTO;
 import com.zestflow.common.model.dto.ChainExecuteResultDTO;
 import com.zestflow.common.model.event.PublishEventDTO;
@@ -588,6 +589,8 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
                 log.warn("设计保存时流程校验未通过 code={} errors={}", code, errors);
             }
             chainRepo.syncBoundChainStatusAfterDesignSave(code, flowValid, updatedBy);
+            String deliveryLifecycle = resolveDeliveryLifecycle(chainData, flowValid);
+            chainRepo.syncBoundDeliveryLifecycleAfterDesignSave(code, deliveryLifecycle, updatedBy);
         } else {
             chainRepo.resetBoundChainStatus(code, updatedBy);
         }
@@ -1379,7 +1382,45 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
         node.put("updatedBy", c.getUpdatedBy() != null ? c.getUpdatedBy() : "");
         node.put("createdAt", c.getCreatedAt() != null ? c.getCreatedAt() : "");
         node.put("updatedAt", c.getUpdatedAt() != null ? c.getUpdatedAt() : "");
+        node.put("deliveryLifecycle", c.getDeliveryLifecycle() != null ? c.getDeliveryLifecycle() : ChainDeliveryLifecycle.BOOTSTRAP);
         return node;
+    }
+
+    /**
+     * 从 chainData 解析 lifecycle；未声明时 flowValid 且业务节点≥2 则升为 production。
+     */
+    private String resolveDeliveryLifecycle(String chainDataJson, boolean flowValid) {
+        if (chainDataJson == null || chainDataJson.isBlank()) {
+            return ChainDeliveryLifecycle.BOOTSTRAP;
+        }
+        try {
+            JsonNode root = MAPPER.readTree(chainDataJson);
+            JsonNode lifecycleNode = root.path("config").path("lifecycle");
+            if (lifecycleNode.isTextual() && !lifecycleNode.asText().isBlank()) {
+                return lifecycleNode.asText().trim();
+            }
+            if (flowValid && countBusinessNodes(root) >= 2) {
+                return ChainDeliveryLifecycle.PRODUCTION;
+            }
+        } catch (Exception ignored) {
+            // 解析失败保持 bootstrap
+        }
+        return ChainDeliveryLifecycle.BOOTSTRAP;
+    }
+
+    private static int countBusinessNodes(JsonNode root) {
+        JsonNode nodes = root.path("nodes");
+        if (!nodes.isArray()) {
+            return 0;
+        }
+        int count = 0;
+        for (JsonNode node : nodes) {
+            String type = node.path("type").asText("").toUpperCase();
+            if (!"START".equals(type) && !"END".equals(type)) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private ObjectNode designToJson(DesignPO d, List<ChainPO> bindings) {

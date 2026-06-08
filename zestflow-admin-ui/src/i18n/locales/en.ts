@@ -201,6 +201,7 @@ export default {
     designModifyConfirm: 'This design has published chains bound. Saving will revert them to unpublished. Continue?',
     publishSuccess: 'Publish successful',
     publishFailed: 'Publish failed',
+    bootstrapPublishBlocked: 'Bootstrap placeholder chains cannot be published. Use Pattern compose to create a production chain and pass validate_delivery first.',
     enableSuccess: 'Enabled successfully',
     disableSuccess: 'Disabled successfully',
     deleteSuccess: 'Deleted successfully',
@@ -998,6 +999,10 @@ export default {
     saveDespiteInvalid: 'Flow validation failed. Bound chains will be set to Designing:\n{errors}\n\nContinue saving?',
     saveGraphDesigning: 'Graph saved (bound chain status: Designing)',
     cycleConfirm: 'Cycle detected:\n{warnings}\n\nContinue saving?',
+    bootstrapBannerTitle: 'Bootstrap placeholder chain',
+    bootstrapBannerDesc: 'This is a DeclarationSync/Seeder placeholder topology, not production-ready. Use Pattern compose to generate a production chain and pass validate_delivery.',
+    composeFromPattern: 'Compose from Pattern (Copilot)',
+    deliveryGateFailed: 'Delivery gate failed (save anyway?):\n{errors}',
   },
   components: {
     title: 'Component List',

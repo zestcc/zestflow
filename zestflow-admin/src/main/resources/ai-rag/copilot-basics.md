@@ -14,7 +14,17 @@
 
 ## 校验闭环
 - Copilot 提议必须经 Executor `validate-definition` 通过后再应用到画布
+- 设计域交付门禁：`POST /ai/delivery/validate`（chainData lifecycle=production + validate_chain）
+- 完整工程门禁：MCP `validate_delivery(projectRoot, strictMode=true)`
 - 禁止编造未在 allowedComponents 中的 componentId
+
+## 交付管道（不可跳过）
+search_patterns → plan_chain → compose_chain（/ai/chains/compose）→ validate_chain
+→ gen_smoke_suite → run_acceptance_suite → validate_delivery(passed=true)
+
+## bootstrap vs production
+- bootstrap：DeclarationSync 占位链，设计器黄色提示，不可发布
+- production：compose_chain 或 ≥2 业务节点且校验通过；发布前须 validate_delivery
 
 ## 发布原则
 - Copilot 不自动 save/publish/reload；人工确认后保存设计并发布链

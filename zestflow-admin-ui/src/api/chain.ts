@@ -14,6 +14,7 @@ export interface ChainVO {
   updatedBy?: string
   createdAt: string
   updatedAt: string
+  deliveryLifecycle?: string
   publishedCount?: number
   totalExecutors?: number
 }

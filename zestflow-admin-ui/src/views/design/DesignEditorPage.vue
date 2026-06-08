@@ -1,5 +1,21 @@
 <template>
-  <div class="design-editor-x6">
+    <div class="design-editor-x6">
+    <!-- bootstrap 占位链提示 -->
+    <el-alert
+      v-if="showBootstrapBanner"
+      class="bootstrap-banner"
+      type="warning"
+      show-icon
+      :closable="false"
+      :title="$t('design.bootstrapBannerTitle')"
+    >
+      <template #default>
+        <span>{{ $t('design.bootstrapBannerDesc') }}</span>
+        <el-button type="primary" link class="action-btn" @click="openComposeCopilot">
+          {{ $t('design.composeFromPattern') }}
+        </el-button>
+      </template>
+    </el-alert>
     <!-- 顶部工具栏 -->
     <div class="editor-toolbar" :class="{ 'editor-toolbar--mobile': isMobileView }">
       <div class="toolbar-left">
@@ -887,6 +903,25 @@ const playgroundChainCode = computed(() => {
   }
   return ''
 })
+
+const showBootstrapBanner = computed(() => {
+  const chains = design.value?.boundChains
+  if (Array.isArray(chains) && chains.some((c: any) => (c.deliveryLifecycle || 'bootstrap') === 'bootstrap')) {
+    return true
+  }
+  try {
+    let cd = design.value?.chainData
+    if (typeof cd === 'string') cd = JSON.parse(cd)
+    const lc = cd?.config?.lifecycle
+    return !lc || lc === 'bootstrap'
+  } catch {
+    return true
+  }
+})
+
+function openComposeCopilot() {
+  showCopilot.value = true
+}
 
 async function loadCopilotConfig() {
   try {
@@ -3125,6 +3160,31 @@ async function handleSave() {
     } catch { return }
   }
 
+  if (flowValid && appCode) {
+    try {
+      const chain = translateGraphToChain()
+      const delivery = await aiApi.validateDelivery({
+        appCode,
+        chainCode: playgroundChainCode.value || designCode,
+        chainData: JSON.stringify(chain),
+        graphData: graph ? JSON.stringify(graph.toJSON()) : '',
+        strictMode: true,
+      })
+      if (!delivery.passed) {
+        const msg = [...(delivery.blocking || []), ...(delivery.warnings || [])].join('\n')
+        try {
+          await ElMessageBox.confirm(
+              t('design.deliveryGateFailed', { errors: msg }),
+              t('common.confirm'),
+              { confirmButtonText: t('design.saveGraph'), cancelButtonText: t('common.cancel'), type: 'warning' }
+          )
+        } catch { return }
+      }
+    } catch {
+      // 交付 API 不可用时仅依赖本地拓扑校验
+    }
+  }
+
   // 3. 已发布链的确认弹窗
   const boundChains = (design.value as any)?.boundChains
   if (boundChains && boundChains.some((c: any) => c.status === 3 || c.status === 4)) {
@@ -3186,6 +3246,12 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.bootstrap-banner {
+  margin: 0;
+  border-radius: 0;
+  flex-shrink: 0;
+}
+
 .design-editor-x6 {
   display: flex;
   flex-direction: column;

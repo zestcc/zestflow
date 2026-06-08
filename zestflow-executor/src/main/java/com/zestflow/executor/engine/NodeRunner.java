@@ -253,7 +253,27 @@ public class NodeRunner {
             if (t instanceof BizException biz) {
                 return biz.getErrorCode();
             }
+            String reflected = reflectErrorCode(t);
+            if (reflected != null) {
+                return reflected;
+            }
             t = t.getCause();
+        }
+        return null;
+    }
+
+    private static String reflectErrorCode(Throwable t) {
+        try {
+            var method = t.getClass().getMethod("getErrorCode");
+            Object value = method.invoke(t);
+            if (value != null) {
+                String code = String.valueOf(value).trim();
+                if (!code.isEmpty()) {
+                    return code;
+                }
+            }
+        } catch (ReflectiveOperationException ignored) {
+            // 非业务异常类型
         }
         return null;
     }
