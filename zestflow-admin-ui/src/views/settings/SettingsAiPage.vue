@@ -130,6 +130,14 @@
       <el-tab-pane :label="$t('settings.ai.tabUsage')" name="usage">
         <SettingsAiUsagePanel />
       </el-tab-pane>
+
+      <el-tab-pane :label="$t('settings.ai.tabTrace')" name="trace">
+        <SettingsAiTracePanel />
+      </el-tab-pane>
+
+      <el-tab-pane :label="$t('settings.ai.tabLearning')" name="learning">
+        <SettingsAiLearningEventsPanel />
+      </el-tab-pane>
     </el-tabs>
   </div>
 </template>
@@ -138,6 +146,8 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import SettingsAiRagPanel from '@/components/settings/SettingsAiRagPanel.vue'
 import SettingsAiUsagePanel from '@/components/settings/SettingsAiUsagePanel.vue'
+import SettingsAiTracePanel from '@/components/settings/SettingsAiTracePanel.vue'
+import SettingsAiLearningEventsPanel from '@/components/settings/SettingsAiLearningEventsPanel.vue'
 import SettingsAiSystemPanel from '@/components/settings/SettingsAiSystemPanel.vue'
 import ComboboxInput from '@/components/common/ComboboxInput.vue'
 import { useDictCascade } from '@/composables/useDictCascade'

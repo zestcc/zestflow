@@ -52,7 +52,8 @@ class PromptBuilderTest {
                 "fix-errors",
                 "修复链",
                 "{\"nodes\":[]}",
-                List.of("节点 n1 缺少 componentId", "边 e1 目标不存在"));
+                List.of("节点 n1 缺少 componentId", "边 e1 目标不存在"),
+                null);
 
         assertThat(user).contains("节点 n1 缺少 componentId");
         assertThat(user).contains("边 e1 目标不存在");

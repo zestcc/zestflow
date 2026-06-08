@@ -29,6 +29,9 @@ public class AiCopilotSessionPO {
 
     private String chainCode;
 
+    /** 会话标题（首条用户消息摘要） */
+    private String title;
+
     /** explain|suggest|fix-errors|expression|diagnose|scaffold */
     private String mode;
 
@@ -43,6 +46,21 @@ public class AiCopilotSessionPO {
 
     /** 失败摘要 */
     private String errorMessage;
+
+    /** 待采纳链 JSON */
+    private String pendingChainData;
+
+    /** 待采纳摘要 */
+    private String pendingSummary;
+
+    /** 待采纳校验 JSON */
+    private String pendingValidationJson;
+
+    /** 最近调用模型 */
+    private String lastModel;
+
+    /** 1已归档 */
+    private Integer archived;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;

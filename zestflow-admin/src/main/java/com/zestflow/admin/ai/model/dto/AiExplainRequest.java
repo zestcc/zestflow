@@ -12,4 +12,8 @@ public class AiExplainRequest {
     private String appCode;
     private String currentChainData;
     private List<String> allowedComponents;
+    private String userMessage;
+    /** 续接已有会话（同设计上下文） */
+    private Long sessionId;
+    private String graphData;
 }

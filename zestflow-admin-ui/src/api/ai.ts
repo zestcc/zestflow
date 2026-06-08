@@ -87,6 +87,7 @@ export interface AiDesignContextRequest {
   currentChainData?: string
   graphData?: string
   userMessage?: string
+  sessionId?: string | number
 }
 
 export interface AiExplainRequest extends AiDesignContextRequest {
@@ -95,7 +96,8 @@ export interface AiExplainRequest extends AiDesignContextRequest {
 
 export interface AiExplainResponse {
   explanation: string
-  sessionId?: string
+  sessionId?: string | number
+  model?: string
 }
 
 export interface AiSuggestRequest extends AiDesignContextRequest {
@@ -106,9 +108,12 @@ export interface AiSuggestRequest extends AiDesignContextRequest {
 export interface AiSuggestResponse {
   proposedChainData: string
   summary: string
+  reasoning?: string
   validation: AiValidationResult
-  sessionId?: string
+  sessionId?: string | number
   repairRounds?: number
+  model?: string
+  progressSteps?: string[]
 }
 
 export interface AiValidateRequest {
@@ -175,6 +180,107 @@ export interface AiChainKeyHints {
   declaredNotInAdmin: string[]
   adminNotDeclared: string[]
 }
+
+export interface AiCopilotMessageVO {
+  id: number
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  reasoning?: string
+  createdAt?: string
+}
+
+export interface AiCopilotSessionDetailVO {
+  sessionId: number
+  title?: string
+  mode?: string
+  model?: string
+  messages: AiCopilotMessageVO[]
+  pendingChainData?: string
+  pendingSummary?: string
+  pendingValidation?: AiValidationResult
+}
+
+export interface AiCopilotSessionSummary {
+  sessionId: number
+  title?: string
+  mode?: string
+  lastModel?: string
+  success?: boolean
+  latencyMs?: number
+  messageCount?: number
+  hasPending?: boolean
+  lastMessagePreview?: string
+  createdAt?: string
+}
+
+export interface AiCopilotTraceStep {
+  id: number
+  sessionId: number
+  jobId?: number
+  stepType: string
+  stepName: string
+  status: string
+  latencyMs?: number
+  tokenEstimate?: number
+  detailJson?: string
+  sortOrder?: number
+  createdAt?: string
+}
+
+export interface AiCopilotTraceOverview {
+  days: number
+  totalSteps: number
+  failedSteps: number
+  avgStepLatencyMs: number
+  stepsByType?: Record<string, number>
+  recentSessions?: Array<{
+    sessionId: number
+    title?: string
+    mode?: string
+    appCode?: string
+    designId?: string
+    stepCount?: number
+    totalLatencyMs?: number
+    success?: boolean
+    createdAt?: string
+  }>
+}
+
+export interface AiLearningEvent {
+  id: number
+  appCode?: string
+  intent?: string
+  feature?: string
+  chainCode?: string
+  httpMode?: number
+  validatePassed?: boolean
+  validateRounds?: number
+  adopted?: boolean
+  playgroundSuccess?: boolean
+  promotionScore?: number
+  promotionEligible?: boolean
+  userCorrection?: string
+  promotedToRag?: boolean
+  createdAt?: string
+}
+
+export interface AiCopilotJob {
+  jobId: number
+  jobType: string
+  status: string
+  sessionId?: number
+  progressStep?: string
+  reasoning?: string
+  suggestResult?: AiSuggestResponse
+  explainResult?: AiExplainResponse
+  errorMessage?: string
+  latencyMs?: number
+  createdAt?: string
+  finishedAt?: string
+}
+
+/** Copilot 长耗时请求超时（毫秒），须大于后端 LLM timeout */
+const AI_LONG_TIMEOUT_MS = 120_000
 
 export interface AiChainTemplate {
   id: number
@@ -297,11 +403,73 @@ export const aiApi = {
   },
 
   explain(data: AiExplainRequest) {
-    return http.post<AiExplainResponse>('/ai/design/explain', data)
+    return http.post<AiExplainResponse>('/ai/design/explain', data, { timeout: AI_LONG_TIMEOUT_MS })
+  },
+
+  getActiveSession(params: { appCode: string; designId: string; chainCode?: string }) {
+    return http.get<AiCopilotSessionDetailVO | null>('/ai/sessions/active', { params })
+  },
+
+  listSessions(params: { appCode: string; designId: string; chainCode?: string; limit?: number }) {
+    return http.get<AiCopilotSessionSummary[]>('/ai/sessions', { params })
+  },
+
+  getSession(id: number | string) {
+    return http.get<AiCopilotSessionDetailVO>(`/ai/sessions/${id}`)
+  },
+
+  createSession(data: {
+    appCode: string
+    designId: string
+    chainCode?: string
+    title?: string
+    mode?: string
+  }) {
+    return http.post<AiCopilotSessionDetailVO>('/ai/sessions', data)
+  },
+
+  updateSession(id: number | string, data: { title?: string }) {
+    return http.put<AiCopilotSessionDetailVO>(`/ai/sessions/${id}`, data)
+  },
+
+  archiveSession(id: number | string) {
+    return http.delete<void>(`/ai/sessions/${id}`)
+  },
+
+  getSessionTrace(id: number | string) {
+    return http.get<AiCopilotTraceStep[]>(`/ai/sessions/${id}/trace`)
+  },
+
+  getTraceOverview(days = 30) {
+    return http.get<AiCopilotTraceOverview>('/ai/trace/overview', { params: { days } })
+  },
+
+  submitSuggestJob(data: AiSuggestRequest) {
+    return http.post<AiCopilotJob>('/ai/jobs/suggest', data)
+  },
+
+  submitExplainJob(data: AiExplainRequest) {
+    return http.post<AiCopilotJob>('/ai/jobs/explain', data)
+  },
+
+  getJob(id: number | string) {
+    return http.get<AiCopilotJob>(`/ai/jobs/${id}`)
+  },
+
+  cancelJob(id: number | string) {
+    return http.post<void>(`/ai/jobs/${id}/cancel`)
+  },
+
+  listLearningEvents(appCode?: string, limit = 30) {
+    return http.get<AiLearningEvent[]>('/ai/learning/events', { params: { appCode, limit } })
+  },
+
+  promoteLearningEvent(id: number) {
+    return http.post<AiRagDocument>(`/ai/learning/events/${id}/promote-rag`)
   },
 
   suggest(data: AiSuggestRequest) {
-    return http.post<AiSuggestResponse>('/ai/design/suggest', data)
+    return http.post<AiSuggestResponse>('/ai/design/suggest', data, { timeout: AI_LONG_TIMEOUT_MS })
   },
 
   validate(data: AiValidateRequest) {
@@ -309,11 +477,11 @@ export const aiApi = {
   },
 
   suggestExpression(data: AiExpressionSuggestRequest) {
-    return http.post<AiExpressionSuggestResponse>('/ai/expression/suggest', data)
+    return http.post<AiExpressionSuggestResponse>('/ai/expression/suggest', data, { timeout: AI_LONG_TIMEOUT_MS })
   },
 
   diagnose(data: AiDiagnoseRequest) {
-    return http.post<AiDiagnoseResponse>('/ai/logs/diagnose', data)
+    return http.post<AiDiagnoseResponse>('/ai/logs/diagnose', data, { timeout: AI_LONG_TIMEOUT_MS })
   },
 
   getChainKeyHints(appCode: string) {

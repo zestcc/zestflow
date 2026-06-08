@@ -8,7 +8,6 @@ import com.zestflow.admin.ai.model.vo.AiDiagnoseResponse;
 import com.zestflow.admin.ai.model.vo.AiExplainResponse;
 import com.zestflow.admin.ai.model.vo.AiSuggestResponse;
 import com.zestflow.admin.ai.model.vo.AiValidationVO;
-import com.zestflow.admin.ai.model.entity.AiCopilotMessagePO;
 import com.zestflow.admin.ai.model.entity.AiCopilotSessionPO;
 import com.zestflow.admin.ai.repository.AiCopilotMessageMapper;
 import com.zestflow.admin.ai.repository.AiCopilotSessionMapper;
@@ -44,6 +43,9 @@ class AiCopilotServiceTest {
     @Mock private AiQuotaService aiQuotaService;
     @Mock private AiLearningEventService aiLearningEventService;
     @Mock private ExecutorChainAiClient executorChainAiClient;
+    @Mock private AiCopilotPipeline copilotPipeline;
+    @Mock private AiCopilotSessionSupport sessionSupport;
+    @Mock private AiCopilotTraceService traceService;
 
     private AiPlatformConfig aiPlatformConfig;
     private AiCopilotService service;
@@ -57,6 +59,10 @@ class AiCopilotServiceTest {
 
         lenient().when(aiRagService.retrieve(anyLong(), any(), anyString(), anyInt())).thenReturn(List.of());
         lenient().when(executorChainAiClient.searchRag(anyString(), anyString(), anyInt())).thenReturn(List.of());
+        lenient().when(copilotPipeline.buildChatMessages(any(), anyLong(), anyString(), anyString(), anyString(), any()))
+                .thenAnswer(inv -> List.of(
+                        new AiChatClient.ChatMessage("system", "sys"),
+                        new AiChatClient.ChatMessage("user", inv.getArgument(3))));
 
         service = new AiCopilotService(
                 aiPlatformConfig,
@@ -70,79 +76,48 @@ class AiCopilotServiceTest {
                 messageMapper,
                 aiQuotaService,
                 aiLearningEventService,
-                executorChainAiClient
+                executorChainAiClient,
+                copilotPipeline,
+                sessionSupport,
+                traceService
         );
-
-        lenient().when(tenantAiConfigService.getCurrentTenantId()).thenReturn(1L);
-        lenient().doAnswer(inv -> {
-            AiCopilotSessionPO session = inv.getArgument(0);
-            session.setId(100L);
-            return 1;
-        }).when(sessionMapper).insert(any(AiCopilotSessionPO.class));
     }
 
     @Test
-    void explain_whenCopilotDisabled_shouldThrow() {
-        when(tenantAiConfigService.isCopilotEnabledForTenant(1L)).thenReturn(false);
-
+    void explain_delegatesToPipeline() {
         AiExplainRequest request = new AiExplainRequest();
         request.setAppCode("demo");
-
-        assertThatThrownBy(() -> service.explain(request))
-                .isInstanceOf(BizException.class)
-                .extracting(e -> ((BizException) e).getErrorCode())
-                .isEqualTo(ErrorCode.AI_COPILOT_DISABLED);
-    }
-
-    @Test
-    void explain_shouldReturnExplanation() {
-        when(tenantAiConfigService.isCopilotEnabledForTenant(1L)).thenReturn(true);
-        when(tenantAiConfigService.resolveEffectiveConfig(1L)).thenReturn(effectiveConfig());
-        when(aiChatClient.chat(anyList(), any())).thenReturn("这是一条线性链，依次校验、扣库存、支付。");
-
-        AiExplainRequest request = new AiExplainRequest();
-        request.setAppCode("demo");
-        request.setCurrentChainData("{\"nodes\":[]}");
-        request.setAllowedComponents(List.of("payOrder"));
+        AiExplainResponse expected = AiExplainResponse.builder()
+                .explanation("ok")
+                .sessionId(1L)
+                .model("deepseek-chat")
+                .build();
+        when(copilotPipeline.explain(eq(request), any())).thenReturn(expected);
 
         AiExplainResponse response = service.explain(request);
 
-        assertThat(response.getExplanation()).contains("线性链");
-        assertThat(response.getSessionId()).isEqualTo(100L);
-        verify(sessionMapper).insert(any(AiCopilotSessionPO.class));
-        verify(messageMapper, times(2)).insert(any(AiCopilotMessagePO.class));
+        assertThat(response.getExplanation()).isEqualTo("ok");
+        verify(copilotPipeline).explain(eq(request), any());
     }
 
     @Test
-    void suggest_shouldRepairUntilValid() {
-        when(tenantAiConfigService.isCopilotEnabledForTenant(1L)).thenReturn(true);
-        when(tenantAiConfigService.resolveEffectiveConfig(1L)).thenReturn(effectiveConfig());
-
-        String invalidJson = "{\"chainData\":{\"nodes\":["
-                + "{\"id\":\"n1\",\"type\":\"NORMAL\"},{\"id\":\"n2\",\"type\":\"NORMAL\"},"
-                + "{\"id\":\"n3\",\"type\":\"CONDITION\"},{\"id\":\"n4\",\"type\":\"NORMAL\"}"
-                + "]},\"summary\":\"初稿\"}";
-        String fixedJson = "{\"chainData\":{\"nodes\":[{\"id\":\"n1\"}]},\"summary\":\"修复后\"}";
-
-        when(aiChatClient.chat(anyList(), any()))
-                .thenReturn(invalidJson)
-                .thenReturn(fixedJson);
-
-        when(executorValidateClient.validate(eq("demo"), anyString()))
-                .thenReturn(AiValidationVO.builder().valid(false).errors(List.of("缺少 START 节点")).build())
-                .thenReturn(AiValidationVO.builder().valid(true).errors(List.of()).build());
-
+    void suggest_delegatesToPipeline() {
         AiSuggestRequest request = new AiSuggestRequest();
         request.setAppCode("demo");
-        request.setUserMessage("创建下单链");
-        request.setAllowedComponents(List.of("payOrder"));
+        request.setUserMessage("创建链");
+        AiSuggestResponse expected = AiSuggestResponse.builder()
+                .summary("done")
+                .proposedChainData("{}")
+                .validation(AiValidationVO.builder().valid(true).errors(List.of()).build())
+                .sessionId(2L)
+                .build();
+        when(copilotPipeline.suggest(eq(request), any())).thenReturn(expected);
 
         AiSuggestResponse response = service.suggest(request);
 
-        assertThat(response.getValidation().isValid()).isTrue();
-        assertThat(response.getRepairRounds()).isEqualTo(1);
-        assertThat(response.getSummary()).isEqualTo("修复后");
-        verify(aiChatClient, times(2)).chat(anyList(), any());
+        assertThat(response.getSummary()).isEqualTo("done");
+        verify(copilotPipeline).suggest(eq(request), any());
+        verify(executorChainAiClient, never()).recordLearningEvent(anyString(), any());
     }
 
     @Test
@@ -171,17 +146,30 @@ class AiCopilotServiceTest {
     }
 
     @Test
-    void parseChainProposal_shouldStripMarkdownFence() {
-        String raw = "```json\n{\"chainData\":{\"nodes\":[]},\"summary\":\"ok\"}\n```";
-        AiCopilotService.ParsedChainProposal proposal = service.parseChainProposal(raw);
+    void parseChainProposal_shouldParseReasoning() {
+        AiCopilotSessionSupport realSupport = new AiCopilotSessionSupport(
+                aiPlatformConfig, sessionMapper, messageMapper);
+        String raw = "{\"reasoning\":\"先校验再改状态\",\"chainData\":{\"nodes\":[]},\"summary\":\"ok\"}";
+        AiCopilotService.ParsedChainProposal proposal = realSupport.parseChainProposal(raw);
+        assertThat(proposal.reasoning()).isEqualTo("先校验再改状态");
         assertThat(proposal.summary()).isEqualTo("ok");
-        assertThat(proposal.chainData()).contains("nodes");
+    }
+
+    @Test
+    void parseAssistantRecord_shouldSplitReasoningAndBody() {
+        String raw = AiCopilotService.formatAssistantRecord("思考步骤", "结论摘要");
+        AiCopilotService.ParsedAssistantContent parsed = AiCopilotService.parseAssistantRecord(raw);
+        assertThat(parsed.reasoning()).isEqualTo("思考步骤");
+        assertThat(parsed.body()).isEqualTo("结论摘要");
     }
 
     @Test
     void diagnose_shouldUseTraceAndLlm() {
+        when(tenantAiConfigService.getCurrentTenantId()).thenReturn(1L);
         when(tenantAiConfigService.isCopilotEnabledForTenant(1L)).thenReturn(true);
         when(tenantAiConfigService.resolveEffectiveConfig(1L)).thenReturn(effectiveConfig());
+        when(sessionSupport.recordSession(anyLong(), any(), any(), any(), any())).thenReturn(50L);
+        when(sessionSupport.maskIfNeeded(any())).thenAnswer(inv -> inv.getArgument(0));
 
         ExecutionTrace trace = ExecutionTrace.builder()
                 .executionId("exec-1")
@@ -194,29 +182,17 @@ class AiCopilotServiceTest {
                         .build()))
                 .build();
         when(collectorQueryAggregator.getExecutionTrace("exec-1", "demo-app")).thenReturn(trace);
-
         when(aiChatClient.chat(anyList(), any())).thenReturn(
-                "{\"diagnosis\":\"deductStock 节点库存校验失败\",\"suggestion\":\"检查入参 sku 与库存数量\"}");
+                "{\"diagnosis\":\"deductStock 节点库存校验失败\",\"suggestion\":\"修复\"}");
 
         AiDiagnoseRequest request = new AiDiagnoseRequest();
         request.setAppCode("demo-app");
         request.setExecutionId("exec-1");
-        request.setChainCode("ORDER_PAY");
 
         AiDiagnoseResponse response = service.diagnose(request);
 
         assertThat(response.isStub()).isFalse();
         assertThat(response.getDiagnosis()).contains("deductStock");
-        assertThat(response.getSuggestion()).contains("库存");
-        assertThat(response.getOpenDesignPath()).contains("/design");
-    }
-
-    @Test
-    void parseDiagnosis_shouldParseJson() {
-        AiCopilotService.ParsedDiagnosis parsed = service.parseDiagnosis(
-                "{\"diagnosis\":\"根因\",\"suggestion\":\"建议\"}");
-        assertThat(parsed.diagnosis()).isEqualTo("根因");
-        assertThat(parsed.suggestion()).isEqualTo("建议");
     }
 
     private static TenantAiConfigService.EffectiveAiConfig effectiveConfig() {

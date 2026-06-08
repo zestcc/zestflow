@@ -98,6 +98,26 @@ class TenantAiConfigServiceTest {
     }
 
     @Test
+    void resolveForTest_blankApiKey_shouldUseSavedKey() {
+        AiTenantConfigPO po = new AiTenantConfigPO();
+        po.setTenantId(1L);
+        po.setEnabled(true);
+        po.setPreset("deepseek");
+        po.setApiKeyEnc("enc-value");
+        when(configMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(po);
+
+        AiTenantConfigSaveDTO override = new AiTenantConfigSaveDTO();
+        override.setPreset("deepseek");
+        override.setModel("deepseek-v4-flash");
+
+        TenantAiConfigService.EffectiveAiConfig config = service.resolveForTest(1L, override);
+
+        assertThat(config.apiKey()).isEqualTo("sk-secret");
+        assertThat(config.model()).isEqualTo("deepseek-v4-flash");
+        assertThat(config.ready()).isTrue();
+    }
+
+    @Test
     void getTenantConfig_shouldMaskApiKey() {
         AiTenantConfigPO po = new AiTenantConfigPO();
         po.setEnabled(true);

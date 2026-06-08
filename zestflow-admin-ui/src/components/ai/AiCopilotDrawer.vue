@@ -4,11 +4,18 @@
     :title="$t('ai.title')"
     :size="drawerSize"
     append-to-body
-    destroy-on-close
     class="ai-copilot-drawer"
     @open="onOpen"
   >
-    <div class="ai-copilot-body">
+    <div class="ai-copilot-layout">
+      <AiCopilotSessionSidebar
+        :sessions="store.sessions"
+        :active-session-id="store.sessionId"
+        :loading="store.loading"
+        @select="handleSelectSession"
+        @new-session="handleNewSession"
+      />
+      <div class="ai-copilot-main">
       <el-alert
         v-if="!enabled"
         :title="$t('ai.notConfigured')"
@@ -46,7 +53,7 @@
         </template>
       </el-alert>
 
-      <AiMessageList :messages="store.messages" />
+      <AiMessageList :messages="store.messages" :default-model="store.displayModel" />
 
       <AiProposalPreview
         :summary="store.pendingSummary"
@@ -79,7 +86,7 @@
         >
           {{ $t('ai.testRun') }}
         </el-button>
-        <el-button @click="store.clearSession()">{{ $t('ai.clearSession') }}</el-button>
+        <el-button @click="store.archiveCurrentSession()">{{ $t('ai.sessions.archive') }}</el-button>
       </div>
 
       <div class="ai-copilot-input">
@@ -116,6 +123,7 @@
           </el-button>
         </div>
       </div>
+      </div>
     </div>
   </el-drawer>
 </template>
@@ -130,6 +138,7 @@ import AiMessageList from './AiMessageList.vue'
 import AiProposalPreview from './AiProposalPreview.vue'
 import AiValidationPanel from './AiValidationPanel.vue'
 import AiCopilotPlayground from './AiCopilotPlayground.vue'
+import AiCopilotSessionSidebar from './AiCopilotSessionSidebar.vue'
 
 const props = defineProps<{
   modelValue: boolean
@@ -147,7 +156,7 @@ const emit = defineEmits<{
 
 const router = useRouter()
 const store = useAiCopilotStore()
-const { drawerSize } = useResponsiveDrawerSize(420)
+const { drawerSize } = useResponsiveDrawerSize(580)
 const inputText = ref('')
 const chainKeyHints = ref<AiChainKeyHints | null>(null)
 
@@ -173,6 +182,21 @@ const visible = computed({
 function onOpen() {
   void store.fetchConfig()
   void loadChainKeyHints()
+  const ctx = getCtx()
+  if (ctx) {
+    void store.loadSession(ctx)
+  }
+}
+
+async function handleSelectSession(id: number) {
+  await store.switchSession(id)
+}
+
+async function handleNewSession() {
+  const ctx = getCtx()
+  if (!ctx) return
+  store.clearSession()
+  await store.createNewSession(ctx)
 }
 
 async function loadChainKeyHints() {
@@ -244,6 +268,20 @@ function goPlayground() {
 </script>
 
 <style scoped>
+.ai-copilot-layout {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+}
+
+.ai-copilot-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
 .ai-copilot-body {
   display: flex;
   flex-direction: column;

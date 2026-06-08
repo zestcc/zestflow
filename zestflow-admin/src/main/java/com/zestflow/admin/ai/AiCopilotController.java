@@ -40,6 +40,7 @@ public class AiCopilotController {
     private final ExecutorProxyService executorProxyService;
     private final ExecutorChainAiClient executorChainAiClient;
     private final AiDeliveryService aiDeliveryService;
+    private final AiCopilotTraceService traceService;
 
     @GetMapping("/config")
     public Result<AiConfigStatusVO> getConfig() {
@@ -223,6 +224,71 @@ public class AiCopilotController {
         return Result.success(aiCopilotService.explain(request));
     }
 
+    @GetMapping("/sessions/active")
+    public Result<AiCopilotSessionDetailVO> activeSession(
+            @RequestParam String appCode,
+            @RequestParam String designId,
+            @RequestParam(required = false) String chainCode) {
+        requireAppEditor(appCode);
+        return Result.success(aiCopilotService.loadActiveSession(appCode, designId, chainCode));
+    }
+
+    @GetMapping("/sessions")
+    public Result<List<AiCopilotSessionSummaryVO>> listSessions(
+            @RequestParam String appCode,
+            @RequestParam String designId,
+            @RequestParam(required = false) String chainCode,
+            @RequestParam(defaultValue = "20") int limit) {
+        requireAppEditor(appCode);
+        return Result.success(aiCopilotService.listSessions(appCode, designId, chainCode, limit));
+    }
+
+    @GetMapping("/sessions/{id}")
+    public Result<AiCopilotSessionDetailVO> getSession(@PathVariable Long id) {
+        return Result.success(aiCopilotService.getSessionDetail(id));
+    }
+
+    @PostMapping("/sessions")
+    public Result<AiCopilotSessionDetailVO> createSession(@RequestBody AiCopilotSessionCreateDTO dto) {
+        requireAppEditor(dto.getAppCode());
+        return Result.success(aiCopilotService.createSession(dto));
+    }
+
+    @PatchMapping("/sessions/{id}")
+    public Result<AiCopilotSessionDetailVO> updateSession(@PathVariable Long id,
+                                                          @RequestBody AiCopilotSessionUpdateDTO dto) {
+        return Result.success(aiCopilotService.updateSession(id, dto));
+    }
+
+    @PutMapping("/sessions/{id}")
+    public Result<AiCopilotSessionDetailVO> updateSessionPut(@PathVariable Long id,
+                                                             @RequestBody AiCopilotSessionUpdateDTO dto) {
+        return Result.success(aiCopilotService.updateSession(id, dto));
+    }
+
+    @DeleteMapping("/sessions/{id}")
+    public Result<Void> archiveSession(@PathVariable Long id) {
+        aiCopilotService.archiveSession(id);
+        return Result.success();
+    }
+
+    @GetMapping("/sessions/{id}/trace")
+    public Result<List<AiCopilotTraceStepVO>> sessionTrace(@PathVariable Long id) {
+        return Result.success(aiCopilotService.listSessionTrace(id));
+    }
+
+    @GetMapping("/trace/overview")
+    public Result<AiCopilotTraceOverviewVO> traceOverview(@RequestParam(defaultValue = "30") int days) {
+        requireSuperAdminOrTenantAdmin();
+        return Result.success(traceService.overview(days));
+    }
+
+    @GetMapping("/sessions/{id}/messages")
+    public Result<List<AiCopilotMessageVO>> sessionMessages(@PathVariable Long id) {
+        Long tenantId = tenantAppContext.getCurrentTenantId();
+        return Result.success(aiCopilotService.listSessionMessages(id, tenantId));
+    }
+
     @PostMapping("/design/suggest")
     public Result<AiSuggestResponse> suggest(@RequestBody AiSuggestRequest request) {
         requireAppEditor(request.getAppCode());
@@ -286,6 +352,7 @@ public class AiCopilotController {
 
     @PostMapping("/learning/events")
     public Result<java.util.Map<String, Object>> recordLearningEvent(@RequestBody AiLearningEventSaveDTO dto) {
+        aiLearningEventService.record(dto);
         java.util.Map<String, Object> body = new java.util.LinkedHashMap<>();
         body.put("intent", dto.getIntent());
         body.put("feature", dto.getFeature());
@@ -299,7 +366,10 @@ public class AiCopilotController {
         body.put("userCorrection", dto.getUserCorrection());
         body.put("reusedComponents", dto.getReusedComponents());
         body.put("createdComponents", dto.getCreatedComponents());
-        return Result.success(executorChainAiClient.recordLearningEvent(dto.getAppCode(), body));
+        java.util.Map<String, Object> executorResult =
+                executorChainAiClient.recordLearningEvent(dto.getAppCode(), body);
+        body.put("executor", executorResult);
+        return Result.success(body);
     }
 
     @GetMapping("/learning/events")

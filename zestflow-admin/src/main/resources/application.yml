@@ -97,6 +97,11 @@ zestflow:
     temperature: 0.2
     pii-mask: true
     repair-max-rounds: 2
+    context-max-messages: 20
+    context-max-chars: 12000
+    sse-timeout-ms: 180000
+    job-max-concurrent: 8
+    session-list-max: 50
     rag-enabled: true
     rag-mode: hybrid
     rag-use-llm-embedding: false

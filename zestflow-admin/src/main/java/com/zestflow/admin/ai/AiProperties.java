@@ -31,6 +31,21 @@ public class AiProperties {
     /** Validator 失败后的最大修复轮次 */
     private int repairMaxRounds = 2;
 
+    /** 多轮对话注入的最大历史消息条数 */
+    private int contextMaxMessages = 20;
+
+    /** 多轮对话注入的最大字符总量 */
+    private int contextMaxChars = 12_000;
+
+    /** SSE 长连接超时（毫秒） */
+    private int sseTimeoutMs = 180_000;
+
+    /** 异步 Job 最大并发（线程池上限参考） */
+    private int jobMaxConcurrent = 8;
+
+    /** 会话列表默认条数上限 */
+    private int sessionListMax = 50;
+
     /** 启动时为默认租户写入 AI 配置（Ollama 或 env-keys 中的免费 Key） */
     private boolean tenantAutoInit = true;
 

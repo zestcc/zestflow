@@ -147,15 +147,25 @@ public class TenantAiConfigService {
         return new EffectiveAiConfig(presetId, baseUrl, model, apiKey, keyRequired, ready);
     }
 
-    public EffectiveAiConfig resolveForTest(AiTenantConfigSaveDTO override) {
+    /**
+     * 解析测试连接用的有效配置：表单字段优先，未填项回退到租户已保存配置（含已存 API Key）。
+     */
+    public EffectiveAiConfig resolveForTest(Long tenantId, AiTenantConfigSaveDTO override) {
+        EffectiveAiConfig saved = resolveEffectiveConfig(tenantId);
+
         String presetId = StringUtils.hasText(override.getPreset())
-                ? override.getPreset() : aiPlatformConfig.getDefaultPreset();
+                ? override.getPreset() : saved.preset();
         AiProviderPreset preset = presetRegistry.requireById(presetId);
+
         String baseUrl = StringUtils.hasText(override.getBaseUrl())
-                ? override.getBaseUrl() : preset.getBaseUrl();
+                ? override.getBaseUrl()
+                : (StringUtils.hasText(saved.baseUrl()) ? saved.baseUrl() : preset.getBaseUrl());
         String model = StringUtils.hasText(override.getModel())
-                ? override.getModel() : preset.getDefaultModel();
-        String apiKey = override.getApiKey();
+                ? override.getModel()
+                : (StringUtils.hasText(saved.model()) ? saved.model() : preset.getDefaultModel());
+        String apiKey = StringUtils.hasText(override.getApiKey())
+                ? override.getApiKey() : saved.apiKey();
+
         boolean ready = StringUtils.hasText(baseUrl) && StringUtils.hasText(model)
                 && (!preset.isApiKeyRequired() || StringUtils.hasText(apiKey));
         return new EffectiveAiConfig(presetId, baseUrl, model, apiKey, preset.isApiKeyRequired(), ready);

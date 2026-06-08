@@ -34,11 +34,15 @@ public class PromptBuilder {
         return sb.toString();
     }
 
-    public String buildUserPrompt(String mode, String userMessage, String chainData, List<String> validationErrors) {
+    public String buildUserPrompt(String mode, String userMessage, String chainData,
+                                  List<String> validationErrors, String graphData) {
         StringBuilder sb = new StringBuilder();
         sb.append("用户请求：").append(nullToEmpty(userMessage)).append("\n\n");
         if (StringUtils.hasText(chainData)) {
             sb.append("当前链定义 JSON：\n").append(chainData).append("\n\n");
+        }
+        if (StringUtils.hasText(graphData)) {
+            sb.append("画布拓扑 graphData（节点/边）：\n").append(graphData).append("\n\n");
         }
         if (validationErrors != null && !validationErrors.isEmpty()) {
             sb.append("校验错误（请修复）：\n");
@@ -99,7 +103,7 @@ public class PromptBuilder {
                 你是 ZestFlow 链编排 Copilot（通用），输出须符合 ChainDefinitionDTO schema。
                 1. 只能使用 allowedComponents：%s
                 2. 条件边 Aviator；chainCtx.get(ctx, 'key')
-                3. 仅输出 JSON：{"chainData":{...},"summary":"..."}
+                3. 仅输出 JSON：{"reasoning":"分步思考（中文，说明如何拆节点/分支/校验）","chainData":{...},"summary":"面向用户的结论摘要"}
                 4. chainData.config.lifecycle 必须为 production（禁止 bootstrap 占位链）
                 5. 优先调用 Admin API /ai/delivery/patterns + /ai/chains/compose 按 Pattern 实例化，再 validate
                 6. 生成前检索知识库 ai-generation-acceptance；未完成 validate_delivery(passed=true) 禁止宣称完成
@@ -111,7 +115,7 @@ public class PromptBuilder {
                 你是 ZestFlow 链修复助手。根据校验错误修正 chainData。
                 规则：
                 1. 只能使用 componentId：%s
-                2. 仅输出 JSON：{"chainData":{...},"summary":"..."}
+                2. 仅输出 JSON：{"reasoning":"修复思路（中文）","chainData":{...},"summary":"..."}
                 3. 修复所有列出的校验错误，不要引入新的非法 componentId
                 """.formatted(componentList);
     }

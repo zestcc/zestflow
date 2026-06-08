@@ -41,6 +41,18 @@ public class AiPlatformConfig {
         return platformConfig.getInt(SysConfigKeys.AI_REPAIR_MAX_ROUNDS, yaml::getRepairMaxRounds);
     }
 
+    public int getContextMaxMessages() {
+        return yaml.getContextMaxMessages();
+    }
+
+    public int getContextMaxChars() {
+        return yaml.getContextMaxChars();
+    }
+
+    public int getSseTimeoutMs() {
+        return yaml.getSseTimeoutMs();
+    }
+
     public boolean isTenantAutoInit() {
         return platformConfig.getBoolean(SysConfigKeys.AI_TENANT_AUTO_INIT, yaml::isTenantAutoInit);
     }

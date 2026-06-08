@@ -48,6 +48,7 @@ class AiCopilotControllerTest {
     @Mock private AiLearningEventService aiLearningEventService;
     @Mock private ExecutorChainAiClient executorChainAiClient;
     @Mock private AiDeliveryService aiDeliveryService;
+    @Mock private AiCopilotTraceService traceService;
     @Mock private Authentication authentication;
 
     private AiCopilotController controller;
@@ -57,7 +58,7 @@ class AiCopilotControllerTest {
         controller = new AiCopilotController(aiCopilotService, tenantAiConfigService,
                 chainKeyHintService, chainTemplateService, aiRagService, ragDocumentService,
                 usageStatsService, aiLearningEventService, aiPlatformConfig, tenantAppContext,
-                permissionService, executorProxyService, executorChainAiClient, aiDeliveryService);
+                permissionService, executorProxyService, executorChainAiClient, aiDeliveryService, traceService);
         when(tenantAppContext.getCurrentTenantId()).thenReturn(1L);
     }
 

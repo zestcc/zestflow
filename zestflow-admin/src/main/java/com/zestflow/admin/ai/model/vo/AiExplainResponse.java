@@ -9,4 +9,5 @@ public class AiExplainResponse {
 
     private String explanation;
     private Long sessionId;
+    private String model;
 }
