@@ -16,4 +16,17 @@
 
     <name>ZestFlow :: Dev Templates</name>
     <description>Dev Copilot 项目模板（project.md、IDE MCP 配置等），随 starter / mcp 分发</description>
+
+    <build>
+        <plugins>
+            <!-- 纯资源模块无测试；跳过 surefire 避免继承父 POM excludedGroups 却无 JUnit 引擎 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <skipTests>true</skipTests>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

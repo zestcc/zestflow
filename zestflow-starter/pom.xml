@@ -36,4 +36,17 @@
             <artifactId>mybatis-plus-jsqlparser</artifactId>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <!-- 聚合 starter 无单测；跳过 surefire 避免继承父 POM excludedGroups 却无 JUnit 引擎 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <skipTests>true</skipTests>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

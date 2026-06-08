@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS zf_chain (
     description VARCHAR(500) DEFAULT NULL,
     status      TINYINT      NOT NULL DEFAULT 1,
     version     INT          NOT NULL DEFAULT 1,
+    delivery_lifecycle VARCHAR(16) NOT NULL DEFAULT 'bootstrap',
     created_by  VARCHAR(64)  DEFAULT NULL,
     updated_by  VARCHAR(64)  DEFAULT NULL,
     tenant_id   BIGINT       DEFAULT 1,
