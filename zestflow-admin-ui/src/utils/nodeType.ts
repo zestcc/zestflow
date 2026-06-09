@@ -61,9 +61,10 @@ export function getNodeSize(nodeType: string): [number, number] {
   return NODE_SIZES[t] || [160, 46]
 }
 
-const RECT_PORT_TYPES = new Set(
-  NODE_TYPE_REGISTRY.filter(m => m.category !== 'terminal').map(m => m.type),
-)
+const RECT_PORT_TYPES = new Set([
+  ...NODE_TYPE_REGISTRY.filter(m => m.category !== 'terminal').map(m => m.type),
+  ...FLOW_TERMINAL_TYPES,
+])
 
 export function isRectPortType(nodeType: string): boolean {
   return RECT_PORT_TYPES.has(normalizeNodeType(nodeType))

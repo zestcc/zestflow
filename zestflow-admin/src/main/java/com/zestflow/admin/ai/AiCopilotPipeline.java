@@ -138,8 +138,9 @@ public class AiCopilotPipeline {
 
             progressSteps.add("Executor 校验链定义…");
             sink.progress("Executor 校验链定义…");
+            AiCopilotService.ParsedChainProposal finalProposal = proposal;
             AiValidationVO validation = traceService.runStepWithResult(sessionId, "VALIDATE", progressSteps.get(progressSteps.size() - 1),
-                    () -> executorValidateClient.validate(request.getAppCode(), proposal.chainData()));
+                    () -> executorValidateClient.validate(request.getAppCode(), finalProposal.chainData()));
             int repairRounds = 0;
 
             while (!validation.isValid() && repairRounds < aiPlatformConfig.getRepairMaxRounds()) {
@@ -154,8 +155,9 @@ public class AiCopilotPipeline {
                         () -> invokeLlm(config, fixSystem, fixUser, true, tenantId, request.getAppCode(),
                                 sessionId, sink, reasoningBuf));
                 proposal = sessionSupport.parseChainProposal(llmReply);
+                AiCopilotService.ParsedChainProposal finalProposal1 = proposal;
                 validation = traceService.runStepWithResult(sessionId, "VALIDATE", "修复后校验",
-                        () -> executorValidateClient.validate(request.getAppCode(), proposal.chainData()));
+                        () -> executorValidateClient.validate(request.getAppCode(), finalProposal1.chainData()));
             }
 
             String resultStep = validation.isValid() ? "校验通过" : "校验未通过";

@@ -1,8 +1,24 @@
--- 2026-06-08：Copilot P3 — 会话标题/归档、异步 Job、Trace 步骤
+-- 2026-06-08：Copilot P3 — 会话标题/归档、异步 Job、Trace 步骤（幂等：可重复执行）
 
-ALTER TABLE `zf_ai_copilot_session`
-    ADD COLUMN `title` VARCHAR(200) DEFAULT NULL COMMENT '会话标题' AFTER `chain_code`,
-    ADD COLUMN `archived` TINYINT DEFAULT 0 COMMENT '1已归档' AFTER `last_model`;
+SET @zf_db = DATABASE();
+
+SET @zf_cnt = (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @zf_db AND TABLE_NAME = 'zf_ai_copilot_session' AND COLUMN_NAME = 'title');
+SET @zf_sql = IF(@zf_cnt = 0,
+    'ALTER TABLE `zf_ai_copilot_session` ADD COLUMN `title` VARCHAR(200) DEFAULT NULL COMMENT ''会话标题'' AFTER `chain_code`',
+    'SELECT 1');
+PREPARE zf_stmt FROM @zf_sql;
+EXECUTE zf_stmt;
+DEALLOCATE PREPARE zf_stmt;
+
+SET @zf_cnt = (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @zf_db AND TABLE_NAME = 'zf_ai_copilot_session' AND COLUMN_NAME = 'archived');
+SET @zf_sql = IF(@zf_cnt = 0,
+    'ALTER TABLE `zf_ai_copilot_session` ADD COLUMN `archived` TINYINT DEFAULT 0 COMMENT ''1已归档'' AFTER `last_model`',
+    'SELECT 1');
+PREPARE zf_stmt FROM @zf_sql;
+EXECUTE zf_stmt;
+DEALLOCATE PREPARE zf_stmt;
 
 CREATE TABLE IF NOT EXISTS `zf_ai_copilot_job` (
     `id`               BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',

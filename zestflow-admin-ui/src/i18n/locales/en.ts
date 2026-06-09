@@ -1028,6 +1028,7 @@ export default {
     confirmClear: 'Clear',
     saveFailed: 'Save failed',
     loadFailed: 'Failed to load design',
+    maxIncomingLinks: 'At most {max} incoming links per node',
     validationFailed: 'Validation failed:\n{errors}',
     saveDespiteInvalid: 'Flow validation failed. Bound chains will be set to Designing:\n{errors}\n\nContinue saving?',
     saveGraphDesigning: 'Graph saved (bound chain status: Designing)',

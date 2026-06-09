@@ -1029,6 +1029,7 @@ export default {
     confirmClear: '清空',
     saveFailed: '保存失败',
     loadFailed: '加载设计失败',
+    maxIncomingLinks: '同一节点最多允许 {max} 条入边',
     validationFailed: '校验不通过:\n{errors}',
     saveDespiteInvalid: '流程未通过校验，保存后关联链状态将变为「设计中」:\n{errors}\n\n确定继续保存吗？',
     saveGraphDesigning: '流程图已保存（关联链状态：设计中）',

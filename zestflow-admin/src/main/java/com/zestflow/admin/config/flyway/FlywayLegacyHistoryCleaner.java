@@ -27,7 +27,7 @@ final class FlywayLegacyHistoryCleaner {
             return;
         }
         log.warn("[{}] 检测到 Beta 旧 Flyway history（V4/V5/V6 或旧 V2 align）；"
-                + "非 prod 自动清空 flyway_schema_history 并按 V1→V2→V3 重放（DDL/DML 幂等）", tag);
+                + "非 prod 自动清空 flyway_schema_history 并按 V1→V5 重放（DDL/DML 幂等）", tag);
         clearSchemaHistory(flyway, tag);
     }
 

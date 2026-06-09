@@ -791,6 +791,13 @@ import {
   computeChainDiff,
   type ChainDiffSummary,
 } from '@/utils/chainDiff'
+import {
+  MAX_LINKS_TO_NODE,
+  canAddIncomingEdge,
+  countIncomingEdges,
+  rebalanceAllEdgePorts,
+  rebalanceEdgePortsForNode,
+} from '@/utils/flowPortAssign'
 import { componentApi } from '@/api/component'
 import { executorApi } from '@/api/executor'
 import {
@@ -999,6 +1006,7 @@ function getGraphLayoutMetrics() {
 
 function addChainEdgeFromProposal(source: string, target: string, label?: string) {
   if (!graph) return
+  if (!canAddIncomingEdge(graph, target)) return
   const edge = graph.addEdge({
     source: { cell: source, port: 'b' },
     target: { cell: target, port: 't' },
@@ -1010,6 +1018,12 @@ function addChainEdgeFromProposal(source: string, target: string, label?: string
   })
   applyEdgeHitWrap(edge as Edge)
   if (label) setEdgeLabelSafe(edge, label)
+  const sourceNode = graph.getCellById(source)
+  const targetNode = graph.getCellById(target)
+  if (sourceNode?.isNode() && targetNode?.isNode()) {
+    rebalanceEdgePortsForNode(graph, targetNode as Node)
+    rebalanceEdgePortsForNode(graph, sourceNode as Node)
+  }
 }
 
 function hasChainEdge(source: string, target: string, label?: string): boolean {
@@ -2122,9 +2136,11 @@ function initGraph() {
       highlight: false,
       targetAnchor: { name: 'orth' },
       connectionPoint: { name: 'anchor' },
-      validateConnection({ sourceCell, targetCell }: { sourceCell: any; targetCell: any }) {
+      validateConnection({ sourceCell, targetCell, edge }: { sourceCell: any; targetCell: any; edge?: Edge }) {
         if (!sourceCell || !targetCell) return false
         if (sourceCell.id === targetCell.id) return false
+        if (!graph) return true
+        if (!canAddIncomingEdge(graph, targetCell.id, edge?.id)) return false
         return true
       },
     },
@@ -2275,26 +2291,21 @@ function initGraph() {
     }
   })
 
-  // 连线落到节点内部时，自动吸附到最近端口
-  graph.on('edge:connected', ({ edge }: { edge: Edge }) => {
-    if (edge.getTargetPortId()) return
-    const node = edge.getTargetCell()
-    if (!node || !node.isNode()) return
-    const ports = node.getPorts()
-    if (!ports || ports.length === 0) return
-    const pt = edge.getTargetPoint()
-    const bbox = (node as Node).getBBox()
-    let min = Infinity, best: string | null = null
-    ports.forEach(p => {
-      const id = p.id!
-      const a = (node as Node).getPortProp(id, 'args') as any
-      if (!a) return
-      const px = bbox.x + bbox.width * (parseFloat(String(a.x).replace('%', '')) / 100)
-      const py = bbox.y + bbox.height * (parseFloat(String(a.y).replace('%', '')) / 100)
-      const d = Math.sqrt((pt.x - px) ** 2 + (pt.y - py) ** 2)
-      if (d < min) { min = d; best = id }
-    })
-    if (best) edge.setTarget({ cell: node.id, port: best })
+  // 连线完成：校验入边上限，并按方位分散端口避免重合
+  graph.on('edge:connected', ({ edge, isNew }: { edge: Edge; isNew?: boolean }) => {
+    if (!graph) return
+    const target = edge.getTargetCell()
+    const source = edge.getSourceCell()
+    if (!target?.isNode() || !source?.isNode()) return
+    if (countIncomingEdges(graph, target.id) > MAX_LINKS_TO_NODE) {
+      graph.removeEdge(edge.id)
+      if (isNew !== false) {
+        ElMessage.warning(t('design.maxIncomingLinks', { max: MAX_LINKS_TO_NODE }))
+      }
+      return
+    }
+    rebalanceEdgePortsForNode(graph, target as Node)
+    rebalanceEdgePortsForNode(graph, source as Node)
   })
 
   // 画布自适应
@@ -3111,6 +3122,7 @@ async function loadDesign() {
           }
         })
         normalizeLoadedEdges()
+        rebalanceAllEdgePorts(graph)
         hydrateNodeTransactionFromChainData()
         hydrateNodeConfigFromChainData()
         applyAllEdgeHitWraps()
@@ -3123,6 +3135,8 @@ async function loadDesign() {
     const end = graph.addNode({ shape: 'flow-end', x: 250, y: 380, width: 148, height: 40, data: { label: t('design.endNode'), nodeType: 'end' } })
     updateNodeVisual(start)
     updateNodeVisual(end)
+    start.setProp('ports', { groups: { handle: handleGroup }, items: getPorts('start') })
+    end.setProp('ports', { groups: { handle: handleGroup }, items: getPorts('end') })
     graph.centerContent()
   } catch (e) {
     console.error(e)
