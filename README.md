@@ -170,3 +170,18 @@ Issue 和 PR 都欢迎。Fork → 改 → `mvn test -pl zestflow-admin,zestflow-
 ## 许可证
 
 [Apache License 2.0](LICENSE)
+
+---
+
+## 下载
+
+| 平台 | 文件 | 链接 |
+|------|------|------|
+| Linux | tar.gz | [zestflow_admin_0.2.0_linux.tar.gz](https://gitee.com/zestcc/zestflow/releases/download/v0.2.0/zestflow_admin_0.2.0_linux.tar.gz) |
+| Windows | zip | [zestflow_admin_0.2.0_win.zip](https://gitee.com/zestcc/zestflow/releases/download/v0.2.0/zestflow_admin_0.2.0_win.zip) |
+
+**一键复制：**
+
+- Linux：`https://gitee.com/zestcc/zestflow/releases/download/v0.2.0/zestflow_admin_0.2.0_linux.tar.gz`
+- Windows：`https://gitee.com/zestcc/zestflow/releases/download/v0.2.0/zestflow_admin_0.2.0_win.zip`
+
