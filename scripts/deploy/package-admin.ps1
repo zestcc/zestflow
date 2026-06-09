@@ -20,17 +20,32 @@ $AdminModule = Join-Path $Root "zestflow-admin"
 $Templates = Join-Path $PSScriptRoot "templates"
 $DeployRoot = if ($OutputDir) { $OutputDir } else { Join-Path $Root "deploy" }
 
-function Get-ProjectVersion {
-    if ($Version) { return $Version.Trim() }
+function Get-RootPomProperty([string]$Name) {
     $pom = Join-Path $Root "pom.xml"
     if (-not (Test-Path $pom)) { throw "pom.xml not found" }
     $xml = [xml](Get-Content $pom -Raw)
-    $v = $xml.project.version
-    if ($v -match '\$\{') {
-        $v = $xml.project.properties.'zestflow-admin.version'
+    $v = $xml.project.properties.$Name
+    if ($v) { return $v.Trim() }
+    return $null
+}
+
+# Admin 模块版本独立于根 POM（根 0.1.0，admin 常为 ${zestflow-admin.version} → 0.2.0）
+function Get-AdminArtifactVersion {
+    if ($Version) { return $Version.Trim() }
+    $v = Get-RootPomProperty 'zestflow-admin.version'
+    if ($v) { return $v }
+    $adminPom = Join-Path $AdminModule "pom.xml"
+    if (Test-Path $adminPom) {
+        $xml = [xml](Get-Content $adminPom -Raw)
+        $raw = $xml.project.version
+        if ($raw -match '\$\{(.+)\}') {
+            $resolved = Get-RootPomProperty $Matches[1]
+            if ($resolved) { return $resolved }
+        } elseif ($raw) {
+            return $raw.Trim()
+        }
     }
-    if (-not $v) { throw "Cannot resolve project version" }
-    return $v
+    throw "Cannot resolve zestflow-admin artifact version"
 }
 
 function New-RandomToken([int]$ByteLength = 24) {
@@ -83,26 +98,7 @@ zestflow:
 }
 
 function Prepare-DeployDir([string]$TargetDir) {
-    New-Item -ItemType Directory -Force -Path $TargetDir | Out-Null
-
-    foreach ($rel in @('init-db.sh', 'init-db.bat')) {
-        $p = Join-Path $TargetDir $rel
-        if (Test-Path $p) {
-            Remove-Item $p -Force -ErrorAction SilentlyContinue
-        }
-    }
-    $dbDir = Join-Path $TargetDir 'db'
-    if (Test-Path $dbDir) {
-        Remove-Item $dbDir -Recurse -Force -ErrorAction SilentlyContinue
-    }
-
-    Get-ChildItem $TargetDir -Filter 'zestflow-admin-*.jar' -ErrorAction SilentlyContinue | ForEach-Object {
-        try {
-            Remove-Item $_.FullName -Force -ErrorAction Stop
-        } catch {
-            Write-Host "  [WARN] jar in use, skip delete: $($_.FullName) (stop Admin first)" -ForegroundColor Yellow
-        }
-    }
+    Reset-DeployDir $TargetDir
 }
 
 function Copy-AdminBundle {
@@ -113,7 +109,7 @@ function Copy-AdminBundle {
         [hashtable]$Secrets
     )
 
-    $ver = Get-ProjectVersion
+    $ver = Get-AdminArtifactVersion
     $configDir = Join-Path $TargetDir "config"
     $logDir = Join-Path $TargetDir "log"
     New-Item -ItemType Directory -Force -Path $configDir, $logDir | Out-Null
@@ -147,22 +143,10 @@ function Copy-AdminBundle {
     Write-Host "  OK $PlatformLabel -> $TargetDir" -ForegroundColor Green
 }
 
-function New-ZipArchive([string]$SourceDir, [string]$ZipPath) {
-    $out = $ZipPath
-    if (Test-Path $out) {
-        try {
-            Remove-Item $out -Force -ErrorAction Stop
-        } catch {
-            $out = $ZipPath -replace '\.zip$', "_$(Get-Date -Format 'yyyyMMddHHmmss').zip"
-            Write-Host "  [WARN] zip 被占用，输出到 $out" -ForegroundColor Yellow
-        }
-    }
-    Compress-Archive -Path (Join-Path $SourceDir "*") -DestinationPath $out -CompressionLevel Optimal
-    Write-Host "  ZIP -> $out" -ForegroundColor Green
-}
-
 # --- main ---
-$ver = Get-ProjectVersion
+. (Join-Path $PSScriptRoot "archive-utils.ps1")
+
+$ver = Get-AdminArtifactVersion
 $jar = Join-Path $AdminModule "target/zestflow-admin-$ver.jar"
 
 Write-Host "--- ZestFlow Admin deploy packager v$ver ---" -ForegroundColor Cyan
@@ -184,6 +168,14 @@ if (-not (Test-Path $jar)) {
 
 New-Item -ItemType Directory -Force -Path $DeployRoot | Out-Null
 
+Clear-DeployArtifacts -DeployRoot $DeployRoot -IncludePatterns @(
+    'zestflow_admin_*_linux',
+    'zestflow_admin_*_win',
+    'zestflow_admin_*_linux.tar.gz',
+    'zestflow_admin_*_linux.zip',
+    'zestflow_admin_*_win.zip'
+) -ExcludePatterns @('zestflow_admin_demo_*')
+
 $linuxDir = Join-Path $DeployRoot "zestflow_admin_${ver}_linux"
 $winDir = Join-Path $DeployRoot "zestflow_admin_${ver}_win"
 
@@ -203,15 +195,15 @@ Copy-AdminBundle -TargetDir $linuxDir -JarPath $jar -PlatformLabel "linux" -Secr
 Write-Host "--- Generating Windows bundle ---" -ForegroundColor Cyan
 Copy-AdminBundle -TargetDir $winDir -JarPath $jar -PlatformLabel "win" -Secrets $sharedSecrets
 
-$linuxZip = Join-Path $DeployRoot "zestflow_admin_${ver}_linux.zip"
+$linuxTarGz = Join-Path $DeployRoot "zestflow_admin_${ver}_linux.tar.gz"
 $winZip = Join-Path $DeployRoot "zestflow_admin_${ver}_win.zip"
-New-ZipArchive $linuxDir $linuxZip
-New-ZipArchive $winDir $winZip
+New-TarGzArchive -SourceDir $linuxDir -TarGzPath $linuxTarGz
+New-ZipArchive -SourceDir $winDir -ZipPath $winZip
 
 Write-Host ""
 Write-Host "--- Deploy artifacts ready ---" -ForegroundColor Green
 Write-Host "  $linuxDir"
-Write-Host "  $linuxZip"
+Write-Host "  $linuxTarGz"
 Write-Host "  $winDir"
 Write-Host "  $winZip"
 Write-Host ""

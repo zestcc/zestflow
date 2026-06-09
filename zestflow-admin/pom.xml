@@ -209,7 +209,8 @@
                 </plugins>
             </build>
         </profile>
-        <!-- 生产部署包：mvn package -pl zestflow-admin -Pdist -DskipTests → deploy/zestflow_admin_* -->
+        <!-- 生产部署包：mvn package -pl zestflow-admin -Pdist -DskipTests
+             → deploy/zestflow_admin_{ver}_linux.tar.gz + _win.zip -->
         <profile>
             <id>dist</id>
             <build>

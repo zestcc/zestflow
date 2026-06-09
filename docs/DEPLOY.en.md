@@ -58,8 +58,9 @@ Artifacts under `deploy/`:
 | Path | Description |
 |------|-------------|
 | `zestflow_admin_{version}_linux/` | Linux directory (includes start-admin.sh) |
-| `zestflow_admin_{version}_linux.zip` | Linux archive |
+| `zestflow_admin_{version}_linux.tar.gz` | Linux archive (tar.gz) |
 | `zestflow_admin_{version}_win/` | Windows directory (includes start-admin.bat) |
+| `zestflow_admin_{version}_win.zip` | Windows archive |
 | `zestflow_admin_{version}_win.zip` | Windows archive |
 
 **Option B — Public demo package (Admin + Demo same host, Linux only)**
@@ -74,7 +75,9 @@ powershell -File scripts/deploy/package-demo.ps1
 | Path | Description |
 |------|-------------|
 | `zestflow_admin_demo_{version}_linux/` | Admin (profile=demo, Playground + IP demo) |
+| `zestflow_admin_demo_{version}_linux.tar.gz` | Admin Linux archive |
 | `zestflow_demo_demo_{version}_linux/` | Demo (Executor+Collector, tokens paired with Admin) |
+| `zestflow_demo_demo_{version}_linux.tar.gz` | Demo Linux archive |
 
 Create `zestflow_admin`, `zestflow_app_bussiness`, `zestflow_app_log` on the same MySQL instance; set the same host/user/password in both `application-demo.yml` files. See `README.txt` inside the package.
 

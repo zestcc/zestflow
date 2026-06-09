@@ -26,8 +26,9 @@ ZestFlow Admin 生产部署包
 快速启动（Linux）
 -----------------
   1. JDK 17+、MySQL 已建库且 yml 口令正确
-  2. chmod +x start-admin.sh
-  3. ./start-admin.sh start
+  2. 解压：tar -xzf zestflow_admin_{version}_linux.tar.gz && cd zestflow_admin_{version}_linux
+  3. chmod +x start-admin.sh   # 若解压后仍无执行权限
+  4. ./start-admin.sh start
 
 快速启动（Windows）
 -------------------

@@ -57,7 +57,7 @@ powershell -File scripts/deploy/package-admin.ps1
 | 路径 | 说明 |
 |------|------|
 | `zestflow_admin_{version}_linux/` | Linux 目录（含 start-admin.sh） |
-| `zestflow_admin_{version}_linux.zip` | Linux 压缩包 |
+| `zestflow_admin_{version}_linux.tar.gz` | Linux 压缩包（tar.gz） |
 | `zestflow_admin_{version}_win/` | Windows 目录（含 start-admin.bat） |
 | `zestflow_admin_{version}_win.zip` | Windows 压缩包 |
 
@@ -73,7 +73,9 @@ powershell -File scripts/deploy/package-demo.ps1
 | 路径 | 说明 |
 |------|------|
 | `zestflow_admin_demo_{version}_linux/` | Admin（profile=demo，试验场+IP试玩） |
+| `zestflow_admin_demo_{version}_linux.tar.gz` | Admin Linux 压缩包 |
 | `zestflow_demo_demo_{version}_linux/` | Demo（Executor+Collector，令牌与 Admin 成对） |
+| `zestflow_demo_demo_{version}_linux.tar.gz` | Demo Linux 压缩包 |
 
 同一 MySQL 实例上建 `zestflow_admin`、`zestflow_app_bussiness`、`zestflow_app_log`，两处 `application-demo.yml` 改同一 host/user/password。详见包内 `README.txt`。
 

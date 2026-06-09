@@ -21,17 +21,33 @@ $DemoModule = Join-Path $Root "zestflow-demo"
 $Templates = Join-Path $PSScriptRoot "templates"
 $DeployRoot = if ($OutputDir) { $OutputDir } else { Join-Path $Root "deploy" }
 
-function Get-ProjectVersion {
-    if ($Version) { return $Version.Trim() }
+function Get-RootPomProperty([string]$Name) {
     $pom = Join-Path $Root "pom.xml"
     if (-not (Test-Path $pom)) { throw "pom.xml not found" }
     $xml = [xml](Get-Content $pom -Raw)
-    $v = $xml.project.version
-    if ($v -match '\$\{') {
-        $v = $xml.project.properties.'zestflow-admin.version'
+    $v = $xml.project.properties.$Name
+    if ($v) { return $v.Trim() }
+    return $null
+}
+
+function Get-ModuleArtifactVersion([string]$ModuleDir) {
+    $modulePom = Join-Path $ModuleDir "pom.xml"
+    if (-not (Test-Path $modulePom)) { throw "Module pom not found: $modulePom" }
+    $xml = [xml](Get-Content $modulePom -Raw)
+    $raw = $xml.project.version
+    if ($raw -match '\$\{(.+)\}') {
+        $resolved = Get-RootPomProperty $Matches[1]
+        if ($resolved) { return $resolved }
+        throw "Cannot resolve property $($Matches[1]) for $ModuleDir"
     }
-    if (-not $v) { throw "Cannot resolve project version" }
-    return $v
+    return $raw.Trim()
+}
+
+function Get-AdminArtifactVersion {
+    if ($Version) { return $Version.Trim() }
+    $v = Get-RootPomProperty 'zestflow-admin.version'
+    if ($v) { return $v }
+    return Get-ModuleArtifactVersion $AdminModule
 }
 
 function Write-Utf8NoBom([string]$Path, [string]$Content) {
@@ -39,12 +55,8 @@ function Write-Utf8NoBom([string]$Path, [string]$Content) {
     [System.IO.File]::WriteAllText($Path, $Content, $enc)
 }
 
-function Prepare-DeployDir([string]$TargetDir, [string]$JarPrefix) {
-    New-Item -ItemType Directory -Force -Path $TargetDir | Out-Null
-    Get-ChildItem $TargetDir -Filter "${JarPrefix}-*.jar" -ErrorAction SilentlyContinue | ForEach-Object {
-        try { Remove-Item $_.FullName -Force -ErrorAction Stop }
-        catch { Write-Host "  [WARN] jar in use: $($_.FullName)" -ForegroundColor Yellow }
-    }
+function Prepare-DeployDir([string]$TargetDir) {
+    Reset-DeployDir $TargetDir
 }
 
 function Copy-AdminDemoBundle {
@@ -52,7 +64,7 @@ function Copy-AdminDemoBundle {
         [string]$TargetDir,
         [string]$JarPath
     )
-    $ver = Get-ProjectVersion
+    $ver = Get-AdminArtifactVersion
     $configDir = Join-Path $TargetDir "config"
     $logDir = Join-Path $TargetDir "log"
     New-Item -ItemType Directory -Force -Path $configDir, $logDir | Out-Null
@@ -79,7 +91,7 @@ function Copy-DemoDemoBundle {
         [string]$TargetDir,
         [string]$JarPath
     )
-    $ver = Get-ProjectVersion
+    $ver = Get-ModuleArtifactVersion $DemoModule
     $configDir = Join-Path $TargetDir "config"
     $logDir = Join-Path $TargetDir "log"
     New-Item -ItemType Directory -Force -Path $configDir, $logDir | Out-Null
@@ -99,11 +111,14 @@ function Copy-DemoDemoBundle {
 }
 
 # --- main ---
-$ver = Get-ProjectVersion
-$adminJar = Join-Path $AdminModule "target/zestflow-admin-$ver.jar"
-$demoJar = Join-Path $DemoModule "target/zestflow-demo-$ver.jar"
+. (Join-Path $PSScriptRoot "archive-utils.ps1")
 
-Write-Host "--- ZestFlow Demo deploy packager v$ver ---" -ForegroundColor Cyan
+$adminVer = Get-AdminArtifactVersion
+$demoVer = Get-ModuleArtifactVersion $DemoModule
+$adminJar = Join-Path $AdminModule "target/zestflow-admin-$adminVer.jar"
+$demoJar = Join-Path $DemoModule "target/zestflow-demo-$demoVer.jar"
+
+Write-Host "--- ZestFlow Demo deploy packager (admin $adminVer / demo $demoVer) ---" -ForegroundColor Cyan
 
 if (-not $SkipBuild) {
     Write-Host "--- mvn package -pl zestflow-admin,zestflow-demo -am -DskipTests ---" -ForegroundColor Cyan
@@ -121,20 +136,32 @@ if (-not (Test-Path $demoJar)) { throw "Jar not found: $demoJar" }
 
 New-Item -ItemType Directory -Force -Path $DeployRoot | Out-Null
 
-$adminDir = Join-Path $DeployRoot "zestflow_admin_demo_${ver}_linux"
-$demoDir = Join-Path $DeployRoot "zestflow_demo_demo_${ver}_linux"
+Clear-DeployArtifacts -DeployRoot $DeployRoot -IncludePatterns @(
+    'zestflow_admin_demo_*',
+    'zestflow_demo_demo_*'
+)
 
-Prepare-DeployDir $adminDir "zestflow-admin"
-Prepare-DeployDir $demoDir "zestflow-demo"
+$adminDir = Join-Path $DeployRoot "zestflow_admin_demo_${adminVer}_linux"
+$demoDir = Join-Path $DeployRoot "zestflow_demo_demo_${demoVer}_linux"
+
+Prepare-DeployDir $adminDir
+Prepare-DeployDir $demoDir
 
 Write-Host "--- Generating Linux demo bundles ---" -ForegroundColor Cyan
 Copy-AdminDemoBundle -TargetDir $adminDir -JarPath $adminJar
 Copy-DemoDemoBundle -TargetDir $demoDir -JarPath $demoJar
 
+$adminTarGz = Join-Path $DeployRoot "zestflow_admin_demo_${adminVer}_linux.tar.gz"
+$demoTarGz = Join-Path $DeployRoot "zestflow_demo_demo_${demoVer}_linux.tar.gz"
+New-TarGzArchive -SourceDir $adminDir -TarGzPath $adminTarGz
+New-TarGzArchive -SourceDir $demoDir -TarGzPath $demoTarGz
+
 Write-Host ""
 Write-Host "--- Demo deploy artifacts ready ---" -ForegroundColor Green
 Write-Host "  $adminDir"
+Write-Host "  $adminTarGz"
 Write-Host "  $demoDir"
+Write-Host "  $demoTarGz"
 Write-Host ""
 Write-Host "Login: zestflow / zestflow (demo profile, no forced password change)" -ForegroundColor Yellow
 Write-Host "MySQL: 127.0.0.1:2882 root — see application-demo.yml in each bundle" -ForegroundColor Gray
