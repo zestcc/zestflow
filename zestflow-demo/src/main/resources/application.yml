@@ -41,6 +41,12 @@ zestflow:
     async-enabled: false
     registry:
       port: 20650
+  demo:
+    # 日志分析报表演示数据（开发环境可开启自动灌数，或 POST /test/seed-log-analytics?force=true）
+    log-analytics-seed:
+      enabled: false
+      executions: 160
+      in-progress: 2
 
 # Phase 2a — Spring Boot Actuator + Micrometer（对标 Prometheus/Grafana）
 management:

@@ -7,12 +7,12 @@
     <parent>
         <groupId>cn.zestflow.www</groupId>
         <artifactId>zestflow</artifactId>
-        <version>0.1.0</version>
+        <version>0.2.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>zestflow-demo</artifactId>
-    <version>0.1.0</version>
+    <version>${zestflow-demo.version}</version>
     <packaging>jar</packaging>
 
     <name>ZestFlow :: Demo</name>

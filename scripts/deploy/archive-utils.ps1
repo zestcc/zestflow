@@ -113,18 +113,17 @@ public static class ZestFlowTarGz
         var header = new byte[512];
         var nameBytes = Encoding.ASCII.GetBytes(name);
         if (nameBytes.Length > 100) throw new IOException("tar path too long: " + name);
-        Array.Copy(nameBytes, header, nameBytes.Length);
-        WriteOctal(header, 24, 6, isDir ? 0755 : 0644);
-        WriteOctal(header, 32, 6, 0);
-        WriteOctal(header, 40, 6, 0);
-        WriteOctal(header, 48, 6, 0);
-        WriteOctal(header, 56, 11, size);
-        WriteOctal(header, 67, 11, (long)mtime.ToUniversalTime().Subtract(new DateTime(1970, 1, 1)).TotalSeconds);
-        WriteOctal(header, 148, 8, 0);
+        Array.Copy(nameBytes, 0, header, 0, nameBytes.Length);
+        // C# 无八进制字面量：0644/0755 会被当成十进制 644/755，Linux tar 校验失败
+        WriteOctal(header, 100, 8, isDir ? 493 : 420);
+        WriteOctal(header, 108, 8, 0);
+        WriteOctal(header, 116, 8, 0);
+        WriteOctal(header, 124, 12, size);
+        WriteOctal(header, 136, 12, (long)mtime.ToUniversalTime().Subtract(new DateTime(1970, 1, 1)).TotalSeconds);
         header[156] = (byte)(isDir ? (byte)'5' : (byte)'0');
         Encoding.ASCII.GetBytes("ustar").CopyTo(header, 257);
-        header[262] = (byte)' ';
-        header[263] = (byte)' ';
+        header[262] = (byte)'0';
+        header[263] = (byte)'0';
         WriteChecksum(header);
         tar.Write(header, 0, 512);
         if (!isDir && data != null && data.Length > 0)
@@ -146,7 +145,7 @@ public static class ZestFlowTarGz
     {
         for (int i = 148; i < 156; i++) buf[i] = (byte)' ';
         long sum = 0;
-        for (int i = 0; i < 512; i++) sum += buf[i];
+        for (int i = 0; i < 512; i++) sum += (byte)buf[i];
         var chk = Convert.ToString(sum, 8).PadLeft(6, '0') + "\0 ";
         Encoding.ASCII.GetBytes(chk).CopyTo(buf, 148);
     }

@@ -122,3 +122,10 @@ mybatis-plus:
 logging:
   level:
     com.zestflow: info
+
+# 生产环境关闭 OpenAPI（AdminProductionGuard 强制校验）
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

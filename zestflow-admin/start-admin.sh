@@ -268,6 +268,8 @@ _load_secrets() {
   [ -n "$val" ] && export ZESTFLOW_ADMIN_DEFAULT_USER_PASSWORD="$val"
 }
 
+_get_time() { date '+%Y-%m-%d %H:%M:%S'; }
+
 _log()      { echo "[$(_get_time)] $*"; }
 
 _get_pid() {
