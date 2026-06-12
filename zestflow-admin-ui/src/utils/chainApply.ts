@@ -232,7 +232,7 @@ function buildBaseNodeData(type: string, label: string, inlinePredId: () => stri
     subChainCode: '',
     iteratorDataSource: '',
     iteratorItemName: 'item',
-    predicateMode: nt === 'CONDITION' ? 'script' : undefined,
+    predicateMode: nt === 'CONDITION' ? 'bind' : undefined,
     predicateScript: nt === 'CONDITION' ? '' : undefined,
     trueLabel: nt === 'CONDITION' ? 'True' : undefined,
     falseLabel: nt === 'CONDITION' ? 'False' : undefined,

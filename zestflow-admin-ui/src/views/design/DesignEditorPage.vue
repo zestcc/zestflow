@@ -1,21 +1,5 @@
 <template>
     <div class="design-editor-x6">
-    <!-- bootstrap 占位链提示 -->
-    <el-alert
-      v-if="showBootstrapBanner"
-      class="bootstrap-banner"
-      type="warning"
-      show-icon
-      :closable="false"
-      :title="$t('design.bootstrapBannerTitle')"
-    >
-      <template #default>
-        <span>{{ $t('design.bootstrapBannerDesc') }}</span>
-        <el-button type="primary" link class="action-btn" @click="openComposeCopilot">
-          {{ $t('design.composeFromPattern') }}
-        </el-button>
-      </template>
-    </el-alert>
     <!-- 顶部工具栏 -->
     <div class="editor-toolbar" :class="{ 'editor-toolbar--mobile': isMobileView }">
       <div class="toolbar-left">
@@ -135,6 +119,15 @@
             @click="showCopilot = true"
           >
             <el-icon><MagicStick /></el-icon> {{ $t('ai.aiAssistant') }}
+          </el-button>
+        </el-tooltip>
+        <el-tooltip :content="$t('ai.aiDetectHint')">
+          <el-button
+            class="toolbar-ai-detect-btn"
+            :loading="aiDetecting"
+            @click="handleAiDetect"
+          >
+            <el-icon><CircleCheck /></el-icon> {{ $t('ai.aiDetect') }}
           </el-button>
         </el-tooltip>
         <el-button class="toolbar-save-btn" type="primary" :loading="saving" @click="handleSave">
@@ -322,6 +315,11 @@
                     @input="onDataChange"
                 />
                 <el-input v-else :model-value="selectedNodeData.componentName || ''" disabled :placeholder="$t('design.autoFill')" />
+              </el-form-item>
+              <el-form-item v-if="selectedNodeData.predicateMode === 'bind'">
+                <el-button size="small" type="primary" plain style="width:100%" @click="openBindDialog">
+                  {{ $t('design.bindComponent') }}
+                </el-button>
               </el-form-item>
               <template v-if="selectedNodeData.predicateMode === 'script'">
                 <el-form-item :label="$t('design.trueBranch')">
@@ -724,6 +722,63 @@
       </div>
     </el-drawer>
 
+    <!-- AI 检测报告 -->
+    <el-dialog
+      v-model="aiDetectDialog.visible"
+      :title="$t('ai.aiDetectReport')"
+      width="640px"
+      top="8vh"
+      class="ai-detect-dialog"
+      destroy-on-close
+    >
+      <div class="ai-detect-summary" :class="aiDetectDialog.passed ? 'ai-detect-summary--pass' : 'ai-detect-summary--fail'">
+        <el-icon class="ai-detect-summary__icon">
+          <CircleCheck v-if="aiDetectDialog.passed" />
+          <WarningFilled v-else />
+        </el-icon>
+        <div class="ai-detect-summary__text">
+          <div class="ai-detect-summary__title">
+            {{ aiDetectDialog.passed ? $t('ai.aiDetectPassed') : $t('ai.aiDetectFailed') }}
+          </div>
+          <div class="ai-detect-summary__desc">
+            {{ aiDetectDialog.passed ? $t('ai.aiDetectPassedDesc') : $t('ai.aiDetectFailedDesc', { count: aiDetectDialog.issueCount }) }}
+          </div>
+        </div>
+      </div>
+      <div v-if="aiDetectDialog.sections.length > 0" class="ai-detect-sections">
+        <div v-for="(section, si) in aiDetectDialog.sections" :key="si" class="ai-detect-section">
+          <div class="ai-detect-section__header">
+            <span class="ai-detect-section__title">{{ section.title }}</span>
+            <el-tag :type="section.items.length === 0 ? 'success' : section.severity" size="small" effect="plain">
+              {{ section.items.length === 0 ? $t('ai.aiDetectSectionOk') : $t('ai.errorCount', { count: section.items.length }) }}
+            </el-tag>
+          </div>
+          <ul v-if="section.items.length > 0" class="ai-detect-issue-list">
+            <li v-for="(item, ii) in section.items" :key="ii">{{ item }}</li>
+          </ul>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="aiDetectDialog.visible = false">{{ $t('common.close') }}</el-button>
+        <el-button
+          v-if="aiDetectDialog.isBootstrap && copilotEnabled"
+          type="warning"
+          plain
+          @click="openComposeFromDetect"
+        >
+          <el-icon><MagicStick /></el-icon> {{ $t('design.composeFromPattern') }}
+        </el-button>
+        <el-button
+          v-if="!aiDetectDialog.passed && copilotEnabled"
+          type="primary"
+          plain
+          @click="openCopilotFromDetect"
+        >
+          <el-icon><MagicStick /></el-icon> {{ $t('ai.fixErrors') }}
+        </el-button>
+      </template>
+    </el-dialog>
+
     <!-- 链数据预览弹窗 -->
     <el-dialog v-model="chainDataDialog.visible" :title="$t('design.chainDataPreview')" width="900px" top="5vh">
       <div v-if="chainDataDialog.errors.length > 0" style="margin-bottom:12px">
@@ -792,11 +847,9 @@ import {
   type ChainDiffSummary,
 } from '@/utils/chainDiff'
 import {
-  MAX_LINKS_TO_NODE,
-  canAddIncomingEdge,
-  countIncomingEdges,
-  rebalanceAllEdgePorts,
-  rebalanceEdgePortsForNode,
+  refreshEdgeRouting,
+  refreshNodeEdgeRouting,
+  snapEdgeEndpoints,
 } from '@/utils/flowPortAssign'
 import { componentApi } from '@/api/component'
 import { executorApi } from '@/api/executor'
@@ -825,6 +878,7 @@ import {
   ZoomIn, ZoomOut, FullScreen, ScaleToOriginal,
   Delete, Select, Edit, Picture,
   ArrowRight, ArrowDown, Sort, Rank, Plus, Setting, Close, DArrowRight, DArrowLeft, MagicStick,
+  CircleCheck, WarningFilled,
 } from '@element-plus/icons-vue'
 
 const { t } = useI18n()
@@ -862,6 +916,7 @@ const appCode = route.query.appCode as string || ''
 const design = ref<any>(null)
 const appName = ref('')
 const saving = ref(false)
+const aiDetecting = ref(false)
 const showCopilot = ref(false)
 const aiCopilotStore = useAiCopilotStore()
 const { pendingProposal } = storeToRefs(aiCopilotStore)
@@ -877,8 +932,8 @@ const zoomLevel = ref(1)
 const canPaste = ref(false)
 const nodeCount = ref(0)
 const edgeCount = ref(0)
-const selectedEdgeStyle = ref<'straight' | 'polyline' | 'curve'>('straight')
-const defaultEdgeStyle = ref<'straight' | 'polyline' | 'curve'>('straight')
+const selectedEdgeStyle = ref<'straight' | 'polyline' | 'curve'>('polyline')
+const defaultEdgeStyle = ref<'straight' | 'polyline' | 'curve'>('polyline')
 const gridSnapEnabled = ref(false)
 const panModeEnabled = ref(false)
 const endpointHandles = ref<{ side: 'source' | 'target'; x: number; y: number }[]>([])
@@ -911,7 +966,7 @@ const playgroundChainCode = computed(() => {
   return ''
 })
 
-const showBootstrapBanner = computed(() => {
+function isBootstrapChain(): boolean {
   const chains = design.value?.boundChains
   if (Array.isArray(chains) && chains.some((c: any) => (c.deliveryLifecycle || 'bootstrap') === 'bootstrap')) {
     return true
@@ -924,10 +979,15 @@ const showBootstrapBanner = computed(() => {
   } catch {
     return true
   }
-})
+}
 
 function openComposeCopilot() {
   showCopilot.value = true
+}
+
+function openComposeFromDetect() {
+  aiDetectDialog.visible = false
+  openComposeCopilot()
 }
 
 async function loadCopilotConfig() {
@@ -945,7 +1005,7 @@ function getCopilotContext() {
     chainCode: playgroundChainCode.value,
     appCode,
     currentChainData: JSON.stringify(translateGraphToChain()),
-    graphData: graph ? JSON.stringify(graph.toJSON()) : '',
+    graphData: graph ? JSON.stringify(serializeGraphData()) : '',
   }
 }
 
@@ -1006,7 +1066,6 @@ function getGraphLayoutMetrics() {
 
 function addChainEdgeFromProposal(source: string, target: string, label?: string) {
   if (!graph) return
-  if (!canAddIncomingEdge(graph, target)) return
   const edge = graph.addEdge({
     source: { cell: source, port: 'b' },
     target: { cell: target, port: 't' },
@@ -1018,12 +1077,8 @@ function addChainEdgeFromProposal(source: string, target: string, label?: string
   })
   applyEdgeHitWrap(edge as Edge)
   if (label) setEdgeLabelSafe(edge, label)
-  const sourceNode = graph.getCellById(source)
-  const targetNode = graph.getCellById(target)
-  if (sourceNode?.isNode() && targetNode?.isNode()) {
-    rebalanceEdgePortsForNode(graph, targetNode as Node)
-    rebalanceEdgePortsForNode(graph, sourceNode as Node)
-  }
+  snapEdgeEndpoints(edge as Edge, graph, true)
+  refreshEdgeRouting(edge as Edge)
 }
 
 function hasChainEdge(source: string, target: string, label?: string): boolean {
@@ -1276,6 +1331,20 @@ const chainDataDialog = reactive({
   success: false,
 })
 
+type AiDetectSection = {
+  title: string
+  severity: 'danger' | 'warning'
+  items: string[]
+}
+
+const aiDetectDialog = reactive({
+  visible: false,
+  passed: true,
+  issueCount: 0,
+  isBootstrap: false,
+  sections: [] as AiDetectSection[],
+})
+
 function openCompDetail(row: any) {
   // 优先从绑定列表中补全详情；如果是节点属性面板传入，可能缺少来源/采集时间等字段
   const full = row.executorSource ? row : bindDialog.list.find((c: any) => c.componentId === row.componentId)
@@ -1525,10 +1594,28 @@ function generateInlinePredId() {
   return `INLINE_PRED_${Date.now().toString(36).toUpperCase()}`
 }
 
+function isInlinePredicateId(componentId?: string) {
+  return !!componentId && String(componentId).startsWith('INLINE_PRED_')
+}
+
 function ensureConditionDefaults(data: Record<string, any>) {
   if (data.nodeType !== 'CONDITION') return data
   if (!data.predicateMode) {
-    data.predicateMode = data.predicateScript ? 'script' : 'bind'
+    if (data.predicateScript?.trim()) {
+      data.predicateMode = 'script'
+    } else if (data.componentId && !isInlinePredicateId(data.componentId)) {
+      data.predicateMode = 'bind'
+    } else {
+      data.predicateMode = 'bind'
+    }
+  }
+  if (
+    data.predicateMode === 'script'
+    && !data.predicateScript?.trim()
+    && data.componentId
+    && !isInlinePredicateId(data.componentId)
+  ) {
+    data.predicateMode = 'bind'
   }
   if (!data.trueLabel) data.trueLabel = 'True'
   if (!data.falseLabel) data.falseLabel = 'False'
@@ -1748,6 +1835,10 @@ function confirmBind() {
     selectedNodeData.value.componentName = found.componentName
     selectedNodeData.value.tagDefs = found.tagDefs || []
     selectedNodeData.value.label = found.componentName || found.componentId
+    if (normalizeNodeType(selectedNodeData.value.nodeType) === 'CONDITION') {
+      selectedNodeData.value.predicateMode = 'bind'
+      selectedNodeData.value.predicateScript = ''
+    }
   } else {
     delete selectedNodeData.value.componentId
     delete selectedNodeData.value.componentName
@@ -1909,6 +2000,34 @@ function updateNodeVisual(node: Node) {
   node.attr('label/text', data.label || typeLabel(nt))
 }
 
+type GraphViewport = { zoom: number; tx: number; ty: number }
+
+/** 导出画布 JSON（含节点坐标 + 视口缩放/平移） */
+function serializeGraphData(): Record<string, unknown> {
+  if (!graph) return { cells: [] }
+  const json = graph.toJSON() as Record<string, unknown>
+  const t = graph.translate()
+  return {
+    ...json,
+    viewport: {
+      zoom: graph.zoom(),
+      tx: t.tx,
+      ty: t.ty,
+    },
+  }
+}
+
+function restoreGraphViewport(viewport?: Partial<GraphViewport> | null): boolean {
+  if (!graph || !viewport || typeof viewport.zoom !== 'number' || viewport.zoom <= 0) return false
+  graph.zoom(viewport.zoom, { absolute: true })
+  graph.translate(
+    typeof viewport.tx === 'number' ? viewport.tx : 0,
+    typeof viewport.ty === 'number' ? viewport.ty : 0,
+  )
+  zoomLevel.value = graph.zoom()
+  return true
+}
+
 function edgeStyleGraphOptions(style: 'straight' | 'polyline' | 'curve') {
   const isPolyline = style === 'polyline'
   return {
@@ -1929,11 +2048,9 @@ function applyDefaultEdgeStyleToGraph(style: 'straight' | 'polyline' | 'curve') 
   ;(graph.options.connecting as any).sourceAnchor = undefined
 }
 
-/** 加载后仅做旧数据兼容：orth→manhattan；尊重已保存的折线/曲线/直线样式 */
+/** 加载后仅做 orth 迁移；已保存 edgeStyle 原样还原，其余只补元数据不改 router */
 function normalizeLoadedEdges() {
   if (!graph) return
-  const COL_THRESHOLD = 48
-  const ROW_THRESHOLD = 36
   graph.getEdges().forEach(e => {
     const savedStyle = e.getData()?.edgeStyle as 'straight' | 'polyline' | 'curve' | undefined
     if (savedStyle) {
@@ -1941,33 +2058,13 @@ function normalizeLoadedEdges() {
       return
     }
     const r = e.getRouter()
-    const c = e.getConnector()
     if (r?.name === 'orth') {
       e.setRouter({ name: 'manhattan', args: { padding: { top: 15, bottom: 15, left: 15, right: 15 }, step: 10 } })
       e.setConnector('rounded')
       e.setData({ ...(e.getData() || {}), edgeStyle: 'polyline' })
       return
     }
-    // 无 edgeStyle 的旧数据：同列/同行短距仍用直线，避免 manhattan 近距离绕圈（不影响已持久化 edgeStyle）
-    const src = e.getSourceNode()
-    const tgt = e.getTargetNode()
-    if (src && tgt && (r?.name === 'manhattan' || r?.name === 'normal')) {
-      const sb = src.getBBox()
-      const tb = tgt.getBBox()
-      const dx = Math.abs(sb.x + sb.width / 2 - (tb.x + tb.width / 2))
-      const dy = tb.y - (sb.y + sb.height / 2)
-      const sameColVertical = dx <= COL_THRESHOLD && dy > 0 && dy < 400
-      const sameRowHorizontal = Math.abs(dy) <= ROW_THRESHOLD && tb.x > sb.x + sb.width * 0.3
-      if (sameColVertical || sameRowHorizontal) {
-        e.setRouter({ name: 'normal' })
-        e.setConnector({ name: 'normal' })
-        e.setData({ ...(e.getData() || {}), edgeStyle: 'straight' })
-        return
-      }
-    }
-    if (r?.name === 'manhattan' || (r?.name === 'normal' && (c?.name === 'rounded' || c?.name === 'smooth' || c?.name === 'normal'))) {
-      return
-    }
+    e.setData({ ...(e.getData() || {}), edgeStyle: inferEdgeStyle(e) })
   })
 }
 
@@ -2136,11 +2233,9 @@ function initGraph() {
       highlight: false,
       targetAnchor: { name: 'orth' },
       connectionPoint: { name: 'anchor' },
-      validateConnection({ sourceCell, targetCell, edge }: { sourceCell: any; targetCell: any; edge?: Edge }) {
+      validateConnection({ sourceCell, targetCell }: { sourceCell: any; targetCell: any }) {
         if (!sourceCell || !targetCell) return false
         if (sourceCell.id === targetCell.id) return false
-        if (!graph) return true
-        if (!canAddIncomingEdge(graph, targetCell.id, edge?.id)) return false
         return true
       },
     },
@@ -2206,7 +2301,10 @@ function initGraph() {
     }
     if (cells.length === 1) {
       const cell = cells[0]
-      if (cell.isNode()) { selectedCell = cell; selectedNodeData.value = { ...cell.getData() } }
+      if (cell.isNode()) {
+        selectedCell = cell
+        selectedNodeData.value = ensureConditionDefaults({ ...cell.getData() })
+      }
       else if (cell.isEdge()) {
         selectedCell = cell
         const ls = cell.getLabels()
@@ -2242,7 +2340,13 @@ function initGraph() {
     graph?.cleanSelection(); graph?.select(node.id)
   })
 
-  graph.on('edge:added', ({ edge }) => applyEdgeHitWrap(edge))
+  graph.on('edge:added', ({ edge }) => {
+    applyEdgeHitWrap(edge)
+    const data = edge.getData() || {}
+    if (!data.edgeStyle) {
+      applyEdgeStyleToEdge(edge as Edge, defaultEdgeStyle.value)
+    }
+  })
 
   graph.on('edge:click', ({ edge }) => {
     graph?.cleanSelection(); graph?.select(edge.id)
@@ -2291,21 +2395,10 @@ function initGraph() {
     }
   })
 
-  // 连线完成：校验入边上限，并按方位分散端口避免重合
-  graph.on('edge:connected', ({ edge, isNew }: { edge: Edge; isNew?: boolean }) => {
+  // 节点移动后仅刷新路由，不强制改端口
+  graph.on('node:moved', ({ node }) => {
     if (!graph) return
-    const target = edge.getTargetCell()
-    const source = edge.getSourceCell()
-    if (!target?.isNode() || !source?.isNode()) return
-    if (countIncomingEdges(graph, target.id) > MAX_LINKS_TO_NODE) {
-      graph.removeEdge(edge.id)
-      if (isNew !== false) {
-        ElMessage.warning(t('design.maxIncomingLinks', { max: MAX_LINKS_TO_NODE }))
-      }
-      return
-    }
-    rebalanceEdgePortsForNode(graph, target as Node)
-    rebalanceEdgePortsForNode(graph, source as Node)
+    refreshNodeEdgeRouting(graph, node)
   })
 
   // 画布自适应
@@ -2374,11 +2467,11 @@ function buildNodeData(type: string, label: string) {
     paramValidatorId: '', paramValidatorName: '', executeStrategy: 'NORMAL',
     transactionPropagation: 'INHERIT', script: '', subChainCode: '',
     iteratorDataSource: '', iteratorItemName: 'item',
-    predicateMode: nt === 'CONDITION' ? 'script' : undefined,
+    predicateMode: nt === 'CONDITION' ? 'bind' : undefined,
     predicateScript: nt === 'CONDITION' ? '' : undefined,
     trueLabel: nt === 'CONDITION' ? 'True' : undefined,
     falseLabel: nt === 'CONDITION' ? 'False' : undefined,
-    componentId: nt === 'CONDITION' ? generateInlinePredId() : '',
+    componentId: nt === 'CONDITION' ? '' : '',
     ...fieldDefaults,
   })
 }
@@ -2447,7 +2540,8 @@ function inferEdgeStyle(edge: Edge): 'straight' | 'polyline' | 'curve' {
   const c = edge.getConnector()
   if (r?.name === 'manhattan' || r?.name === 'orth') return 'polyline'
   if (r?.name === 'normal' && c?.name === 'smooth') return 'curve'
-  return 'straight'
+  if (r?.name === 'normal' && (!c?.name || c?.name === 'normal')) return 'straight'
+  return 'polyline'
 }
 
 function ensureEdgeStylesPersisted() {
@@ -3003,6 +3097,86 @@ function detectCycleWarnings(): string[] {
   return found
 }
 
+function openCopilotFromDetect() {
+  aiDetectDialog.visible = false
+  showCopilot.value = true
+}
+
+/** AI 检测：拓扑校验 + 交付门禁（保存前不再弹窗打断） */
+async function handleAiDetect() {
+  if (!graph) {
+    ElMessage.warning(t('design.canvasNotInit'))
+    return
+  }
+  aiDetecting.value = true
+  const sections: AiDetectSection[] = []
+  try {
+    const topologyErrors = validateChain()
+    sections.push({
+      title: t('ai.aiDetectTopology'),
+      severity: 'danger',
+      items: topologyErrors,
+    })
+
+    const cycleWarnings = detectCycleWarnings()
+    sections.push({
+      title: t('ai.aiDetectCycles'),
+      severity: 'warning',
+      items: cycleWarnings,
+    })
+
+    const bootstrapItems = isBootstrapChain()
+      ? [t('design.bootstrapBannerDesc')]
+      : []
+    sections.push({
+      title: t('ai.aiDetectBootstrap'),
+      severity: 'warning',
+      items: bootstrapItems,
+    })
+
+    const deliveryItems: string[] = []
+    if (appCode) {
+      try {
+        const chain = translateGraphToChain()
+        const delivery = await aiApi.validateDelivery({
+          appCode,
+          chainCode: playgroundChainCode.value || designCode,
+          chainData: JSON.stringify(chain),
+          graphData: JSON.stringify(serializeGraphData()),
+          strictMode: true,
+        })
+        if (!delivery.passed) {
+          deliveryItems.push(...(delivery.blocking || []), ...(delivery.warnings || []))
+        }
+      } catch {
+        deliveryItems.push(t('ai.aiDetectDeliveryUnavailable'))
+      }
+    } else {
+      deliveryItems.push(t('ai.aiDetectNoAppCode'))
+    }
+    sections.push({
+      title: t('ai.aiDetectDelivery'),
+      severity: 'danger',
+      items: deliveryItems,
+    })
+
+    const deliveryBlocking = deliveryItems.filter(
+      (i) => i !== t('ai.aiDetectNoAppCode') && i !== t('ai.aiDetectDeliveryUnavailable'),
+    )
+    const issueCount = topologyErrors.length + cycleWarnings.length + deliveryBlocking.length + bootstrapItems.length
+    aiDetectDialog.sections = sections
+    aiDetectDialog.issueCount = issueCount
+    aiDetectDialog.isBootstrap = bootstrapItems.length > 0
+    aiDetectDialog.passed = topologyErrors.length === 0
+      && deliveryBlocking.length === 0
+      && cycleWarnings.length === 0
+      && bootstrapItems.length === 0
+    aiDetectDialog.visible = true
+  } finally {
+    aiDetecting.value = false
+  }
+}
+
 /** 显示链数据预览弹窗 */
 function showChainDataDialog() {
   if (!graph) {
@@ -3093,26 +3267,23 @@ async function loadDesign() {
     if (!graph) return
     hydrateChainSettingsFromDesign()
     if (design.value.graphData) {
-      // graphData 可能是字符串或已解析对象
       let data = design.value.graphData
       if (typeof data === 'string') data = JSON.parse(data)
-      if (data?.cells?.length > 0) {
-        // 兼容旧版 flow-node shape → 新版专用形状
-        data.cells.forEach((cell: any) => {
+      const viewport = (data as { viewport?: GraphViewport })?.viewport
+      const cells = (data as { cells?: any[] })?.cells ?? []
+      if (cells.length > 0) {
+        cells.forEach((cell: any) => {
           if (cell.data?.nodeType) {
             cell.data.nodeType = normalizeNodeType(cell.data.nodeType)
           }
           if (cell.shape === 'flow-node' && cell.data?.nodeType) {
             cell.shape = getShapeForType(cell.data.nodeType)
           }
-          // 清除旧的 vue-shape-view 引用
           if (cell.view === 'vue-shape-view') delete cell.view
         })
-        graph.fromJSON(data)
-        // 确保所有节点视觉和端口正确
+        graph.fromJSON({ cells })
         graph.getNodes().forEach(n => {
           updateNodeVisual(n)
-          // 序列化可能丢失端口 group 定义，重新注入完整端口配置
           const nodeType = normalizeNodeType(n.getData()?.nodeType || 'NORMAL')
           n.setProp('ports', { groups: { handle: handleGroup }, items: getPorts(nodeType) })
           if (nodeType === 'CONDITION') {
@@ -3122,11 +3293,14 @@ async function loadDesign() {
           }
         })
         normalizeLoadedEdges()
-        rebalanceAllEdgePorts(graph)
         hydrateNodeTransactionFromChainData()
         hydrateNodeConfigFromChainData()
         applyAllEdgeHitWraps()
-        graph.zoomToFit({ padding: 60, maxScale: 1 })
+        await nextTick()
+        if (!restoreGraphViewport(viewport)) {
+          graph.zoomToFit({ padding: 60, maxScale: 1 })
+          zoomLevel.value = graph.zoom()
+        }
         return
       }
     }
@@ -3174,31 +3348,6 @@ async function handleSave() {
     } catch { return }
   }
 
-  if (flowValid && appCode) {
-    try {
-      const chain = translateGraphToChain()
-      const delivery = await aiApi.validateDelivery({
-        appCode,
-        chainCode: playgroundChainCode.value || designCode,
-        chainData: JSON.stringify(chain),
-        graphData: graph ? JSON.stringify(graph.toJSON()) : '',
-        strictMode: true,
-      })
-      if (!delivery.passed) {
-        const msg = [...(delivery.blocking || []), ...(delivery.warnings || [])].join('\n')
-        try {
-          await ElMessageBox.confirm(
-              t('design.deliveryGateFailed', { errors: msg }),
-              t('common.confirm'),
-              { confirmButtonText: t('design.saveGraph'), cancelButtonText: t('common.cancel'), type: 'warning' }
-          )
-        } catch { return }
-      }
-    } catch {
-      // 交付 API 不可用时仅依赖本地拓扑校验
-    }
-  }
-
   // 3. 已发布链的确认弹窗
   const boundChains = (design.value as any)?.boundChains
   if (boundChains && boundChains.some((c: any) => c.status === 3 || c.status === 4)) {
@@ -3214,7 +3363,7 @@ async function handleSave() {
   saving.value = true
   try {
     ensureEdgeStylesPersisted()
-    const json = graph.toJSON()
+    const json = serializeGraphData()
     const chain = translateGraphToChain()
     await designApi.saveGraph(designCode, appCode, JSON.stringify(json), JSON.stringify(chain))
     ElMessage.success(flowValid ? t('design.saveGraphSuccess') : t('design.saveGraphDesigning'))
@@ -3260,12 +3409,6 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.bootstrap-banner {
-  margin: 0;
-  border-radius: 0;
-  flex-shrink: 0;
-}
-
 .design-editor-x6 {
   display: flex;
   flex-direction: column;
@@ -3289,7 +3432,34 @@ onBeforeUnmount(() => {
 .toolbar-title { font-size: 15px; }
 .app-prefix { font-size: 13px; margin-right: 2px; }
 .toolbar-center { display: flex; align-items: center; gap: 0; flex: 1; min-width: 0; overflow: hidden; }
-.toolbar-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.toolbar-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.toolbar-ai-btn,
+.toolbar-ai-detect-btn {
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 13px;
+  padding: 6px 12px;
+  height: 32px;
+  transition: box-shadow 0.15s, transform 0.12s;
+}
+.toolbar-ai-btn:not(.is-disabled):hover,
+.toolbar-ai-detect-btn:not(.is-disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+.toolbar-ai-btn {
+  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+  border: 1px solid #ddd6fe;
+  color: #6d28d9;
+}
+.toolbar-ai-btn.is-disabled {
+  opacity: 0.55;
+}
+.toolbar-ai-detect-btn {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+}
 .toolbar-divider { width: 1px; height: 16px; background: #cbd5e1; margin: 0 4px; flex-shrink: 0; }
 .zoom-label { font-size: 12px; color: #475569; min-width: 36px; text-align: center; font-variant-numeric: tabular-nums; }
 
@@ -3397,6 +3567,78 @@ onBeforeUnmount(() => {
 .panel-header { padding: 12px 16px; font-weight: 600; font-size: 13px; color: #475569; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .panel-body { padding: 16px; }
 .panel-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 16px; color: #94a3b8; font-size: 13px; }
+
+.ai-detect-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+.ai-detect-summary--pass {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 1px solid #bbf7d0;
+}
+.ai-detect-summary--fail {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border: 1px solid #fde68a;
+}
+.ai-detect-summary__icon {
+  font-size: 28px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.ai-detect-summary--pass .ai-detect-summary__icon { color: #16a34a; }
+.ai-detect-summary--fail .ai-detect-summary__icon { color: #d97706; }
+.ai-detect-summary__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+.ai-detect-summary__desc {
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.5;
+}
+.ai-detect-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 42vh;
+  overflow-y: auto;
+}
+.ai-detect-section {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+.ai-detect-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+.ai-detect-section__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+.ai-detect-issue-list {
+  margin: 0;
+  padding: 10px 14px 10px 30px;
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.6;
+}
+.ai-detect-issue-list li + li {
+  margin-top: 6px;
+}
 
 .palette-tap-hint {
   display: none;

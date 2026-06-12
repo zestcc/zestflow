@@ -1,1 +1,0 @@
-import{az as i,aB as r,aK as s,s as t}from"./element-plus-Dauw7wC-.js";const a=768;function w(o=480){const e=s(!1);function n(){e.value=window.innerWidth<a}return i(()=>{n(),window.addEventListener("resize",n)}),r(()=>{window.removeEventListener("resize",n)}),{drawerSize:t(()=>e.value?"100%":o),isMobile:e}}export{w as u};

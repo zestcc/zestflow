@@ -132,10 +132,10 @@ export function getNodeTypeMeta(type?: string | null): NodeTypeMeta | undefined 
 }
 
 export function paletteNodeTypes(): NodeTypeMeta[] {
-  return NODE_TYPE_REGISTRY.filter(m => m.category !== 'terminal')
+  return NODE_TYPE_REGISTRY
 }
 
-export const PALETTE_CATEGORY_ORDER: NodeCategory[] = ['flow', 'component', 'data', 'integration', 'human', 'aux']
+export const PALETTE_CATEGORY_ORDER: NodeCategory[] = ['terminal', 'flow', 'component', 'data', 'integration', 'human', 'aux']
 
 export function paletteNodeTypesByCategory(): { category: NodeCategory; nodes: NodeTypeMeta[] }[] {
   const palette = paletteNodeTypes()

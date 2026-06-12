@@ -4,6 +4,7 @@ import {
   facingSide,
   canAddIncomingEdge,
   countIncomingEdges,
+  pickPortFacingPeer,
 } from './flowPortAssign'
 
 describe('flowPortAssign', () => {
@@ -13,6 +14,23 @@ describe('flowPortAssign', () => {
     const toAbove = { getBBox: () => ({ x: 100, y: -200, width: 100, height: 40 }) } as any
     expect(facingSide(from, toBelow)).toBe('bottom')
     expect(facingSide(from, toAbove)).toBe('top')
+  })
+
+  it('facingSide prefers horizontal when nodes are on the same row', () => {
+    const from = { getBBox: () => ({ x: 0, y: 100, width: 100, height: 40 }) } as any
+    const toRight = { getBBox: () => ({ x: 260, y: 108, width: 100, height: 40 }) } as any
+    const toLeft = { getBBox: () => ({ x: -260, y: 92, width: 100, height: 40 }) } as any
+    expect(facingSide(from, toRight)).toBe('right')
+    expect(facingSide(from, toLeft)).toBe('left')
+  })
+
+  it('pickPortFacingPeer chooses left/right for diamond branch peers', () => {
+    const cond = { getBBox: () => ({ x: 200, y: 100, width: 100, height: 80 }) } as any
+    const leftPeer = { getBBox: () => ({ x: 40, y: 220, width: 120, height: 40 }) } as any
+    const rightPeer = { getBBox: () => ({ x: 340, y: 220, width: 120, height: 40 }) } as any
+    const ports = ['t', 'r', 'b', 'l']
+    expect(pickPortFacingPeer(cond, leftPeer, ports)).toBe('l')
+    expect(pickPortFacingPeer(cond, rightPeer, ports)).toBe('r')
   })
 
   it('canAddIncomingEdge respects max limit', () => {
