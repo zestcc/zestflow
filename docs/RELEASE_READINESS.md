@@ -73,6 +73,8 @@ powershell -File .\scripts\blackbox\run-enterprise-gate.ps1 -RequireEnterprisePr
 
 **Layer C — playground-disabled-e2e**：`run-playground-disabled-e2e.ps1`；门禁 `-RequirePlaygroundDisabledProfile`。
 
+**Layer D — 生产级验收（2026-06）**：`run-production-acceptance.ps1` 四层门禁（白盒 + 黑盒 + 主链路 + 压力）。详见 [PRODUCTION_ACCEPTANCE.md](./guides/PRODUCTION_ACCEPTANCE.md)。
+
 ---
 
 ## 4. 可选 E2E Profile

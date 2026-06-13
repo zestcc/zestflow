@@ -1,0 +1,24 @@
+{
+  "version": "production-v1",
+  "description": "ZestFlow 生产级验收 SLA（开发机参考，公网须叠加 prod profile 手工确认）",
+  "layers": {
+    "whitebox": { "required": true, "command": "mvn -B test" },
+    "blackbox": { "required": true },
+    "link": { "required": true },
+    "stress": { "required": false }
+  },
+  "linkE2e": {
+    "playgroundScene": "SCN20260531000001",
+    "logWaitSec": 30,
+    "sseConnectedMaxMs": 5000,
+    "sseDoneMaxMs": 15000
+  },
+  "sseStress": {
+    "concurrency": 8,
+    "connectedP99Ms": 4000,
+    "connectedMaxMs": 8000
+  },
+  "readCache": {
+    "requireOnlineByDefault": true
+  }
+}

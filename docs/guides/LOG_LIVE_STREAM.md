@@ -35,11 +35,26 @@ Authorization: Bearer <JWT>
 3. 抽屉顶部出现「实时刷新中」，节点随执行逐步变绿/变红
 4. 链结束后标签消失，列表自动刷新
 
-黑盒脚本（需 Admin :8080 已启动）：
+轮询间隔与超时可在 `application.yml` 配置：
+
+```yaml
+zestflow:
+  admin:
+    log-live-stream:
+      poll-interval-ms: 2000
+      sse-timeout-ms: 600000
+      pool-size: 4
+```
+
+## 生产验收
 
 ```powershell
-.\scripts\blackbox\run-log-live-stream-e2e.ps1
+.\scripts\blackbox\run-platform-link-e2e.ps1
+.\scripts\blackbox\run-log-stream-stress-e2e.ps1
+.\scripts\blackbox\run-production-acceptance.ps1
 ```
+
+详见 [PRODUCTION_ACCEPTANCE.md](./PRODUCTION_ACCEPTANCE.md)。
 
 ## 与 WebSocket 的关系
 

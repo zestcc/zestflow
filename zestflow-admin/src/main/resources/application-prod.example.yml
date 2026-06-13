@@ -118,6 +118,10 @@ zestflow:
       enabled: true
       ttl-minutes: 60
       max-entries: 500
+    log-live-stream:
+      poll-interval-ms: 2000
+      sse-timeout-ms: 600000
+      pool-size: 4
     runtime-state:
       ttl-seconds: 300
     health-probe:

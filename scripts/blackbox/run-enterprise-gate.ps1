@@ -32,6 +32,7 @@ function Write-GateReport {
         phases = $phases
         hint = @{
             fullGreen = ".\scripts\blackbox\run-full-e2e.ps1 -E2eProfile fullGreen"
+            productionAcceptance = ".\scripts\blackbox\run-production-acceptance.ps1"
             enterprise = "Admin: -Dspring-boot.run.profiles=local,enterprise-e2e then gate with -RequireEnterpriseProfile"
             security = "Admin+Executor+Collector: profiles=local,security-e2e then gate with -RequireSecurityProfile"
             playgroundDisabled = "Admin: profiles=local,playground-disabled-e2e then gate with -RequirePlaygroundDisabledProfile"

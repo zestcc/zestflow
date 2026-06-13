@@ -712,7 +712,7 @@ watch(pageTab, (tab) => {
   }
   if (tab === 'executions') {
     listRefreshTimer = setInterval(() => {
-      if (!loading.value) {
+      if (!loading.value && !(detailVisible.value && liveStreaming.value)) {
         fetchList()
       }
     }, 15000)

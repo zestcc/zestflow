@@ -91,6 +91,11 @@ zestflow:
       enabled: true
       ttl-minutes: 60
       max-entries: 500
+    log-live-stream:
+      # 日志详情 SSE 实时流 — 轮询 Collector 间隔与连接超时
+      poll-interval-ms: 2000
+      sse-timeout-ms: 600000
+      pool-size: 4
     tenant-id: 1
     system-user: sys
     default-user:
