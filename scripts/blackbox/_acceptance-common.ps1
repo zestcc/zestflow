@@ -48,7 +48,7 @@ function Read-SseUntilEvent($url, $token, $eventName, [int]$TimeoutSec = 12) {
                 continue
             }
             [void]$buf.AppendLine($line)
-            if ($line -eq "event: $eventName") {
+            if ($line -eq "event: $eventName" -or $line -eq "event:$eventName") {
                 $sw.Stop()
                 return @{ ok=$true; ms=$sw.ElapsedMilliseconds; snippet=$buf.ToString() }
             }
@@ -94,7 +94,8 @@ function Wait-ExecutionInLogs($BaseAdmin, $token, $appCode, $executionId, [int]$
         $list = Invoke-AcceptanceApi POST "$BaseAdmin/api/zestflow/logs/executions" $body $h 20
         if ($list.ok) {
             try {
-                $records = (ConvertFrom-Json $list.body).data.records
+                $data = (ConvertFrom-Json $list.body).data
+                $records = if ($data.list) { $data.list } else { $data.records }
                 if ($records | Where-Object { $_.executionId -eq $executionId }) {
                     return $true
                 }
