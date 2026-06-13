@@ -124,6 +124,8 @@ Windows（Admin + ZestSSO 已启动）：
 
 ```powershell
 .\scripts\sso-smoke.ps1 -AdminBase http://localhost:8080 -SsoBase http://localhost:9000
+# 带 JSON 报告的黑盒 E2E（含 logout-url）：
+.\scripts\blackbox\run-sso-e2e.ps1 -AllowSkip
 ```
 
 检查 Discovery、Admin `/auth/sso/config`、PKCE authorize URL；完整浏览器回调仍须手工验证。

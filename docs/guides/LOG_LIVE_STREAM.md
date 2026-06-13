@@ -35,6 +35,12 @@ Authorization: Bearer <JWT>
 3. 抽屉顶部出现「实时刷新中」，节点随执行逐步变绿/变红
 4. 链结束后标签消失，列表自动刷新
 
+黑盒脚本（需 Admin :8080 已启动）：
+
+```powershell
+.\scripts\blackbox\run-log-live-stream-e2e.ps1
+```
+
 ## 与 WebSocket 的关系
 
 当前为 **SSE + 服务端轮询 Collector**，零侵入 Executor/Collector 协议，适合 v0.2。后续若需亚秒级推送，可在 Collector 侧增加事件总线再升级 WebSocket。

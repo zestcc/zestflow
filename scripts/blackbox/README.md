@@ -23,6 +23,9 @@
 | `perf-gate-policy.json` | P99.9 SLA 阈值（引擎 / HTTP / blackbox / phase2b） |
 | `run-tenant-multi-e2e.ps1` | 多租户 JWT 隔离（需 `enterprise-e2e` profile） |
 | `run-ip-demo-e2e.ps1` | IP → 租户隔离（需 `multi` + `ip-demo-mode=enabled`） |
+| `run-sso-e2e.ps1` | SSO：OIDC Discovery + Admin config/authorize/logout-url + JSON 报告 |
+| `run-log-live-stream-e2e.ps1` | 日志 SSE：JWT 鉴权 + 执行列表 + `connected` 事件 |
+| `run-executor-read-cache-e2e.ps1` | Executor 读快照：链/设计代理；`-RequireStaleCache` 验证离线 `_readCache` |
 
 结果 JSON：本地写入 `results/`（`*.json` 已 gitignore，不入库）。
 

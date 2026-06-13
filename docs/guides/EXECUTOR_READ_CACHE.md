@@ -54,6 +54,14 @@ Composable：`src/composables/useExecutorReadCache.ts`
 4. 恢复 Executor 在线 → 提示消失，数据刷新
 5. cluster 模式：两 Admin 实例共享 Redis 快照（任一实例写入，另一实例可读）
 
+黑盒脚本：
+
+```powershell
+.\scripts\blackbox\run-executor-read-cache-e2e.ps1
+# 停止 demo-app 后验证离线快照：
+.\scripts\blackbox\run-executor-read-cache-e2e.ps1 -RequireStaleCache
+```
+
 ## API 响应示例
 
 ```json

@@ -137,6 +137,27 @@ switch ($LASTEXITCODE) {
 & "$PSScriptRoot\run-rbac-horizontal-e2e.ps1"
 Add-Phase "rbac-horizontal-e2e" ($LASTEXITCODE -eq 0) "exit=$LASTEXITCODE"
 
+& "$PSScriptRoot\run-sso-e2e.ps1" -AllowSkip
+switch ($LASTEXITCODE) {
+    0 { Add-Phase "sso-e2e" $true "passed" }
+    2 { Add-Phase "sso-e2e" $true "skipped-sso-or-admin" }
+    default { Add-Phase "sso-e2e" $false "exit=$LASTEXITCODE" }
+}
+
+& "$PSScriptRoot\run-log-live-stream-e2e.ps1" -AllowSkip
+switch ($LASTEXITCODE) {
+    0 { Add-Phase "log-live-stream-e2e" $true "passed" }
+    2 { Add-Phase "log-live-stream-e2e" $true "skipped-no-admin-or-data" }
+    default { Add-Phase "log-live-stream-e2e" $false "exit=$LASTEXITCODE" }
+}
+
+& "$PSScriptRoot\run-executor-read-cache-e2e.ps1" -AllowSkip
+switch ($LASTEXITCODE) {
+    0 { Add-Phase "executor-read-cache-e2e" $true "passed" }
+    2 { Add-Phase "executor-read-cache-e2e" $true "skipped-no-admin" }
+    default { Add-Phase "executor-read-cache-e2e" $false "exit=$LASTEXITCODE" }
+}
+
 $allowPlaygroundSkip = -not $RequirePlaygroundDisabledProfile
 & "$PSScriptRoot\run-playground-disabled-e2e.ps1" -AllowSkip:$allowPlaygroundSkip
 switch ($LASTEXITCODE) {
