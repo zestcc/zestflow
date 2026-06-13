@@ -3,9 +3,11 @@
   "appCode": "demo-app",
   "profiles": {
     "fullGreen": {
-      "comment": "全绿：全部 required 场景必须通过，含 75 步压力链",
+      "comment": "全绿：tierMatrix requiredTiers 内场景必须通过，SCN_EXT_* 为 optional",
       "mode": "strict",
       "skipHeavyDefault": false,
+      "useTierRequiredOnly": true,
+      "optionalPrefixes": ["SCN_EXT_"],
       "optionalScenes": ["SCN20260602000002"],
       "partialGreenScenes": []
     },

@@ -10,6 +10,7 @@ import com.zestflow.admin.model.entity.ScheduleLogPO;
 import com.zestflow.admin.model.entity.SchedulePO;
 import com.zestflow.admin.model.vo.ScheduleLogVO;
 import com.zestflow.admin.model.vo.ScheduleVO;
+import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import com.zestflow.admin.repository.ScheduleLogMapper;
 import com.zestflow.admin.repository.ScheduleMapper;
 import com.zestflow.admin.schedule.ScheduleChainProxyService;
@@ -38,6 +39,7 @@ class ScheduleServiceImplTest {
 
     @Mock private ScheduleMapper scheduleMapper;
     @Mock private ScheduleLogMapper scheduleLogMapper;
+    @Mock private ExecutorRegistryMapper executorRegistryMapper;
     @Mock private PlatformJobRunner platformJobRunner;
     @Mock private TenantAppContext tenantAppContext;
     @Mock private ScheduleChainProxyService scheduleChainProxyService;
@@ -47,7 +49,7 @@ class ScheduleServiceImplTest {
     @BeforeEach
     void setUp() {
         scheduleService = new ScheduleServiceImpl(
-                scheduleMapper, scheduleLogMapper, tenantAppContext,
+                scheduleMapper, scheduleLogMapper, executorRegistryMapper, tenantAppContext,
                 platformJobRunner, scheduleChainProxyService);
         lenient().when(tenantAppContext.getCurrentUserAppCodes()).thenReturn(Set.of("app-a"));
     }

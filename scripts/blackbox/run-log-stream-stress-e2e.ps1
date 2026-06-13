@@ -67,8 +67,9 @@ foreach ($r in $results) {
     if ($r.ok) { $latencies.Add([int]$r.ms) }
 }
 $okCount = $latencies.Count
-$sorted = $latencies | Sort-Object
-$p99 = if ($sorted.Count -gt 0) { $sorted[[Math]::Min($sorted.Count - 1, [Math]::Ceiling($sorted.Count * 0.99) - 1])] } else { 0 }
+$sorted = @($latencies | Sort-Object)
+$p99Idx = if ($sorted.Count -gt 0) { [Math]::Min($sorted.Count - 1, [int][Math]::Ceiling($sorted.Count * 0.99) - 1) } else { 0 }
+$p99 = if ($sorted.Count -gt 0) { $sorted[$p99Idx] } else { 0 }
 $max = if ($sorted.Count -gt 0) { $sorted[-1] } else { 0 }
 $metrics = @{ concurrency=$concurrency; success=$okCount; p99Ms=$p99; maxMs=$max }
 

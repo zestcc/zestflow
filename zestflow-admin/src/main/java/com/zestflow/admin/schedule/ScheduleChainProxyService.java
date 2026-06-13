@@ -3,6 +3,7 @@ package com.zestflow.admin.schedule;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.zestflow.admin.client.ExecutorProxyService;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.model.dto.ScheduleCreateDTO;
@@ -29,7 +30,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ScheduleChainProxyService {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = new ObjectMapper().registerModule(new JavaTimeModule());
 
     private final ExecutorProxyService executorProxyService;
 

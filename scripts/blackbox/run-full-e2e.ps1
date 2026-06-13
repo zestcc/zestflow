@@ -26,7 +26,21 @@ if (-not $profile) { Write-Host "Unknown E2eProfile: $profileName" -ForegroundCo
 $policyMode = $profile.mode
 $optionalScenes = @($profile.optionalScenes)
 $partialGreenScenes = @($profile.partialGreenScenes)
+$optionalPrefixes = @()
+if ($profile.optionalPrefixes) { $optionalPrefixes = @($profile.optionalPrefixes) }
 $heavyMap = $policyRaw.heavyScenes
+$requiredSceneSet = New-Object 'System.Collections.Generic.HashSet[string]'
+if ($profile.useTierRequiredOnly -and $policyRaw.requiredTiers) {
+    foreach ($tier in @($policyRaw.requiredTiers)) {
+        $codes = $policyRaw.tierMatrix.$tier
+        if ($codes -is [System.Array]) {
+            foreach ($c in $codes) { if ($c) { [void]$requiredSceneSet.Add([string]$c) } }
+        }
+    }
+    foreach ($prop in $heavyMap.PSObject.Properties) {
+        if ($prop.Value.required -ne $false) { [void]$requiredSceneSet.Add($prop.Name) }
+    }
+}
 if ($profile.skipHeavyDefault -and -not $PSBoundParameters.ContainsKey('SkipHeavyScenes')) {
     $SkipHeavyScenes = $true
 }
@@ -277,6 +291,14 @@ if ($pgEnabled) {
         if ($s.appCode -and $s.appCode -ne $policyRaw.appCode) { continue }
         $code = $s.sceneCode
         $isOptional = $optionalScenes -contains $code
+        if (-not $isOptional -and $optionalPrefixes.Count -gt 0) {
+            foreach ($p in $optionalPrefixes) {
+                if ($code -like "${p}*") { $isOptional = $true; break }
+            }
+        }
+        if (-not $isOptional -and $requiredSceneSet.Count -gt 0) {
+            if (-not $requiredSceneSet.Contains($code)) { $isOptional = $true }
+        }
         $isPartial = $partialGreenScenes -contains $code
         $heavyCfg = $heavyMap.$code
         if ($SkipHeavyScenes -and $heavyCfg) {

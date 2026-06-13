@@ -9,9 +9,11 @@ import com.zestflow.admin.model.dto.ScheduleCreateDTO;
 import com.zestflow.admin.model.dto.ScheduleUpdateDTO;
 import com.zestflow.admin.model.entity.ScheduleLogPO;
 import com.zestflow.admin.model.entity.SchedulePO;
+import com.zestflow.admin.model.entity.ExecutorRegistryPO;
 import com.zestflow.admin.model.vo.ScheduleLogStatsVO;
 import com.zestflow.admin.model.vo.ScheduleLogVO;
 import com.zestflow.admin.model.vo.ScheduleVO;
+import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import com.zestflow.admin.repository.ScheduleLogMapper;
 import com.zestflow.admin.repository.ScheduleMapper;
 import com.zestflow.admin.schedule.ScheduleChainProxyService;
@@ -19,11 +21,16 @@ import com.zestflow.admin.schedule.platform.PlatformJobRunner;
 import com.zestflow.admin.schedule.platform.ScheduleJobType;
 import com.zestflow.admin.service.ScheduleService;
 import com.zestflow.admin.service.TenantAppContext;
+import com.zestflow.admin.util.SecurityUtils;
 import com.zestflow.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -37,6 +44,7 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     private final ScheduleMapper scheduleMapper;
     private final ScheduleLogMapper scheduleLogMapper;
+    private final ExecutorRegistryMapper executorRegistryMapper;
     private final TenantAppContext tenantAppContext;
     private final PlatformJobRunner platformJobRunner;
     private final ScheduleChainProxyService scheduleChainProxyService;
@@ -241,10 +249,33 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     private String resolvePrimaryAppCode() {
         Set<String> codes = tenantAppContext.getCurrentUserAppCodes();
-        if (codes == null || codes.isEmpty()) {
-            throw new BizException(ErrorCode.SCHEDULE_NOT_FOUND, "无可用应用模块");
+        if (codes != null && !codes.isEmpty()) {
+            return codes.iterator().next();
         }
-        return codes.iterator().next();
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && SecurityUtils.isSuperAdmin(auth)) {
+            String registered = resolveFirstRegisteredAppCode();
+            if (registered != null) {
+                return registered;
+            }
+        }
+        throw new BizException(ErrorCode.SCHEDULE_NOT_FOUND, "无可用应用模块");
+    }
+
+    /** 超管无 user_app_role 时，从执行器注册表取首个 appCode */
+    private String resolveFirstRegisteredAppCode() {
+        List<ExecutorRegistryPO> rows = executorRegistryMapper.selectList(
+                new QueryWrapper<ExecutorRegistryPO>()
+                        .select("DISTINCT app_code")
+                        .isNotNull("app_code")
+                        .ne("app_code", "")
+                        .orderByAsc("app_code")
+                        .last("LIMIT 1"));
+        if (rows.isEmpty()) {
+            return null;
+        }
+        String appCode = rows.get(0).getAppCode();
+        return (appCode == null || appCode.isBlank()) ? null : appCode;
     }
 
     private String resolveAppCodeForChainSchedule(Long scheduleId) {
