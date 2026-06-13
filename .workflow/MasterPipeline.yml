@@ -1,0 +1,18 @@
+# Gitee Go 流水线模板 — 在仓库「流水线」中启用 Gitee Go 后可导入或合并
+# 文档：https://help.gitee.com/gitee-go/quick-start
+
+version: '1.0'
+name: zestflow-ci
+displayName: ZestFlow CI
+stages:
+  - stage:
+      name: test
+      displayName: 单元测试
+      strategy: naturally
+      trigger: auto
+      steps:
+        - step: build@shell
+          name: maven_test
+          displayName: Maven Test (全仓库)
+          script:
+            - mvn -B test

@@ -1734,7 +1734,7 @@ timeline
 | 条件表达式 | **Aviator 5.x**（超时/循环上限/黑名单）；复杂逻辑用 `@ZestPredicate` 元件 |
 | Fallback | 默认仅打日志 |
 | Flyway | classpath 有，默认 disabled |
-| WebSocket | 未实现 |
+| WebSocket | 未实现（日志详情已用 SSE 实时流，见 LOG_LIVE_STREAM.md） |
 
 ---
 

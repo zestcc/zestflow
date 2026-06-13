@@ -354,6 +354,7 @@ export default {
     failedCount: '失败',
     viewTrace: '查看轨迹',
     traceDetail: '执行轨迹详情',
+    liveStreaming: '实时刷新中',
     nodeStatus: '节点状态',
     visited: '已执行',
     notVisited: '未执行',

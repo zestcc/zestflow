@@ -127,6 +127,9 @@
       :close-on-click-modal="false"
     >
       <div v-if="traceDetail" class="detail-drawer-body trace-detail-panel">
+        <el-tag v-if="liveStreaming" type="warning" size="small" effect="plain" style="margin-bottom:12px">
+          {{ $t('logs.liveStreaming') }}
+        </el-tag>
         <el-descriptions :column="detailDescColumns" border size="small">
           <el-descriptions-item :label="$t('logs.executionId')" :span="2">{{ traceDetail.executionId }}</el-descriptions-item>
           <el-descriptions-item :label="$t('logs.chainCode')">
@@ -281,7 +284,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, nextTick, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Loading, FullScreen, Download } from '@element-plus/icons-vue'
@@ -289,6 +292,7 @@ import { Graph } from '@antv/x6'
 import { Export } from '@antv/x6-plugin-export'
 import type { EventQueryParams, ExecutionTrace, NodeExecutionDetail } from '@/api/logs'
 import { queryExecutionTraces, getExecutionTrace, getSnapshot, getNodeExecutionDetail } from '@/api/logs'
+import { streamExecutionTrace, isExecutionTerminal } from '@/api/logsStream'
 import { aiApi, isCopilotAvailable, type AiDiagnoseResponse, type AiConfigStatusVO } from '@/api/ai'
 import { executorApi, type AppOption } from '@/api/executor'
 import { chainApi, type ChainVO } from '@/api/chain'
@@ -316,6 +320,7 @@ const detailDescColumns = computed(() => (isMobileView.value ? 1 : 2))
 
 const pageTab = ref<'analytics' | 'executions'>('analytics')
 const analyticsRef = ref<InstanceType<typeof LogAnalyticsPanel> | null>(null)
+let listRefreshTimer: ReturnType<typeof setInterval> | null = null
 
 const query = reactive<EventQueryParams>({
   executionId: undefined,
@@ -386,6 +391,9 @@ const logColumns = computed(() => [
 const detailVisible = ref(false)
 const detailLoading = ref(false)
 const traceDetail = ref<ExecutionTrace | null>(null)
+const liveStreaming = ref(false)
+let streamAbort: AbortController | null = null
+const cachedGraphDataStr = ref('')
 
 // 执行状态图
 const graphContainer = ref<HTMLElement | null>(null)
@@ -560,6 +568,7 @@ function resetSearch() {
 }
 
 async function showDetail(row: ExecutionTrace) {
+  stopLiveStream()
   detailVisible.value = true
   detailLoading.value = true
   traceDetail.value = null
@@ -567,6 +576,7 @@ async function showDetail(row: ExecutionTrace) {
   graphError.value = ''
   graphLoading.value = true
   graphLegend.value = ''
+  cachedGraphDataStr.value = ''
   try {
     let detail = row
     if (!row.events || row.events.length === 0) {
@@ -584,6 +594,7 @@ async function showDetail(row: ExecutionTrace) {
         const snapshotRes: any = await getSnapshot(chainCode, detail.startTime || Date.now())
         const graphData = snapshotRes?.graphData
         if (graphData) {
+          cachedGraphDataStr.value = graphData
           await nextTick()
           renderExecGraph(graphData, detail.events || [])
         } else {
@@ -595,6 +606,9 @@ async function showDetail(row: ExecutionTrace) {
     } else {
       graphError.value = t('logs.noChainInfo')
     }
+    if (!isExecutionTerminal(detail)) {
+      startLiveStream(detail)
+    }
   } catch {
     traceDetail.value = row
   } finally {
@@ -602,6 +616,42 @@ async function showDetail(row: ExecutionTrace) {
     graphLoading.value = false
   }
 }
+
+function stopLiveStream() {
+  liveStreaming.value = false
+  if (streamAbort) {
+    streamAbort.abort()
+    streamAbort = null
+  }
+}
+
+function startLiveStream(detail: ExecutionTrace) {
+  stopLiveStream()
+  streamAbort = new AbortController()
+  liveStreaming.value = true
+  const appCode = detail.appCode || currentAppCode.value || undefined
+  streamExecutionTrace(detail.executionId, appCode, (ev) => {
+    if (ev.type === 'trace') {
+      traceDetail.value = ev.trace
+      if (cachedGraphDataStr.value) {
+        nextTick(() => renderExecGraph(cachedGraphDataStr.value, ev.trace.events || []))
+      }
+    } else if (ev.type === 'done' || ev.type === 'error') {
+      stopLiveStream()
+      if (ev.type === 'done') {
+        fetchList()
+      }
+    }
+  }, streamAbort.signal).catch(() => {
+    stopLiveStream()
+  })
+}
+
+watch(detailVisible, (visible) => {
+  if (!visible) {
+    stopLiveStream()
+  }
+})
 
 async function runAiDiagnose() {
   const detail = traceDetail.value
@@ -655,7 +705,26 @@ onMounted(async () => {
   }
 })
 
+watch(pageTab, (tab) => {
+  if (listRefreshTimer) {
+    clearInterval(listRefreshTimer)
+    listRefreshTimer = null
+  }
+  if (tab === 'executions') {
+    listRefreshTimer = setInterval(() => {
+      if (!loading.value) {
+        fetchList()
+      }
+    }, 15000)
+  }
+}, { immediate: true })
+
 onUnmounted(() => {
+  if (listRefreshTimer) {
+    clearInterval(listRefreshTimer)
+    listRefreshTimer = null
+  }
+  stopLiveStream()
   destroyExecGraph()
 })
 

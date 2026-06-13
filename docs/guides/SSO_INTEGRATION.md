@@ -118,6 +118,16 @@ Flyway `V6__sso_integration.sql`：
 4. 完成回调，检查 `user.sso_subject` 已写入
 5. 退出时跳转 ZestSSO SLO 并回到登录页
 
+## 自动化冒烟
+
+Windows（Admin + ZestSSO 已启动）：
+
+```powershell
+.\scripts\sso-smoke.ps1 -AdminBase http://localhost:8080 -SsoBase http://localhost:9000
+```
+
+检查 Discovery、Admin `/auth/sso/config`、PKCE authorize URL；完整浏览器回调仍须手工验证。
+
 ## 相关文档
 
 - ZestSSO：`D:/project/zest/zest-sso/docs/integration-guide.md`

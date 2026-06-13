@@ -20,7 +20,7 @@ jobs:
   unit-tests:
     name: Unit Tests (Layer A)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -33,26 +33,8 @@ jobs:
           distribution: temurin
           cache: maven
 
-      - name: Test zestflow-common
-        run: mvn -B test -pl zestflow-common
-
-      - name: Test zestflow-executor
-        run: mvn -B test -pl zestflow-executor -am
-
-      - name: Test zestflow-demo
-        run: mvn -B test -pl zestflow-demo -am
-
-      - name: Test collector-jdbc
-        run: mvn -B test -pl zestflow-collector/collector-jdbc -am
-
-      - name: Test zestflow-admin
-        run: mvn -B test -pl zestflow-admin -am
-
-      - name: Test zestflow-mcp
-        run: mvn -B test -pl zestflow-mcp -am
-
-      - name: Test zestflow-dev-init
-        run: mvn -B test -pl zestflow-dev-init -am
+      - name: Full repository test (aggregate gate)
+        run: mvn -B test
 
   build:
     name: Package (skip tests)

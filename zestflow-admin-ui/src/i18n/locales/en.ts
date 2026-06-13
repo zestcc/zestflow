@@ -353,6 +353,7 @@ export default {
     failedCount: 'Failed',
     viewTrace: 'View Trace',
     traceDetail: 'Execution Trace',
+    liveStreaming: 'Live updating',
     nodeStatus: 'Node Status',
     visited: 'Visited',
     notVisited: 'Not Visited',
