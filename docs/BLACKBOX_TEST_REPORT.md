@@ -294,7 +294,7 @@ sequenceDiagram
 | E2E-05 | 设计器保存图 | 保存 graph → 绑定链 | **部分**（lifecycle 含 graph；独立 UI 仍手工） |
 | E2E-06 | 日志可查 + SSE | 执行 → logs → SSE connected/done | **通过**（`run-platform-link-e2e.ps1`） |
 | E2E-07 | Executor 注册心跳 | 启动 test → 注册表在线 | 日志确认 |
-| E2E-08 | 调度 trigger | 创建 schedule → trigger | **部分**（full-e2e 含 trigger；独立脚本待补） |
+| E2E-08 | 调度 trigger | 创建 schedule → trigger | **通过**（`run-schedule-trigger-e2e.ps1`） |
 | E2E-09 | SSO API | Discovery + config + authorize | **通过**（`run-sso-e2e.ps1`；浏览器回调手工） |
 | E2E-10 | 离线读快照 | 停 demo → 列表只读 | **可选**（`-IncludeOfflineChecks`） |
 
@@ -313,7 +313,7 @@ sequenceDiagram
 
 | ID | 严重程度 | 描述 | 复现 | 建议 |
 |----|----------|------|------|------|
-| BB-01 | 中 | 无 Token 返回 **403** 而非 401 | 访问 dashboard 无头 | 统一文档或改 Spring 入口点 |
+| BB-01 | ~~中~~ 已修复 | 无 Token 统一 **401** + `AUTH_UNAUTHORIZED` | `AdminApiSecurityMvcTest` / `run-rbac-horizontal-e2e.ps1` | — |
 | BB-02 | 高 | Registry 开发环境无 token 可注册 | POST registry | 生产强制 token |
 | BB-03 | 高 | Executor Netty 开发环境无 access-token | 直接调 20550 | 生产强制 |
 | BB-04 | 低 | 场景分钟限流 35 连击未出现 429 | 脚本连击 | 用滑动窗口限流测试 |

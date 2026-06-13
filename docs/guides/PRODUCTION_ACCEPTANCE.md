@@ -46,6 +46,7 @@ SLA 阈值：`scripts/blackbox/production-acceptance-policy.json`
 | `run-log-live-stream-e2e.ps1` | SSE 功能 + JWT 鉴权 |
 | `run-sso-e2e.ps1` | SSO Discovery + Admin 端点 |
 | `run-executor-read-cache-e2e.ps1` | Executor 读快照代理 |
+| `run-schedule-trigger-e2e.ps1` | E2E-08 调度 trigger 独立脚本 |
 | `run-enterprise-gate.ps1` | 原企业门禁（可被 production-acceptance 覆盖） |
 | `run-perf-gate.ps1` | JMH + HTTP 并发 + 运行时 QPS |
 
@@ -57,6 +58,7 @@ SLA 阈值：`scripts/blackbox/production-acceptance-policy.json`
 | 日志 SSE | `ExecutionLiveStreamServiceTest`（含并发）、`LogLiveStreamControllerTest`、`ExecutionTraceSupportTest`（common） |
 | SSO 回调 | `AbstractOidcSsoProviderTest.handleCallback_*`、`SsoAuthServiceTest` |
 | 离线写拦截 | `ExecutorProxyServiceOfflineWriteTest` |
+| 401 未登录 | `JwtUnauthorizedEntryPointTest`、`AdminApiSecurityMvcTest` |
 | 读快照 | `ExecutorProxyServiceReadCacheTest`、`RedisExecutorReadCacheTest` |
 | 生产守卫 | `AdminProductionGuardTest`、`ProductionSecretGuardTest` |
 

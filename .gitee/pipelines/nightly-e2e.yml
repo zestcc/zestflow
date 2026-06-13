@@ -1,0 +1,32 @@
+# Gitee Go 可选 nightly — Layer B～D 需 Runner 预装 Admin + demo + Collector
+version: '1.0'
+name: zestflow-nightly-e2e
+displayName: ZestFlow Nightly E2E
+
+triggers:
+  schedule:
+    - cron: '0 1 * * *'
+  manual:
+
+stages:
+  - stage:
+      name: whitebox
+      displayName: Layer A
+      steps:
+        - step: build@maven
+          name: mvn-test
+          displayName: mvn test
+          jdkVersion: '17'
+          mavenVersion: auto
+          commands:
+            - mvn -B test
+
+  - stage:
+      name: acceptance
+      displayName: Layer B～D (AllowSkipRuntime)
+      steps:
+        - step: run@powershell
+          name: production-acceptance
+          displayName: run-production-acceptance.ps1
+          commands:
+            - pwsh -NoProfile -File ./scripts/blackbox/run-production-acceptance.ps1 -SkipMavenTest -AllowSkipRuntime

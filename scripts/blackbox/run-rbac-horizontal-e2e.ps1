@@ -1,4 +1,4 @@
-# 水平越权 / 鉴权边界 E2E �?�?JWT 与无�?JWT 访问受保�?API
+# ???? / ???? E2E ????JWT ????JWT ??????API
 param(
     [string]$BaseAdmin = "http://127.0.0.1:8080",
     [string]$AppCode = "demo-app",
@@ -34,10 +34,11 @@ $badH = @{ Authorization = "Bearer invalid.token.here" }
 $badJwtChains = Invoke-Api GET "$BaseAdmin/api/zestflow/chains?appCode=$AppCode&page=1&size=5" $null $badH
 
 function Test-Denied($r) { return ($r.status -in 401, 403) }
+function Test-Unauthorized($r) { return ($r.status -eq 401) }
 
 $login = Invoke-Api POST "$BaseAdmin/api/zestflow/auth/login" '{"username":"admin","password":"admin123"}' $null
 if (-not $login.ok) {
-    Write-Host "Admin login failed �?is :8080 up?" -ForegroundColor Red
+    Write-Host "Admin login failed ??is :8080 up?" -ForegroundColor Red
     if ($AllowSkip) { exit 2 }
     exit 1
 }
@@ -45,13 +46,13 @@ $token = (ConvertFrom-Json $login.body).data.token
 $h = @{ Authorization = "Bearer $token" }
 $okChains = Invoke-Api GET "$BaseAdmin/api/zestflow/chains?appCode=$AppCode&page=1&size=5" $null $h
 
-# enterprise-e2e / dev-open：无 JWT 可能 200，但无效 JWT 必须拒绝�?admin JWT 可用
+# enterprise-e2e / dev-open?? JWT ?? 200???? JWT ??????admin JWT ??
 $devOpenAuth = (-not (Test-Denied $noJwtChains)) -and (Test-Denied $badJwtChains) -and $okChains.ok
 
 $checks = @(
-    @{ name="chains-no-jwt"; ok=((Test-Denied $noJwtChains) -or $devOpenAuth); status=$noJwtChains.status }
-    @{ name="designs-no-jwt"; ok=((Test-Denied $noJwtDesigns) -or $devOpenAuth); status=$noJwtDesigns.status }
-    @{ name="publish-no-jwt"; ok=((Test-Denied $noJwtPublish) -or $devOpenAuth); status=$noJwtPublish.status }
+    @{ name="chains-no-jwt"; ok=((Test-Unauthorized $noJwtChains) -or $devOpenAuth); status=$noJwtChains.status }
+    @{ name="designs-no-jwt"; ok=((Test-Unauthorized $noJwtDesigns) -or $devOpenAuth); status=$noJwtDesigns.status }
+    @{ name="publish-no-jwt"; ok=((Test-Unauthorized $noJwtPublish) -or $devOpenAuth); status=$noJwtPublish.status }
     @{ name="chains-bad-jwt"; ok=(Test-Denied $badJwtChains); status=$badJwtChains.status }
     @{ name="chains-admin-ok"; ok=$okChains.ok; status=$okChains.status }
 )

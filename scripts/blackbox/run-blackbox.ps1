@@ -151,7 +151,7 @@ Write-Host "=== ZestFlow Blackbox $(if ($PerfGateOnly) { '(Perf Gate)' }) ==="
 $token = $null
 if (-not $PerfGateOnly) {
     $r = Invoke-Api GET "$BaseAdmin/api/zestflow/dashboard/stats" $null $null
-    Add-Result "security" "admin-no-token" GET "$BaseAdmin/api/zestflow/dashboard/stats" $r.status ($r.status -in 401,403) $r.ms ""
+    Add-Result "security" "admin-no-token" GET "$BaseAdmin/api/zestflow/dashboard/stats" $r.status ($r.status -eq 401) $r.ms ""
 
     $r = Invoke-Api GET "$BaseAdmin/api/zestflow/playground/scenes/list-all" $null $null
     Add-Result "security" "playground-no-token" GET "$BaseAdmin/api/zestflow/playground/scenes/list-all" $r.status ($r.status -in 401,403) $r.ms ""

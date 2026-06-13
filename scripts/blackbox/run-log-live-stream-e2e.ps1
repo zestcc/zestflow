@@ -32,8 +32,8 @@ Add-Check "login" $true "ok"
 $h = @{ Authorization = "Bearer $token" }
 
 $noJwt = Invoke-AcceptanceApi GET "$api/logs/executions/fake-exec/stream?appCode=$AppCode" $null $null 10
-$denied = ($noJwt.status -in 401, 403)
-Add-Check "stream-no-jwt" $denied $(if ($denied) { "status=$($noJwt.status)" } else { "expected 401/403 got $($noJwt.status)" })
+$denied = ($noJwt.status -eq 401)
+Add-Check "stream-no-jwt" $denied $(if ($denied) { "status=401" } else { "expected 401 got $($noJwt.status)" })
 
 $exec = Invoke-PlaygroundScene $BaseAdmin $token $SceneCode '{"userId":"U10086"}' 120
 $executionId = Extract-ExecutionId $exec.body

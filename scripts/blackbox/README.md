@@ -14,8 +14,9 @@
 | `run-ai-copilot-acceptance.ps1` | Copilot **全量验收**：Admin 单测 + MCP 单测 + E2E + MCP E2E + 压测 |
 | `run-chain-publish-e2e.ps1` | 链 publish → active-codes → 可选 rollback |
 | `run-chain-lifecycle-e2e.ps1` | 创建设计/链 → 绑定 → 发布 → Netty `/execute` |
-| `run-rbac-horizontal-e2e.ps1` | 无 JWT / 无效 JWT 访问受保护 API 应 401/403 |
+| `run-rbac-horizontal-e2e.ps1` | 无 JWT 应 401；无效 JWT 应 401/403 |
 | `run-playground-disabled-e2e.ps1` | playground.enabled=false 时 list/execute 404 |
+| `run-schedule-trigger-e2e.ps1` | E2E-08：列出/创建 schedule → trigger |
 | `run-security-token-e2e.ps1` | registry + executor + collector token 401 成对（需 `security-e2e` profile） |
 | `run-registry-token-e2e.ps1` | 兼容入口（仅 registry 段，委托 security 脚本） |
 | `run-perf-gate.ps1` | **Phase 2c 性能门禁**：JMH 编排层 P99.9 + 并发 HTTP 压测 + 可选运行时黑盒 |

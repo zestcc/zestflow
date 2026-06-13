@@ -104,6 +104,13 @@ if (-not $SkipRuntimeBlackbox) {
     & "$PSScriptRoot\run-chain-lifecycle-e2e.ps1"
     Add-Phase "blackbox" "chain-lifecycle-e2e" ($LASTEXITCODE -eq 0) "exit=$LASTEXITCODE"
 
+    & "$PSScriptRoot\run-schedule-trigger-e2e.ps1" -AllowSkip:$AllowSkipRuntime
+    switch ($LASTEXITCODE) {
+        0 { Add-Phase "blackbox" "schedule-trigger-e2e" $true "passed" }
+        2 { Add-Phase "blackbox" "schedule-trigger-e2e" [bool]$AllowSkipRuntime $(if ($AllowSkipRuntime) { "skipped" } else { "required-fail" }) }
+        default { Add-Phase "blackbox" "schedule-trigger-e2e" $false "exit=$LASTEXITCODE" }
+    }
+
     & "$PSScriptRoot\run-sso-e2e.ps1" -AllowSkip:$AllowSkipRuntime
     switch ($LASTEXITCODE) {
         0 { Add-Phase "blackbox" "sso-e2e" $true "passed" }

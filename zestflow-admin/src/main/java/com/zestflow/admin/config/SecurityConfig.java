@@ -25,10 +25,16 @@ public class SecurityConfig {
     private final TenantIpFilter tenantIpFilter;
     private final LoginRateLimitFilter loginRateLimitFilter;
     private final RegistryTokenFilter registryTokenFilter;
+    private final JwtUnauthorizedEntryPoint jwtUnauthorizedEntryPoint;
+    private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+            .anonymous(anonymous -> anonymous.disable())
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint(jwtUnauthorizedEntryPoint)
+                .accessDeniedHandler(jwtAccessDeniedHandler))
             .csrf(csrf -> csrf.disable())
             .headers(headers -> headers
                 .frameOptions(frame -> frame.sameOrigin())

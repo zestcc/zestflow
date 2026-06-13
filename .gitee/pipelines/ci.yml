@@ -1,0 +1,44 @@
+# Gitee Go 流水线 — Layer A 白盒（mvn test）
+# 启用：仓库 → 流水线 → 新建 → 选择「自定义 YAML」→ 指向本文件
+version: '1.0'
+name: zestflow-ci
+displayName: ZestFlow CI (Layer A)
+
+triggers:
+  push:
+    branches:
+      include:
+        - master
+        - main
+        - develop
+  pull_request:
+    branches:
+      include:
+        - master
+        - main
+        - develop
+
+stages:
+  - stage:
+      name: unit-test
+      displayName: 单元测试
+      steps:
+        - step: build@maven
+          name: mvn-test
+          displayName: mvn test (full repo)
+          jdkVersion: '17'
+          mavenVersion: auto
+          commands:
+            - mvn -B test
+
+  - stage:
+      name: package
+      displayName: 打包
+      steps:
+        - step: build@maven
+          name: mvn-package
+          displayName: mvn package -DskipTests
+          jdkVersion: '17'
+          mavenVersion: auto
+          commands:
+            - mvn -B package -DskipTests
