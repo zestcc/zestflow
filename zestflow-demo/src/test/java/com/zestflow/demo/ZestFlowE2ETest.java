@@ -417,10 +417,14 @@ class ZestFlowE2ETest {
         @Override public void collectBatch(List<ChainEvent> batch) { events.addAll(batch); }
         public void clear() { events.clear(); }
         public List<String> getEventTypes() {
-            return events.stream().map(e -> e.getEventType().name()).collect(Collectors.toList());
+            synchronized (events) {
+                return events.stream().map(e -> e.getEventType().name()).collect(Collectors.toList());
+            }
         }
         public List<ChainEvent> getEventsByType(ChainEvent.EventType type) {
-            return events.stream().filter(e -> e.getEventType() == type).collect(Collectors.toList());
+            synchronized (events) {
+                return events.stream().filter(e -> e.getEventType() == type).collect(Collectors.toList());
+            }
         }
     }
 
