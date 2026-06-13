@@ -59,6 +59,13 @@ export default {
     captchaRequired: '请输入验证码',
     captchaLength: '验证码为4位',
     captchaError: '验证码错误',
+    ssoLoginBtn: '{name} 登录',
+    ssoInitFailed: 'SSO 登录初始化失败',
+    ssoCallbackProcessing: '正在完成 SSO 登录...',
+    ssoCallbackMissingParams: 'SSO 回调参数缺失',
+    ssoLoginSuccess: 'SSO 登录成功',
+    ssoLoginFailed: 'SSO 登录失败',
+    forceChangePasswordWarning: '首次登录或密码已被重置，请修改密码',
   },
   register: {
     title: '注册账号',

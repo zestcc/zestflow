@@ -44,13 +44,29 @@ zestflow:
     expiration: 86400000
   sso:
     enabled: false
+    # 提供方：zest-sso（ZestSSO 默认）| oidc（通用 OIDC）| none（关闭）
+    provider: zest-sso
+    # oidc 提供方时可选，覆盖登录按钮文案
+    # display-name: Corporate SSO
     issuer: http://localhost:9000
+    # OIDC Discovery；ZestSSO 默认 /api/public/.well-known/openid-configuration
+    discovery-uri: http://localhost:9000/api/public/.well-known/openid-configuration
     client-id: zestflow-admin
     client-secret: change-me-in-production
+    # 须与 IdP 注册及前端 /login/callback 一致
     redirect-uri: http://localhost:5173/login/callback
     jwks-uri: http://localhost:9000/oauth2/jwks
     scopes: openid,profile,email,roles,tenant
     post-logout-redirect-uri: http://localhost:5173/login
+    claims:
+      username-claim: preferred_username
+      email-claim: email
+      roles-claim: roles
+      tenant-claim: tenant_id
+      admin-role: SSO_ADMIN
+    zest-sso:
+      use-logout-url-api: true
+      logout-url-api-path: /api/public/logout-url
   upload:
     avatar-dir: uploads/avatars
   collector:

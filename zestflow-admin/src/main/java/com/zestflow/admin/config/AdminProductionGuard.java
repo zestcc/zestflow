@@ -107,6 +107,21 @@ public class AdminProductionGuard {
             failed = true;
         }
 
+        if (Boolean.TRUE.equals(environment.getProperty("zestflow.sso.enabled", Boolean.class, Boolean.FALSE))) {
+            if (ProductionSecretGuard.isWeakOAuthClientSecret(environment.getProperty("zestflow.sso.client-secret"))) {
+                log.error("[prod] zestflow.sso.enabled=true 时 client-secret 须更换模板占位符");
+                failed = true;
+            }
+            if (!ProductionSecretGuard.hasText(environment.getProperty("zestflow.sso.redirect-uri"))) {
+                log.error("[prod] zestflow.sso.enabled=true 时必须配置 redirect-uri");
+                failed = true;
+            }
+            if (!ProductionSecretGuard.hasText(environment.getProperty("zestflow.sso.client-id"))) {
+                log.error("[prod] zestflow.sso.enabled=true 时必须配置 client-id");
+                failed = true;
+            }
+        }
+
         if (failed) {
             throw new IllegalStateException("生产环境配置不完整，请修正上述 [prod] 日志项后重启");
         }

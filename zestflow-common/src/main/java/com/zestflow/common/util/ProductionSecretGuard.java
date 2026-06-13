@@ -51,4 +51,9 @@ public final class ProductionSecretGuard {
         String trimmed = value.trim();
         return trimmed.contains(DEFAULT_JWT_MARKER) || trimmed.length() < MIN_JWT_SECRET_LENGTH;
     }
+
+    /** OAuth/OIDC client_secret（SSO 启用时生产须更换） */
+    public static boolean isWeakOAuthClientSecret(String value) {
+        return isBlankOrPlaceholder(value);
+    }
 }

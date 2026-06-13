@@ -142,6 +142,31 @@ Kafka / RabbitMQ implementations: `zestflow.collector.kafka.topic`, `zestflow.co
 | `api-url` | `http://localhost:20650` | Collector query fallback URL |
 | `access-token` | empty | Must match Collector |
 
+### zestflow.sso.* (Admin SSO)
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `enabled` | `false` | SSO master switch |
+| `provider` | `zest-sso` | `zest-sso` / `oidc` / `none` |
+| `display-name` | empty | Login button label for `oidc` (default `SSO`) |
+| `issuer` | `http://localhost:9000` | IdP issuer |
+| `discovery-uri` | ZestSSO discovery URL | Preferred over static endpoints |
+| `client-id` | `zestflow-admin` | OAuth client ID |
+| `client-secret` | placeholder | **Must change in production** |
+| `redirect-uri` | `http://localhost:5173/login/callback` | Must match IdP registration |
+| `jwks-uri` | `{issuer}/oauth2/jwks` | Used when discovery is absent |
+| `scopes` | openid,profile,email,roles,tenant | Space or comma separated |
+| `post-logout-redirect-uri` | login page URL | SLO redirect |
+| `claims.username-claim` | `preferred_username` | JWT username |
+| `claims.roles-claim` | `roles` | Role list claim |
+| `claims.admin-role` | `SSO_ADMIN` | Maps to super admin |
+| `zest-sso.use-logout-url-api` | `true` | Call ZestSSO `/api/public/logout-url` |
+| `zest-sso.logout-url-api-path` | `/api/public/logout-url` | Logout URL API path |
+
+Cluster: `deploy-mode=cluster` stores PKCE state in Redis; configure `spring.data.redis.*`.
+
+See [SSO_INTEGRATION.md](../guides/SSO_INTEGRATION.md).
+
 ### zestflow.jwt.*
 
 | Property | Default | Description |

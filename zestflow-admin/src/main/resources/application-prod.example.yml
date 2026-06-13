@@ -73,6 +73,25 @@ zestflow:
     # 至少 32 字符；部署包由 application-secrets.yml / config/secret 自动生成
     secret: change-me-use-openssl-rand-base64-32-or-longer-secret
     expiration: 86400000
+  sso:
+    enabled: false
+    provider: zest-sso
+    issuer: https://sso.example.com
+    discovery-uri: https://sso.example.com/api/public/.well-known/openid-configuration
+    client-id: zestflow-admin
+    client-secret: change-me-sso-client-secret
+    redirect-uri: https://admin.example.com/login/callback
+    jwks-uri: https://sso.example.com/oauth2/jwks
+    scopes: openid,profile,email,roles,tenant
+    post-logout-redirect-uri: https://admin.example.com/login
+    claims:
+      username-claim: preferred_username
+      email-claim: email
+      roles-claim: roles
+      tenant-claim: tenant_id
+      admin-role: SSO_ADMIN
+    zest-sso:
+      use-logout-url-api: true
   upload:
     avatar-dir: uploads/avatars
   admin:

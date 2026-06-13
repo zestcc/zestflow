@@ -152,4 +152,35 @@ class AdminProductionGuardTest {
         assertThatThrownBy(guard::validateProductionConfig)
                 .isInstanceOf(IllegalStateException.class);
     }
+
+    @Test
+    void validateProductionConfig_ssoEnabledWithPlaceholderSecret_fails() {
+        MockEnvironment env = validProdEnv();
+        env.setProperty("zestflow.sso.enabled", "true");
+        env.setProperty("zestflow.sso.client-id", "zestflow-admin");
+        env.setProperty("zestflow.sso.client-secret", "change-me-sso-client-secret");
+        env.setProperty("zestflow.sso.redirect-uri", "https://admin.example.com/login/callback");
+
+        AdminDeployProperties deploy = new AdminDeployProperties();
+        deploy.setDeployMode("standalone");
+
+        AdminProductionGuard guard = new AdminProductionGuard(env, deploy);
+        assertThatThrownBy(guard::validateProductionConfig)
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void validateProductionConfig_ssoEnabledWithValidSecret_passes() {
+        MockEnvironment env = validProdEnv();
+        env.setProperty("zestflow.sso.enabled", "true");
+        env.setProperty("zestflow.sso.client-id", "zestflow-admin");
+        env.setProperty("zestflow.sso.client-secret", "prod-sso-client-secret-value");
+        env.setProperty("zestflow.sso.redirect-uri", "https://admin.example.com/login/callback");
+
+        AdminDeployProperties deploy = new AdminDeployProperties();
+        deploy.setDeployMode("standalone");
+
+        AdminProductionGuard guard = new AdminProductionGuard(env, deploy);
+        assertThatCode(guard::validateProductionConfig).doesNotThrowAnyException();
+    }
 }

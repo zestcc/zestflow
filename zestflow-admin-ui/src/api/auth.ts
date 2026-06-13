@@ -32,7 +32,9 @@ export interface UpdatePasswordDTO {
 
 export const authApi = {
   getSsoConfig() {
-    return http.get<{ enabled: boolean; issuer: string; clientId: string }>('/auth/sso/config')
+    return http.get<{ enabled: boolean; provider?: string; displayName?: string; issuer: string; clientId: string }>(
+      '/auth/sso/config'
+    )
   },
 
   getSsoAuthorize() {

@@ -1,6 +1,7 @@
 package com.zestflow.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.zestflow.admin.config.SsoProperties;
 import com.zestflow.admin.config.TenantContextHolder;
 import com.zestflow.admin.model.dto.*;
 import com.zestflow.admin.model.entity.UserTenantPO;
@@ -47,6 +48,7 @@ public class UserServiceImpl implements UserService {
     private final TenantService tenantService;
     private final UserTenantMapper userTenantMapper;
     private final MailService mailService;
+    private final SsoProperties ssoProperties;
 
     @Value("${zestflow.upload.avatar-dir:uploads/avatars}")
     private String avatarDir;
@@ -84,18 +86,16 @@ public class UserServiceImpl implements UserService {
                 .build();
     }
 
-    private static final String SSO_PROVIDER = "zest-sso";
-
     @Override
-    public LoginVO loginBySso(Claims claims) {
+    public LoginVO loginBySso(String providerId, Claims claims) {
         String subject = claims.getSubject();
         if (subject == null || subject.isBlank()) {
             throw new BizException(ErrorCode.INVALID_CREDENTIALS, "SSO subject 缺失");
         }
 
-        UserPO user = userMapper.findBySsoSubject(SSO_PROVIDER, subject);
+        UserPO user = userMapper.findBySsoSubject(providerId, subject);
         if (user == null) {
-            user = provisionSsoUser(claims, subject);
+            user = provisionSsoUser(providerId, claims, subject);
         }
 
         if (user.getStatus() != null && user.getStatus() == 0) {
@@ -118,21 +118,22 @@ public class UserServiceImpl implements UserService {
                 .build();
     }
 
-    private UserPO provisionSsoUser(Claims claims, String subject) {
-        String username = readClaim(claims, "preferred_username");
+    private UserPO provisionSsoUser(String providerId, Claims claims, String subject) {
+        SsoProperties.SsoClaimsProperties claimCfg = ssoProperties.getClaims();
+        String username = readClaim(claims, claimCfg.getUsernameClaim());
         if (username == null || username.isBlank()) {
             username = "sso_" + subject;
         }
-        String email = readClaim(claims, "email");
+        String email = readClaim(claims, claimCfg.getEmailClaim());
 
         UserPO existing = userMapper.findByUsername(username);
         if (existing != null) {
-            existing.setSsoProvider(SSO_PROVIDER);
+            existing.setSsoProvider(providerId);
             existing.setSsoSubject(subject);
             if (email != null && !email.isBlank()) {
                 existing.setEmail(email);
             }
-            if (isSsoAdmin(claims)) {
+            if (isSsoAdmin(claims, claimCfg)) {
                 existing.setIsSuperAdmin(1);
             }
             userMapper.updateById(existing);
@@ -142,11 +143,11 @@ public class UserServiceImpl implements UserService {
         UserPO user = new UserPO();
         user.setUsername(username);
         user.setEmail(email);
-        user.setSsoProvider(SSO_PROVIDER);
+        user.setSsoProvider(providerId);
         user.setSsoSubject(subject);
         user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
         user.setStatus(1);
-        user.setIsSuperAdmin(isSsoAdmin(claims) ? 1 : 0);
+        user.setIsSuperAdmin(isSsoAdmin(claims, claimCfg) ? 1 : 0);
         user.setEmailVerified(1);
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
@@ -154,7 +155,7 @@ public class UserServiceImpl implements UserService {
 
         UserTenantPO ut = new UserTenantPO();
         ut.setUserId(user.getId());
-        Long tenantId = readTenantId(claims);
+        Long tenantId = readTenantId(claims, claimCfg.getTenantClaim());
         ut.setTenantId(tenantId != null ? tenantId : 1L);
         ut.setIsTenantAdmin(0);
         ut.setCreatedAt(LocalDateTime.now());
@@ -163,24 +164,24 @@ public class UserServiceImpl implements UserService {
         return user;
     }
 
-    private boolean isSsoAdmin(Claims claims) {
-        Object roles = claims.get("roles");
+    private boolean isSsoAdmin(Claims claims, SsoProperties.SsoClaimsProperties claimCfg) {
+        Object roles = claims.get(claimCfg.getRolesClaim());
         if (roles instanceof List<?> list) {
-            return list.stream().anyMatch(r -> "SSO_ADMIN".equals(String.valueOf(r)));
+            return list.stream().anyMatch(r -> claimCfg.getAdminRole().equals(String.valueOf(r)));
         }
         return false;
     }
 
     private Long resolveTenantId(Claims claims, TenantSimpleVO defaultTenant) {
-        Long claimTenant = readTenantId(claims);
+        Long claimTenant = readTenantId(claims, ssoProperties.getClaims().getTenantClaim());
         if (claimTenant != null) {
             return claimTenant;
         }
         return defaultTenant != null ? defaultTenant.getId() : 1L;
     }
 
-    private Long readTenantId(Claims claims) {
-        Object tenantId = claims.get("tenant_id");
+    private Long readTenantId(Claims claims, String claimName) {
+        Object tenantId = claims.get(claimName);
         if (tenantId == null) {
             return null;
         }

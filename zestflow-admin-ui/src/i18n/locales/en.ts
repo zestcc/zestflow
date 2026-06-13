@@ -59,6 +59,13 @@ export default {
     captchaRequired: 'Please enter captcha',
     captchaLength: 'Captcha must be 4 characters',
     captchaError: 'Incorrect captcha',
+    ssoLoginBtn: 'Sign in with {name}',
+    ssoInitFailed: 'Failed to start SSO login',
+    ssoCallbackProcessing: 'Completing SSO sign-in...',
+    ssoCallbackMissingParams: 'Missing SSO callback parameters',
+    ssoLoginSuccess: 'SSO sign-in successful',
+    ssoLoginFailed: 'SSO sign-in failed',
+    forceChangePasswordWarning: 'You must change your password before continuing',
   },
   register: {
     title: 'Register',

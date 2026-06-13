@@ -10,7 +10,7 @@ public interface UserService {
 
     LoginVO login(LoginDTO dto);
 
-    LoginVO loginBySso(Claims claims);
+    LoginVO loginBySso(String providerId, Claims claims);
 
     LoginVO register(RegisterDTO dto);
 

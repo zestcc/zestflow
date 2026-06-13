@@ -29,4 +29,11 @@ class ProductionSecretGuardTest {
         assertFalse(ProductionSecretGuard.isDefaultJwtSecret(
                 "prod-jwt-secret-value-at-least-32-chars-long"));
     }
+
+    @Test
+    void weakOAuthClientSecret_rejectsPlaceholder() {
+        assertTrue(ProductionSecretGuard.isWeakOAuthClientSecret(null));
+        assertTrue(ProductionSecretGuard.isWeakOAuthClientSecret("change-me-in-production"));
+        assertFalse(ProductionSecretGuard.isWeakOAuthClientSecret("prod-sso-client-secret-value"));
+    }
 }

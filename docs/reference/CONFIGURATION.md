@@ -142,6 +142,31 @@ Kafka / RabbitMQ 实现见 `zestflow.collector.kafka.topic`、`zestflow.collecto
 | `api-url` | `http://localhost:20650` | Collector 查询兜底地址 |
 | `access-token` | 空 | 与 Collector 一致 |
 
+### zestflow.sso.*（Admin SSO）
+
+| 属性 | 默认 | 说明 |
+|------|------|------|
+| `enabled` | `false` | SSO 总开关 |
+| `provider` | `zest-sso` | `zest-sso` / `oidc` / `none` |
+| `display-name` | 空 | `oidc` 时登录按钮文案，默认 `SSO` |
+| `issuer` | `http://localhost:9000` | IdP Issuer |
+| `discovery-uri` | ZestSSO Discovery URL | 优先于静态端点 |
+| `client-id` | `zestflow-admin` | OAuth 客户端 ID |
+| `client-secret` | 模板占位符 | **生产须更换** |
+| `redirect-uri` | `http://localhost:5173/login/callback` | 与 IdP 注册一致 |
+| `jwks-uri` | `{issuer}/oauth2/jwks` | 无 Discovery 时使用 |
+| `scopes` | openid,profile,email,roles,tenant | 空格或逗号分隔 |
+| `post-logout-redirect-uri` | 登录页 URL | SLO 回跳地址 |
+| `claims.username-claim` | `preferred_username` | JWT 用户名 |
+| `claims.roles-claim` | `roles` | 角色列表 |
+| `claims.admin-role` | `SSO_ADMIN` | 映射超管 |
+| `zest-sso.use-logout-url-api` | `true` | 调用 ZestSSO `/api/public/logout-url` |
+| `zest-sso.logout-url-api-path` | `/api/public/logout-url` | 登出 URL API 路径 |
+
+集群：`deploy-mode=cluster` 时 PKCE state 走 Redis（`SsoPkceStore`），须配置 `spring.data.redis.*`。
+
+详见 [SSO_INTEGRATION.md](../guides/SSO_INTEGRATION.md)。
+
 ### zestflow.jwt.*
 
 | 属性 | 默认 | 说明 |

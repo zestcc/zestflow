@@ -157,7 +157,7 @@
         </el-form-item>
         <el-form-item v-if="ssoEnabled">
           <el-button class="btn-sso" :loading="ssoLoading" @click="handleSsoLogin">
-            ZestSSO 登录
+            {{ $t('login.ssoLoginBtn', { name: ssoDisplayName }) }}
           </el-button>
         </el-form-item>
       </el-form>
@@ -198,6 +198,7 @@ const formRef = ref<FormInstance>()
 const loading = ref(false)
 const ssoLoading = ref(false)
 const ssoEnabled = ref(false)
+const ssoDisplayName = ref('SSO')
 const captchaRef = ref<InstanceType<typeof Captcha>>()
 const captchaCode = ref('')
 
@@ -214,6 +215,9 @@ watch(() => route.query, (query) => {
 
 authApi.getSsoConfig().then((cfg: any) => {
   ssoEnabled.value = !!cfg?.enabled
+  if (cfg?.displayName) {
+    ssoDisplayName.value = cfg.displayName
+  }
 }).catch(() => {
   ssoEnabled.value = false
 })
@@ -226,7 +230,7 @@ async function handleSsoLogin() {
       window.location.href = res.authorizationUrl
     }
   } catch {
-    ElMessage.error('SSO 登录初始化失败')
+    ElMessage.error(t('login.ssoInitFailed'))
   } finally {
     ssoLoading.value = false
   }
@@ -265,7 +269,7 @@ async function handleLogin() {
   try {
     await userStore.login(form)
     if (userStore.mustChangePassword) {
-      ElMessage.warning('首次登录或密码已被重置，请修改密码')
+      ElMessage.warning(t('login.forceChangePasswordWarning'))
       router.push({ name: 'ForcePassword' })
       return
     }

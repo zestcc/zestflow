@@ -8,28 +8,30 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@/stores/user'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
-const message = ref('正在完成 SSO 登录...')
+const message = ref(t('login.ssoCallbackProcessing'))
 
 onMounted(async () => {
   const code = route.query.code as string
   const state = route.query.state as string
   if (!code || !state) {
-    message.value = 'SSO 回调参数缺失'
+    message.value = t('login.ssoCallbackMissingParams')
     ElMessage.error(message.value)
     router.replace({ name: 'Login' })
     return
   }
   try {
     await userStore.loginBySso({ code, state })
-    ElMessage.success('SSO 登录成功')
+    ElMessage.success(t('login.ssoLoginSuccess'))
     router.replace((route.query.redirect as string) || '/dashboard')
   } catch {
-    message.value = 'SSO 登录失败'
+    message.value = t('login.ssoLoginFailed')
     router.replace({ name: 'Login' })
   }
 })
