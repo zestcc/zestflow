@@ -61,8 +61,9 @@ if ($engineExit -ne 0) {
 }
 
 if (-not $SkipHttpPerf) {
-    Write-Host "mvn test -pl zestflow-demo -am -Pperf (ConcurrentStressTest) ..." -ForegroundColor DarkGray
-    & mvn -q test -pl zestflow-demo -am -Pperf
+    # 不用 -am：避免重复执行 zestflow-executor 的 JMH 门禁（验收黑盒后二次跑易 p999 抖动失败）
+    Write-Host "mvn test -pl zestflow-demo -Pperf (ConcurrentStressTest) ..." -ForegroundColor DarkGray
+    & mvn -q test -pl zestflow-demo -Pperf
     $httpExit = $LASTEXITCODE
     Add-Phase "http-concurrent-perf" ($httpExit -eq 0) "exit=$httpExit" $null
     if ($httpExit -ne 0) {
