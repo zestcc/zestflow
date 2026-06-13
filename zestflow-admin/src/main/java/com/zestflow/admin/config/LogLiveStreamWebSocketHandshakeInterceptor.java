@@ -1,6 +1,5 @@
-package com.zestflow.admin.service.log;
+package com.zestflow.admin.config;
 
-import com.zestflow.admin.config.JwtUnauthorizedEntryPoint;
 import com.zestflow.admin.util.JwtUtils;
 import com.zestflow.common.constant.AdminApiPaths;
 import lombok.RequiredArgsConstructor;

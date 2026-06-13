@@ -1,6 +1,6 @@
 package com.zestflow.admin.system;
 
-import com.zestflow.admin.config.AdminDeployProperties;
+import com.zestflow.admin.runtime.AdminDeployProperties;
 import com.zestflow.admin.config.PlaygroundPlatformConfig;
 import com.zestflow.common.util.ProductionSecretGuard;
 import lombok.RequiredArgsConstructor;
