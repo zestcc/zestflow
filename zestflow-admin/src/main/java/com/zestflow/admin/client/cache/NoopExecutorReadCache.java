@@ -1,12 +1,7 @@
 package com.zestflow.admin.client.cache;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Component;
-
 import java.util.Optional;
 
-@Component
-@ConditionalOnProperty(prefix = "zestflow.admin.executor-read-cache", name = "enabled", havingValue = "false")
 public class NoopExecutorReadCache implements ExecutorReadCache {
 
     @Override

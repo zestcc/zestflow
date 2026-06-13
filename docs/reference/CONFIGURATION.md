@@ -141,9 +141,9 @@ Kafka / RabbitMQ 实现见 `zestflow.collector.kafka.topic`、`zestflow.collecto
 |------|------|------|
 | `enabled` | `true` | Executor GET 快照开关 |
 | `ttl-minutes` | `60` | 快照 TTL |
-| `max-entries` | `500` | 最大条目数 |
+| `max-entries` | `500` | 最大条目数（仅 standalone Caffeine） |
 
-Executor 离线或不可达时，链/设计/元件列表代理接口返回 `_readCache.stale=true` 的快照 JSON，前端展示只读提示。
+Executor 离线或不可达时，链/设计/元件列表代理接口返回 `_readCache.stale=true` 的快照 JSON，前端展示只读提示。`deploy-mode=cluster` 时自动切换为 Redis 实现（多副本共享）。详见 [EXECUTOR_READ_CACHE.md](../guides/EXECUTOR_READ_CACHE.md)。
 
 ### zestflow.collector.*（Admin 侧）
 

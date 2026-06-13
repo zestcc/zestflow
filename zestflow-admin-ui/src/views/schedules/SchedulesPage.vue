@@ -1,5 +1,6 @@
 <template>
   <div class="schedules-page">
+    <ExecutorReadCacheAlert :stale="readCacheStale" />
     <div class="page-header">
       <div class="page-header-row page-header-row--actions-end">
         <el-button v-if="activeTab === 'chain'" type="primary" @click="showCreate">{{ $t('schedules.create') }}</el-button>
@@ -252,6 +253,8 @@ import { executorApi, type AppOption } from '@/api/executor'
 import { useDict } from '@/composables/useDict'
 import { useDictLabel } from '@/composables/useDictLabel'
 import { useCurrentApp } from '@/composables/useCurrentApp'
+import { consumeExecutorReadCacheMeta } from '@/composables/useExecutorReadCache'
+import ExecutorReadCacheAlert from '@/components/ExecutorReadCacheAlert.vue'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
 import { useResponsivePagination } from '@/composables/useResponsivePagination'
 
@@ -324,6 +327,7 @@ const submitting = ref(false)
 const formRef = ref<any>(null)
 const form = reactive({ chainCode: '', chainName: '', cron: '', routeStrategy: 'local', remark: '' })
 const chainOptions = ref<ChainVO[]>([])
+const readCacheStale = ref(false)
 const { options: routeStrategyOptions } = useDict('route_strategy')
 const { dictOptions: enableStatusOptions, labelOf: enableStatusLabel, tagTypeOf: enableStatusTagType } = useDictLabel('enable_status')
 const { dictOptions: scheduleLogStatusOptions } = useDictLabel('schedule_log_status')
@@ -428,7 +432,11 @@ function onAppFilterChange(code: string | undefined) {
 
 async function fetchChains(appCode: string) {
   try {
-    const res = await chainApi.list({ appCode, page: 1, size: 999 })
+    const res: any = consumeExecutorReadCacheMeta(
+      await chainApi.list({ appCode, page: 1, size: 999 }),
+      readCacheStale,
+      { accumulate: true },
+    )
     chainOptions.value = res.records || []
   } catch { chainOptions.value = [] }
 }

@@ -45,11 +45,7 @@ public class ComponentController {
     @GetMapping("/stats")
     public String stats(@RequestParam String appCode) {
         requireAppPermission(appCode, "APP_VIEWER");
-        String baseUrl = proxyService.resolveExecutorBaseUrl(appCode);
-        if (baseUrl == null) {
-            return "{\"total\":0,\"active\":0,\"offline\":0}";
-        }
-        String json = proxyService.getDirectFromUrl(baseUrl + "/api/components", "?page=1&size=9999");
+        String json = proxyService.getFromExecutor(appCode, "/api/components", "?page=1&size=9999");
         try {
             com.fasterxml.jackson.databind.JsonNode root = new com.fasterxml.jackson.databind.ObjectMapper().readTree(json);
             int total = root.has("total") ? root.get("total").asInt() : 0;

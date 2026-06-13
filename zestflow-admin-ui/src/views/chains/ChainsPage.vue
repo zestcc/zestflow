@@ -1,13 +1,6 @@
 <template>
   <div class="chains-page">
-    <el-alert
-      v-if="readCacheStale"
-      type="warning"
-      :closable="false"
-      show-icon
-      class="read-cache-alert"
-      :title="$t('common.executorReadCacheHint')"
-    />
+    <ExecutorReadCacheAlert :stale="readCacheStale" />
     <div class="page-header">
       <div class="chain-stats">
         <span class="chain-stats-total">{{ $t('chains.total') }} {{ chainList.length }}</span>
@@ -344,6 +337,7 @@ import { chainApi, type ChainCreateDTO } from '@/api/chain'
 import { executorApi, type AppOption } from '@/api/executor'
 import { designApi, type DesignVO } from '@/api/design'
 import CreateDesignDialog from '@/components/CreateDesignDialog.vue'
+import ExecutorReadCacheAlert from '@/components/ExecutorReadCacheAlert.vue'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
 import { useCurrentApp } from '@/composables/useCurrentApp'
 import { consumeExecutorReadCacheMeta } from '@/composables/useExecutorReadCache'

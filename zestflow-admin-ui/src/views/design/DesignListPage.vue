@@ -1,13 +1,6 @@
 <template>
   <div class="design-list">
-    <el-alert
-      v-if="readCacheStale"
-      type="warning"
-      :closable="false"
-      show-icon
-      class="read-cache-alert"
-      :title="$t('common.executorReadCacheHint')"
-    />
+    <ExecutorReadCacheAlert :stale="readCacheStale" />
     <div class="page-header">
       <div class="page-header-row">
         <div class="page-stats-row">
@@ -177,6 +170,7 @@ import { designApi, type DesignVO } from '@/api/design'
 import type { ChainVO } from '@/api/chain'
 import { executorApi, type AppOption } from '@/api/executor'
 import CreateDesignDialog from '@/components/CreateDesignDialog.vue'
+import ExecutorReadCacheAlert from '@/components/ExecutorReadCacheAlert.vue'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
 import DesignDetailDrawer from '@/components/DesignDetailDrawer.vue'
 import ChainDetailDrawer from '@/components/ChainDetailDrawer.vue'

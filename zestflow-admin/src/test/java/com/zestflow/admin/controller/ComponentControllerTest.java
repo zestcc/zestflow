@@ -91,8 +91,7 @@ class ComponentControllerTest {
         when(authentication.isAuthenticated()).thenReturn(true);
         when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(2L, false, 1L));
         when(permissionService.hasAppPermission(2L, "app-a", "APP_VIEWER")).thenReturn(true);
-        when(proxyService.resolveExecutorBaseUrl("app-a")).thenReturn("http://192.168.1.1:9999");
-        when(proxyService.getDirectFromUrl(anyString(), anyString()))
+        when(proxyService.getFromExecutor(eq("app-a"), eq("/api/components"), eq("?page=1&size=9999")))
                 .thenReturn("{\"total\":10,\"records\":[{\"status\":1},{\"status\":1},{\"status\":0}]}");
 
         componentController.stats("app-a");
@@ -105,8 +104,7 @@ class ComponentControllerTest {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
         when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(1L, true, 1L));
-        when(proxyService.resolveExecutorBaseUrl("app-a")).thenReturn("http://192.168.1.1:9999");
-        when(proxyService.getDirectFromUrl(anyString(), anyString()))
+        when(proxyService.getFromExecutor(eq("app-a"), eq("/api/components"), eq("?page=1&size=9999")))
                 .thenReturn("{\"total\":5,\"records\":[]}");
 
         String result = componentController.stats("app-a");
@@ -120,12 +118,12 @@ class ComponentControllerTest {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
         when(authentication.getDetails()).thenReturn(new SecurityUtils.AuthDetails(1L, true, 1L));
-        when(proxyService.resolveExecutorBaseUrl("app-a")).thenReturn(null);
+        when(proxyService.getFromExecutor(eq("app-a"), eq("/api/components"), eq("?page=1&size=9999")))
+                .thenReturn("{\"records\":[],\"total\":0,\"current\":1,\"size\":10}");
 
         String result = componentController.stats("app-a");
 
         assertThat(result).contains("\"total\":0");
-        verify(proxyService, never()).getDirectFromUrl(anyString(), anyString());
     }
 
     @Test

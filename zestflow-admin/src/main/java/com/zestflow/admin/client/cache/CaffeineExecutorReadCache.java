@@ -3,8 +3,6 @@ package com.zestflow.admin.client.cache;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.time.Duration;
@@ -16,8 +14,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * 单机 Caffeine 快照 — 默认启用，cluster 可后续换 Redis 实现。
  */
 @Slf4j
-@Component
-@ConditionalOnProperty(prefix = "zestflow.admin.executor-read-cache", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class CaffeineExecutorReadCache implements ExecutorReadCache {
 
     private final Cache<String, Entry> cache;

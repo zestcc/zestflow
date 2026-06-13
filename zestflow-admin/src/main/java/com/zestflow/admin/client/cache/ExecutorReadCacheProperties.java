@@ -2,13 +2,11 @@ package com.zestflow.admin.client.cache;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
 
 /**
  * Executor 读代理快照缓存 — Executor 离线时 Admin 仍可浏览链/设计/元件列表。
  */
 @Data
-@Component
 @ConfigurationProperties(prefix = "zestflow.admin.executor-read-cache")
 public class ExecutorReadCacheProperties {
 

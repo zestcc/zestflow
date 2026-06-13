@@ -1,5 +1,6 @@
 <template>
   <div class="components-page">
+    <ExecutorReadCacheAlert :stale="readCacheStale" />
     <div class="page-header">
       <div class="page-header-row">
         <div class="page-stats-row">
@@ -155,7 +156,9 @@ import { useI18n } from 'vue-i18n'
 import { componentApi } from '@/api/component'
 import type { ComponentVO } from '@/api/component'
 import { executorApi, type AppOption } from '@/api/executor'
+import ExecutorReadCacheAlert from '@/components/ExecutorReadCacheAlert.vue'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
+import { consumeExecutorReadCacheMeta } from '@/composables/useExecutorReadCache'
 import { useDictLabel } from '@/composables/useDictLabel'
 import { useCurrentApp } from '@/composables/useCurrentApp'
 import { useResponsiveDrawerSize } from '@/composables/useResponsiveDrawerSize'
@@ -215,6 +218,7 @@ const filter = ref({
 })
 
 const statsObj = ref({ total: 0, active: 0, offline: 0 })
+const readCacheStale = ref(false)
 
 async function fetchStats() {
   if (!currentAppCode.value) return
@@ -230,14 +234,14 @@ async function fetchList() {
   if (!currentAppCode.value) { componentList.value = []; total.value = 0; return }
   loading.value = true
   try {
-    const res = await componentApi.list({
+    const res: any = consumeExecutorReadCacheMeta(await componentApi.list({
       appCode: currentAppCode.value,
       keyword: filter.value.keyword || undefined,
       status: filter.value.status === '' ? undefined : (filter.value.status as number),
       componentType: filter.value.componentType || undefined,
       page: page.value,
       size: pageSize.value,
-    })
+    }), readCacheStale)
     componentList.value = res.records
     total.value = res.total
   } finally {

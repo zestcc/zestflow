@@ -141,9 +141,9 @@ Kafka / RabbitMQ implementations: `zestflow.collector.kafka.topic`, `zestflow.co
 |----------|---------|-------------|
 | `enabled` | `true` | Executor GET snapshot switch |
 | `ttl-minutes` | `60` | Snapshot TTL |
-| `max-entries` | `500` | Maximum entries |
+| `max-entries` | `500` | Max entries (Caffeine standalone only) |
 
-When Executor is offline or unreachable, chain/design/component list proxies may return snapshot JSON with `_readCache.stale=true`; UI shows a read-only banner.
+When Executor is offline or unreachable, chain/design/component list proxies may return snapshot JSON with `_readCache.stale=true`; UI shows a read-only banner. With `deploy-mode=cluster`, Redis implementation is used automatically. See [EXECUTOR_READ_CACHE.md](../guides/EXECUTOR_READ_CACHE.md).
 
 ### zestflow.collector.* (Admin side)
 
