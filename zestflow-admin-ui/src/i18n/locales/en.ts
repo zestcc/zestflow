@@ -222,6 +222,7 @@ export default {
     operationFailed: 'Operation failed',
     createdBy: 'Created By',
     design: 'Design',
+    backToList: 'Back to chains',
   },
   schedules: {
     title: 'Schedule Center',

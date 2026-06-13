@@ -6,6 +6,7 @@ import com.zestflow.admin.config.AiPlatformConfig;
 import com.zestflow.admin.config.PlaygroundPlatformConfig;
 import com.zestflow.admin.config.TenantPlatformConfig;
 import com.zestflow.admin.runtime.AdminDeployProperties;
+import com.zestflow.common.model.Result;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.env.Environment;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,6 +30,7 @@ public class SystemController {
     private final AdminCacheProperties cacheProperties;
     private final AiPlatformConfig aiPlatformConfig;
     private final PlaygroundPlatformConfig playgroundPlatformConfig;
+    private final ProductionReadinessService productionReadinessService;
 
     /**
      * 获取系统特性开关状态，前端/E2E 探测运行时配置
@@ -57,5 +59,11 @@ public class SystemController {
                 "redisRequired", AdminRedisConditions.isRedisInfrastructureRequired(environment)
         ));
         return out;
+    }
+
+    /** 生产发版 checklist（脚本 run-production-profile-checklist.ps1 消费） */
+    @GetMapping("/production-readiness")
+    public Result<Map<String, Object>> getProductionReadiness() {
+        return Result.success(productionReadinessService.evaluate());
     }
 }

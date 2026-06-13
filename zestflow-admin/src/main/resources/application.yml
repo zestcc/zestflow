@@ -96,6 +96,8 @@ zestflow:
       poll-interval-ms: 2000
       sse-timeout-ms: 600000
       pool-size: 4
+      # WebSocket 替代传输（仍轮询 Collector；Collector 真推送接入后可换 PushSource）
+      websocket-enabled: false
     tenant-id: 1
     system-user: sys
     default-user:

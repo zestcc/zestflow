@@ -56,6 +56,8 @@ public class SecurityConfig {
                 // Executor 上报链加载状态（机器回调，非用户接口）
                 .requestMatchers(HttpMethod.POST, AdminApiPaths.of("/chains/sync")).permitAll()
                 .requestMatchers(AdminApiPaths.of("/internal/alerts/**")).permitAll()
+                // WebSocket 握手 JWT 由 LogLiveStreamWebSocketHandshakeInterceptor 校验
+                .requestMatchers(AdminApiPaths.of("/logs/executions/*/ws")).permitAll()
                 // 其余 Admin API（含 Playground）须 JWT 认证 + Controller 内应用级 RBAC
                 .requestMatchers(AdminApiPaths.of("/**")).authenticated()
                 // 静态资源 + SPA 路由（前端自己控制登录态）

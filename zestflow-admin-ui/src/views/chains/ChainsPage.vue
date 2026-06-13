@@ -197,54 +197,6 @@
       </template>
     </CreateDesignDialog>
 
-    <!-- 链详情抽屉 -->
-    <el-drawer
-      v-model="chainDrawerVisible"
-      :title="$t('chains.chainDetails')"
-      :size="chainDrawerSize"
-      class="detail-drawer"
-      destroy-on-close
-      append-to-body
-    >
-      <template v-if="currentChainDetail">
-        <div class="detail-drawer-body">
-          <div class="detail-drawer-title">{{ currentChainDetail.name }}</div>
-          <el-descriptions :column="1" border size="small">
-            <el-descriptions-item label="编码">
-              <el-tag size="small" style="font-family:monospace">{{ currentChainDetail.code }}</el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item :label="$t('chains.chainKey')">
-              <span v-if="currentChainDetail.chainKey" class="detail-mono-text">{{ currentChainDetail.chainKey }}</span>
-              <span v-else style="color:#c0c4cc">-</span>
-            </el-descriptions-item>
-            <el-descriptions-item :label="$t('chains.appDeclared')">
-              <el-tag v-if="currentChainDetail.appDeclared" type="warning" size="small">{{ $t('chains.appDeclaredTag') }}</el-tag>
-              <span v-else style="color:#c0c4cc">-</span>
-            </el-descriptions-item>
-            <el-descriptions-item label="状态">
-              <el-tag :type="statusTagType(currentChainDetail.status)" size="small">
-                {{ statusLabel(currentChainDetail.status) }}
-              </el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="应用">
-              {{ appNameMap[currentChainDetail.appCode] || '-' }}
-            </el-descriptions-item>
-            <el-descriptions-item label="描述">
-              {{ currentChainDetail.description || '-' }}
-            </el-descriptions-item>
-            <el-descriptions-item label="关联设计">
-              <span v-if="currentChainDetail.designCode" style="color:#409eff;cursor:pointer" @click="openDesignDetail(currentChainDetail.designCode, currentChainDetail.appCode)">{{ currentChainDetail.designCode }}</span>
-              <span v-else style="color:#c0c4cc">-</span>
-            </el-descriptions-item>
-            <el-descriptions-item label="创建人">{{ currentChainDetail.createdBy || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="创建时间">{{ currentChainDetail.createdAt?.replace('T', ' ') }}</el-descriptions-item>
-            <el-descriptions-item :label="$t('common.updatedBy')">{{ currentChainDetail.updatedBy || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="更新时间">{{ currentChainDetail.updatedAt?.replace('T', ' ') }}</el-descriptions-item>
-          </el-descriptions>
-        </div>
-      </template>
-    </el-drawer>
-
     <!-- 设计详情抽屉 -->
     <el-drawer
       v-model="designDrawerVisible"
@@ -348,7 +300,6 @@ const { t } = useI18n()
 const router = useRouter()
 const { labelOf: chainStatusLabel, tagTypeOf: chainStatusTagType, dictOptions: chainStatusOptions } = useDictLabel('chain_lifecycle_status')
 const { labelOf: enableStatusLabel, tagTypeOf: enableStatusTagType } = useDictLabel('enable_status')
-const { drawerSize: chainDrawerSize } = useResponsiveDrawerSize(480)
 const { drawerSize: designDrawerSize } = useResponsiveDrawerSize(520)
 const { currentAppCode, syncFromApps } = useCurrentApp()
 
@@ -416,12 +367,13 @@ const publishResultColumns = computed(() => [
   { prop: 'message', label: '消息', showOverflowTooltip: true },
 ])
 
-// 链详情抽屉
-const chainDrawerVisible = ref(false)
-const currentChainDetail = ref<any>(null)
+// 链详情 → /chains/:code 页面
 function openChainDetail(row: any) {
-  currentChainDetail.value = row
-  chainDrawerVisible.value = true
+  router.push({
+    name: 'ChainDetail',
+    params: { id: row.code },
+    query: { appCode: row.appCode || currentAppCode.value },
+  })
 }
 
 // 设计详情抽屉

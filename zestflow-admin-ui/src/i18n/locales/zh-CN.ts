@@ -222,6 +222,7 @@ export default {
     operationFailed: '操作失败',
     createdBy: '创建人',
     design: '设计',
+    backToList: '返回链列表',
   },
   schedules: {
     title: '调度中心',

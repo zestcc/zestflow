@@ -12,6 +12,7 @@ param(
     [switch]$RequireSecurityProfile,
     [switch]$AllowSkipRuntime,
     [switch]$IncludeOfflineChecks,
+    [switch]$RequireProdProfile,
     [int]$SceneTimeoutSec = 300
 )
 
@@ -146,6 +147,31 @@ if (-not $SkipRuntimeBlackbox) {
         0 { Add-Phase "blackbox" "security-token-e2e" $true "passed" }
         2 { Add-Phase "blackbox" "security-token-e2e" $(-not $RequireSecurityProfile) $(if ($RequireSecurityProfile) { "required-skip" } else { "skipped-profile" }) }
         default { Add-Phase "blackbox" "security-token-e2e" $false "exit=$LASTEXITCODE" }
+    }
+
+    if ($RequireProdProfile) {
+        & "$PSScriptRoot\run-production-profile-checklist.ps1" -AllowSkip:$AllowSkipRuntime -RequireProdProfile
+    } else {
+        & "$PSScriptRoot\run-production-profile-checklist.ps1" -AllowSkip:$AllowSkipRuntime
+    }
+    switch ($LASTEXITCODE) {
+        0 { Add-Phase "blackbox" "production-profile-checklist" $true "passed" }
+        2 { Add-Phase "blackbox" "production-profile-checklist" [bool]$AllowSkipRuntime $(if ($AllowSkipRuntime) { "skipped" } else { "required-fail" }) }
+        default { Add-Phase "blackbox" "production-profile-checklist" $false "exit=$LASTEXITCODE" }
+    }
+
+    & "$PSScriptRoot\run-playwright-e2e.ps1" -BaseAdmin $BaseAdmin -AllowSkip:$AllowSkipRuntime
+    switch ($LASTEXITCODE) {
+        0 { Add-Phase "blackbox" "playwright-e2e" $true "passed" }
+        2 { Add-Phase "blackbox" "playwright-e2e" [bool]$AllowSkipRuntime $(if ($AllowSkipRuntime) { "skipped" } else { "required-fail" }) }
+        default { Add-Phase "blackbox" "playwright-e2e" $false "exit=$LASTEXITCODE" }
+    }
+
+    & "$PSScriptRoot\run-playground-all-scenes.ps1" -BaseAdmin $BaseAdmin -E2eProfile fullGreen -SceneTimeoutSec $SceneTimeoutSec -AllowSkip:$AllowSkipRuntime -SkipHeavyScenes
+    switch ($LASTEXITCODE) {
+        0 { Add-Phase "blackbox" "playground-all-scenes" $true "passed" }
+        2 { Add-Phase "blackbox" "playground-all-scenes" [bool]$AllowSkipRuntime $(if ($AllowSkipRuntime) { "skipped" } else { "required-fail" }) }
+        default { Add-Phase "blackbox" "playground-all-scenes" $false "exit=$LASTEXITCODE" }
     }
 } else {
     Add-Phase "blackbox" "runtime-suite" $true "skipped"

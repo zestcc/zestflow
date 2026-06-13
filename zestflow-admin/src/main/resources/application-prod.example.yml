@@ -122,6 +122,7 @@ zestflow:
       poll-interval-ms: 2000
       sse-timeout-ms: 600000
       pool-size: 4
+      websocket-enabled: false
     runtime-state:
       ttl-seconds: 300
     health-probe:
