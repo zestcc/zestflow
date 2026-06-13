@@ -14,12 +14,13 @@ import com.zestflow.admin.repository.UserTenantMapper;
 import com.zestflow.admin.service.MailService;
 import com.zestflow.admin.service.TenantService;
 import com.zestflow.admin.service.UserService;
+import com.zestflow.admin.service.sso.revocation.SsoSessionRevocationService;
 import com.zestflow.admin.util.JwtUtils;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.common.exception.BizException;
 import io.jsonwebtoken.Claims;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -39,7 +40,6 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
     private final UserMapper userMapper;
@@ -49,6 +49,25 @@ public class UserServiceImpl implements UserService {
     private final UserTenantMapper userTenantMapper;
     private final MailService mailService;
     private final SsoProperties ssoProperties;
+    private final SsoSessionRevocationService sessionRevocationService;
+
+    public UserServiceImpl(UserMapper userMapper,
+                           PasswordEncoder passwordEncoder,
+                           JwtUtils jwtUtils,
+                           TenantService tenantService,
+                           UserTenantMapper userTenantMapper,
+                           MailService mailService,
+                           SsoProperties ssoProperties,
+                           @Autowired(required = false) SsoSessionRevocationService sessionRevocationService) {
+        this.userMapper = userMapper;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtUtils = jwtUtils;
+        this.tenantService = tenantService;
+        this.userTenantMapper = userTenantMapper;
+        this.mailService = mailService;
+        this.ssoProperties = ssoProperties;
+        this.sessionRevocationService = sessionRevocationService;
+    }
 
     @Value("${zestflow.upload.avatar-dir:uploads/avatars}")
     private String avatarDir;
@@ -76,6 +95,7 @@ public class UserServiceImpl implements UserService {
         Long currentTenantId = defaultTenant != null ? defaultTenant.getId() : 1L;
 
         String token = jwtUtils.generateToken(user.getId(), user.getUsername(), user.getIsSuperAdmin() == 1, currentTenantId);
+        clearSessionRevocation(user.getUsername());
         UserVO userVO = toUserVO(user);
         userVO.setTenants(tenants);
         return LoginVO.builder()
@@ -108,6 +128,7 @@ public class UserServiceImpl implements UserService {
 
         String token = jwtUtils.generateToken(
                 user.getId(), user.getUsername(), user.getIsSuperAdmin() == 1, currentTenantId);
+        clearSessionRevocation(user.getUsername());
         UserVO userVO = toUserVO(user);
         userVO.setTenants(tenants);
         return LoginVO.builder()
@@ -496,6 +517,13 @@ public class UserServiceImpl implements UserService {
             throw new BizException(ErrorCode.USER_NOT_FOUND);
         }
         return toUserVO(user);
+    }
+
+    /** 本地密码/SSO 登录成功后清除 Back-Channel 吊销，允许新 JWT 生效 */
+    private void clearSessionRevocation(String username) {
+        if (sessionRevocationService != null) {
+            sessionRevocationService.clearRevocation(username);
+        }
     }
 
     private UserVO toUserVO(UserPO user) {

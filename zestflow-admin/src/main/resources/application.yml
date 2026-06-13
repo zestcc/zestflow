@@ -190,6 +190,16 @@ zestflow:
     alert-no-online-executor: true
     subject-prefix: "[ZestFlow 告警]"
 
+# ZestSSO Client SDK（Back-Channel Logout 接收；与 zestflow.sso 联动，不重复登录逻辑）
+zest:
+  sso:
+    client:
+      enabled: ${zestflow.sso.enabled:false}
+      issuer: ${zestflow.sso.issuer:http://localhost:9000}
+      client-id: ${zestflow.sso.client-id:zestflow-admin}
+      backchannel-logout-path: /api/zestflow/auth/sso/backchannel-logout
+      frontchannel-logout-enabled: false
+
 mybatis-plus:
   mapper-locations: classpath:mapper/*.xml
   type-aliases-package: com.zestflow.admin.model.entity

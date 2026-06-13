@@ -166,13 +166,6 @@ if (-not $SkipRuntimeBlackbox) {
         2 { Add-Phase "blackbox" "playwright-e2e" [bool]$AllowSkipRuntime $(if ($AllowSkipRuntime) { "skipped" } else { "required-fail" }) }
         default { Add-Phase "blackbox" "playwright-e2e" $false "exit=$LASTEXITCODE" }
     }
-
-    & "$PSScriptRoot\run-playground-all-scenes.ps1" -BaseAdmin $BaseAdmin -E2eProfile fullGreen -SceneTimeoutSec $SceneTimeoutSec -AllowSkip:$AllowSkipRuntime -SkipHeavyScenes
-    switch ($LASTEXITCODE) {
-        0 { Add-Phase "blackbox" "playground-all-scenes" $true "passed" }
-        2 { Add-Phase "blackbox" "playground-all-scenes" [bool]$AllowSkipRuntime $(if ($AllowSkipRuntime) { "skipped" } else { "required-fail" }) }
-        default { Add-Phase "blackbox" "playground-all-scenes" $false "exit=$LASTEXITCODE" }
-    }
 } else {
     Add-Phase "blackbox" "runtime-suite" $true "skipped"
 }

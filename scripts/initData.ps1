@@ -8,21 +8,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $Root = Split-Path $PSScriptRoot -Parent
-
-function Resolve-MysqlBin([string]$Preferred) {
-    if ($Preferred -and (Test-Path $Preferred)) { return $Preferred }
-    foreach ($candidate in @(
-        'C:\Program Files\MySQL\MySQL Server 8.4\bin\mysql.exe',
-        'C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe',
-        'D:\IT\MYSQL\mysql8\mysql-8.0.32-winx64\bin\mysql.exe'
-    )) {
-        if (Test-Path $candidate) { return $candidate }
-    }
-    $cmd = Get-Command mysql -ErrorAction SilentlyContinue
-    if ($cmd -and (Test-Path $cmd.Source)) { return $cmd.Source }
-    throw 'mysql.exe not found; pass -MysqlBin explicitly'
-}
-
+. (Join-Path $PSScriptRoot '_mysql-common.ps1')
 $MysqlBin = Resolve-MysqlBin $MysqlBin
 
 $localYml = Join-Path $Root 'zestflow-admin\src\main\resources\application-local.yml'

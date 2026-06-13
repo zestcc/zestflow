@@ -131,6 +131,18 @@
             <artifactId>jjwt-api</artifactId>
             <version>${jjwt.version}</version>
         </dependency>
+
+        <!-- ZestSSO Back-Channel Logout SDK（与 zestflow.sso SPI 并存，仅补 RP 登出接收） -->
+        <dependency>
+            <groupId>cn.zest.sso</groupId>
+            <artifactId>zest-sso-client-sdk</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-impl</artifactId>

@@ -47,8 +47,25 @@ public class SecurityConfig {
                 .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                 // OpenAPI 文档（生产 profile 通过 springdoc.*.enabled=false 关闭）
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                // 用户认证相关（登录/注册/找回密码等）
-                .requestMatchers(AdminApiPaths.of("/auth/**"), "/uploads/**").permitAll()
+                // 用户认证 — 公开端点（登录/注册/SSO 回调等）
+                .requestMatchers(HttpMethod.POST,
+                        AdminApiPaths.of("/auth/login"),
+                        AdminApiPaths.of("/auth/register"),
+                        AdminApiPaths.of("/auth/forgot"),
+                        AdminApiPaths.of("/auth/reset-password"),
+                        AdminApiPaths.of("/auth/logout")).permitAll()
+                .requestMatchers(HttpMethod.GET, AdminApiPaths.of("/auth/verify-email")).permitAll()
+                .requestMatchers(AdminApiPaths.of("/auth/sso/**")).permitAll()
+                // 用户认证 — 须 JWT（含 SSO 吊销后 401）
+                .requestMatchers(
+                        AdminApiPaths.of("/auth/userinfo"),
+                        AdminApiPaths.of("/auth/profile"),
+                        AdminApiPaths.of("/auth/password"),
+                        AdminApiPaths.of("/auth/force-password"),
+                        AdminApiPaths.of("/auth/tenants"),
+                        AdminApiPaths.of("/auth/switch-tenant/**"),
+                        AdminApiPaths.of("/auth/avatar")).authenticated()
+                .requestMatchers("/uploads/**").permitAll()
                 .requestMatchers(AdminApiPaths.of("/public/**")).permitAll()
                 // 机器间通信：Executor/Collector 注册注销（后续可改为 Registry Token）
                 .requestMatchers(HttpMethod.POST, AdminApiPaths.of("/registry/**")).permitAll()

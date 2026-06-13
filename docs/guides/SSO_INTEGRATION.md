@@ -18,6 +18,15 @@ IdP（ZestSSO / 通用 OIDC）
 ZestFlow JWT + Pinia 登录态
 
 退出：localStorage.sso_login=true → GET /auth/sso/logout-url → IdP SLO
+
+全局登出（Back-Channel）：
+  ZestSSO Admin logout / connect/logout
+    │ POST logout_token
+    ▼
+  /api/zestflow/auth/sso/backchannel-logout  (zest-sso-client-sdk)
+    │ Redis 吊销 username
+    ▼
+  /auth/userinfo 等受保护 API → HTTP 401
 ```
 
 ### 后端 SPI
@@ -31,6 +40,8 @@ ZestFlow JWT + Pinia 登录态
 | `DisabledSsoProvider` | `enabled=false` 或 `provider=none` |
 | `AbstractOidcSsoProvider` | PKCE 授权 / Token 交换 / 回调 |
 | `SsoPkceStore` | standalone 内存 / cluster Redis |
+| `ZestFlowSsoLogoutHandler` | 接收 Back-Channel `logout_token`，吊销本地 JWT |
+| `SsoSessionRevocationService` | Redis 存储已登出用户名，`JwtAuthFilter` 拒绝访问 |
 
 扩展新 IdP：实现 `SsoProvider` 或继承 `AbstractOidcSsoProvider`，注册为 Spring Bean 即可。
 
@@ -56,6 +67,16 @@ zestflow:
       admin-role: SSO_ADMIN
     zest-sso:
       use-logout-url-api: true
+
+# zest-sso-client-sdk：Back-Channel / Front-Channel 端点（须 zest.sso.client.enabled=true）
+zest:
+  sso:
+    client:
+      enabled: ${zestflow.sso.enabled:false}
+      issuer: ${zestflow.sso.issuer:http://localhost:9000}
+      client-id: ${zestflow.sso.client-id:zestflow-admin}
+      backchannel-logout-path: /api/zestflow/auth/sso/backchannel-logout
+      frontchannel-logout-path: /auth/frontchannel-logout
 ```
 
 Vite 开发：`redirect-uri` 指向前端 `5173`；生产单 jar 部署时改为 Admin 对外域名 + `/login/callback`。
@@ -90,6 +111,8 @@ zestflow:
 | redirect_uri | 与 `zestflow.sso.redirect-uri` 精确一致 |
 | scopes | openid, profile, email, roles, tenant |
 | PKCE | 必须（S256） |
+| backchannelLogoutUri | `http://<admin-host>/api/zestflow/auth/sso/backchannel-logout`（Flyway V12 预置） |
+| frontchannelLogoutUri | 前端 SLO 页，如 `http://localhost:5173/auth/frontchannel-logout` |
 
 角色映射：`SSO_ADMIN` → `user.is_super_admin = 1`。
 
@@ -117,6 +140,21 @@ Flyway `V6__sso_integration.sql`：
 3. 登录页出现「ZestSSO 登录」按钮
 4. 完成回调，检查 `user.sso_subject` 已写入
 5. 退出时跳转 ZestSSO SLO 并回到登录页
+6. Back-Channel：SSO 全局登出后 `GET /auth/userinfo` 应返回 **401**
+
+## Back-Channel 自动化联调
+
+SSO + ZestFlow Admin 已启动时：
+
+```powershell
+powershell -File scripts/sso-backchannel-e2e.ps1
+# 自定义地址：
+powershell -File scripts/sso-backchannel-e2e.ps1 -SsoUrl http://localhost:9000 -ZfUrl http://localhost:8080
+```
+
+脚本流程：OAuth 授权 → 本地登录拿 JWT → 登出前 userinfo 200 → SSO Admin logout → 登出后 userinfo **401**。
+
+详细接入说明见 ZestSSO 仓库 `docs/zestflow-backchannel-integration.md`。
 
 ## 自动化冒烟
 

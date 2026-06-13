@@ -19,6 +19,11 @@ function Invoke-AcceptanceApi($method, $url, $body, $headers, [int]$TimeoutSec =
     }
 }
 
+function Test-ResultBusinessOk($jsonBody) {
+    if (-not $jsonBody) { return $false }
+    try { return ((ConvertFrom-Json $jsonBody).code -eq 200) } catch { return $false }
+}
+
 function Login-AdminToken($BaseAdmin, $username = "admin", $password = "admin123") {
     $login = Invoke-AcceptanceApi POST "$BaseAdmin/api/zestflow/auth/login" (@{ username=$username; password=$password } | ConvertTo-Json -Compress) $null 20
     if (-not $login.ok) { return $null }

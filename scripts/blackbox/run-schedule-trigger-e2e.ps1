@@ -1,4 +1,4 @@
-# E2E-08：调度 trigger 独立脚本 — 列出/创建 schedule → POST trigger
+# E2E-08：调度 trigger 独立脚本 — 链调度创建/选取 → POST trigger
 param(
     [string]$BaseAdmin = "http://127.0.0.1:8080",
     [string]$AppCode = "demo-app",
@@ -24,6 +24,15 @@ function Get-DataNode($json) {
     return $json
 }
 
+function Get-PageRecords($jsonBody) {
+    try {
+        $page = Get-DataNode (ConvertFrom-Json $jsonBody)
+        if ($page.records) { return @($page.records) }
+        if ($page.list) { return @($page.list) }
+    } catch {}
+    return @()
+}
+
 Write-Host "=== Schedule Trigger E2E ===" -ForegroundColor Cyan
 
 $token = Login-AdminToken $BaseAdmin
@@ -36,18 +45,27 @@ if (-not $token) {
 Add-Check "login" $true "ok"
 $h = @{ Authorization = "Bearer $token" }
 
-$list = Invoke-AcceptanceApi GET "$api/schedules?page=1&size=5" $null $h
-Add-Check "schedules-list" $list.ok "status=$($list.status)"
+$list = Invoke-AcceptanceApi GET "$api/schedules?jobType=CHAIN&page=1&size=10" $null $h
+$listOk = $list.ok -and (Test-ResultBusinessOk $list.body)
+Add-Check "schedules-list" $listOk $(if ($listOk) { "status=$($list.status)" } else { "chain-proxy-unavailable status=$($list.status)" })
+
+if (-not $listOk) {
+    Add-Check "schedule-create" $false "skipped-chain-proxy"
+    Add-Check "schedule-trigger" $false "skipped-chain-proxy"
+    Write-AcceptanceChecks $checks
+    Save-AcceptanceReport $ReportJson @{ baseAdmin=$BaseAdmin; appCode=$AppCode } $checks
+    if ($AllowSkip) { exit 2 }
+    exit 1
+}
 
 $scheduleId = $null
 if ($list.ok) {
-    try {
-        $root = ConvertFrom-Json $list.body
-        $page = Get-DataNode $root
-        if ($page.records -and $page.records.Count -gt 0) {
-            $scheduleId = $page.records[0].id
+    foreach ($row in (Get-PageRecords $list.body)) {
+        if ($row.id -and $row.jobType -eq 'CHAIN' -and $row.chainCode) {
+            $scheduleId = $row.id
+            break
         }
-    } catch {}
+    }
 }
 
 if (-not $scheduleId) {
@@ -55,21 +73,20 @@ if (-not $scheduleId) {
     $chainCode = $null
     $chainName = $null
     if ($chains.ok) {
-        try {
-            $cRoot = ConvertFrom-Json $chains.body
-            $cPage = Get-DataNode $cRoot
-            foreach ($row in @($cPage.records)) {
-                if ($row.status -eq 4 -and $row.code) {
-                    $chainCode = [string]$row.code
-                    $chainName = [string]$row.name
-                    break
-                }
+        foreach ($row in (Get-PageRecords $chains.body)) {
+            if ($row.status -eq 4 -and $row.code) {
+                $chainCode = [string]$row.code
+                $chainName = [string]$row.name
+                break
             }
-            if (-not $chainCode -and $cPage.records -and $cPage.records.Count -gt 0) {
-                $chainCode = [string]$cPage.records[0].code
-                $chainName = [string]$cPage.records[0].name
+        }
+        if (-not $chainCode) {
+            $records = Get-PageRecords $chains.body
+            if ($records.Count -gt 0) {
+                $chainCode = [string]$records[0].code
+                $chainName = [string]$records[0].name
             }
-        } catch {}
+        }
     }
     if ($chainCode) {
         $suffix = Get-Date -Format "HHmmss"
@@ -80,11 +97,11 @@ if (-not $scheduleId) {
             remark = "auto schedule-trigger e2e"
         } | ConvertTo-Json -Compress
         $created = Invoke-AcceptanceApi POST "$api/schedules" $createBody $h
-        Add-Check "schedule-create" $created.ok "status=$($created.status)"
-        if ($created.ok) {
+        $createOk = $created.ok -and (Test-ResultBusinessOk $created.body)
+        Add-Check "schedule-create" $createOk "status=$($created.status)"
+        if ($createOk) {
             try {
-                $createdRoot = ConvertFrom-Json $created.body
-                $node = Get-DataNode $createdRoot
+                $node = Get-DataNode (ConvertFrom-Json $created.body)
                 if ($node.id) { $scheduleId = $node.id }
             } catch {}
         }
@@ -102,8 +119,10 @@ if (-not $scheduleId) {
 }
 
 $trigger = Invoke-AcceptanceApi POST "$api/schedules/$scheduleId/trigger" $null $h 90
-$triggerOk = $trigger.ok -and ($trigger.body -match '"code"\s*:\s*200|"status"')
-Add-Check "schedule-trigger" $triggerOk "id=$scheduleId status=$($trigger.status)"
+$triggerOk = $trigger.ok -and (Test-ResultBusinessOk $trigger.body)
+$bizCode = $null
+try { $bizCode = (ConvertFrom-Json $trigger.body).code } catch {}
+Add-Check "schedule-trigger" $triggerOk "id=$scheduleId http=$($trigger.status) code=$bizCode"
 
 Write-AcceptanceChecks $checks
 Save-AcceptanceReport $ReportJson @{ baseAdmin=$BaseAdmin; appCode=$AppCode; scheduleId=$scheduleId } $checks

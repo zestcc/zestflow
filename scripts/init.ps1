@@ -4,10 +4,12 @@
 param(
     [string]$MysqlUser = 'root',
     [string]$MysqlHost = '127.0.0.1',
-    [string]$MysqlBin = 'C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe'
+    [string]$MysqlBin = ''
 )
 $ErrorActionPreference = 'Stop'
 $Root = Split-Path $PSScriptRoot -Parent
+. (Join-Path $PSScriptRoot '_mysql-common.ps1')
+$MysqlBin = Resolve-MysqlBin $MysqlBin
 
 $localYml = Join-Path $Root 'zestflow-admin\src\main\resources\application-local.yml'
 if (-not (Test-Path $localYml)) { Write-Error "Missing $localYml — copy application-local.example.yml first." }

@@ -1,12 +1,13 @@
 package com.zestflow.admin.config;
 
+import com.zestflow.admin.service.sso.revocation.SsoSessionRevocationService;
 import com.zestflow.admin.util.JwtUtils;
 import com.zestflow.admin.util.SecurityUtils;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -16,10 +17,16 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 @Component
-@RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtUtils jwtUtils;
+    private final SsoSessionRevocationService sessionRevocationService;
+
+    public JwtAuthFilter(JwtUtils jwtUtils,
+                         @Autowired(required = false) SsoSessionRevocationService sessionRevocationService) {
+        this.jwtUtils = jwtUtils;
+        this.sessionRevocationService = sessionRevocationService;
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -29,18 +36,20 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         try {
             if (StringUtils.hasText(token) && jwtUtils.validateToken(token)) {
-                Long userId = jwtUtils.getUserId(token);
                 String username = jwtUtils.getUsername(token);
-                boolean isSuperAdmin = jwtUtils.isSuperAdmin(token);
-                Long currentTenantId = jwtUtils.getCurrentTenantId(token);
+                if (sessionRevocationService == null || !sessionRevocationService.isRevoked(username)) {
+                    Long userId = jwtUtils.getUserId(token);
+                    boolean isSuperAdmin = jwtUtils.isSuperAdmin(token);
+                    Long currentTenantId = jwtUtils.getCurrentTenantId(token);
 
-                TenantContextHolder.setTenantId(currentTenantId);
+                    TenantContextHolder.setTenantId(currentTenantId);
 
-                SecurityUtils.AuthDetails details = new SecurityUtils.AuthDetails(userId, isSuperAdmin, currentTenantId);
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(username, null, null);
-                authentication.setDetails(details);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                    SecurityUtils.AuthDetails details = new SecurityUtils.AuthDetails(userId, isSuperAdmin, currentTenantId);
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(username, null, null);
+                    authentication.setDetails(details);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
             }
 
             filterChain.doFilter(request, response);
