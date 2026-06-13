@@ -5,10 +5,13 @@ import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.config.LoginRateLimiter;
 import com.zestflow.admin.model.dto.*;
 import com.zestflow.admin.model.vo.LoginVO;
+import com.zestflow.admin.model.vo.SsoAuthorizeVO;
+import com.zestflow.admin.model.vo.SsoConfigVO;
 import com.zestflow.admin.model.vo.TenantSimpleVO;
 import com.zestflow.admin.model.vo.UserVO;
 import com.zestflow.admin.service.TenantService;
 import com.zestflow.admin.service.UserService;
+import com.zestflow.admin.service.sso.SsoAuthService;
 import com.zestflow.admin.util.JwtUtils;
 import com.zestflow.admin.util.SecurityUtils;
 import com.zestflow.common.exception.BizException;
@@ -33,6 +36,31 @@ public class AuthController {
     private final LoginRateLimiter loginRateLimiter;
     private final TenantService tenantService;
     private final JwtUtils jwtUtils;
+    private final SsoAuthService ssoAuthService;
+
+    @GetMapping("/sso/config")
+    public Result<SsoConfigVO> ssoConfig() {
+        return Result.success(ssoAuthService.getConfig());
+    }
+
+    @GetMapping("/sso/authorize")
+    public Result<SsoAuthorizeVO> ssoAuthorize() {
+        return Result.success(ssoAuthService.buildAuthorizeUrl());
+    }
+
+    @PostMapping("/sso/callback")
+    public Result<LoginVO> ssoCallback(@Valid @RequestBody com.zestflow.admin.model.dto.SsoCallbackDTO dto) {
+        return Result.success(ssoAuthService.handleCallback(dto));
+    }
+
+    @GetMapping("/sso/logout-url")
+    public Result<String> ssoLogoutUrl() {
+        String url = ssoAuthService.buildLogoutUrl();
+        if (url == null) {
+            return Result.success(null);
+        }
+        return Result.success(url);
+    }
 
     @PostMapping("/login")
     public Result<LoginVO> login(@Valid @RequestBody LoginDTO dto, HttpServletRequest request) {

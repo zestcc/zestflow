@@ -57,6 +57,13 @@ zestflow:
     chain:
       declaration-sync-enabled: true
       declaration-delete-guard-enabled: true
+    expression:
+      timeout-ms: 5000
+      max-script-length: 10000
+      max-cache-size: 1000
+      max-loop-count: 10000
+      condition-fail-open: false
+      clear-cache-on-chain-reload: true
     # 生产环境按需启用 Executor LLM（Ollama / OpenAI 兼容）
     ai:
       llm-enabled: false

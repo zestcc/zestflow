@@ -3,10 +3,13 @@ package com.zestflow.admin.controller;
 import com.zestflow.admin.service.RegistryService;
 import com.zestflow.common.model.Result;
 import com.zestflow.common.model.dto.HeartbeatDTO;
+import com.zestflow.common.model.dto.PeerExecutorDTO;
 import com.zestflow.common.model.dto.RegisterDTO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/registry")
@@ -40,5 +43,10 @@ public class RegistryController {
                                      @RequestParam Integer status) {
         registryService.updateStatus(executorId, status);
         return Result.success();
+    }
+
+    @GetMapping("/peers")
+    public Result<List<PeerExecutorDTO>> listPeers(@RequestParam String appCode) {
+        return Result.success(registryService.listOnlinePeers(appCode));
     }
 }

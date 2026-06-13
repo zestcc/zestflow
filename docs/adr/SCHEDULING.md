@@ -58,7 +58,7 @@ v0.1 业务链 Cron 由 Admin 每 15s 扫库并 HTTP 调 Executor（对标 xxl-j
 |------|------|
 | `cron` | Cron 表达式 |
 | `chain_code` / `chain_name` | 目标链 |
-| `route_strategy` | `local`（默认）/ `round_robin` / `hash` — 手动触发时用 |
+| `route_strategy` | `local`（默认）/ `round_robin` / `hash` / `random` — 非 local 时按策略选主 Executor，失败自动 Failover |
 | `shard_total` | 分片总数，默认 1 |
 | `shard_param` | 分片哈希键，默认 `schedule_id` |
 | `params` | JSON 入参 |
@@ -82,7 +82,7 @@ LocalScheduleEngine (Executor, 每 15s)
   → 读 zf_schedule (status=1)
   → 分片过滤
   → CronExpression 判断是否到期
-  → ScheduleTriggerService.executeInProcess(chainCode, params, idempotencyKey)
+  → ScheduleExecutionRouter（local 本进程；否则 Admin /registry/peers + 路由 + Failover）
   → 写 zf_schedule_log
 ```
 

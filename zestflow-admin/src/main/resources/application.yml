@@ -42,6 +42,15 @@ zestflow:
     # 生产环境在 application-local.yml 或环境变量中覆盖
     secret: ZestFlow_dev_JWT_Secret_Key_Change_Me_In_Production_!!_
     expiration: 86400000
+  sso:
+    enabled: false
+    issuer: http://localhost:9000
+    client-id: zestflow-admin
+    client-secret: change-me-in-production
+    redirect-uri: http://localhost:5173/login/callback
+    jwks-uri: http://localhost:9000/oauth2/jwks
+    scopes: openid,profile,email,roles,tenant
+    post-logout-redirect-uri: http://localhost:5173/login
   upload:
     avatar-dir: uploads/avatars
   collector:

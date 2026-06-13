@@ -60,6 +60,19 @@ When modifying `zestflow.admin.*`, sync across:
 | `node-default-retry-count` | `0` | Node default retry count |
 | `declaration-sync-enabled` | `true` | `@ZestChain` placeholder sync |
 
+### zestflow.executor.expression.*
+
+Aviator expression engine (edge conditions / SCRIPT nodes / While loops). See [CHAIN_ORCHESTRATION.en.md](../guides/CHAIN_ORCHESTRATION.en.md) §10.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `timeout-ms` | `5000` | Per-evaluation/script timeout (ms) |
+| `max-script-length` | `10000` | Max expression length (chars) |
+| `max-cache-size` | `1000` | Compiled expression LRU cache size |
+| `max-loop-count` | `10000` | Aviator loop iteration cap |
+| `condition-fail-open` | `false` | Treat failed conditions as true (default fail-closed) |
+| `clear-cache-on-chain-reload` | `true` | Clear compile cache after chain hot reload |
+
 ### zestflow.executor.event.*
 
 Bound by `collector-jdbc`; commonly used properties:

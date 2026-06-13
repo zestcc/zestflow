@@ -6,6 +6,7 @@ import com.zestflow.admin.model.entity.ExecutorRegistryPO;
 import com.zestflow.admin.registry.DeclaredChainKeysSupport;
 import com.zestflow.admin.registry.RegistryLifecycleService;
 import com.zestflow.admin.registry.RegistryLiveStore;
+import com.zestflow.admin.registry.RegistryOnlineQuerySupport;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
 import com.zestflow.admin.service.DictTypeService;
 import com.zestflow.admin.service.RegistryService;
@@ -13,6 +14,7 @@ import com.zestflow.common.constant.RegistryConstants;
 import com.zestflow.common.exception.BizException;
 import com.zestflow.common.model.dto.ComponentDTO;
 import com.zestflow.common.model.dto.HeartbeatDTO;
+import com.zestflow.common.model.dto.PeerExecutorDTO;
 import com.zestflow.common.model.dto.RegisterDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
@@ -212,6 +215,20 @@ public class RegistryServiceImpl implements RegistryService {
         po.setLastHeartbeat(LocalDateTime.now());
         executorRegistryMapper.updateById(po);
         log.info("执行器状态手动变更为 status={} executorId={}", status, executorId);
+    }
+
+    @Override
+    public List<PeerExecutorDTO> listOnlinePeers(String appCode) {
+        return RegistryOnlineQuerySupport.listLiveOnlineExecutors(executorRegistryMapper, liveStore, appCode)
+                .stream()
+                .map(po -> PeerExecutorDTO.builder()
+                        .executorId(po.getExecutorId())
+                        .appCode(po.getAppCode())
+                        .host(po.getExecutorHost())
+                        .port(po.getExecutorPort() != null ? po.getExecutorPort() : 0)
+                        .build())
+                .sorted(Comparator.comparing(PeerExecutorDTO::getExecutorId, Comparator.nullsLast(String::compareTo)))
+                .toList();
     }
 
     private ExecutorRegistryPO findById(String executorId) {

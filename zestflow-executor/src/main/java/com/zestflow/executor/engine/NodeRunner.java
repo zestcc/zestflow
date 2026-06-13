@@ -25,6 +25,7 @@ import com.zestflow.executor.scanner.ComponentScanner.TagDef;
 import lombok.extern.slf4j.Slf4j;
 
 import com.zestflow.executor.expression.AviatorExpressionEvaluator;
+import com.zestflow.executor.expression.ExpressionEvaluationException;
 import com.zestflow.executor.context.ExecuteResultPublisher;
 import com.zestflow.executor.http.NativeHttpClient;
 import com.zestflow.executor.http.NodeConfigBridge;
@@ -471,6 +472,8 @@ public class NodeRunner {
             Object result = AviatorExpressionEvaluator.execute(script, AviatorExpressionEvaluator.buildEnv(context));
             log.debug("脚本执行成功 nodeId={}", nodeDef.getId());
             return result;
+        } catch (ExpressionEvaluationException e) {
+            throw new RuntimeException("脚本执行失败 nodeId=" + nodeDef.getId() + " error=" + e.getMessage(), e);
         } catch (Exception e) {
             throw new RuntimeException("脚本执行失败 nodeId=" + nodeDef.getId() + " error=" + e.getMessage(), e);
         }

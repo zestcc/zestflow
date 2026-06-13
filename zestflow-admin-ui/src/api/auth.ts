@@ -31,6 +31,25 @@ export interface UpdatePasswordDTO {
 }
 
 export const authApi = {
+  getSsoConfig() {
+    return http.get<{ enabled: boolean; issuer: string; clientId: string }>('/auth/sso/config')
+  },
+
+  getSsoAuthorize() {
+    return http.get<{ authorizationUrl: string; state: string }>('/auth/sso/authorize')
+  },
+
+  ssoCallback(data: { code: string; state: string }) {
+    return http.post<{ token: string; user: UserVO; tenants?: any[]; currentTenant?: any }>(
+      '/auth/sso/callback',
+      data
+    )
+  },
+
+  getSsoLogoutUrl() {
+    return http.get<string | null>('/auth/sso/logout-url')
+  },
+
   login(data: LoginDTO) {
     return http.post<{ token: string; user: UserVO }>('/auth/login', data)
   },

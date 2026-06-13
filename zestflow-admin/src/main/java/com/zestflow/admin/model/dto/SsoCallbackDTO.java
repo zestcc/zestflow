@@ -1,0 +1,14 @@
+package com.zestflow.admin.model.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import lombok.Data;
+
+@Data
+public class SsoCallbackDTO {
+
+    @NotBlank(message = "code 不能为空")
+    private String code;
+
+    @NotBlank(message = "state 不能为空")
+    private String state;
+}

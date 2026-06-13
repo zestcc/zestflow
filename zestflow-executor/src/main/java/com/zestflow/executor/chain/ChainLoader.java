@@ -8,6 +8,7 @@ import com.zestflow.common.model.dto.ChainSyncDTO;
 import com.zestflow.executor.engine.NodeRunner;
 import org.springframework.beans.factory.ObjectProvider;
 import com.zestflow.executor.registry.AdminClient;
+import com.zestflow.executor.expression.AviatorExpressionEvaluator;
 import com.zestflow.executor.registry.ExecutorProperties;
 import com.zestflow.executor.route.ChainRouteRegistry;
 import com.zestflow.executor.scanner.ComponentScanner;
@@ -159,6 +160,7 @@ public class ChainLoader implements ApplicationRunner, Ordered {
             // 5. 加载到 ChainManager
             chainManager.reload(definitions);
             refreshHttpRoutes();
+            clearExpressionCacheIfEnabled();
 
             // 6. 通知 Admin 同步状态
             notifyAdminSync(definitions, "READY", null);
@@ -284,6 +286,7 @@ public class ChainLoader implements ApplicationRunner, Ordered {
             }
             log.info("链热加载成功 code={} nodes={} layers={}",
                     chainCode, definition.nodeCount(), definition.layerCount());
+            clearExpressionCacheIfEnabled();
 
             if (incrementVersion) {
                 chainRepo.markPublished(chainCode, null);
@@ -304,6 +307,12 @@ public class ChainLoader implements ApplicationRunner, Ordered {
 
     private void refreshHttpRoutes() {
         chainRouteRegistryProvider.ifAvailable(registry -> registry.refresh(chainManager));
+    }
+
+    private static void clearExpressionCacheIfEnabled() {
+        if (AviatorExpressionEvaluator.isClearCacheOnChainReloadEnabled()) {
+            AviatorExpressionEvaluator.clearCache();
+        }
     }
 
     /**

@@ -36,6 +36,8 @@ import com.zestflow.executor.param.resolver.ParameterResolver;
 import com.zestflow.executor.param.resolver.ZestFailureParameterResolver;
 import com.zestflow.executor.param.resolver.ZestParamResolver;
 import com.zestflow.executor.param.resolver.ZestResultParameterResolver;
+import com.zestflow.executor.expression.AviatorExpressionConfigurer;
+import com.zestflow.executor.expression.ExecutorExpressionProperties;
 import com.zestflow.executor.retry.RetryExecutor;
 import com.zestflow.executor.scanner.ComponentScanner;
 import com.zestflow.executor.chain.ChainRepository;
@@ -49,6 +51,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import com.zestflow.executor.config.ScheduleServerConfig;
 import com.zestflow.executor.schedule.*;
+import com.zestflow.executor.schedule.routing.RemoteScheduleExecutorClient;
+import com.zestflow.executor.schedule.routing.ScheduleExecutionRouter;
 import com.zestflow.executor.schedule.external.ExternalScheduleDriver;
 import com.zestflow.executor.schedule.external.XxlJobScheduleConfiguration;
 import org.springframework.boot.ApplicationRunner;
@@ -74,9 +78,14 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @AutoConfiguration
 @EnableConfigurationProperties({ExecutorProperties.class, ExecutorChainProperties.class, ExecutorEventProperties.class,
-        ExecutorScheduleProperties.class})
+        ExecutorScheduleProperties.class, ExecutorExpressionProperties.class})
 @Import({ExecutorSchedulingConfig.class, ChainRouteWebConfig.class, ScheduleServerConfig.class, XxlJobScheduleConfiguration.class})
 public class ExecutorAutoConfig {
+
+    @Bean
+    public AviatorExpressionConfigurer aviatorExpressionConfigurer(ExecutorExpressionProperties properties) {
+        return new AviatorExpressionConfigurer(properties);
+    }
 
     @Bean
     public ExecutionIdempotencyGuard executionIdempotencyGuard() {
@@ -448,10 +457,27 @@ public class ExecutorAutoConfig {
     }
 
     @Bean
+    public RemoteScheduleExecutorClient remoteScheduleExecutorClient(
+            com.zestflow.collector.http.ZestFlowHttpClient zestflowAdminHttpClient,
+            ExecutorProperties properties) {
+        return new RemoteScheduleExecutorClient(zestflowAdminHttpClient, properties);
+    }
+
+    @Bean
+    public ScheduleExecutionRouter scheduleExecutionRouter(AdminClient adminClient,
+                                                           ChainExecuteFacade chainExecuteFacade,
+                                                           RemoteScheduleExecutorClient remoteScheduleExecutorClient,
+                                                           com.zestflow.executor.schedule.routing.ScheduleRouteStrategyRegistry strategyRegistry,
+                                                           ExecutorProperties properties) {
+        return new ScheduleExecutionRouter(adminClient, chainExecuteFacade,
+                remoteScheduleExecutorClient, strategyRegistry, properties);
+    }
+
+    @Bean
     public ScheduleTriggerService scheduleTriggerService(ScheduleRepository scheduleRepository,
-                                                         ChainExecuteFacade chainExecuteFacade,
+                                                         ScheduleExecutionRouter scheduleExecutionRouter,
                                                          ExecutorProperties properties) {
-        return new ScheduleTriggerService(scheduleRepository, chainExecuteFacade, properties);
+        return new ScheduleTriggerService(scheduleRepository, scheduleExecutionRouter, properties);
     }
 
     @Bean

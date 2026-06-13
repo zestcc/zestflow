@@ -1,6 +1,7 @@
 package com.zestflow.admin.schedule;
 
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
+import com.zestflow.common.constant.ChainConstants;
 import com.zestflow.common.model.dto.ChainExecuteResultDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -80,7 +81,7 @@ class ScheduleExecutorFailoverTest {
 
     private static ChainExecuteResultDTO successResult() {
         ChainExecuteResultDTO dto = new ChainExecuteResultDTO();
-        dto.setStatus(ScheduleExecutorFailover.EXECUTE_SUCCESS);
+        dto.setStatus(ChainConstants.CHAIN_SUCCESS);
         return dto;
     }
 

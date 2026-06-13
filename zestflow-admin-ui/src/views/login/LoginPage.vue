@@ -155,6 +155,11 @@
             {{ loading ? $t('login.logging') : $t('login.loginBtn') }}
           </el-button>
         </el-form-item>
+        <el-form-item v-if="ssoEnabled">
+          <el-button class="btn-sso" :loading="ssoLoading" @click="handleSsoLogin">
+            ZestSSO 登录
+          </el-button>
+        </el-form-item>
       </el-form>
       <div class="links">
         <router-link to="/register">{{ $t('login.registerLink') }}</router-link>
@@ -174,6 +179,7 @@ import { useI18n } from 'vue-i18n'
 import { useLocale } from '@/i18n/useLocale'
 import { useUserStore } from '@/stores/user'
 import { useTenantStore } from '@/stores/tenant'
+import { authApi } from '@/api/auth'
 import Captcha from '@/components/Captcha.vue'
 
 const { t } = useI18n()
@@ -190,6 +196,8 @@ const tenantStore = useTenantStore()
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
+const ssoLoading = ref(false)
+const ssoEnabled = ref(false)
 const captchaRef = ref<InstanceType<typeof Captcha>>()
 const captchaCode = ref('')
 
@@ -201,8 +209,28 @@ const form = reactive({
 
 watch(() => route.query, (query) => {
   if (query.username) form.username = query.username as string
-  if (query.t) form.password = '' // 强制改密跳转回来时清空密码
+  if (query.t) form.password = ''
 })
+
+authApi.getSsoConfig().then((cfg: any) => {
+  ssoEnabled.value = !!cfg?.enabled
+}).catch(() => {
+  ssoEnabled.value = false
+})
+
+async function handleSsoLogin() {
+  ssoLoading.value = true
+  try {
+    const res: any = await authApi.getSsoAuthorize()
+    if (res?.authorizationUrl) {
+      window.location.href = res.authorizationUrl
+    }
+  } catch {
+    ElMessage.error('SSO 登录初始化失败')
+  } finally {
+    ssoLoading.value = false
+  }
+}
 
 const rules: FormRules = {
   username: [{ required: true, message: () => t('login.usernameRequired'), trigger: 'blur' }],

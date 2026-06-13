@@ -16,6 +16,7 @@ import com.zestflow.admin.service.UserService;
 import com.zestflow.admin.util.JwtUtils;
 import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.common.exception.BizException;
+import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -81,6 +82,118 @@ public class UserServiceImpl implements UserService {
                 .tenants(tenants)
                 .currentTenant(defaultTenant)
                 .build();
+    }
+
+    private static final String SSO_PROVIDER = "zest-sso";
+
+    @Override
+    public LoginVO loginBySso(Claims claims) {
+        String subject = claims.getSubject();
+        if (subject == null || subject.isBlank()) {
+            throw new BizException(ErrorCode.INVALID_CREDENTIALS, "SSO subject 缺失");
+        }
+
+        UserPO user = userMapper.findBySsoSubject(SSO_PROVIDER, subject);
+        if (user == null) {
+            user = provisionSsoUser(claims, subject);
+        }
+
+        if (user.getStatus() != null && user.getStatus() == 0) {
+            throw new BizException(ErrorCode.USER_DISABLED);
+        }
+
+        List<TenantSimpleVO> tenants = tenantService.listUserTenants(user.getId());
+        TenantSimpleVO defaultTenant = tenantService.getDefaultTenant(user.getId());
+        Long currentTenantId = resolveTenantId(claims, defaultTenant);
+
+        String token = jwtUtils.generateToken(
+                user.getId(), user.getUsername(), user.getIsSuperAdmin() == 1, currentTenantId);
+        UserVO userVO = toUserVO(user);
+        userVO.setTenants(tenants);
+        return LoginVO.builder()
+                .token(token)
+                .user(userVO)
+                .tenants(tenants)
+                .currentTenant(defaultTenant)
+                .build();
+    }
+
+    private UserPO provisionSsoUser(Claims claims, String subject) {
+        String username = readClaim(claims, "preferred_username");
+        if (username == null || username.isBlank()) {
+            username = "sso_" + subject;
+        }
+        String email = readClaim(claims, "email");
+
+        UserPO existing = userMapper.findByUsername(username);
+        if (existing != null) {
+            existing.setSsoProvider(SSO_PROVIDER);
+            existing.setSsoSubject(subject);
+            if (email != null && !email.isBlank()) {
+                existing.setEmail(email);
+            }
+            if (isSsoAdmin(claims)) {
+                existing.setIsSuperAdmin(1);
+            }
+            userMapper.updateById(existing);
+            return existing;
+        }
+
+        UserPO user = new UserPO();
+        user.setUsername(username);
+        user.setEmail(email);
+        user.setSsoProvider(SSO_PROVIDER);
+        user.setSsoSubject(subject);
+        user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+        user.setStatus(1);
+        user.setIsSuperAdmin(isSsoAdmin(claims) ? 1 : 0);
+        user.setEmailVerified(1);
+        user.setCreatedAt(LocalDateTime.now());
+        user.setUpdatedAt(LocalDateTime.now());
+        userMapper.insert(user);
+
+        UserTenantPO ut = new UserTenantPO();
+        ut.setUserId(user.getId());
+        Long tenantId = readTenantId(claims);
+        ut.setTenantId(tenantId != null ? tenantId : 1L);
+        ut.setIsTenantAdmin(0);
+        ut.setCreatedAt(LocalDateTime.now());
+        userTenantMapper.insert(ut);
+
+        return user;
+    }
+
+    private boolean isSsoAdmin(Claims claims) {
+        Object roles = claims.get("roles");
+        if (roles instanceof List<?> list) {
+            return list.stream().anyMatch(r -> "SSO_ADMIN".equals(String.valueOf(r)));
+        }
+        return false;
+    }
+
+    private Long resolveTenantId(Claims claims, TenantSimpleVO defaultTenant) {
+        Long claimTenant = readTenantId(claims);
+        if (claimTenant != null) {
+            return claimTenant;
+        }
+        return defaultTenant != null ? defaultTenant.getId() : 1L;
+    }
+
+    private Long readTenantId(Claims claims) {
+        Object tenantId = claims.get("tenant_id");
+        if (tenantId == null) {
+            return null;
+        }
+        try {
+            return Long.valueOf(tenantId.toString());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private String readClaim(Claims claims, String name) {
+        Object value = claims.get(name);
+        return value != null ? value.toString() : null;
     }
 
     @Override

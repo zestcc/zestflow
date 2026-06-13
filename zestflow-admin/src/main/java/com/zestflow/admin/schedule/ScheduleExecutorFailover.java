@@ -16,9 +16,6 @@ import java.util.Objects;
  */
 public final class ScheduleExecutorFailover {
 
-    /** 链执行成功状态（与 Executor 引擎一致） */
-    public static final int EXECUTE_SUCCESS = 3;
-
     private ScheduleExecutorFailover() {
     }
 
@@ -90,7 +87,7 @@ public final class ScheduleExecutorFailover {
     }
 
     public static boolean isSuccess(ChainExecuteResultDTO result) {
-        return result != null && result.getStatus() != null && result.getStatus() == EXECUTE_SUCCESS;
+        return result != null && result.isSuccess();
     }
 
     private static ChainExecuteRequestDTO buildRequest(String chainCode,

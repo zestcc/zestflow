@@ -84,6 +84,21 @@ zestflow:
     # 队列容量
     execute-pool-queue-capacity: 256
 
+    # ---- Aviator 表达式引擎（边条件 / SCRIPT 节点 / While 循环） ----
+    expression:
+      # 单次求值/脚本执行超时（毫秒）
+      timeout-ms: 5000
+      # 表达式最大字符数
+      max-script-length: 10000
+      # 编译缓存 LRU 上限
+      max-cache-size: 1000
+      # Aviator 循环次数上限（防 busy-loop）
+      max-loop-count: 10000
+      # 条件求值失败是否视为 true（默认 false = fail-closed）
+      condition-fail-open: false
+      # 链热加载成功后清理表达式编译缓存
+      clear-cache-on-chain-reload: true
+
     # ---- AI 知识库（Executor 主路径 {data-dir}/ai/） ----
     # llm-enabled=true 时 /api/ai/chains/suggest 走 OpenAI 兼容 LLM + Hybrid RAG
     ai:

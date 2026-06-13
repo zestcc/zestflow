@@ -50,6 +50,13 @@ zestflow:
       declaration-sync-enabled: false
       declaration-delete-guard-enabled: true
       reload-polling-enabled: false
+    expression:
+      timeout-ms: 5000
+      max-script-length: 10000
+      max-cache-size: 1000
+      max-loop-count: 10000
+      condition-fail-open: false
+      clear-cache-on-chain-reload: true
     ai:
       llm-enabled: false
       rag-mode: keyword

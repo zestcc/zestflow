@@ -1,7 +1,10 @@
 package com.zestflow.admin.service;
 
-import com.zestflow.common.model.dto.RegisterDTO;
 import com.zestflow.common.model.dto.HeartbeatDTO;
+import com.zestflow.common.model.dto.PeerExecutorDTO;
+import com.zestflow.common.model.dto.RegisterDTO;
+
+import java.util.List;
 
 public interface RegistryService {
 
@@ -16,4 +19,7 @@ public interface RegistryService {
 
     /** 手动变更执行器状态 */
     void updateStatus(String executorId, Integer status);
+
+    /** 查询同应用在线 Executor 对等节点（调度路由 / Failover） */
+    List<PeerExecutorDTO> listOnlinePeers(String appCode);
 }

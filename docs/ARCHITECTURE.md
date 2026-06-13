@@ -544,7 +544,7 @@ flowchart TD
 
 - **算法**：Kahn BFS，每轮入度为 0 的节点归为同一层
 - **并行**：同层节点由 `ForkJoinPool(min(CPU×2, 16))` 并行执行
-- **条件边**：`ChainEdge.condition` 通过 ScriptEngine 求值（如 `params.approved == 'true'`）
+- **条件边**：`ChainEdge.condition` 通过 **Aviator** 求值（如 `price > 100 && StringUtils.hasText(type)`）
 - **环路检测**：无入度为 0 节点时 WARN
 
 #### 5.2.7 Executor Netty API
@@ -1713,7 +1713,7 @@ timeline
     title ZestFlow 演进路线
     section 近期
         Flyway 版本化迁移 : init.sql → V{n}__*.sql
-        SpEL/Groovy 条件路由 : 替代简单 ScriptEngine
+        SpEL 条件路由增强 : 与 Aviator 并存，覆盖 Spring 惯用场景
         Fallback 策略丰富化 : 返回值/异常映射
     section 中期
         WebSocket 实时执行状态 : 日志页/live dashboard
@@ -1731,7 +1731,7 @@ timeline
 |------|------|
 | Admin 单点 | 单进程，重启期间不可发布 |
 | 调度锁 | 无分布式锁，Admin 集群需额外方案 |
-| 条件表达式 | ScriptEngine 简单表达式 |
+| 条件表达式 | **Aviator 5.x**（超时/循环上限/黑名单）；复杂逻辑用 `@ZestPredicate` 元件 |
 | Fallback | 默认仅打日志 |
 | Flyway | classpath 有，默认 disabled |
 | WebSocket | 未实现 |

@@ -8,6 +8,7 @@ import com.zestflow.common.model.Result;
 import com.zestflow.common.model.dto.ChainDefinitionDTO;
 import com.zestflow.common.model.dto.ChainSyncDTO;
 import com.zestflow.common.model.dto.HeartbeatDTO;
+import com.zestflow.common.model.dto.PeerExecutorDTO;
 import com.zestflow.common.model.dto.RegisterDTO;
 import com.zestflow.common.registry.RegistryRegisterDiagnostics;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,9 @@ public class AdminClient {
 
     private static final TypeReference<Result<ChainDefinitionDTO>> RESULT_CHAIN_DEF_TYPE =
             new TypeReference<Result<ChainDefinitionDTO>>() {};
+
+    private static final TypeReference<Result<List<PeerExecutorDTO>>> RESULT_PEER_LIST_TYPE =
+            new TypeReference<>() {};
 
     public boolean register(RegisterDTO dto) {
         List<String> adminList = parseAddresses();
@@ -147,6 +151,30 @@ public class AdminClient {
                 log.warn("通知链同步失败 adminUrl={} error={}", adminUrl, e.getMessage(), e);
             }
         }
+    }
+
+    /**
+     * 查询同应用在线 Executor 对等节点（调度路由 / Failover）。
+     */
+    public List<PeerExecutorDTO> fetchOnlinePeers(String appCode) {
+        if (appCode == null || appCode.isBlank()) {
+            return Collections.emptyList();
+        }
+        List<String> adminList = parseAddresses();
+        for (String adminUrl : adminList) {
+            try {
+                String url = adminUrl + AdminApiPaths.of("/registry/peers?appCode=" + appCode);
+                Result<List<PeerExecutorDTO>> result =
+                        httpClient.get(url, buildHeaders(), RESULT_PEER_LIST_TYPE);
+                if (result != null && result.getCode() == 200 && result.getData() != null) {
+                    return result.getData();
+                }
+            } catch (Throwable e) {
+                log.warn("获取在线 Executor 列表失败 appCode={} adminUrl={} error={}",
+                        appCode, adminUrl, e.getMessage(), e);
+            }
+        }
+        return Collections.emptyList();
     }
 
     private Map<String, String> buildHeaders() {

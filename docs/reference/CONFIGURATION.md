@@ -60,6 +60,19 @@
 | `node-default-retry-count` | `0` | 节点默认重试次数 |
 | `declaration-sync-enabled` | `true` | `@ZestChain` 占位同步 |
 
+### zestflow.executor.expression.*
+
+Aviator 表达式引擎（边条件 / SCRIPT 节点 / While 循环）。详见 [CHAIN_ORCHESTRATION.md](../guides/CHAIN_ORCHESTRATION.md) §10。
+
+| 属性 | 默认 | 说明 |
+|------|------|------|
+| `timeout-ms` | `5000` | 单次求值/脚本超时（毫秒） |
+| `max-script-length` | `10000` | 表达式最大字符数 |
+| `max-cache-size` | `1000` | 编译缓存 LRU 上限 |
+| `max-loop-count` | `10000` | Aviator 循环次数上限 |
+| `condition-fail-open` | `false` | 条件失败是否视为 true（默认 fail-closed） |
+| `clear-cache-on-chain-reload` | `true` | 链热加载后清编译缓存 |
+
 ### zestflow.executor.event.*
 
 由 `collector-jdbc` 绑定，常用项：

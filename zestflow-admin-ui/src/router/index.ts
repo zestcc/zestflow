@@ -9,6 +9,12 @@ const routes: RouteRecordRaw[] = [
     redirect: '/dashboard',
   },
   {
+    path: '/login/callback',
+    name: 'SsoCallback',
+    component: () => import('@/views/login/SsoCallbackPage.vue'),
+    meta: { requiresAuth: false },
+  },
+  {
     path: '/login',
     name: 'Login',
     component: () => import('@/views/login/LoginPage.vue'),

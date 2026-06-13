@@ -38,7 +38,7 @@ Terminology: [reference/GLOSSARY.en.md](../reference/GLOSSARY.en.md).
 | Executor | Invokes `@ZestExecute` components |
 | Condition | Branching; references `@ZestPredicate` |
 | Selector | Multi-way selection |
-| Script | Aviator expression |
+| Script | Aviator expression (see §10) |
 | Sub-chain | Nests another chain |
 
 Node type constants: `ChainConstants.NODE_TYPE_*`.
@@ -128,6 +128,63 @@ Configurable at chain or node level:
 ## 9. AI Copilot assistance
 
 Admin includes a built-in chain orchestration Copilot supporting natural language → chain draft, expression generation, and diagnostics. See [AI_COPILOT.md](../AI_COPILOT.en.md).
+
+---
+
+## 10. Aviator expressions
+
+ZestFlow uses [Aviator 5.x](https://github.com/killme2008/aviator) for **edge conditions, SCRIPT nodes, and While loop conditions** (not LiteFlow EL, not Groovy).
+
+### 10.1 Expression vs component
+
+| Scenario | Prefer | Why |
+|----------|--------|-----|
+| Simple compare / empty check / numeric range | **Aviator edge condition** | Lightweight, hot-reloadable, AI-friendly |
+| Multi-field logic + external calls | **`@ZestPredicate` component** | Testable, observable, no sandbox limits |
+| Data mapping / simple math | **SCRIPT node (Aviator)** | Transform context without new Java |
+| > ~5 lines or IO/DB | **`@ZestExecute` component** | Scripts must not carry business logic |
+| Chain topology | **Designer DAG** | Do not encode flow in expressions |
+
+### 10.2 Syntax essentials
+
+- Read context: `chainCtx.get(ctx, 'orderId')` or designer-normalized `ctx.get('orderId')`
+- Write context: `chainCtx.put(ctx, 'key', value)` / `ctx.put('key', value)`
+- Empty string: `StringUtils.hasText(status)`
+- Prefix: `aviator:` optional; `groovy:` deprecated
+- **Forbidden**: Java reflection, `Runtime`, `System`, `java.lang.*` (static blocklist)
+
+Failed conditions default to **fail-closed** (`false`). SCRIPT failures fail the node.
+
+### 10.3 Configuration (`zestflow.executor.expression.*`)
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `timeout-ms` | `5000` | Per-evaluation/script timeout |
+| `max-script-length` | `10000` | Max expression length |
+| `max-cache-size` | `1000` | Compile cache LRU size |
+| `max-loop-count` | `10000` | Loop iteration cap |
+| `condition-fail-open` | `false` | Fail-open for conditions |
+| `clear-cache-on-chain-reload` | `true` | Clear cache on hot reload |
+
+Defaults: `zestflow-executor/src/main/resources/application.yml`.
+
+### 10.4 Examples
+
+**Edge condition:**
+
+```text
+price > 100 && StringUtils.hasText(supplierType)
+```
+
+**SCRIPT node:**
+
+```text
+let total = long(price) * long(qty);
+ctx.put('amount', total);
+seq.map('amount', total)
+```
+
+See Admin RAG `aviator-expressions.md` and MCP rule `zestflow://rules/aviator`.
 
 ---
 

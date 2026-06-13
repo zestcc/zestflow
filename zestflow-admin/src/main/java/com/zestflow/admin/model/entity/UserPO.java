@@ -16,6 +16,10 @@ public class UserPO {
 
     private String email;
 
+    private String ssoSubject;
+
+    private String ssoProvider;
+
     private String password;
 
     private String avatar;

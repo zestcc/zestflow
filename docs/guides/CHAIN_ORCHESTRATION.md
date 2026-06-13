@@ -38,7 +38,7 @@
 | 执行器 | 调用 `@ZestExecute` 元件 |
 | 条件 | 分支，引用 `@ZestPredicate` |
 | 选择器 | 多路选择 |
-| 脚本 | Aviator 表达式 |
+| 脚本 | Aviator 表达式（见 §10） |
 | 子链 | 嵌套另一条链 |
 
 节点类型常量见 `ChainConstants.NODE_TYPE_*`。
@@ -128,6 +128,63 @@
 ## 9. AI Copilot 辅助
 
 Admin 内置链编排 Copilot，支持自然语言 → 链草稿、表达式生成与诊断。见 [AI_COPILOT.md](../AI_COPILOT.md)。
+
+---
+
+## 10. Aviator 表达式
+
+ZestFlow 使用 [Aviator 5.x](https://github.com/killme2008/aviator) 作为**边条件、SCRIPT 节点、While 循环条件**的统一表达式引擎（非 LiteFlow EL，非 Groovy）。
+
+### 10.1 何时用表达式 vs 元件
+
+| 场景 | 推荐 | 原因 |
+|------|------|------|
+| 简单比较、字符串判空、数值范围 | **Aviator 边条件** | 轻量、可热更新、AI 可生成 |
+| 多字段组合 + 调外部服务 | **`@ZestPredicate` 元件** | 可单测、可观测、无沙箱限制 |
+| 数据映射 / 简单计算 | **SCRIPT 节点（Aviator）** | 不写 Java 也能变换上下文 |
+| 超过 ~5 行或含 IO/DB | **`@ZestExecute` 元件** | 脚本不适合承载业务逻辑 |
+| 链结构（串并联、分支） | **设计器 DAG** | 不要用表达式描述拓扑 |
+
+### 10.2 语法要点
+
+- 读取上下文：`chainCtx.get(ctx, 'orderId')` 或设计器自动转换的 `ctx.get('orderId')`
+- 写入上下文：`chainCtx.put(ctx, 'key', value)` / `ctx.put('key', value)`
+- 字符串判空：`StringUtils.hasText(status)`
+- 前缀：`aviator:` 可省略；`groovy:` 已废弃
+- **禁止** Java 反射、`Runtime`、`System`、`java.lang.*` 等（编译前静态拦截）
+
+条件表达式求值失败时默认 **fail-closed**（视为 `false`，走 false 分支）。SCRIPT 节点失败则节点报错。
+
+### 10.3 配置（`zestflow.executor.expression.*`）
+
+| 属性 | 默认 | 说明 |
+|------|------|------|
+| `timeout-ms` | `5000` | 单次求值/脚本超时（毫秒） |
+| `max-script-length` | `10000` | 表达式最大字符数 |
+| `max-cache-size` | `1000` | 编译缓存 LRU 上限 |
+| `max-loop-count` | `10000` | Aviator 循环次数上限 |
+| `condition-fail-open` | `false` | 条件失败是否视为 true |
+| `clear-cache-on-chain-reload` | `true` | 链热加载后清编译缓存 |
+
+完整默认值见 `zestflow-executor/src/main/resources/application.yml`。
+
+### 10.4 示例
+
+**边条件：**
+
+```text
+price > 100 && StringUtils.hasText(supplierType)
+```
+
+**SCRIPT 节点：**
+
+```text
+let total = long(price) * long(qty);
+ctx.put('amount', total);
+seq.map('amount', total)
+```
+
+更多片段见 Admin RAG `aviator-expressions.md` 与 MCP 规则 `zestflow://rules/aviator`。
 
 ---
 

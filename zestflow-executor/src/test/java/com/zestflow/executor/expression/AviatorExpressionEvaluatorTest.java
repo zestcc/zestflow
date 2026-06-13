@@ -1,6 +1,8 @@
 package com.zestflow.executor.expression;
 
 import com.zestflow.executor.context.ChainContext;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -9,6 +11,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AviatorExpressionEvaluatorTest {
+
+    @BeforeEach
+    void setUp() {
+        AviatorExpressionEvaluator.resetToDefaults();
+    }
+
+    @AfterEach
+    void tearDown() {
+        AviatorExpressionEvaluator.resetToDefaults();
+    }
 
     @Test
     void evaluateBooleanWithStringUtilsHasText() {
@@ -22,6 +34,17 @@ class AviatorExpressionEvaluatorTest {
         assertThat(AviatorExpressionEvaluator.evaluateBoolean(
                 "StringUtils.hasText(supplierType)",
                 Map.of())).isFalse();
+    }
+
+    @Test
+    void evaluateBooleanFailOpenWhenConfigured() {
+        ExecutorExpressionProperties props = new ExecutorExpressionProperties();
+        props.setConditionFailOpen(true);
+        AviatorExpressionEvaluator.configure(props);
+
+        assertThat(AviatorExpressionEvaluator.evaluateBoolean(
+                "!!! invalid @@@",
+                Map.of())).isTrue();
     }
 
     @Test
@@ -61,6 +84,59 @@ class AviatorExpressionEvaluatorTest {
     @Test
     void executeEmptyScriptThrows() {
         assertThatThrownBy(() -> AviatorExpressionEvaluator.execute("", Map.of()))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(ExpressionEvaluationException.class);
+    }
+
+    @Test
+    void executeForbiddenPatternThrows() {
+        assertThatThrownBy(() -> AviatorExpressionEvaluator.execute(
+                "Runtime.getRuntime()", Map.of()))
+                .isInstanceOf(ExpressionEvaluationException.class)
+                .hasMessageContaining("禁止");
+    }
+
+    @Test
+    void executeExceedsMaxLengthThrows() {
+        ExecutorExpressionProperties props = new ExecutorExpressionProperties();
+        props.setMaxScriptLength(8);
+        AviatorExpressionEvaluator.configure(props);
+
+        assertThatThrownBy(() -> AviatorExpressionEvaluator.execute(
+                "1 + 2 + 3 + 4 + 5", Map.of()))
+                .isInstanceOf(ExpressionEvaluationException.class)
+                .hasMessageContaining("长度");
+    }
+
+    @Test
+    void executeTimeoutThrows() {
+        ExecutorExpressionProperties props = new ExecutorExpressionProperties();
+        props.setTimeoutMs(100);
+        props.setMaxLoopCount(1_000_000);
+        AviatorExpressionEvaluator.configure(props);
+
+        assertThatThrownBy(() -> AviatorExpressionEvaluator.execute(
+                "while(true) { 1 }", Map.of()))
+                .isInstanceOf(ExpressionEvaluationException.class)
+                .hasMessageContaining("超时");
+    }
+
+    @Test
+    void executeExceedsMaxLoopCountThrows() {
+        ExecutorExpressionProperties props = new ExecutorExpressionProperties();
+        props.setMaxLoopCount(5);
+        props.setTimeoutMs(30_000);
+        AviatorExpressionEvaluator.configure(props);
+
+        assertThatThrownBy(() -> AviatorExpressionEvaluator.execute(
+                "while(true) { 1 }", Map.of()))
+                .isInstanceOf(ExpressionEvaluationException.class);
+    }
+
+    @Test
+    void clearCacheResetsCompiledExpressions() {
+        AviatorExpressionEvaluator.execute("1 + 1", Map.of());
+        AviatorExpressionEvaluator.clearCache();
+        Object result = AviatorExpressionEvaluator.execute("2 + 2", Map.of());
+        assertThat(result).isEqualTo(4L);
     }
 }

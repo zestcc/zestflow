@@ -15,6 +15,10 @@ import java.util.List;
 @Mapper
 public interface UserMapper extends BaseMapper<UserPO> {
 
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT * FROM `user` WHERE sso_provider = #{provider} AND sso_subject = #{subject} LIMIT 1")
+    UserPO findBySsoSubject(@Param("provider") String provider, @Param("subject") String subject);
+
     /**
      * 按用户名查找（忽略租户过滤，用于登录）
      */

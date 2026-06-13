@@ -1,197 +1,88 @@
 package com.zestflow.executor.expression;
 
-import com.googlecode.aviator.AviatorEvaluator;
-import com.googlecode.aviator.AviatorEvaluatorInstance;
-import com.googlecode.aviator.Expression;
 import com.zestflow.executor.context.ChainContext;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.StringUtils;
 
-import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.regex.Pattern;
 
 /**
  * Aviator 表达式求值防腐层（替代 Groovy JSR-223）。
  * <p>
- * 用于：判断元件内联脚本、边条件、SCRIPT 节点表达式。
+ * 用于：判断元件内联脚本、边条件、SCRIPT 节点表达式、While 循环条件。
  * <p>
  * 安全加固：
  * <ul>
- *   <li>表达式编译缓存，避免重复编译</li>
- *   <li>脚本执行超时控制</li>
- *   <li>禁用危险函数（System、Runtime、Class 等）</li>
- *   <li>脚本最大长度限制</li>
+ *   <li>表达式编译 LRU 缓存</li>
+ *   <li>独立线程池 + {@link java.util.concurrent.Future#get(long, TimeUnit)} 执行超时</li>
+ *   <li>Aviator {@link com.googlecode.aviator.Options#MAX_LOOP_COUNT} 循环上限</li>
+ *   <li>禁用危险内置函数 + 静态模式黑名单</li>
+ *   <li>脚本最大长度限制（可配置 {@code zestflow.executor.expression.max-script-length}）</li>
  * </ul>
+ * <p>
+ * Spring 环境下由 {@link AviatorExpressionConfigurer} 注入 {@link ExecutorExpressionProperties}；
+ * 单元测试可调用 {@link #configure(ExecutorExpressionProperties)}。
  */
-@Slf4j
 public final class AviatorExpressionEvaluator {
 
-    private static final AviatorEvaluatorInstance ENGINE = AviatorEvaluator.newInstance();
-
-    /** 表达式编译缓存 */
-    private static final ConcurrentHashMap<String, Expression> EXPRESSION_CACHE = new ConcurrentHashMap<>();
-    /** 缓存最大容量 */
-    private static final int MAX_CACHE_SIZE = 1000;
-    /** 脚本最大长度（字符） */
-    private static final int MAX_SCRIPT_LENGTH = 10_000;
-    /** 脚本执行超时（毫秒） */
-    private static final long SCRIPT_TIMEOUT_MS = 5_000L;
-
-    /** Groovy 风格 {@code ctx.put/get} 转为 Aviator 实例方法：{@code chainCtx.put/get(ctx, ...)} */
-    private static final String CTX_FN_NAMESPACE = "chainCtx";
-    private static final Pattern CTX_PUT_CALL = Pattern.compile("ctx\\.put\\((?!ctx,)");
-    private static final Pattern CTX_GET_CALL = Pattern.compile("ctx\\.get\\((?!ctx,)");
-
-    static {
-        try {
-            // 禁用危险函数
-            ENGINE.addStaticFunctions("StringUtils", StringUtils.class);
-            // 命名空间须与 env 中的 ctx 变量区分，避免 Aviator 将 ctx.get 解析为属性访问
-            ENGINE.addInstanceFunctions(CTX_FN_NAMESPACE, ChainContext.class);
-
-            // 移除可能危险的默认函数
-            ENGINE.removeFunction("sys");
-            ENGINE.removeFunction("exec");
-            ENGINE.removeFunction("load");
-            ENGINE.removeFunction("include");
-            ENGINE.removeFunction("eval");
-            ENGINE.removeFunction("compile");
-            ENGINE.removeFunction("require");
-            ENGINE.removeFunction("new");
-            ENGINE.removeFunction("invoke");
-        } catch (Exception e) {
-            throw new ExceptionInInitializerError("Aviator 注册函数失败: " + e.getMessage());
-        }
-    }
+    private static volatile AviatorExpressionRuntime runtime = AviatorExpressionRuntime.defaults();
 
     private AviatorExpressionEvaluator() {
     }
 
     /**
-     * 构建 Aviator 执行环境：上下文变量 + params 别名。
+     * 应用配置（Spring 启动或测试用）。
      */
+    public static void configure(ExecutorExpressionProperties properties) {
+        runtime = new AviatorExpressionRuntime(properties);
+    }
+
+    /**
+     * 重置为默认配置（测试 teardown）。
+     */
+    public static void resetToDefaults() {
+        runtime = AviatorExpressionRuntime.defaults();
+    }
+
     public static Map<String, Object> buildEnv(Map<String, Object> snapshot) {
-        Map<String, Object> env = new HashMap<>(snapshot);
-        env.put("params", new HashMap<>(snapshot));
-        return env;
+        return runtime.buildEnv(snapshot);
     }
 
-    /**
-     * SCRIPT 节点环境：额外注入 ctx。
-     */
     public static Map<String, Object> buildEnv(ChainContext context) {
-        Map<String, Object> env = buildEnv(context.snapshot());
-        env.put("ctx", context);
-        return env;
+        return runtime.buildEnv(context);
     }
 
-    /**
-     * 规范化表达式：去 ${} 占位符、剥离 groovy:/aviator: 前缀。
-     */
     public static String normalizeExpression(String expression) {
-        if (expression == null || expression.isEmpty()) {
-            return "";
-        }
-        String expr = expression.trim();
-        expr = expr.replaceAll("\\$\\{([^}]*)\\}", "$1");
-        if (expr.regionMatches(true, 0, "groovy:", 0, 7)) {
-            log.warn("表达式仍使用已废弃的 groovy: 前缀，请改为 aviator: 或纯 Aviator 语法 expr={}", expr);
-            expr = expr.substring(7).trim();
-        } else if (expr.regionMatches(true, 0, "aviator:", 0, 8)) {
-            expr = expr.substring(8).trim();
-        }
-        return normalizeCtxMethodCalls(expr);
+        return runtime.normalizeExpression(expression);
     }
 
-    /**
-     * Groovy 风格 ctx 方法调用兼容：Aviator 需 {@code chainCtx.put/get(ctx, ...)} 形式。
-     */
     static String normalizeCtxMethodCalls(String expr) {
-        if (expr == null || expr.isEmpty()) {
-            return expr;
-        }
-        String normalized = CTX_PUT_CALL.matcher(expr).replaceAll(CTX_FN_NAMESPACE + ".put(ctx, ");
-        return CTX_GET_CALL.matcher(normalized).replaceAll(CTX_FN_NAMESPACE + ".get(ctx, ");
+        return runtime.normalizeCtxMethodCalls(expr);
     }
 
     /**
-     * 求值布尔表达式；异常或空表达式按调用方约定处理。
+     * 求值布尔表达式；异常或空表达式按 fail-closed（默认 false）处理。
      */
     public static boolean evaluateBoolean(String expression, Map<String, Object> snapshot) {
-        String expr = normalizeExpression(expression);
-        if (expr.isEmpty()) {
-            return true;
-        }
-        try {
-            Object result = ENGINE.execute(expr, buildEnv(snapshot));
-            return toBoolean(result);
-        } catch (Exception e) {
-            log.error("条件表达式评估失败 condition={}", expression, e);
-            return false;
-        }
+        return runtime.evaluateBoolean(expression, snapshot);
     }
 
     /**
      * 执行表达式并返回结果（SCRIPT 节点等）。
-     * 含安全校验：脚本长度限制、编译缓存、执行超时。
      */
     public static Object execute(String script, Map<String, Object> env) {
-        String expr = normalizeExpression(script);
-        if (expr.isEmpty()) {
-            throw new IllegalArgumentException("脚本内容为空");
-        }
-        // 脚本长度限制
-        if (expr.length() > MAX_SCRIPT_LENGTH) {
-            throw new IllegalArgumentException(
-                    "脚本长度超过限制 length=" + expr.length() + " max=" + MAX_SCRIPT_LENGTH);
-        }
-
-        try {
-            // 使用编译缓存
-            Expression compiled = getOrCompile(expr);
-            return compiled.execute(env);
-        } catch (Exception e) {
-            log.error("脚本执行失败 script={}", script, e);
-            throw new RuntimeException("脚本执行失败: " + e.getMessage(), e);
-        }
+        return runtime.execute(script, env);
     }
 
     /**
-     * 获取或编译表达式（带缓存）
-     */
-    private static Expression getOrCompile(String expr) {
-        Expression cached = EXPRESSION_CACHE.get(expr);
-        if (cached != null) {
-            return cached;
-        }
-        // 缓存大小控制
-        if (EXPRESSION_CACHE.size() >= MAX_CACHE_SIZE) {
-            log.warn("表达式缓存已满，将清理部分缓存 currentSize={}", EXPRESSION_CACHE.size());
-            EXPRESSION_CACHE.clear();
-        }
-        Expression compiled = ENGINE.compile(expr, true);
-        EXPRESSION_CACHE.put(expr, compiled);
-        return compiled;
-    }
-
-    /**
-     * 清理表达式缓存（用于热加载场景）
+     * 清理表达式编译缓存（链热加载时可调用）。
      */
     public static void clearCache() {
-        int size = EXPRESSION_CACHE.size();
-        EXPRESSION_CACHE.clear();
-        log.info("表达式缓存已清理 clearedCount={}", size);
+        runtime.clearCache();
     }
 
-    private static boolean toBoolean(Object result) {
-        if (result == null) {
-            return false;
-        }
-        if (result instanceof Boolean bool) {
-            return bool;
-        }
-        return Boolean.TRUE.equals(result);
+    /**
+     * 当前是否配置了链热加载清缓存（供 ChainLoader 读取）。
+     */
+    public static boolean isClearCacheOnChainReloadEnabled() {
+        return runtime.getProperties().isClearCacheOnChainReload();
     }
 }
