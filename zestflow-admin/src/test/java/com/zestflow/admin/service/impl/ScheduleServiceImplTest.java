@@ -119,6 +119,25 @@ class ScheduleServiceImplTest {
     }
 
     @Test
+    void trigger_whenPlatformAndChainShareId_prefersChainOnExecutor() {
+        SchedulePO platform = new SchedulePO();
+        platform.setId(8L);
+        platform.setJobType(ScheduleJobType.PLATFORM);
+        platform.setJobKey("collector.alert.execution-sla");
+        platform.setRemote(1);
+        when(scheduleMapper.selectById(8L)).thenReturn(platform);
+        when(scheduleChainProxyService.getById("app-a", 8L)).thenReturn(ScheduleVO.builder().id(8L).jobType(ScheduleJobType.CHAIN).build());
+        ScheduleLogVO log = ScheduleLogVO.builder().id(11L).scheduleId(8L).status(1).build();
+        when(scheduleChainProxyService.trigger("app-a", 8L)).thenReturn(log);
+
+        ScheduleLogVO result = scheduleService.trigger(8L);
+
+        assertThat(result.getStatus()).isEqualTo(1);
+        verify(scheduleChainProxyService).trigger("app-a", 8L);
+        verify(platformJobRunner, never()).runManual(anyString());
+    }
+
+    @Test
     void create_withoutAppCode_throws() {
         when(tenantAppContext.getCurrentUserAppCodes()).thenReturn(Collections.emptySet());
         ScheduleCreateDTO dto = new ScheduleCreateDTO();

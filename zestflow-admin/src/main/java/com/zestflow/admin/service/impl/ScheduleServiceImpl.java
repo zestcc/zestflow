@@ -159,6 +159,9 @@ public class ScheduleServiceImpl implements ScheduleService {
     public ScheduleLogVO trigger(Long id) {
         SchedulePO schedule = scheduleMapper.selectById(id);
         if (schedule != null && ScheduleJobType.PLATFORM.equals(schedule.getJobType())) {
+            if (chainScheduleExistsOnExecutor(resolvePrimaryAppCode(), id)) {
+                return scheduleChainProxyService.trigger(resolveAppCodeForChainSchedule(id), id);
+            }
             if (schedule.getRemote() != null && schedule.getRemote() == 1) {
                 throw new BizException(ErrorCode.SCHEDULE_NOT_FOUND, "节点本地任务请在对应节点查看执行状态");
             }
@@ -169,6 +172,15 @@ public class ScheduleServiceImpl implements ScheduleService {
             }
         }
         return scheduleChainProxyService.trigger(resolveAppCodeForChainSchedule(id), id);
+    }
+
+    private boolean chainScheduleExistsOnExecutor(String appCode, Long id) {
+        try {
+            scheduleChainProxyService.getById(appCode, id);
+            return true;
+        } catch (BizException e) {
+            return false;
+        }
     }
 
     @Override

@@ -74,10 +74,19 @@ if (-not $scheduleId) {
     $chainName = $null
     if ($chains.ok) {
         foreach ($row in (Get-PageRecords $chains.body)) {
-            if ($row.status -eq 4 -and $row.code) {
+            if ($row.code -eq 'CHN_DEMO_NODE_1' -and $row.status -eq 4) {
                 $chainCode = [string]$row.code
                 $chainName = [string]$row.name
                 break
+            }
+        }
+        if (-not $chainCode) {
+            foreach ($row in (Get-PageRecords $chains.body)) {
+                if ($row.status -eq 4 -and $row.code) {
+                    $chainCode = [string]$row.code
+                    $chainName = [string]$row.name
+                    break
+                }
             }
         }
         if (-not $chainCode) {

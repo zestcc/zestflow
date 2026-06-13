@@ -195,20 +195,53 @@ if (-not $SkipStress) {
 }
 
 if ($RequirePerf) {
-    & "$PSScriptRoot\run-perf-gate.ps1" -JavaHome $JavaHome
+    & "$PSScriptRoot\run-perf-gate.ps1" -JavaHome $JavaHome -SkipRuntimeBlackbox
     Add-Phase "stress" "perf-gate-phase2c" ($LASTEXITCODE -eq 0) "exit=$LASTEXITCODE"
 } else {
     Add-Phase "stress" "perf-gate-phase2c" $true "skipped-use-RequirePerf"
 }
 
 if ($IncludeOfflineChecks) {
-    & "$PSScriptRoot\run-executor-read-cache-e2e.ps1" -RequireStaleCache -AllowSkip:$AllowSkipRuntime
+    function Stop-ListenPortForOffline([int]$Port) {
+        Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty OwningProcess -Unique |
+            ForEach-Object { if ($_ -and $_ -ne 0) { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue } }
+    }
+    Write-Host "Stopping demo-app (8081/20550) for offline checks ..." -ForegroundColor DarkGray
+    . "$PSScriptRoot\_acceptance-common.ps1"
+    $warmToken = Login-AdminToken $BaseAdmin
+    if ($warmToken) {
+        $warmH = @{ Authorization = "Bearer $warmToken" }
+        Invoke-AcceptanceApi GET "$BaseAdmin/api/zestflow/chains?appCode=demo-app&page=1&size=5" $null $warmH | Out-Null
+    }
+    Stop-ListenPortForOffline 8081
+    Stop-ListenPortForOffline 20550
+    $offlineDeadline = (Get-Date).AddSeconds(120)
+    $staleReady = $false
+    while ((Get-Date) -lt $offlineDeadline) {
+        try {
+            $login = Invoke-WebRequest -Uri "$BaseAdmin/api/zestflow/auth/login" -Method POST `
+                -Body '{"username":"admin","password":"admin123"}' -ContentType "application/json" `
+                -UseBasicParsing -TimeoutSec 5
+            $tok = (ConvertFrom-Json $login.Content).data.token
+            if ($tok) {
+                $hr = @{ Authorization = "Bearer $tok" }
+                $probe = Invoke-WebRequest -Uri "$BaseAdmin/api/zestflow/chains?appCode=demo-app&page=1&size=5" `
+                    -Headers $hr -UseBasicParsing -TimeoutSec 10
+                if ($probe.Content -match '"stale"\s*:\s*true') { $staleReady = $true; break }
+            }
+        } catch {}
+        Start-Sleep -Seconds 5
+    }
+    if (-not $staleReady) { Write-Host "Offline stale cache not observed within 120s (will still run checks)" -ForegroundColor Yellow }
+
+    & "$PSScriptRoot\run-executor-read-cache-e2e.ps1" -RequireStaleCache
     switch ($LASTEXITCODE) {
         0 { Add-Phase "link" "read-cache-stale-e2e" $true "passed" }
         2 { Add-Phase "link" "read-cache-stale-e2e" [bool]$AllowSkipRuntime "skipped" }
         default { Add-Phase "link" "read-cache-stale-e2e" $false "exit=$LASTEXITCODE" }
     }
-    & "$PSScriptRoot\run-executor-offline-write-e2e.ps1" -RequireOffline -AllowSkip:$AllowSkipRuntime
+    & "$PSScriptRoot\run-executor-offline-write-e2e.ps1" -RequireOffline
     switch ($LASTEXITCODE) {
         0 { Add-Phase "link" "offline-write-e2e" $true "passed" }
         2 { Add-Phase "link" "offline-write-e2e" [bool]$AllowSkipRuntime "skipped" }

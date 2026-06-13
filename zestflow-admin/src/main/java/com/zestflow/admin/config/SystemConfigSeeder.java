@@ -40,7 +40,37 @@ public class SystemConfigSeeder {
         if (inserted > 0) {
             log.info("平台 sys_config 种子补齐 count={}", inserted);
         }
+        syncE2eProfileOverrides();
         platformConfigReader.invalidate();
+    }
+
+    /** E2E profile 启动时强制同步 yaml 到 sys_config，避免历史 DB 值覆盖 profile */
+    private void syncE2eProfileOverrides() {
+        if (environment.matchesProfiles("playground-disabled-e2e")) {
+            syncPlatformConfigValue(SysConfigKeys.PLAYGROUND_ENABLED, bool(false));
+            return;
+        }
+        Boolean yamlEnabled = environment.getProperty("zestflow.playground.enabled", Boolean.class);
+        if (yamlEnabled != null) {
+            syncPlatformConfigValue(SysConfigKeys.PLAYGROUND_ENABLED, bool(yamlEnabled));
+        }
+    }
+
+    private void syncPlatformConfigValue(String key, String value) {
+        SysConfigPO existing = sysConfigMapper.selectOne(
+                new LambdaQueryWrapper<SysConfigPO>()
+                        .eq(SysConfigPO::getTenantId, PlatformConfigReader.PLATFORM_TENANT_ID)
+                        .eq(SysConfigPO::getConfigKey, key)
+                        .last("LIMIT 1"));
+        if (existing == null) {
+            return;
+        }
+        if (value.equals(existing.getConfigValue())) {
+            return;
+        }
+        existing.setConfigValue(value);
+        sysConfigMapper.updateById(existing);
+        log.info("E2E profile 同步 sys_config key={} value={}", key, value);
     }
 
     private List<Seed> buildSeeds() {
