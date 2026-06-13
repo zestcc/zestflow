@@ -1,12 +1,10 @@
 package com.zestflow.executor.schedule.routing;
 
 import com.zestflow.common.model.dto.PeerExecutorDTO;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-@Component
 public class RoundRobinScheduleRouteStrategy implements ScheduleRouteStrategy {
 
     private final AtomicInteger counter = new AtomicInteger(0);

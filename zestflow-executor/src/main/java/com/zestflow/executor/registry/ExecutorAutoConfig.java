@@ -53,6 +53,10 @@ import com.zestflow.executor.config.ScheduleServerConfig;
 import com.zestflow.executor.schedule.*;
 import com.zestflow.executor.schedule.routing.RemoteScheduleExecutorClient;
 import com.zestflow.executor.schedule.routing.ScheduleExecutionRouter;
+import com.zestflow.executor.schedule.routing.ScheduleRouteStrategyRegistry;
+import com.zestflow.executor.schedule.routing.HashScheduleRouteStrategy;
+import com.zestflow.executor.schedule.routing.RandomScheduleRouteStrategy;
+import com.zestflow.executor.schedule.routing.RoundRobinScheduleRouteStrategy;
 import com.zestflow.executor.schedule.external.ExternalScheduleDriver;
 import com.zestflow.executor.schedule.external.XxlJobScheduleConfiguration;
 import org.springframework.boot.ApplicationRunner;
@@ -457,6 +461,27 @@ public class ExecutorAutoConfig {
     }
 
     @Bean
+    public RoundRobinScheduleRouteStrategy roundRobinScheduleRouteStrategy() {
+        return new RoundRobinScheduleRouteStrategy();
+    }
+
+    @Bean
+    public HashScheduleRouteStrategy hashScheduleRouteStrategy() {
+        return new HashScheduleRouteStrategy();
+    }
+
+    @Bean
+    public RandomScheduleRouteStrategy randomScheduleRouteStrategy() {
+        return new RandomScheduleRouteStrategy();
+    }
+
+    @Bean
+    public ScheduleRouteStrategyRegistry scheduleRouteStrategyRegistry(
+            List<com.zestflow.executor.schedule.routing.ScheduleRouteStrategy> strategyList) {
+        return new ScheduleRouteStrategyRegistry(strategyList);
+    }
+
+    @Bean
     public RemoteScheduleExecutorClient remoteScheduleExecutorClient(
             com.zestflow.collector.http.ZestFlowHttpClient zestflowAdminHttpClient,
             ExecutorProperties properties) {
@@ -467,7 +492,7 @@ public class ExecutorAutoConfig {
     public ScheduleExecutionRouter scheduleExecutionRouter(AdminClient adminClient,
                                                            ChainExecuteFacade chainExecuteFacade,
                                                            RemoteScheduleExecutorClient remoteScheduleExecutorClient,
-                                                           com.zestflow.executor.schedule.routing.ScheduleRouteStrategyRegistry strategyRegistry,
+                                                           ScheduleRouteStrategyRegistry strategyRegistry,
                                                            ExecutorProperties properties) {
         return new ScheduleExecutionRouter(adminClient, chainExecuteFacade,
                 remoteScheduleExecutorClient, strategyRegistry, properties);

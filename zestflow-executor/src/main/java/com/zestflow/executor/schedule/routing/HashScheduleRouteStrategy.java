@@ -1,11 +1,9 @@
 package com.zestflow.executor.schedule.routing;
 
 import com.zestflow.common.model.dto.PeerExecutorDTO;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-@Component
 public class HashScheduleRouteStrategy implements ScheduleRouteStrategy {
 
     @Override
