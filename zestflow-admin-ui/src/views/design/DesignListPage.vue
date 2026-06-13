@@ -1,5 +1,13 @@
 <template>
   <div class="design-list">
+    <el-alert
+      v-if="readCacheStale"
+      type="warning"
+      :closable="false"
+      show-icon
+      class="read-cache-alert"
+      :title="$t('common.executorReadCacheHint')"
+    />
     <div class="page-header">
       <div class="page-header-row">
         <div class="page-stats-row">
@@ -173,6 +181,7 @@ import ResponsiveTable from '@/components/ResponsiveTable.vue'
 import DesignDetailDrawer from '@/components/DesignDetailDrawer.vue'
 import ChainDetailDrawer from '@/components/ChainDetailDrawer.vue'
 import { useCurrentApp } from '@/composables/useCurrentApp'
+import { consumeExecutorReadCacheMeta } from '@/composables/useExecutorReadCache'
 import { useResponsivePagination } from '@/composables/useResponsivePagination'
 import { useDictLabel } from '@/composables/useDictLabel'
 
@@ -204,6 +213,7 @@ const bindableChainColumns = computed(() => [
 ])
 
 const loading = ref(false)
+const readCacheStale = ref(false)
 const apps = ref<AppOption[]>([])
 const designList = ref<DesignVO[]>([])
 const total = ref(0)
@@ -234,13 +244,13 @@ async function fetchList() {
   if (!currentAppCode.value) return
   loading.value = true
   try {
-    const res = await designApi.list({
+    const res: any = consumeExecutorReadCacheMeta(await designApi.list({
       appCode: currentAppCode.value,
       keyword: filter.value.keyword || undefined,
       status: filter.value.status,
       page: page.value,
       size: pageSize.value,
-    })
+    }), readCacheStale)
     designList.value = res.records
     total.value = res.total
   } finally { loading.value = false }

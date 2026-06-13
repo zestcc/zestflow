@@ -26,6 +26,7 @@ export default {
     sessionExpired: '登录已过期，请重新登录',
     networkError: '网络异常',
     noAppEmpty: '暂无已注册的应用，请先部署执行器',
+    executorReadCacheHint: '执行器离线，当前展示为只读快照，数据可能不是最新',
     last15minutes: '最近15分钟',
     last1hour: '最近1小时',
     last6hours: '最近6小时',

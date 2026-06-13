@@ -1,5 +1,13 @@
 <template>
   <div class="chains-page">
+    <el-alert
+      v-if="readCacheStale"
+      type="warning"
+      :closable="false"
+      show-icon
+      class="read-cache-alert"
+      :title="$t('common.executorReadCacheHint')"
+    />
     <div class="page-header">
       <div class="chain-stats">
         <span class="chain-stats-total">{{ $t('chains.total') }} {{ chainList.length }}</span>
@@ -338,6 +346,7 @@ import { designApi, type DesignVO } from '@/api/design'
 import CreateDesignDialog from '@/components/CreateDesignDialog.vue'
 import ResponsiveTable from '@/components/ResponsiveTable.vue'
 import { useCurrentApp } from '@/composables/useCurrentApp'
+import { consumeExecutorReadCacheMeta } from '@/composables/useExecutorReadCache'
 import { useResponsiveDrawerSize } from '@/composables/useResponsiveDrawerSize'
 import { useDictLabel } from '@/composables/useDictLabel'
 
@@ -359,6 +368,7 @@ function statusLabel(status: number): string {
 
 
 const loading = ref(false)
+const readCacheStale = ref(false)
 const modules = ref<AppOption[]>([])
 const chainList = ref<any[]>([])
 const total = ref(0)
@@ -447,13 +457,13 @@ async function fetchList() {
   if (!currentAppCode.value) return
   loading.value = true
   try {
-    const res = await chainApi.list({
+    const res: any = consumeExecutorReadCacheMeta(await chainApi.list({
       appCode: currentAppCode.value,
       keyword: filter.value.keyword || undefined,
       status: filter.value.status,
       page: page.value,
       size: pageSize.value,
-    })
+    }), readCacheStale)
     chainList.value = (res.records || []).map((row: any) => ({
       ...row,
       appCode: row.appCode || currentAppCode.value,

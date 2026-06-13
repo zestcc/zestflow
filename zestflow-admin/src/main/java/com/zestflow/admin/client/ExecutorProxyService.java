@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.zestflow.admin.client.cache.CaffeineExecutorReadCache;
+import com.zestflow.admin.client.cache.ExecutorReadCache;
+import com.zestflow.admin.client.cache.ExecutorReadCacheJsonSupport;
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
 import com.zestflow.admin.registry.RegistryLiveStore;
 import com.zestflow.admin.registry.RegistryOnlineQuerySupport;
@@ -51,6 +54,7 @@ public class ExecutorProxyService {
     private final RestTemplate restTemplate;
     private final ExecutorRegistryMapper executorRegistryMapper;
     private final RegistryLiveStore liveStore;
+    private final ExecutorReadCache executorReadCache;
 
     /** 服务间通信协议（http/https） */
     @Value("${zestflow.admin.protocol:http}")
@@ -91,7 +95,7 @@ public class ExecutorProxyService {
     public String getFromExecutor(String appCode, String path, String query) {
         List<ExecutorRegistryPO> executors = findOnlineExecutors(appCode);
         if (executors.isEmpty()) {
-            return emptyPage();
+            return fallbackFromReadCache(appCode, path, query, emptyPage());
         }
         if (executors.size() == 1 || !isMergeableListPath(path)) {
             return fetchFromExecutor(selectPrimary(executors), path, query, appCode);
@@ -106,19 +110,21 @@ public class ExecutorProxyService {
             HttpEntity<Void> entity = new HttpEntity<>(executorHeaders());
             String json = restTemplate.exchange(url, HttpMethod.GET, entity, String.class).getBody();
             if (json == null) {
-                return emptyPage();
+                return fallbackFromReadCache(appCode, path, query, emptyPage());
             }
-            return enrichWithAppCode(json, appCode, baseUrl.replace(protocol + "://", ""));
+            String enriched = enrichWithAppCode(json, appCode, baseUrl.replace(protocol + "://", ""));
+            storeReadCache(appCode, path, query, enriched);
+            return enriched;
         } catch (ResourceAccessException e) {
             log.warn("Executor 不可达 appCode={} url={}", appCode, url);
-            return emptyPage();
+            return fallbackFromReadCache(appCode, path, query, emptyPage());
         } catch (org.springframework.web.client.HttpClientErrorException.Unauthorized e) {
             log.warn("Executor 鉴权失败(401) appCode={} url={} — 请确认 Admin 的 zestflow.admin.executor-access-token "
                     + "与下游 zestflow.executor.access-token 完全一致；本地开发可两者均留空", appCode, url);
-            return emptyPage();
+            return fallbackFromReadCache(appCode, path, query, emptyPage());
         } catch (Exception e) {
             log.error("代理 GET 请求失败 appCode={} url={}", appCode, url, e);
-            return emptyPage();
+            return fallbackFromReadCache(appCode, path, query, emptyPage());
         }
     }
 
@@ -133,7 +139,7 @@ public class ExecutorProxyService {
     public String getArrayFromExecutor(String appCode, String path, String query) {
         List<ExecutorRegistryPO> executors = findOnlineExecutors(appCode);
         if (executors.isEmpty()) {
-            return "[]";
+            return fallbackArrayFromReadCache(appCode, path, query);
         }
         if (executors.size() == 1) {
             return fetchArrayFromExecutor(selectPrimary(executors), path, query, appCode);
@@ -148,30 +154,33 @@ public class ExecutorProxyService {
             HttpEntity<Void> entity = new HttpEntity<>(executorHeaders());
             String json = restTemplate.exchange(url, HttpMethod.GET, entity, String.class).getBody();
             if (json == null) {
-                return "[]";
+                return fallbackArrayFromReadCache(appCode, path, query);
             }
             JsonNode root = MAPPER.readTree(json);
+            String result;
             if (root.has("records")) {
                 enrichRecords(root.get("records"), appCode);
-                return MAPPER.writeValueAsString(root.get("records"));
-            }
-            if (root.isArray()) {
+                result = MAPPER.writeValueAsString(root.get("records"));
+            } else if (root.isArray()) {
                 if (shouldEnrichArrayPath(path)) {
                     enrichRecords(root, appCode);
                 }
-                return MAPPER.writeValueAsString(root);
+                result = MAPPER.writeValueAsString(root);
+            } else {
+                result = json;
             }
-            return json;
+            storeReadCache(appCode, path, query, result);
+            return result;
         } catch (ResourceAccessException e) {
             log.warn("Executor 不可达 appCode={}", appCode);
-            return "[]";
+            return fallbackArrayFromReadCache(appCode, path, query);
         } catch (org.springframework.web.client.HttpClientErrorException.Unauthorized e) {
             log.warn("Executor 鉴权失败(401) appCode={} — 请对齐 zestflow.admin.executor-access-token "
                     + "与下游 zestflow.executor.access-token", appCode);
-            return "[]";
+            return fallbackArrayFromReadCache(appCode, path, query);
         } catch (Exception e) {
             log.error("代理 GET 数组请求失败 appCode={}", appCode, e);
-            return "[]";
+            return fallbackArrayFromReadCache(appCode, path, query);
         }
     }
 
@@ -227,6 +236,7 @@ public class ExecutorProxyService {
             }
             ExecutorResult result = executeOnExecutorUrl(baseUrl, upper, path, body);
             if (result.isOk()) {
+                executorReadCache.invalidateApp(appCode);
                 return enrichWithAppCode(
                         result.getResponseBody() != null ? result.getResponseBody() : "{\"code\":200}",
                         appCode);
@@ -628,6 +638,35 @@ public class ExecutorProxyService {
 
     private String emptyPage() {
         return "{\"records\":[],\"total\":0,\"current\":1,\"size\":10}";
+    }
+
+    private String fallbackFromReadCache(String appCode, String path, String query, String emptyFallback) {
+        if (!executorReadCache.isEnabled()) {
+            return emptyFallback;
+        }
+        return executorReadCache.get(readCacheKey(appCode, path, query))
+                .map(entry -> ExecutorReadCacheJsonSupport.attachReadCacheMeta(entry.json(), entry.cachedAtMs()))
+                .orElse(emptyFallback);
+    }
+
+    private String fallbackArrayFromReadCache(String appCode, String path, String query) {
+        if (!executorReadCache.isEnabled()) {
+            return "[]";
+        }
+        return executorReadCache.get(readCacheKey(appCode, path, query))
+                .map(ExecutorReadCache.Entry::json)
+                .orElse("[]");
+    }
+
+    private void storeReadCache(String appCode, String path, String query, String json) {
+        if (!executorReadCache.isEnabled() || ExecutorReadCacheJsonSupport.shouldSkipCache(json)) {
+            return;
+        }
+        executorReadCache.put(readCacheKey(appCode, path, query), json);
+    }
+
+    private static String readCacheKey(String appCode, String path, String query) {
+        return ExecutorReadCache.buildKey(appCode, path, query);
     }
 
     /** 供漂移对账、探活等内部组件复用 */

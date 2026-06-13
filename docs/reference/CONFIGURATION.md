@@ -135,6 +135,16 @@ Kafka / RabbitMQ 实现见 `zestflow.collector.kafka.topic`、`zestflow.collecto
 | `http-timeout-ms` | `5000` | HTTP 客户端超时 |
 | `cache.type` | `caffeine` | simple / caffeine / redis |
 
+### zestflow.admin.executor-read-cache.*
+
+| 属性 | 默认 | 说明 |
+|------|------|------|
+| `enabled` | `true` | Executor GET 快照开关 |
+| `ttl-minutes` | `60` | 快照 TTL |
+| `max-entries` | `500` | 最大条目数 |
+
+Executor 离线或不可达时，链/设计/元件列表代理接口返回 `_readCache.stale=true` 的快照 JSON，前端展示只读提示。
+
 ### zestflow.collector.*（Admin 侧）
 
 | 属性 | 默认 | 说明 |

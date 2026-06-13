@@ -1,5 +1,6 @@
 package com.zestflow.admin.client;
 
+import com.zestflow.admin.client.cache.NoopExecutorReadCache;
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
 import com.zestflow.admin.registry.InMemoryRegistryLiveStore;
 import com.zestflow.admin.registry.RegistryLiveStore;
@@ -40,7 +41,7 @@ class ExecutorProxyServiceTest {
     @BeforeEach
     void setUp() {
         liveStore = new InMemoryRegistryLiveStore();
-        proxyService = new ExecutorProxyService(restTemplate, executorRegistryMapper, liveStore);
+        proxyService = new ExecutorProxyService(restTemplate, executorRegistryMapper, liveStore, new NoopExecutorReadCache());
         ReflectionTestUtils.setField(proxyService, "protocol", "http");
     }
 

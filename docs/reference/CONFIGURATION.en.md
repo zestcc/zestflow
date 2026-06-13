@@ -135,6 +135,16 @@ Kafka / RabbitMQ implementations: `zestflow.collector.kafka.topic`, `zestflow.co
 | `http-timeout-ms` | `5000` | HTTP client timeout |
 | `cache.type` | `caffeine` | simple / caffeine / redis |
 
+### zestflow.admin.executor-read-cache.*
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `enabled` | `true` | Executor GET snapshot switch |
+| `ttl-minutes` | `60` | Snapshot TTL |
+| `max-entries` | `500` | Maximum entries |
+
+When Executor is offline or unreachable, chain/design/component list proxies may return snapshot JSON with `_readCache.stale=true`; UI shows a read-only banner.
+
 ### zestflow.collector.* (Admin side)
 
 | Property | Default | Description |

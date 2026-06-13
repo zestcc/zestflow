@@ -86,6 +86,11 @@ zestflow:
       ttl-seconds: 300
     # 内部服务间通信协议（http/https）
     protocol: http
+    executor-read-cache:
+      # Executor 离线时链/设计/元件列表读快照（Caffeine）
+      enabled: true
+      ttl-minutes: 60
+      max-entries: 500
     tenant-id: 1
     system-user: sys
     default-user:

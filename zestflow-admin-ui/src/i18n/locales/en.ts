@@ -23,6 +23,7 @@ export default {
     sessionExpired: 'Session expired, please login again',
     networkError: 'Network error',
     noAppEmpty: 'No registered applications. Please deploy an executor first.',
+    executorReadCacheHint: 'Executor is offline. Showing a read-only snapshot; data may be stale.',
     last15minutes: 'Last 15 minutes',
     last1hour: 'Last 1 hour',
     last6hours: 'Last 6 hours',
