@@ -290,11 +290,13 @@ sequenceDiagram
 | E2E-01 | 用户登录 | login → userinfo | 通过 |
 | E2E-02 | 试验场执行业务 API | 登录 → execute SCN…229 | **通过** |
 | E2E-03 | 试验场执行链 | 登录 → execute Hello | **通过** |
-| E2E-04 | 链管理 CRUD | 创建链 → 发布 → 执行 | 待测 |
-| E2E-05 | 设计器保存图 | 保存 graph → 绑定链 | 待测 |
-| E2E-06 | 日志可查 | 执行 → logs 查询 | 查询接口 200 |
+| E2E-04 | 链管理 CRUD | 创建链 → 发布 → 执行 | **通过**（`run-chain-lifecycle-e2e.ps1`） |
+| E2E-05 | 设计器保存图 | 保存 graph → 绑定链 | **部分**（lifecycle 含 graph；独立 UI 仍手工） |
+| E2E-06 | 日志可查 + SSE | 执行 → logs → SSE connected/done | **通过**（`run-platform-link-e2e.ps1`） |
 | E2E-07 | Executor 注册心跳 | 启动 test → 注册表在线 | 日志确认 |
-| E2E-08 | 调度触发 | 创建 schedule → trigger | 待测 |
+| E2E-08 | 调度 trigger | 创建 schedule → trigger | **部分**（full-e2e 含 trigger；独立脚本待补） |
+| E2E-09 | SSO API | Discovery + config + authorize | **通过**（`run-sso-e2e.ps1`；浏览器回调手工） |
+| E2E-10 | 离线读快照 | 停 demo → 列表只读 | **可选**（`-IncludeOfflineChecks`） |
 
 ---
 

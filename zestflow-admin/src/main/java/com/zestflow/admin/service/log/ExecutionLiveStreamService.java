@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zestflow.admin.client.CollectorQueryAggregator;
 import com.zestflow.admin.config.LogLiveStreamProperties;
 import com.zestflow.common.protocol.ExecutionTrace;
+import com.zestflow.common.protocol.ExecutionTraceSupport;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -54,12 +55,12 @@ public class ExecutionLiveStreamService {
                 while (true) {
                     ExecutionTrace trace = collectorQueryAggregator.getExecutionTrace(executionId, appCode);
                     if (trace != null) {
-                        int fp = ExecutionTraceLiveSupport.fingerprint(trace);
+                        int fp = ExecutionTraceSupport.fingerprint(trace);
                         if (fp != lastFingerprint.get()) {
                             lastFingerprint.set(fp);
                             sendJson(emitter, "trace", trace);
                         }
-                        if (ExecutionTraceLiveSupport.isTerminal(trace)) {
+                        if (ExecutionTraceSupport.isTerminal(trace)) {
                             sendJson(emitter, "done", Map.of("executionId", executionId));
                             emitter.complete();
                             return;

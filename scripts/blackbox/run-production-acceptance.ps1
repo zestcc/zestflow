@@ -11,6 +11,7 @@ param(
     [switch]$RequireEnterpriseProfile,
     [switch]$RequireSecurityProfile,
     [switch]$AllowSkipRuntime,
+    [switch]$IncludeOfflineChecks,
     [int]$SceneTimeoutSec = 300
 )
 
@@ -172,6 +173,23 @@ if ($RequirePerf) {
     Add-Phase "stress" "perf-gate-phase2c" ($LASTEXITCODE -eq 0) "exit=$LASTEXITCODE"
 } else {
     Add-Phase "stress" "perf-gate-phase2c" $true "skipped-use-RequirePerf"
+}
+
+if ($IncludeOfflineChecks) {
+    & "$PSScriptRoot\run-executor-read-cache-e2e.ps1" -RequireStaleCache -AllowSkip:$AllowSkipRuntime
+    switch ($LASTEXITCODE) {
+        0 { Add-Phase "link" "read-cache-stale-e2e" $true "passed" }
+        2 { Add-Phase "link" "read-cache-stale-e2e" [bool]$AllowSkipRuntime "skipped" }
+        default { Add-Phase "link" "read-cache-stale-e2e" $false "exit=$LASTEXITCODE" }
+    }
+    & "$PSScriptRoot\run-executor-offline-write-e2e.ps1" -RequireOffline -AllowSkip:$AllowSkipRuntime
+    switch ($LASTEXITCODE) {
+        0 { Add-Phase "link" "offline-write-e2e" $true "passed" }
+        2 { Add-Phase "link" "offline-write-e2e" [bool]$AllowSkipRuntime "skipped" }
+        default { Add-Phase "link" "offline-write-e2e" $false "exit=$LASTEXITCODE" }
+    }
+} else {
+    Add-Phase "link" "offline-checks" $true "skipped-use-IncludeOfflineChecks"
 }
 
 Write-AcceptanceGateReport

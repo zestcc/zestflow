@@ -60,6 +60,8 @@ Composable：`src/composables/useExecutorReadCache.ts`
 .\scripts\blackbox\run-executor-read-cache-e2e.ps1
 # 停止 demo-app 后验证离线快照：
 .\scripts\blackbox\run-executor-read-cache-e2e.ps1 -RequireStaleCache
+# 离线时禁止写操作：
+.\scripts\blackbox\run-executor-offline-write-e2e.ps1 -RequireOffline
 ```
 
 ## API 响应示例

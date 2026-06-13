@@ -54,7 +54,9 @@ SLA 阈值：`scripts/blackbox/production-acceptance-policy.json`
 | 模块 | 测试类 |
 |------|--------|
 | SSO 门面 | `SsoAuthServiceTest`、`SsoProviderRegistryTest`、`AbstractOidcSsoProviderTest` |
-| 日志 SSE | `ExecutionLiveStreamServiceTest`（含并发）、`LogLiveStreamControllerTest`、`ExecutionTraceLiveSupportTest` |
+| 日志 SSE | `ExecutionLiveStreamServiceTest`（含并发）、`LogLiveStreamControllerTest`、`ExecutionTraceSupportTest`（common） |
+| SSO 回调 | `AbstractOidcSsoProviderTest.handleCallback_*`、`SsoAuthServiceTest` |
+| 离线写拦截 | `ExecutorProxyServiceOfflineWriteTest` |
 | 读快照 | `ExecutorProxyServiceReadCacheTest`、`RedisExecutorReadCacheTest` |
 | 生产守卫 | `AdminProductionGuardTest`、`ProductionSecretGuardTest` |
 

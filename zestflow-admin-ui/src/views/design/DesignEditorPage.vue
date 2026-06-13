@@ -1,5 +1,6 @@
 <template>
     <div class="design-editor-x6">
+    <ExecutorReadCacheAlert :stale="readCacheStale" />
     <!-- 顶部工具栏 -->
     <div class="editor-toolbar" :class="{ 'editor-toolbar--mobile': isMobileView }">
       <div class="toolbar-left">
@@ -853,6 +854,8 @@ import {
 } from '@/utils/flowPortAssign'
 import { componentApi } from '@/api/component'
 import { executorApi } from '@/api/executor'
+import ExecutorReadCacheAlert from '@/components/ExecutorReadCacheAlert.vue'
+import { consumeExecutorReadCacheMeta } from '@/composables/useExecutorReadCache'
 import {
   normalizeNodeType,
   mapNodeTypeToDto,
@@ -914,6 +917,7 @@ const appCode = route.query.appCode as string || ''
 
 // ====== 响应式状态 ======
 const design = ref<any>(null)
+const readCacheStale = ref(false)
 const appName = ref('')
 const saving = ref(false)
 const aiDetecting = ref(false)
@@ -3255,7 +3259,8 @@ function hydrateChainSettingsFromDesign() {
 // ====== 加载设计 ======
 async function loadDesign() {
   try {
-    design.value = await designApi.getByCode(designCode, appCode)
+    const raw = await designApi.getByCode(designCode, appCode)
+    design.value = consumeExecutorReadCacheMeta(raw, readCacheStale) as typeof design.value
     // 获取应用名称
     if (appCode) {
       try {

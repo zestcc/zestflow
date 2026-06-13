@@ -89,6 +89,10 @@
           <el-icon><Setting /></el-icon>
           <span>{{ $t('layout.sysConfig') }}</span>
         </el-menu-item>
+        <el-menu-item index="/settings/sso">
+          <el-icon><Key /></el-icon>
+          <span>{{ $t('settings.sso.menu') }}</span>
+        </el-menu-item>
         <el-menu-item index="/settings/tenants">
           <el-icon><Collection /></el-icon>
           <span>{{ $t('tenant.title') }}</span>
@@ -111,7 +115,7 @@ import { onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import {
-  Odometer, Connection, EditPen, VideoPlay, Grid, Timer, Document, Monitor, Collection, User, UserFilled, Tools, List, MagicStick, Bell, Setting,
+  Odometer, Connection, EditPen, VideoPlay, Grid, Timer, Document, Monitor, Collection, User, UserFilled, Tools, List, MagicStick, Bell, Setting, Key,
 } from '@element-plus/icons-vue'
 
 defineProps<{ collapsed: boolean }>()

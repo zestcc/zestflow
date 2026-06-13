@@ -1,0 +1,1 @@
+import{c as t}from"./index-DkRzkrs4.js";function o(r,e){return t.post(`/playground/execute/${r}`,e||{})}function u(r){return t.post("/playground/history",r)}function a(r){return t.get(`/playground/history/${r}`)}export{o as e,a as g,u as q};

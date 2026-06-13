@@ -1,23 +1,33 @@
 package com.zestflow.admin.service.sso.oidc;
 
 import com.zestflow.admin.config.SsoProperties;
+import com.zestflow.admin.model.dto.SsoCallbackDTO;
+import com.zestflow.admin.model.vo.LoginVO;
 import com.zestflow.admin.model.vo.SsoAuthorizeVO;
 import com.zestflow.admin.service.UserService;
 import com.zestflow.admin.service.sso.store.InMemorySsoPkceStore;
 import com.zestflow.admin.service.sso.store.SsoPkceStore;
+import com.zestflow.common.exception.BizException;
+import io.jsonwebtoken.Claims;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class AbstractOidcSsoProviderTest {
 
     @Mock
@@ -75,6 +85,37 @@ class AbstractOidcSsoProviderTest {
         assertThat(url)
                 .startsWith("http://localhost:9000/connect/logout")
                 .contains("post_logout_redirect_uri=");
+    }
+
+    @Test
+    void handleCallback_invalidState_throws() {
+        SsoCallbackDTO dto = new SsoCallbackDTO();
+        dto.setCode("code-1");
+        dto.setState("missing-state");
+
+        assertThatThrownBy(() -> provider.handleCallback(dto, properties))
+                .isInstanceOf(BizException.class)
+                .hasMessageContaining("state");
+    }
+
+    @Test
+    void handleCallback_validFlow_delegatesToUserService() {
+        pkceStore.save("state-ok", "verifier-32chars-minimum-length-ok");
+        SsoCallbackDTO dto = new SsoCallbackDTO();
+        dto.setCode("auth-code");
+        dto.setState("state-ok");
+
+        when(tokenClient.exchangeCodeForIdToken(eq("auth-code"), eq("verifier-32chars-minimum-length-ok"), any(), eq(properties)))
+                .thenReturn("id-token-jwt");
+        Claims claims = org.mockito.Mockito.mock(Claims.class);
+        when(jwtValidator.parseAndValidate(eq("id-token-jwt"), any(), eq(properties))).thenReturn(claims);
+        LoginVO login = LoginVO.builder().token("jwt-from-sso").build();
+        when(userService.loginBySso("test-oidc", claims)).thenReturn(login);
+
+        LoginVO result = provider.handleCallback(dto, properties);
+
+        assertThat(result.getToken()).isEqualTo("jwt-from-sso");
+        verify(userService).loginBySso("test-oidc", claims);
     }
 
     private static final class TestOidcProvider extends AbstractOidcSsoProvider {

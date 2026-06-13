@@ -28,7 +28,8 @@
 | `run-executor-read-cache-e2e.ps1` | Executor 读快照：链/设计代理；`-RequireStaleCache` 验证离线 `_readCache` |
 | `run-platform-link-e2e.ps1` | **主链路**：试验场 → 日志 → SSE connected/done → 链代理 → SSO |
 | `run-log-stream-stress-e2e.ps1` | **SSE 压测**：并发 connected P99（见 `production-acceptance-policy.json`） |
-| `run-production-acceptance.ps1` | **生产级总门禁**：白盒 + 黑盒 + 链路 + 压力（四层 JSON 报告） |
+| `run-production-acceptance.ps1` | **生产级总门禁**：白盒 + 黑盒 + 链路 + 压力；`-IncludeOfflineChecks` 验证离线快照/写拦截 |
+| `run-executor-offline-write-e2e.ps1` | 离线时 POST 链应返回 EXECUTOR_OFFLINE |
 | `production-acceptance-policy.json` | 生产验收 SLA（SSE P99、链路超时等） |
 | `_acceptance-common.ps1` | 验收脚本公共函数（dot-source） |
 

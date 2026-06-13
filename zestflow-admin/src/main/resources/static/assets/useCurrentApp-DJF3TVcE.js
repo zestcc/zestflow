@@ -1,0 +1,1 @@
+import{u as n}from"./index-DkRzkrs4.js";import{t as u}from"./element-plus-BYfwLYtr.js";function c(){const e=n(),r=u({get:()=>e.currentAppCode,set:p=>e.setCurrentAppCode(p)});function t(p,o){return e.syncAppCode(p,o)}return{currentAppCode:r,syncFromApps:t,setCurrentAppCode:e.setCurrentAppCode}}export{c as u};

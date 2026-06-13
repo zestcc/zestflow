@@ -6,10 +6,12 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.zestflow.admin.client.cache.ExecutorReadCache;
 import com.zestflow.admin.client.cache.ExecutorReadCacheJsonSupport;
+import com.zestflow.admin.constant.ErrorCode;
 import com.zestflow.admin.model.entity.ExecutorRegistryPO;
 import com.zestflow.admin.registry.RegistryLiveStore;
 import com.zestflow.admin.registry.RegistryOnlineQuerySupport;
 import com.zestflow.admin.repository.ExecutorRegistryMapper;
+import com.zestflow.common.exception.BizException;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -231,7 +233,7 @@ public class ExecutorProxyService {
         if ("POST".equals(upper) || "PUT".equals(upper) || "DELETE".equals(upper)) {
             String baseUrl = resolveExecutorBaseUrl(appCode);
             if (baseUrl == null) {
-                return "{\"code\":500,\"message\":\"无可用执行器\"}";
+                throw new BizException(ErrorCode.EXECUTOR_OFFLINE, "执行器离线，禁止变更操作");
             }
             ExecutorResult result = executeOnExecutorUrl(baseUrl, upper, path, body);
             if (result.isOk()) {
@@ -748,7 +750,7 @@ public class ExecutorProxyService {
         List<String> urls = resolveAllExecutorUrls(appCode);
         if (urls.isEmpty()) {
             log.warn("广播失败：应用下无在线执行器 appCode={}", appCode);
-            return BroadcastResult.fail("该应用无可用执行器");
+            throw new BizException(ErrorCode.EXECUTOR_OFFLINE, "执行器离线，禁止变更操作");
         }
 
         int total = urls.size();

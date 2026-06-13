@@ -1,5 +1,8 @@
 import i18n from '@/i18n'
 import type { ExecutionTrace } from './logs'
+import { isExecutionTerminal } from '@/utils/executionTrace'
+
+export { isExecutionTerminal }
 
 const baseURL = '/api/zestflow'
 
@@ -26,14 +29,6 @@ export type ExecutionStreamEvent =
   | { type: 'trace'; trace: ExecutionTrace }
   | { type: 'done' }
   | { type: 'error'; message: string }
-
-export function isExecutionTerminal(trace: ExecutionTrace): boolean {
-  if (trace.status === 0 || trace.status === 1) {
-    return true
-  }
-  const terminal = new Set(['CHAIN_COMPLETED', 'CHAIN_FAILED', 'CHAIN_TIMEOUT'])
-  return (trace.events || []).some(e => terminal.has(e.eventType))
-}
 
 function parseSseBlock(block: string, onEvent: (ev: ExecutionStreamEvent) => void) {
   let eventName = 'message'

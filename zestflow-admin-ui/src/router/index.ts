@@ -177,6 +177,12 @@ const routes: RouteRecordRaw[] = [
             meta: { title: '系统配置' },
           },
           {
+            path: 'sso',
+            name: 'SettingsSso',
+            component: () => import('@/views/settings/SettingsSsoPage.vue'),
+            meta: { title: 'SSO 集成' },
+          },
+          {
             path: 'tenants',
             name: 'TenantManage',
             component: () => import('@/views/tenant/TenantManagePage.vue'),
