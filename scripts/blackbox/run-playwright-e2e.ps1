@@ -17,8 +17,12 @@ if (-not (Test-Path (Join-Path $UiRoot "node_modules"))) {
 
 Push-Location $UiRoot
 $env:E2E_BASE_URL = $BaseAdmin
+$env:PLAYWRIGHT_CHANNEL = if ($env:PLAYWRIGHT_CHANNEL) { $env:PLAYWRIGHT_CHANNEL } else { "chrome" }
 try {
-    npx playwright install chromium 2>&1 | Out-Host
+    # 使用 channel=chrome 时可跳过 Chromium 下载；若需内置浏览器可设 PLAYWRIGHT_FORCE_INSTALL=1
+    if ($env:PLAYWRIGHT_FORCE_INSTALL -eq "1") {
+        npx playwright install chromium 2>&1 | Out-Host
+    }
     npx playwright test -c e2e/playwright.config.ts 2>&1 | Out-Host
     $code = $LASTEXITCODE
 } finally {
