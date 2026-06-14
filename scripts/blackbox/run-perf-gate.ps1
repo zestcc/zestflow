@@ -52,7 +52,7 @@ $env:Path = "$JavaHome\bin;" + $env:Path
 
 Push-Location $Root
 Write-Host "mvn test -pl zestflow-common,zestflow-executor -am -Pperf (JMH gate) ..." -ForegroundColor DarkGray
-& mvn -q test -pl zestflow-common,zestflow-executor -am -Pperf
+$null = & mvn -q test -pl zestflow-common,zestflow-executor -am -Pperf 2>&1
 $engineExit = $LASTEXITCODE
 Add-Phase "engine-jmh-perf" ($engineExit -eq 0) "exit=$engineExit" $null
 if ($engineExit -ne 0) {
@@ -63,7 +63,7 @@ if ($engineExit -ne 0) {
 if (-not $SkipHttpPerf) {
     # 不用 -am：避免重复执行 zestflow-executor 的 JMH 门禁（验收黑盒后二次跑易 p999 抖动失败）
     Write-Host "mvn test -pl zestflow-demo -Pperf (ConcurrentStressTest) ..." -ForegroundColor DarkGray
-    & mvn -q test -pl zestflow-demo -Pperf
+    $null = & mvn -q test -pl zestflow-demo -Pperf 2>&1
     $httpExit = $LASTEXITCODE
     Add-Phase "http-concurrent-perf" ($httpExit -eq 0) "exit=$httpExit" $null
     if ($httpExit -ne 0) {

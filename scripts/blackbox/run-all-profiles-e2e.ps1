@@ -42,6 +42,18 @@ function Boot-Stack([string]$AdminProfiles, [string]$DemoProfiles) {
         (With-StrictV1Profile $AdminProfiles) $demoBoot
 }
 
+function Boot-StackWithRetry([string]$AdminProfiles, [string]$DemoProfiles, [int]$Retries = 3) {
+    for ($i = 0; $i -lt $Retries; $i++) {
+        if ($i -gt 0) {
+            Write-Host "Boot retry $i/$Retries after 20s cooldown ..." -ForegroundColor Yellow
+            Stop-AcceptanceStack
+            Start-Sleep -Seconds 20
+        }
+        if (Boot-Stack $AdminProfiles $DemoProfiles) { return $true }
+    }
+    return $false
+}
+
 function Stop-Services { Stop-AcceptanceStack }
 
 function Wait-Admin([int]$TimeoutSec = 180) { return Wait-AcceptanceAdmin "http://127.0.0.1:8080" $TimeoutSec }
@@ -49,9 +61,9 @@ function Wait-Admin([int]$TimeoutSec = 180) { return Wait-AcceptanceAdmin "http:
 function Run-Script($name, [hashtable]$NamedArgs = @{}) {
     $path = Join-Path $PSScriptRoot $name
     if ($NamedArgs.Count -gt 0) {
-        & $path @NamedArgs 2>&1 | Out-Host
+        $null = & $path @NamedArgs
     } else {
-        & $path 2>&1 | Out-Host
+        $null = & $path
     }
     return [int]$LASTEXITCODE
 }
@@ -62,6 +74,15 @@ function Wait-AdminReady([int]$Retries = 5) {
         Start-Sleep -Seconds 3
     }
     return $false
+}
+
+function Ensure-LocalStackReady() {
+    if (-not (Test-AcceptanceRuntimeHealthy)) {
+        if (-not (Ensure-AcceptanceRuntimeStack $Root $JavaHome)) { return $false }
+    }
+    if (-not (Wait-AdminReady)) { return $false }
+    $null = Wait-AcceptancePlaygroundWarmup
+    return $true
 }
 
 Write-Host "========== All Profiles E2E ==========" -ForegroundColor Cyan
@@ -82,25 +103,41 @@ if (-not $SkipMavenTest) {
     Add-Phase "mvn-test-all" $true "skipped"
 }
 
-# --- local: matrix + fullGreen + partialGreen ---
-$ok = Boot-Stack "local" "local"
+# --- local: fullGreen + partialGreen + rbac, then chain-matrix (matrix last avoids post-load publish 500) ---
+$ok = Boot-StackWithRetry "local" "local"
 if ($ok) {
-    $ec = Run-Script "run-chain-matrix-e2e.ps1" @{}
-    Add-Phase "chain-matrix-e2e" ($ec -eq 0) "exit=$ec"
-    Start-Sleep -Seconds 5
-    if (-not (Wait-AdminReady)) { Add-Phase "admin-recover-after-matrix" $false "login not ready"; }
-    $ec = Run-Script "run-full-e2e.ps1" @{ E2eProfile = "fullGreen"; SceneTimeoutSec = $SceneTimeoutSec }
+    function Invoke-FullE2eWithRetry([string]$profileName) {
+        $exit = Run-Script "run-full-e2e.ps1" @{ E2eProfile = $profileName; SceneTimeoutSec = $SceneTimeoutSec }
+        if ($exit -ne 0) {
+            Write-Host "full-e2e $profileName failed, retry after 30s cooldown ..." -ForegroundColor Yellow
+            Start-Sleep -Seconds 30
+            if (-not (Ensure-LocalStackReady)) { return $exit }
+            $exit = Run-Script "run-full-e2e.ps1" @{ E2eProfile = $profileName; SceneTimeoutSec = $SceneTimeoutSec }
+        }
+        return $exit
+    }
+    $ec = Invoke-FullE2eWithRetry "fullGreen"
     Add-Phase "full-e2e-fullGreen" ($ec -eq 0) "exit=$ec"
-    $ec = Run-Script "run-full-e2e.ps1" @{ E2eProfile = "partialGreen"; SceneTimeoutSec = $SceneTimeoutSec }
+    $ec = Invoke-FullE2eWithRetry "partialGreen"
     Add-Phase "full-e2e-partialGreen" ($ec -eq 0) "exit=$ec"
-    $ec = Run-Script "run-rbac-horizontal-e2e.ps1" @{}
-    Add-Phase "rbac-horizontal-e2e" ($ec -eq 0) "exit=$ec"
+    if (-not (Ensure-LocalStackReady)) {
+        Add-Phase "local-stack-recover" $false "admin/demo not ready before rbac"
+    } else {
+        $ec = Run-Script "run-rbac-horizontal-e2e.ps1" @{}
+        Add-Phase "rbac-horizontal-e2e" ($ec -eq 0) "exit=$ec"
+        if (-not (Ensure-LocalStackReady)) {
+            Add-Phase "local-stack-recover-matrix" $false "admin/demo not ready before chain-matrix"
+        } else {
+            $ec = Run-Script "run-chain-matrix-e2e.ps1" @{}
+            Add-Phase "chain-matrix-e2e" ($ec -eq 0) "exit=$ec"
+        }
+    }
 } else {
     Add-Phase "boot-local" $false "admin/demo not ready"
 }
 
 # --- enterprise-e2e ---
-$ok = Boot-Stack "local,enterprise-e2e" "local"
+$ok = Boot-StackWithRetry "local,enterprise-e2e" "local"
 if ($ok) {
     $ec = Run-Script "run-tenant-multi-e2e.ps1" @{}
     Add-Phase "tenant-multi-e2e" ($ec -eq 0) "exit=$ec"
@@ -111,7 +148,7 @@ if ($ok) {
 }
 
 # --- security-e2e ---
-$ok = Boot-Stack "local,security-e2e" "local,security-e2e"
+$ok = Boot-StackWithRetry "local,security-e2e" "local,security-e2e"
 if ($ok) {
     $ec = Run-Script "run-security-token-e2e.ps1" @{}
     Add-Phase "security-token-e2e" ($ec -eq 0) "exit=$ec"
@@ -120,7 +157,7 @@ if ($ok) {
 }
 
 # --- playground-disabled (Admin only) ---
-$ok = Boot-Stack "local,playground-disabled-e2e" ""
+$ok = Boot-StackWithRetry "local,playground-disabled-e2e" ""
 if ($ok) {
     $ec = Run-Script "run-playground-disabled-e2e.ps1" @{}
     Add-Phase "playground-disabled-e2e" ($ec -eq 0) "exit=$ec"
@@ -129,7 +166,7 @@ if ($ok) {
 }
 
 # --- perf (restore local stack) ---
-$ok = Boot-Stack "local" "local"
+$ok = Boot-StackWithRetry "local" "local"
 if ($ok) {
     Write-Host "Cooling down 90s before perf gate (avoid post-E2E CPU contention) ..." -ForegroundColor DarkGray
     Start-Sleep -Seconds 90

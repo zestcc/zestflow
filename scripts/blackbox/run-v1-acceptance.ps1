@@ -90,7 +90,7 @@ if (-not $SkipNpmBuild) {
 # --- 4. 全 profile E2E ---
 if (-not $SkipProfilesE2e) {
     $profilesScript = Join-Path $PSScriptRoot "run-all-profiles-e2e.ps1"
-    & $profilesScript -SkipMavenTest -JavaHome $JavaHome -SceneTimeoutSec $SceneTimeoutSec 2>&1 | Out-Host
+    $null = & $profilesScript -SkipMavenTest -JavaHome $JavaHome -SceneTimeoutSec $SceneTimeoutSec
     $profilesExit = [int]$LASTEXITCODE
     Add-Phase "all-profiles-e2e" ($profilesExit -eq 0) "exit=$profilesExit"
     if ($profilesExit -ne 0) { Write-V1Report }
@@ -101,7 +101,7 @@ if (-not $SkipProfilesE2e) {
 # --- 5. 严格 production-acceptance（perf + offline） ---
 if (-not $SkipProductionAcceptance) {
     $prodScript = Join-Path $PSScriptRoot "run-production-acceptance.ps1"
-    & $prodScript -SkipMavenTest -StrictV1 -JavaHome $JavaHome -SceneTimeoutSec $SceneTimeoutSec 2>&1 | Out-Host
+    $null = & $prodScript -SkipMavenTest -StrictV1 -JavaHome $JavaHome -SceneTimeoutSec $SceneTimeoutSec
     $prodExit = [int]$LASTEXITCODE
     Add-Phase "production-acceptance-strictV1" ($prodExit -eq 0) "exit=$prodExit"
 } else {

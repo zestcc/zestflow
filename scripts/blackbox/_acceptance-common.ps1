@@ -162,3 +162,61 @@ function Write-AcceptanceChecks($checks) {
         Write-Host ("  [{0}] {1} — {2}" -f $(if ($c.ok) { 'PASS' } else { 'FAIL' }), $c.name, $c.note) -ForegroundColor $color
     }
 }
+
+function Warm-AcceptanceReadCache(
+    [string]$BaseAdmin,
+    [hashtable]$Headers,
+    [string]$AppCode = "demo-app"
+) {
+    $warmed = $false
+    foreach ($i in 1..8) {
+        $chains = Invoke-AcceptanceApi GET "$BaseAdmin/api/zestflow/chains?appCode=$AppCode&page=1&size=5" $null $Headers 30
+        $designs = Invoke-AcceptanceApi GET "$BaseAdmin/api/zestflow/designs?appCode=$AppCode&page=1&size=5" $null $Headers 30
+        $hasData = ($chains.ok -and ($chains.body -match '"total"\s*:\s*[1-9]')) `
+            -or ($designs.ok -and ($designs.body -match '"total"\s*:\s*[1-9]'))
+        $notStale = ($chains.body -notmatch '"stale"\s*:\s*true') -and ($designs.body -notmatch '"stale"\s*:\s*true')
+        if ($hasData -and $notStale) {
+            $warmed = $true
+            break
+        }
+        Start-Sleep -Seconds 3
+    }
+    return $warmed
+}
+
+function Remove-AcceptanceAppExecutors(
+    [string]$BaseAdmin,
+    [hashtable]$Headers,
+    [string]$AppCode = "demo-app"
+) {
+    $seen = New-Object 'System.Collections.Generic.HashSet[string]'
+    function Remove-OneExecutor([string]$executorId) {
+        if ([string]::IsNullOrWhiteSpace($executorId)) { return }
+        if (-not $seen.Add($executorId)) { return }
+        $eid = [uri]::EscapeDataString([string]$executorId)
+        Invoke-AcceptanceApi DELETE "$BaseAdmin/api/zestflow/registry/$eid" $null $null 10 | Out-Null
+        if ($Headers) {
+            Invoke-AcceptanceApi PUT "$BaseAdmin/api/zestflow/executors/$eid/status" '{"status":0}' $Headers 10 | Out-Null
+        }
+        $script:accDeregCount++
+    }
+    $script:accDeregCount = 0
+    $list = Invoke-AcceptanceApi GET "$BaseAdmin/api/zestflow/executors" $null $Headers 20
+    if ($list.ok) {
+        try {
+            foreach ($ex in @((ConvertFrom-Json $list.body).data)) {
+                $match = ($ex.appCode -eq $AppCode) -or ($ex.appName -eq $AppCode) -or ($ex.executorId -like "$AppCode@*")
+                if ($match) { Remove-OneExecutor $ex.executorId }
+            }
+        } catch {}
+    }
+    $peers = Invoke-AcceptanceApi GET "$BaseAdmin/api/zestflow/registry/peers?appCode=$AppCode" $null $Headers 20
+    if ($peers.ok) {
+        try {
+            foreach ($p in @((ConvertFrom-Json $peers.body).data)) {
+                Remove-OneExecutor $p.executorId
+            }
+        } catch {}
+    }
+    return $script:accDeregCount
+}

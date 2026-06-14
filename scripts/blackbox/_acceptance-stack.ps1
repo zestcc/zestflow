@@ -4,11 +4,68 @@ $script:AcceptanceAdminProfiles = "local,strictv1-e2e"
 $script:AcceptanceDemoProfiles = "local,demo,strictv1-e2e"
 $script:acceptanceAdminJob = $null
 $script:acceptanceDemoJob = $null
+$script:AcceptanceArtifactsReady = $false
 
 function Stop-AcceptanceListenPort([int]$Port) {
     Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
         Select-Object -ExpandProperty OwningProcess -Unique |
         ForEach-Object { if ($_ -and $_ -ne 0) { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue } }
+}
+
+function Wait-AcceptancePortsFree([int[]]$Ports = @(8080, 8081, 20550, 20650), [int]$TimeoutSec = 60) {
+    $deadline = (Get-Date).AddSeconds($TimeoutSec)
+    while ((Get-Date) -lt $deadline) {
+        $busy = @($Ports | Where-Object {
+            $null -ne (Get-NetTCPConnection -LocalPort $_ -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1)
+        })
+        if ($busy.Count -eq 0) { return $true }
+        Start-Sleep -Seconds 2
+    }
+    return $false
+}
+
+function Stop-AcceptanceDemoForOffline {
+    Write-Host "Stopping demo-app job and ports 8081/20550 ..." -ForegroundColor DarkGray
+    foreach ($p in @(8081, 20550)) { Stop-AcceptanceListenPort $p }
+    if ($script:acceptanceDemoJob) {
+        Stop-Job $script:acceptanceDemoJob -ErrorAction SilentlyContinue
+        Remove-Job $script:acceptanceDemoJob -Force -ErrorAction SilentlyContinue
+        $script:acceptanceDemoJob = $null
+    }
+    Start-Sleep -Seconds 3
+}
+
+function Test-AcceptanceRuntimeHealthy(
+    [string]$BaseAdmin = "http://127.0.0.1:8080",
+    [string]$BaseNetty = "http://127.0.0.1:20550",
+    [string]$BaseCollector = "http://127.0.0.1:20650"
+) {
+    $adminOk = $false
+    $nettyOk = $false
+    $collectorOk = $false
+    try {
+        $r = Invoke-WebRequest -Uri "$BaseAdmin/api/zestflow/auth/login" -Method POST `
+            -Body '{"username":"admin","password":"admin123"}' -ContentType "application/json" `
+            -UseBasicParsing -TimeoutSec 5
+        $adminOk = ($r.StatusCode -eq 200)
+    } catch {}
+    try {
+        $r = Invoke-WebRequest -Uri "$BaseNetty/health" -UseBasicParsing -TimeoutSec 5
+        $nettyOk = ($r.StatusCode -eq 200)
+    } catch {}
+    try {
+        $r = Invoke-WebRequest -Uri "$BaseCollector/collector/health" -UseBasicParsing -TimeoutSec 5
+        $collectorOk = ($r.StatusCode -eq 200)
+    } catch {}
+    return ($adminOk -and $nettyOk -and $collectorOk)
+}
+
+function Ensure-AcceptanceRuntimeStack([string]$Root, [string]$JavaHome) {
+    if (Test-AcceptanceRuntimeHealthy) { return $true }
+    Write-Host "Acceptance runtime stack unhealthy, re-booting Admin+Demo ..." -ForegroundColor Yellow
+    if (-not (Boot-AcceptanceStack $Root $JavaHome)) { return $false }
+    Start-Sleep -Seconds 5
+    return (Test-AcceptanceRuntimeHealthy)
 }
 
 function Stop-AcceptanceStack {
@@ -24,7 +81,12 @@ function Stop-AcceptanceStack {
         Remove-Job $script:acceptanceDemoJob -Force -ErrorAction SilentlyContinue
         $script:acceptanceDemoJob = $null
     }
-    Start-Sleep -Seconds 4
+    Start-Sleep -Seconds 6
+    if (-not (Wait-AcceptancePortsFree)) {
+        Write-Host "Acceptance ports still busy after stop, forcing second kill ..." -ForegroundColor Yellow
+        foreach ($p in @(8081, 20550, 20650, 8080)) { Stop-AcceptanceListenPort $p }
+        Start-Sleep -Seconds 4
+    }
 }
 
 function Wait-AcceptanceAdmin([string]$BaseAdmin = "http://127.0.0.1:8080", [int]$TimeoutSec = 240) {
@@ -136,15 +198,25 @@ function Start-AcceptanceDemoJob([string]$Root, [string]$JavaHome, [string]$Prof
     } -ArgumentList $Root, $JavaHome, $Profiles
 }
 
-function Ensure-AcceptanceArtifacts([string]$Root, [string]$JavaHome) {
+function Ensure-AcceptanceArtifacts([string]$Root, [string]$JavaHome, [switch]$Force) {
+    if ($script:AcceptanceArtifactsReady -and -not $Force) { return $true }
     $env:JAVA_HOME = $JavaHome
     $env:Path = "$JavaHome\bin;" + $env:Path
     Push-Location $Root
-    Write-Host "mvn install -pl zestflow-admin,zestflow-demo -am (acceptance prep) ..." -ForegroundColor DarkGray
-    & mvn -q install -DskipTests -pl zestflow-admin,zestflow-demo -am 2>&1 | Out-Null
-    $ok = ($LASTEXITCODE -eq 0)
+    for ($i = 1; $i -le 2; $i++) {
+        Write-Host "mvn compile -pl zestflow-admin,zestflow-demo -am (acceptance prep) ..." -ForegroundColor DarkGray
+        & mvn -q compile -DskipTests -pl zestflow-admin,zestflow-demo -am 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            $script:AcceptanceArtifactsReady = $true
+            Pop-Location
+            return $true
+        }
+        Write-Host "mvn install failed exit=$LASTEXITCODE attempt=$i (stop stack and retry)" -ForegroundColor Yellow
+        Stop-AcceptanceStack
+        Start-Sleep -Seconds 10
+    }
     Pop-Location
-    return $ok
+    return $false
 }
 
 function Boot-AcceptanceStack {
@@ -154,8 +226,8 @@ function Boot-AcceptanceStack {
         [string]$AdminProfiles = $script:AcceptanceAdminProfiles,
         [AllowEmptyString()] [string]$DemoProfiles = $script:AcceptanceDemoProfiles
     )
-    if (-not (Ensure-AcceptanceArtifacts $Root $JavaHome)) { return $false }
     Stop-AcceptanceStack
+    if (-not (Ensure-AcceptanceArtifacts $Root $JavaHome)) { return $false }
     Write-Host "Boot acceptance stack Admin=$AdminProfiles Demo=$DemoProfiles" -ForegroundColor Cyan
     Start-AcceptanceAdminJob $Root $JavaHome $AdminProfiles
     $adminWaitSec = if ([string]::IsNullOrWhiteSpace($DemoProfiles)) { 300 } else { 240 }

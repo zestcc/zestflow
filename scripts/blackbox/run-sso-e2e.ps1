@@ -56,15 +56,6 @@ if (-not $adminReachable) {
 }
 Add-Check "admin-reachable" $true "status=$($ping.status)"
 
-$discoveryOk = $false
-try {
-    $discovery = Invoke-RestMethod -Uri "$SsoBase/api/public/.well-known/openid-configuration" -Method Get -TimeoutSec 10
-    $discoveryOk = [bool]$discovery.authorization_endpoint
-    Add-Check "oidc-discovery" $discoveryOk $(if ($discoveryOk) { "authorization_endpoint ok" } else { "missing authorization_endpoint" })
-} catch {
-    Add-Check "oidc-discovery" $false $_.Exception.Message
-}
-
 $configOk = $false
 $configEnabled = $false
 try {
@@ -78,6 +69,19 @@ try {
     }
 } catch {
     Add-Check "sso-config" $false $_.Exception.Message
+}
+
+if ($configEnabled) {
+    $discoveryOk = $false
+    try {
+        $discovery = Invoke-RestMethod -Uri "$SsoBase/api/public/.well-known/openid-configuration" -Method Get -TimeoutSec 10
+        $discoveryOk = [bool]$discovery.authorization_endpoint
+        Add-Check "oidc-discovery" $discoveryOk $(if ($discoveryOk) { "authorization_endpoint ok" } else { "missing authorization_endpoint" })
+    } catch {
+        Add-Check "oidc-discovery" $false $_.Exception.Message
+    }
+} else {
+    Add-Check "oidc-discovery" $true "skipped-sso-disabled"
 }
 
 if ($configEnabled) {

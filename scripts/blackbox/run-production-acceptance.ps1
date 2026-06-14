@@ -106,14 +106,25 @@ try {
 
 if (-not $adminUp -and $StrictV1) {
     Write-Host "StrictV1: booting acceptance stack on :8080 ..." -ForegroundColor Cyan
-    $script:acceptanceStackBooted = Boot-AcceptanceStack $Root $JavaHome
-    if ($script:acceptanceStackBooted) {
-        try {
-            $ping = Invoke-WebRequest -Uri "$BaseAdmin/api/zestflow/auth/login" -Method POST `
-                -Body '{"username":"admin","password":"admin123"}' -ContentType "application/json" `
-                -UseBasicParsing -TimeoutSec 5
-            $adminUp = ($ping.StatusCode -eq 200)
-        } catch {}
+    Stop-AcceptanceStack
+    Start-Sleep -Seconds 8
+    for ($bootTry = 1; $bootTry -le 3; $bootTry++) {
+        if ($bootTry -gt 1) {
+            Write-Host "StrictV1 boot retry $bootTry/3 ..." -ForegroundColor Yellow
+            Stop-AcceptanceStack
+            Start-Sleep -Seconds 20
+        }
+        $script:acceptanceStackBooted = Boot-AcceptanceStack $Root $JavaHome
+        if ($script:acceptanceStackBooted) {
+            try {
+                $ping = Invoke-WebRequest -Uri "$BaseAdmin/api/zestflow/auth/login" -Method POST `
+                    -Body '{"username":"admin","password":"admin123"}' -ContentType "application/json" `
+                    -UseBasicParsing -TimeoutSec 5
+                $adminUp = ($ping.StatusCode -eq 200)
+            } catch {}
+            if ($adminUp) { break }
+            $script:acceptanceStackBooted = $false
+        }
     }
     Add-Phase "blackbox" "strictv1-boot-stack" ($script:acceptanceStackBooted -and $adminUp) $(if ($adminUp) { "admin:8080 ready" } else { "boot failed" })
 }
@@ -232,28 +243,38 @@ if (-not $SkipStress) {
 }
 
 if ($RequirePerf) {
-    & "$PSScriptRoot\run-perf-gate.ps1" -JavaHome $JavaHome -SkipRuntimeBlackbox
-    Add-Phase "stress" "perf-gate-phase2c" ($LASTEXITCODE -eq 0) "exit=$LASTEXITCODE"
+    $null = & "$PSScriptRoot\run-perf-gate.ps1" -JavaHome $JavaHome -SkipRuntimeBlackbox
+    $perfExit = [int]$LASTEXITCODE
+    Add-Phase "stress" "perf-gate-phase2c" ($perfExit -eq 0) "exit=$perfExit"
 } else {
     Add-Phase "stress" "perf-gate-phase2c" $true "skipped-use-RequirePerf"
 }
 
 if ($IncludeOfflineChecks) {
-    function Stop-ListenPortForOffline([int]$Port) {
-        Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
-            Select-Object -ExpandProperty OwningProcess -Unique |
-            ForEach-Object { if ($_ -and $_ -ne 0) { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue } }
-    }
-    Write-Host "Stopping demo-app (8081/20550) for offline checks ..." -ForegroundColor DarkGray
+    Write-Host "Stopping demo-app for offline checks ..." -ForegroundColor DarkGray
     . "$PSScriptRoot\_acceptance-common.ps1"
-    $warmToken = Login-AdminToken $BaseAdmin
+    $warmToken = $null
+    for ($i = 1; $i -le 5; $i++) {
+        $warmToken = Login-AdminToken $BaseAdmin
+        if ($warmToken) { break }
+        Start-Sleep -Seconds 2
+    }
+    $cacheWarmed = $false
     if ($warmToken) {
         $warmH = @{ Authorization = "Bearer $warmToken" }
-        Invoke-AcceptanceApi GET "$BaseAdmin/api/zestflow/chains?appCode=demo-app&page=1&size=5" $null $warmH | Out-Null
+        $cacheWarmed = Warm-AcceptanceReadCache $BaseAdmin $warmH "demo-app"
+        if (-not $cacheWarmed) {
+            Write-Host "Read-cache warm incomplete before offline checks (continuing)" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "Admin login failed before offline checks" -ForegroundColor Yellow
     }
-    Stop-ListenPortForOffline 8081
-    Stop-ListenPortForOffline 20550
-    $offlineDeadline = (Get-Date).AddSeconds(120)
+    Stop-AcceptanceDemoForOffline
+    if ($warmToken) {
+        $dereg = Remove-AcceptanceAppExecutors $BaseAdmin $warmH "demo-app"
+        Write-Host "Deregistered $dereg demo-app executor(s) for offline snapshot probe" -ForegroundColor DarkGray
+    }
+    $offlineDeadline = (Get-Date).AddSeconds(180)
     $staleReady = $false
     while ((Get-Date) -lt $offlineDeadline) {
         try {

@@ -39,9 +39,11 @@ $body = (@{ name = "OfflineWriteTest"; appCode = $AppCode; chainKey = "offline.w
 $post = Invoke-AcceptanceApi POST "$api/chains" $body $h
 
 if ($RequireOffline) {
-    $blocked = ($post.body -match 'EXECUTOR_OFFLINE') -or ($post.body -match '执行器离线') `
-        -or ($post.body -match '执行器不可达') -or ($post.status -ge 400)
-    Add-Check "post-blocked-offline" $blocked $(if ($blocked) { "status=$($post.status)" } else { "expected block when executor offline" })
+    $blocked = ($post.body -match 'EXECUTOR_OFFLINE') `
+        -or ($post.body -match '"errorCode"\s*:\s*"EXECUTOR_OFFLINE"') `
+        -or ($post.status -ge 400) `
+        -or (($post.body -match '"code"\s*:\s*400') -and ($post.body -match 'EXECUTOR_OFFLINE|离线'))
+    Add-Check "post-blocked-offline" $blocked $(if ($blocked) { "status=$($post.status)" } else { "expected block when executor offline body=$($post.body.Substring(0,[Math]::Min(120,$post.body.Length)))" })
 } elseif ($online) {
     Add-Check "post-when-online" ($post.ok -or ($post.body -match '"code"')) "status=$($post.status) skipped-offline-check"
     Add-Check "post-blocked-offline" $true "skipped-executor-online"

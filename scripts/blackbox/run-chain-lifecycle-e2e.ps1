@@ -35,6 +35,21 @@ function Get-Data($json) {
     return $json
 }
 
+function Resolve-EntityCode($root) {
+    if ($null -eq $root) { return $null }
+    if ($root.PSObject.Properties['code'] -and [string]$root.code -match '^\d+$') {
+        if ([int]$root.code -ne 200) { return $null }
+    }
+    $node = Get-Data $root
+    if (-not $node) { $node = $root }
+    if ($node.PSObject.Properties['code']) {
+        $c = [string]$node.code
+        if ($c -match '^\d+$') { return $null }
+        return $c
+    }
+    return $null
+}
+
 Write-Host "=== Chain Lifecycle E2E ===" -ForegroundColor Cyan
 
 $login = Invoke-Api POST "$BaseAdmin/api/zestflow/auth/login" '{"username":"admin","password":"admin123"}' $null
@@ -71,20 +86,26 @@ $designBody = @{
     chainData = $chainDataJson
 } | ConvertTo-Json -Compress -Depth 8
 
-$designResp = Invoke-Api POST "$BaseAdmin/api/zestflow/designs" $designBody $h
-if (-not $designResp.ok) {
-    Write-Host "Create design failed status=$($designResp.status) body=$($designResp.body)" -ForegroundColor Red
-    if ($AllowSkip) { exit 2 }
-    exit 1
-}
 $designCode = $null
-try {
-    $dRoot = ConvertFrom-Json $designResp.body
-    $dNode = Get-Data $dRoot
-    if ($dNode.code) { $designCode = [string]$dNode.code }
-} catch {}
+for ($attempt = 1; $attempt -le 3; $attempt++) {
+    $designResp = Invoke-Api POST "$BaseAdmin/api/zestflow/designs" $designBody $h
+    if (-not $designResp.ok) {
+        Write-Host "Create design HTTP failed status=$($designResp.status) attempt=$attempt" -ForegroundColor Yellow
+        Start-Sleep -Seconds 2
+        continue
+    }
+    try {
+        $dRoot = ConvertFrom-Json $designResp.body
+        $designCode = Resolve-EntityCode $dRoot
+        if (-not $designCode -and $dRoot.code -match '^\d+$' -and [int]$dRoot.code -ne 200) {
+            Write-Host "Create design business error code=$($dRoot.code) msg=$($dRoot.message) attempt=$attempt" -ForegroundColor Yellow
+        }
+    } catch {}
+    if ($designCode) { break }
+    Start-Sleep -Seconds 2
+}
 if (-not $designCode) {
-    Write-Host "Design code missing in response" -ForegroundColor Red
+    Write-Host "Design code missing or create failed after retries" -ForegroundColor Red
     if ($AllowSkip) { exit 2 }
     exit 1
 }
@@ -97,27 +118,26 @@ $chainBody = @{
     status = 2
 } | ConvertTo-Json -Compress
 
-$chainResp = Invoke-Api POST "$BaseAdmin/api/zestflow/chains" $chainBody $h
-if (-not $chainResp.ok) {
-    Write-Host "Create chain failed status=$($chainResp.status)" -ForegroundColor Red
-    if ($AllowSkip) { exit 2 }
-    exit 1
-}
 $chainCode = $null
-try {
-    $cRoot = ConvertFrom-Json $chainResp.body
-    if ($cRoot.code -match '^\d+$' -and [int]$cRoot.code -ne 200) {
-        Write-Host "Create chain business error code=$($cRoot.code) msg=$($cRoot.message)" -ForegroundColor Red
-        if ($AllowSkip) { exit 2 }
-        exit 1
+for ($attempt = 1; $attempt -le 3; $attempt++) {
+    $chainResp = Invoke-Api POST "$BaseAdmin/api/zestflow/chains" $chainBody $h
+    if (-not $chainResp.ok) {
+        Write-Host "Create chain HTTP failed status=$($chainResp.status) attempt=$attempt" -ForegroundColor Yellow
+        Start-Sleep -Seconds 2
+        continue
     }
-    $cNode = Get-Data $cRoot
-    if (-not $cNode) { $cNode = $cRoot }
-    if ($cNode.code) { $chainCode = [string]$cNode.code }
-    elseif ($cRoot.code -and $cRoot.code -notmatch '^\d+$') { $chainCode = [string]$cRoot.code }
-} catch {}
+    try {
+        $cRoot = ConvertFrom-Json $chainResp.body
+        $chainCode = Resolve-EntityCode $cRoot
+        if (-not $chainCode -and $cRoot.code -match '^\d+$' -and [int]$cRoot.code -ne 200) {
+            Write-Host "Create chain business error code=$($cRoot.code) msg=$($cRoot.message) attempt=$attempt" -ForegroundColor Yellow
+        }
+    } catch {}
+    if ($chainCode) { break }
+    Start-Sleep -Seconds 2
+}
 if (-not $chainCode) {
-    Write-Host "Chain code missing" -ForegroundColor Red
+    Write-Host "Chain code missing or create failed after retries" -ForegroundColor Red
     if ($AllowSkip) { exit 2 }
     exit 1
 }
