@@ -1,0 +1,6 @@
+# demo profile：Executor 业务库 Flyway（classpath:db/migration 来自 zestflow-executor）
+spring:
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true

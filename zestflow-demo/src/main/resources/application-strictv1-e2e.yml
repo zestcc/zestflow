@@ -1,4 +1,10 @@
 # 2026-06-14：StrictV1 E2E — Executor/Collector 注册到 Admin :8080
+spring:
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
 zestflow:
   executor:
     admin-addresses: http://127.0.0.1:8080

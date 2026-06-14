@@ -1,6 +1,7 @@
 # StrictV1 / E2E 栈启停 — 固定 8080/20550/20650，覆盖本地 application-local.yml 的 8082
+# Demo 必须含 demo profile 以触发 Executor 业务库 Flyway（含 delivery_lifecycle 等列）
 $script:AcceptanceAdminProfiles = "local,strictv1-e2e"
-$script:AcceptanceDemoProfiles = "local,strictv1-e2e"
+$script:AcceptanceDemoProfiles = "local,demo,strictv1-e2e"
 $script:acceptanceAdminJob = $null
 $script:acceptanceDemoJob = $null
 
@@ -157,9 +158,10 @@ function Boot-AcceptanceStack {
     Stop-AcceptanceStack
     Write-Host "Boot acceptance stack Admin=$AdminProfiles Demo=$DemoProfiles" -ForegroundColor Cyan
     Start-AcceptanceAdminJob $Root $JavaHome $AdminProfiles
-    if ($DemoProfiles) {
+    $adminWaitSec = if ([string]::IsNullOrWhiteSpace($DemoProfiles)) { 300 } else { 240 }
+    if (-not [string]::IsNullOrWhiteSpace($DemoProfiles)) {
         Start-AcceptanceDemoJob $Root $JavaHome $DemoProfiles
-        if (-not (Wait-AcceptanceAdmin)) { return $false }
+        if (-not (Wait-AcceptanceAdmin -TimeoutSec $adminWaitSec)) { return $false }
         if (-not (Wait-AcceptanceNetty)) { return $false }
         if (-not (Wait-AcceptanceExecutorOnline)) {
             Write-Host "Acceptance stack: demo-app executor not online" -ForegroundColor Red
@@ -170,7 +172,7 @@ function Boot-AcceptanceStack {
             return $false
         }
     } else {
-        if (-not (Wait-AcceptanceAdmin)) { return $false }
+        if (-not (Wait-AcceptanceAdmin -TimeoutSec $adminWaitSec)) { return $false }
     }
     Start-Sleep -Seconds 3
     return $true

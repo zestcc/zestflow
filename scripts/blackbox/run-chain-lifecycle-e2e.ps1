@@ -1,4 +1,4 @@
-# 链全生命周期 E2E：创建设�?�?绑定�?�?发布 �?Netty /execute
+# ?????? E2E???????????????? ??Netty /execute
 param(
     [string]$BaseAdmin = "http://127.0.0.1:8080",
     [string]$BaseNetty = "http://127.0.0.1:20550",
@@ -106,9 +106,15 @@ if (-not $chainResp.ok) {
 $chainCode = $null
 try {
     $cRoot = ConvertFrom-Json $chainResp.body
+    if ($cRoot.code -match '^\d+$' -and [int]$cRoot.code -ne 200) {
+        Write-Host "Create chain business error code=$($cRoot.code) msg=$($cRoot.message)" -ForegroundColor Red
+        if ($AllowSkip) { exit 2 }
+        exit 1
+    }
     $cNode = Get-Data $cRoot
     if (-not $cNode) { $cNode = $cRoot }
     if ($cNode.code) { $chainCode = [string]$cNode.code }
+    elseif ($cRoot.code -and $cRoot.code -notmatch '^\d+$') { $chainCode = [string]$cRoot.code }
 } catch {}
 if (-not $chainCode) {
     Write-Host "Chain code missing" -ForegroundColor Red

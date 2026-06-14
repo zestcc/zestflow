@@ -110,7 +110,7 @@ if ($ok) {
 }
 
 # --- playground-disabled (Admin only) ---
-$ok = Boot-Stack "local,playground-disabled-e2e" ""
+$ok = Boot-Stack "local,playground-disabled-e2e" $null
 if ($ok) {
     $ec = Run-Script "run-playground-disabled-e2e.ps1" @{}
     Add-Phase "playground-disabled-e2e" ($ec -eq 0) "exit=$ec"
