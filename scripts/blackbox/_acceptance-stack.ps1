@@ -52,6 +52,69 @@ function Wait-AcceptanceNetty([int]$TimeoutSec = 240) {
     return $false
 }
 
+function Get-AcceptanceAdminToken([string]$BaseAdmin = "http://127.0.0.1:8080") {
+    try {
+        $r = Invoke-WebRequest -Uri "$BaseAdmin/api/zestflow/auth/login" -Method POST `
+            -Body '{"username":"admin","password":"admin123"}' -ContentType "application/json" `
+            -UseBasicParsing -TimeoutSec 5
+        return (ConvertFrom-Json $r.Content).data.token
+    } catch {
+        return $null
+    }
+}
+
+function Wait-AcceptanceExecutorOnline(
+    [string]$BaseAdmin = "http://127.0.0.1:8080",
+    [string]$AppCode = "demo-app",
+    [int]$TimeoutSec = 180
+) {
+    $deadline = (Get-Date).AddSeconds($TimeoutSec)
+    while ((Get-Date) -lt $deadline) {
+        $token = Get-AcceptanceAdminToken $BaseAdmin
+        if (-not $token) { Start-Sleep -Seconds 2; continue }
+        try {
+            $h = @{ Authorization = "Bearer $token" }
+            $r = Invoke-WebRequest -Uri "$BaseAdmin/api/zestflow/executors/apps?online=true" `
+                -Headers $h -UseBasicParsing -TimeoutSec 5
+            $apps = (ConvertFrom-Json $r.Content).data
+            if ($apps | Where-Object { $_.appCode -eq $AppCode -or $_.appName -eq $AppCode }) {
+                return $true
+            }
+            $r2 = Invoke-WebRequest -Uri "$BaseAdmin/api/zestflow/executors" -Headers $h -UseBasicParsing -TimeoutSec 5
+            $list = (ConvertFrom-Json $r2.Content).data
+            if ($list | Where-Object { $_.status -eq 1 -and ($_.appCode -eq $AppCode -or $_.appName -eq $AppCode) }) {
+                return $true
+            }
+        } catch {}
+        Start-Sleep -Seconds 2
+    }
+    return $false
+}
+
+function Wait-AcceptancePlaygroundWarmup(
+    [string]$BaseAdmin = "http://127.0.0.1:8080",
+    [string]$WarmScene = "SCN20260531050001",
+    [int]$TimeoutSec = 120
+) {
+    $deadline = (Get-Date).AddSeconds($TimeoutSec)
+    while ((Get-Date) -lt $deadline) {
+        $token = Get-AcceptanceAdminToken $BaseAdmin
+        if (-not $token) { Start-Sleep -Seconds 2; continue }
+        try {
+            $h = @{ Authorization = "Bearer $token" }
+            $r = Invoke-WebRequest -Uri "$BaseAdmin/api/zestflow/playground/execute/$WarmScene" -Method POST `
+                -Body '{}' -ContentType "application/json" -Headers $h -UseBasicParsing -TimeoutSec 60
+            $resp = ConvertFrom-Json $r.Content
+            if ($resp.code -eq 200) {
+                $st = $resp.data.status
+                if ($null -eq $st -or $st -eq 1 -or $st -eq '1' -or $st -eq 'SUCCESS') { return $true }
+            }
+        } catch {}
+        Start-Sleep -Seconds 3
+    }
+    return $false
+}
+
 function Start-AcceptanceAdminJob([string]$Root, [string]$JavaHome, [string]$Profiles) {
     $script:acceptanceAdminJob = Start-Job -Name "zestflow-admin-acceptance" -ScriptBlock {
         param($Root, $JavaHome, $Profiles)
@@ -98,10 +161,18 @@ function Boot-AcceptanceStack {
         Start-AcceptanceDemoJob $Root $JavaHome $DemoProfiles
         if (-not (Wait-AcceptanceAdmin)) { return $false }
         if (-not (Wait-AcceptanceNetty)) { return $false }
+        if (-not (Wait-AcceptanceExecutorOnline)) {
+            Write-Host "Acceptance stack: demo-app executor not online" -ForegroundColor Red
+            return $false
+        }
+        if (-not (Wait-AcceptancePlaygroundWarmup)) {
+            Write-Host "Acceptance stack: playground warmup not green" -ForegroundColor Red
+            return $false
+        }
     } else {
         if (-not (Wait-AcceptanceAdmin)) { return $false }
     }
-    Start-Sleep -Seconds 5
+    Start-Sleep -Seconds 3
     return $true
 }
 

@@ -39,11 +39,11 @@ function Wait-Admin([int]$TimeoutSec = 180) { return Wait-AcceptanceAdmin "http:
 function Run-Script($name, [hashtable]$NamedArgs = @{}) {
     $path = Join-Path $PSScriptRoot $name
     if ($NamedArgs.Count -gt 0) {
-        & $path @NamedArgs
+        & $path @NamedArgs 2>&1 | Out-Host
     } else {
-        & $path
+        & $path 2>&1 | Out-Host
     }
-    return $LASTEXITCODE
+    return [int]$LASTEXITCODE
 }
 
 function Wait-AdminReady([int]$Retries = 5) {
@@ -121,6 +121,8 @@ if ($ok) {
 # --- perf (restore local stack) ---
 $ok = Boot-Stack "local" "local"
 if ($ok) {
+    Write-Host "Cooling down 45s before perf gate (avoid post-E2E CPU contention) ..." -ForegroundColor DarkGray
+    Start-Sleep -Seconds 45
     $ec = Run-Script "run-perf-gate.ps1" @{ JavaHome = $JavaHome }
     Add-Phase "perf-gate-phase2c" ($ec -eq 0) "exit=$ec"
     $ec = Run-Script "run-full-perf.ps1" @{ JavaHome = $JavaHome }

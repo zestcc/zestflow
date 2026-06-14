@@ -91,8 +91,9 @@ if (-not $SkipNpmBuild) {
 if (-not $SkipProfilesE2e) {
     $profilesScript = Join-Path $PSScriptRoot "run-all-profiles-e2e.ps1"
     & $profilesScript -SkipMavenTest -JavaHome $JavaHome -SceneTimeoutSec $SceneTimeoutSec 2>&1 | Out-Host
-    Add-Phase "all-profiles-e2e" ($LASTEXITCODE -eq 0) "exit=$LASTEXITCODE"
-    if ($LASTEXITCODE -ne 0) { Write-V1Report }
+    $profilesExit = [int]$LASTEXITCODE
+    Add-Phase "all-profiles-e2e" ($profilesExit -eq 0) "exit=$profilesExit"
+    if ($profilesExit -ne 0) { Write-V1Report }
 } else {
     Add-Phase "all-profiles-e2e" $true "skipped"
 }
@@ -101,7 +102,8 @@ if (-not $SkipProfilesE2e) {
 if (-not $SkipProductionAcceptance) {
     $prodScript = Join-Path $PSScriptRoot "run-production-acceptance.ps1"
     & $prodScript -SkipMavenTest -StrictV1 -JavaHome $JavaHome -SceneTimeoutSec $SceneTimeoutSec 2>&1 | Out-Host
-    Add-Phase "production-acceptance-strictV1" ($LASTEXITCODE -eq 0) "exit=$LASTEXITCODE"
+    $prodExit = [int]$LASTEXITCODE
+    Add-Phase "production-acceptance-strictV1" ($prodExit -eq 0) "exit=$prodExit"
 } else {
     Add-Phase "production-acceptance-strictV1" $true "skipped"
 }
