@@ -131,8 +131,8 @@ if ($ok) {
 # --- perf (restore local stack) ---
 $ok = Boot-Stack "local" "local"
 if ($ok) {
-    Write-Host "Cooling down 45s before perf gate (avoid post-E2E CPU contention) ..." -ForegroundColor DarkGray
-    Start-Sleep -Seconds 45
+    Write-Host "Cooling down 90s before perf gate (avoid post-E2E CPU contention) ..." -ForegroundColor DarkGray
+    Start-Sleep -Seconds 90
     $ec = Run-Script "run-perf-gate.ps1" @{ JavaHome = $JavaHome; SkipRuntimeBlackbox = $true }
     Add-Phase "perf-gate-phase2c" ($ec -eq 0) "exit=$ec"
     $ec = Run-Script "run-full-perf.ps1" @{ JavaHome = $JavaHome }

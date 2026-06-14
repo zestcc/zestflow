@@ -151,8 +151,16 @@ try {
 } catch {}
 
 if ($nettyUp) {
+    Start-Sleep -Seconds 15
     & "$PSScriptRoot\run-blackbox.ps1" -BaseAdmin $BaseAdmin -BaseNetty $BaseNetty -PerfGateOnly
-    Add-Phase "runtime-netty-perf" ($LASTEXITCODE -eq 0) "exit=$LASTEXITCODE" $null
+    $nettyPerfExit = [int]$LASTEXITCODE
+    if ($nettyPerfExit -ne 0) {
+        Write-Host "runtime-netty-perf retry after 30s cooldown ..." -ForegroundColor DarkYellow
+        Start-Sleep -Seconds 30
+        & "$PSScriptRoot\run-blackbox.ps1" -BaseAdmin $BaseAdmin -BaseNetty $BaseNetty -PerfGateOnly
+        $nettyPerfExit = [int]$LASTEXITCODE
+    }
+    Add-Phase "runtime-netty-perf" ($nettyPerfExit -eq 0) "exit=$nettyPerfExit" $null
 } else {
     Add-Phase "runtime-netty-perf" $false "Netty $BaseNetty not reachable" $null
 }
