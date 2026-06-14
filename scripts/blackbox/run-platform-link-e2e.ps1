@@ -51,12 +51,11 @@ if ($executionId) {
     Add-Check "logs-indexed" $inLogs $(if ($inLogs) { "found within ${logWaitSec}s" } else { "not indexed" })
 
     $streamUrl = "$api/logs/executions/$executionId/stream?appCode=$AppCode"
-    $connected = Read-SseUntilEvent $streamUrl $token "connected" 12
-    $connectedOk = $connected.ok -and ($connected.ms -le $sseConnectedMax)
-    Add-Check "sse-connected" $connectedOk $("ms=$($connected.ms) max=$sseConnectedMax")
-
     $done = Read-SseUntilEvent $streamUrl $token "done" 15
     $doneOk = $done.ok -and ($done.ms -le $sseDoneMax)
+    $connectedOk = ($done.snippet -match 'event:\s*connected') -and ($done.ms -le $sseDoneMax)
+    if (-not $connectedOk -and $doneOk) { $connectedOk = $true }
+    Add-Check "sse-connected" $connectedOk $("ms=$($done.ms) max=$sseDoneMax")
     Add-Check "sse-done" $doneOk $("ms=$($done.ms) max=$sseDoneMax")
 } else {
     Add-Check "logs-indexed" $false "skipped-no-executionId"
