@@ -1,6 +1,6 @@
 # ZestFlow 文档中心
 
-> **版本** 0.1.0 · **更新** 2026-06-08 · **语言** 简体中文 · [English](README.en.md) · **完整清单** [CATALOG.md](CATALOG.md) · **维护规范** [DOCUMENTATION_MAINTENANCE.md](DOCUMENTATION_MAINTENANCE.md)
+> **版本** 1.0.0-SNAPSHOT · **更新** 2026-06-14 · **语言** 简体中文 · [English](README.en.md) · **完整清单** [CATALOG.md](CATALOG.md) · **维护规范** [DOCUMENTATION_MAINTENANCE.md](DOCUMENTATION_MAINTENANCE.md)
 
 欢迎查阅 ZestFlow 官方文档（共 **35** 篇，见 [完整清单](CATALOG.md)）。每篇均提供 [English](README.en.md) 镜像。采用 [Diátaxis](https://diataxis.fr/) 框架组织。
 
@@ -122,6 +122,10 @@ AI_COPILOT.md（主方案）
 
 | 文档 | 说明 | 脚本 |
 |------|------|------|
+| [V1_0_ROADMAP.md](V1_0_ROADMAP.md) | **v1.0.0 路线图**与 P0/P1 清单 | — |
+| [guides/STRICT_V1_ACCEPTANCE.md](guides/STRICT_V1_ACCEPTANCE.md) | **StrictV1 全量验收**（8080 栈） | `run-v1-acceptance.ps1` |
+| [guides/PRODUCTION_ACCEPTANCE.md](guides/PRODUCTION_ACCEPTANCE.md) | 四层生产门禁 | `run-production-acceptance.ps1` |
+| [MIGRATION_0.x_to_1.0.md](MIGRATION_0.x_to_1.0.md) | 0.x → 1.0 迁移 | — |
 | [FULL_E2E_TEST_REPORT.md](FULL_E2E_TEST_REPORT.md) | 全流程 E2E 报告 | `run-full-e2e.ps1` |
 | [BLACKBOX_TEST_REPORT.md](BLACKBOX_TEST_REPORT.md) | 黑盒冒烟报告 | `run-blackbox.ps1` |
 | [acceptance/AI_EXECUTOR_V2_ACCEPTANCE.md](acceptance/AI_EXECUTOR_V2_ACCEPTANCE.md) | Executor AI v2 | — |

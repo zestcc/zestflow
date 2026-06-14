@@ -1,6 +1,6 @@
 # 从 0.x 迁移到 1.0.0
 
-> **类型**：Reference · [← 文档中心](README.md) · [English](MIGRATION_0.x_to_1.0.en.md)（待同步）
+> **类型**：Reference · [← 文档中心](README.md) · [English](MIGRATION_0.x_to_1.0.en.md)
 
 ## 版本对照
 
@@ -34,15 +34,26 @@ zestflow:
 
 ### 节点降级 config（可选）
 
-链节点 `config` 支持：
+链节点 `config.fallback` 支持：
 
 | key | 值 | 行为 |
 |-----|-----|------|
-| `fallbackMode` | `default` | 记录日志，返回 null（与 0.x 一致） |
-| `fallbackMode` | `constant` | 需配合 `fallbackConstant`，写入上下文 |
-| `fallbackMode` | `propagate` | 将原异常重新抛出，降级失败 |
+| `mode` | `default` | 记录日志，返回 null（与 0.x 一致） |
+| `mode` | `constant` | 需配合 `constant`，写入上下文 |
+| `mode` | `propagate` | 将原异常重新抛出，降级失败 |
 
-仍优先使用 `fallbackComponent` 指定降级元件。
+仍优先使用 `fallback.component` 指定降级元件。
+
+示例：
+
+```json
+"config": {
+  "fallback": {
+    "mode": "constant",
+    "constant": "{\"ok\":true}"
+  }
+}
+```
 
 ## 数据库
 
@@ -60,10 +71,14 @@ zestflow:
 
 ## 验收建议
 
-升级后运行：
+升级后运行 StrictV1（**需 Admin :8080 栈**，见 [guides/STRICT_V1_ACCEPTANCE.md](guides/STRICT_V1_ACCEPTANCE.md)）：
+
+```powershell
+.\scripts\blackbox\run-v1-acceptance.ps1
+```
+
+快速探测（跳过白盒）：
 
 ```powershell
 .\scripts\blackbox\run-v1-acceptance.ps1 -SkipMavenTest
 ```
-
-（首次建议全量含 `mvn test`）

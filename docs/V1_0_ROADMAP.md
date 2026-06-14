@@ -35,9 +35,21 @@
 
 ## StrictV1 门禁命令
 
+**完整步骤（8080 栈、发版前必读）**：[guides/STRICT_V1_ACCEPTANCE.md](guides/STRICT_V1_ACCEPTANCE.md)
+
 ```powershell
 # 需 Admin :8080 + Demo :20550 + Collector :20650（local profile）
 .\scripts\blackbox\run-v1-acceptance.ps1
 ```
 
 等价于：全量 `mvn test` + `npm run build` + cluster 构建测试 + 全 profile E2E + 严格 production-acceptance（perf + offline + enterprise/security 由 profile 编排覆盖）。
+
+## 发版前自检（StrictV1 全绿后）
+
+| # | 项 | 负责人 |
+|---|-----|--------|
+| 1 | `v1-acceptance-*.json` 五阶段全 `ok`，无 `skipped` | 本地/CI 机 |
+| 2 | POM/README/CHANGELOG → `1.0.0` | 发版 |
+| 3 | `git tag v1.0.0` + Gitee Release 包 | 发版 |
+| 4 | Maven Central `zestflow-starter:1.0.0` | 发版 |
+| 5 | 生产 prod profile + 密钥 checklist | 运维 |

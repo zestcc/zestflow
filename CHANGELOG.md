@@ -9,7 +9,7 @@
 - **StrictV1 门禁**：`scripts/blackbox/run-v1-acceptance.ps1`（全量 `mvn test` + cluster + npm build + 全 profile E2E + 严格 production-acceptance）
 - 日志执行轨迹 **WebSocket** 传输（默认开启，前端 `streamExecutionTraceAuto` WS 优先、SSE 回退）
 - 节点降级策略 `fallback.mode`：`default` / `constant` / `propagate`（无元件时生效，仍优先 `fallback.component`）
-- v1.0 文档：[V1_0_ROADMAP.md](docs/V1_0_ROADMAP.md)、[MIGRATION_0.x_to_1.0.md](docs/MIGRATION_0.x_to_1.0.md)、[MULTI_TENANT.md](docs/guides/MULTI_TENANT.md)
+- v1.0 文档：[V1_0_ROADMAP.md](docs/V1_0_ROADMAP.md)、[MIGRATION_0.x_to_1.0.md](docs/MIGRATION_0.x_to_1.0.md)、[MULTI_TENANT.md](docs/guides/MULTI_TENANT.md)、[STRICT_V1_ACCEPTANCE.md](docs/guides/STRICT_V1_ACCEPTANCE.md)
 - SSO/OIDC 企业登录（Authorization Code + PKCE）
 
 ### Changed
@@ -17,6 +17,7 @@
 - 全模块 Maven 版本统一为 **1.0.0-SNAPSHOT**
 - `zestflow.admin.log-live-stream.websocket-enabled` 默认 **true**
 - `/system/features` 暴露 `logLiveStream.websocketEnabled`
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) §8.5 声明 **1.0 API 稳定性**冻结范围
 
 ## [0.1.0] - 2026-06-03
 

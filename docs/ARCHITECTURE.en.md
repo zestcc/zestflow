@@ -1,6 +1,6 @@
 # ZestFlow Architecture Design Document
 
-> **Version** 0.1.0 · **Updated** 2026-06-08 · **Language** English · [简体中文](ARCHITECTURE.md)  
+> **Version** 1.0.0-SNAPSHOT · **Updated** 2026-06-14 · **Language** English · [简体中文](ARCHITECTURE.md)  
 > **Positioning** Observable business process orchestration engine for the AI era · **Doc index** [README.en.md](README.en.md)
 
 ---
@@ -1412,6 +1412,23 @@ classDiagram
     }
 ```
 
+### 8.5 API stability (frozen at 1.0)
+
+From **1.0.0** onward, the following external contracts remain backward compatible within **1.x**; breaking changes target **2.0** only (see [MIGRATION_0.x_to_1.0.en.md](MIGRATION_0.x_to_1.0.en.md)).
+
+| Category | Contract | Notes |
+|----------|----------|-------|
+| **Executor Netty** | `POST /execute` response | Fixed `ChainExecuteResultDTO` JSON |
+| **Registry** | `POST /registry/register`, `/registry/heartbeat` | `RegisterDTO` / `HeartbeatDTO` — additive fields only |
+| **Collector** | `chain_event` core columns | Query semantics for event types and ids unchanged |
+| **Admin auth** | JWT + `Authorization: Bearer` | Login, refresh, 401 behavior stable |
+| **Admin log stream** | SSE `/logs/executions/{id}/stream` | Events `connected` / `trace` / `done` / `error` |
+| **Admin log stream** | WebSocket `/logs/executions/{id}/ws` | New in 1.0; envelope `{ event, data }` aligned with SSE |
+
+**Not frozen in 1.0**: undocumented debug endpoints, Playground/AI Copilot APIs, OpenAPI description tweaks.
+
+**Release gate**: StrictV1 green — [guides/STRICT_V1_ACCEPTANCE.md](guides/STRICT_V1_ACCEPTANCE.md).
+
 ---
 
 ## 9. Security architecture
@@ -1702,19 +1719,25 @@ graph LR
 - [x] Playground demo system
 - [x] Mail integration (optional Noop)
 - [x] AI Copilot + Dev MCP (Phase 1–3)
+- [x] SSO/OIDC enterprise login (Authorization Code + PKCE)
+- [x] Log SSE + WebSocket dual channel (WS on by default)
+- [x] Node fallback strategies (default / constant / propagate)
+- [x] StrictV1 release gate script
 
 ### 14.2 Planned ○
 
 ```mermaid
 timeline
     title ZestFlow evolution roadmap
+    section v1.0 release closure
+        StrictV1 green : run-v1-acceptance.ps1 Exit 0
+        tag v1.0.0 : Maven Central + Gitee Release
     section Near term
         Flyway versioned migrations : init.sql → V{n}__*.sql
-        SpEL/Groovy conditional routing : Replace simple ScriptEngine
-        Richer fallback strategies : Return/exception mapping
+        SpEL conditional routing : Alongside Aviator
+        WebSocket dedicated E2E : Log stream blackbox
     section Mid term
-        WebSocket live execution status : Logs/live dashboard
-        Admin distributed schedule lock : Redis / DB lock
+        Admin distributed schedule lock : ShedLock cluster path
         Executor ServerHandler integration tests
     section Long term
         Admin cluster HA : Stateless + load balancing

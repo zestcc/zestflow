@@ -1,8 +1,18 @@
 # 生产级验收（Production Acceptance）
 
-> 对标 xxl-job 发布门禁 + 企业 SaaS 四层验收模型：**白盒 → 黑盒 → 主链路 → 压力**。
+> 对标 xxl-job 发布门禁 + 企业 SaaS 四层验收模型：**白盒 → 黑盒 → 主链路 → 压力**。  
+> **v1.0.0 发版**请使用总门禁 [StrictV1 全量指南](STRICT_V1_ACCEPTANCE.md)（含本脚本 `-StrictV1`）。
 
-## 一键执行
+## v1.0 StrictV1 总门禁
+
+```powershell
+# 唯一发版命令（8080 栈，约 30–90 分钟，不可 skip 后两阶段）
+.\scripts\blackbox\run-v1-acceptance.ps1
+```
+
+详见 [STRICT_V1_ACCEPTANCE.md](STRICT_V1_ACCEPTANCE.md)。
+
+## 一键执行（单层 production-acceptance）
 
 前提：MySQL 已初始化，`zestflow-admin`（8080）、`zestflow-demo`（Netty 20550、Collector 20650）已启动。
 

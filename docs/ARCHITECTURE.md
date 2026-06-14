@@ -1,6 +1,6 @@
 # ZestFlow 架构设计文档
 
-> **版本** 0.1.0 · **更新** 2026-06-08 · **状态** 基于代码库全量通读 · [English](ARCHITECTURE.en.md)
+> **版本** 1.0.0-SNAPSHOT · **更新** 2026-06-14 · **状态** 基于代码库全量通读 · [English](ARCHITECTURE.en.md)
 > **定位** AI 时代的业务流程可观测编排引擎 · **文档索引** [README.md](README.md)
 
 ---
@@ -1416,6 +1416,23 @@ classDiagram
     }
 ```
 
+### 8.5 API 稳定性（1.0 冻结）
+
+自 **1.0.0** 起，以下对外协议在 **1.x** 主版本内保持向后兼容；Breaking Change 仅进入 **2.0**（见 [MIGRATION_0.x_to_1.0.md](MIGRATION_0.x_to_1.0.md)）。
+
+| 类别 | 契约 | 说明 |
+|------|------|------|
+| **Executor Netty** | `POST /execute` 响应体 | 固定 `ChainExecuteResultDTO` JSON；试验场与 Admin 代理依赖此结构 |
+| **注册** | `POST /registry/register`、`POST /registry/heartbeat` | `RegisterDTO` / `HeartbeatDTO` 字段只增不减 |
+| **Collector** | `chain_event` 表核心字段 | `event_id`、`event_type`、`chain_id`、`node_id`、`timestamp` 等查询语义不变 |
+| **Admin 认证** | JWT + `Authorization: Bearer` | 登录 `/auth/login`、刷新与 401 行为保持稳定 |
+| **Admin 日志流** | SSE `/logs/executions/{id}/stream` | 事件名 `connected` / `trace` / `done` / `error` 保持稳定 |
+| **Admin 日志流** | WebSocket `/logs/executions/{id}/ws` | 1.0 新增；envelope `{ event, data }` 与 SSE 事件名对齐 |
+
+**不在 1.0 冻结范围**（可随 minor 演进）：Admin CRUD 路径细节、OpenAPI 描述、Playground/AI Copilot 接口、未文档化的内部调试端点。
+
+**发版验收**：StrictV1 全绿 — [guides/STRICT_V1_ACCEPTANCE.md](guides/STRICT_V1_ACCEPTANCE.md)。
+
 ---
 
 ## 9. 安全架构
@@ -1705,19 +1722,25 @@ graph LR
 - [x] X6 可视化设计编辑器
 - [x] Playground 演示系统
 - [x] 邮件集成（可选 Noop）
+- [x] SSO/OIDC 企业登录（Authorization Code + PKCE）
+- [x] 日志 SSE + WebSocket 双通道（WS 默认开启）
+- [x] 节点 Fallback 策略（default / constant / propagate）
+- [x] StrictV1 发版门禁脚本
 
 ### 14.2 待演进 ○
 
 ```mermaid
 timeline
     title ZestFlow 演进路线
+    section v1.0 发版闭环
+        StrictV1 全绿 : run-v1-acceptance.ps1 Exit 0
+        tag v1.0.0 : Maven Central + Gitee Release
     section 近期
         Flyway 版本化迁移 : init.sql → V{n}__*.sql
         SpEL 条件路由增强 : 与 Aviator 并存，覆盖 Spring 惯用场景
-        Fallback 策略丰富化 : 返回值/异常映射
+        WebSocket 专用 E2E : 日志流 WS 黑盒用例
     section 中期
-        WebSocket 实时执行状态 : 日志页/live dashboard
-        Admin 调度分布式锁 : Redis / DB 锁
+        Admin 调度分布式锁 : ShedLock cluster 已具备，E2E 持续增强
         Executor ServerHandler 集成测试
     section 远期
         Admin 集群高可用 : 无状态 + 负载均衡
