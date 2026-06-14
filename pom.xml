@@ -6,7 +6,7 @@
 
     <groupId>cn.zestflow.www</groupId>
     <artifactId>zestflow</artifactId>
-    <version>0.2.0</version>
+    <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>ZestFlow</name>
@@ -80,16 +80,16 @@
         <springdoc.version>2.6.0</springdoc.version>
 
         <!-- ============ 模块版本（独立管理，可各自发布） ============ -->
-        <zestflow-common.version>0.2.0</zestflow-common.version>
-        <zestflow-executor.version>0.2.0</zestflow-executor.version>
-        <collector-core.version>0.2.0</collector-core.version>
-        <collector-jdbc.version>0.2.0</collector-jdbc.version>
-        <collector-kafka.version>0.2.0</collector-kafka.version>
-        <collector-rabbitmq.version>0.2.0</collector-rabbitmq.version>
-        <zestflow-starter.version>0.2.0</zestflow-starter.version>
-        <zestflow-admin.version>0.2.0</zestflow-admin.version>
-        <zestflow-mcp.version>0.2.0</zestflow-mcp.version>
-        <zestflow-demo.version>0.2.0</zestflow-demo.version>
+        <zestflow-common.version>1.0.0-SNAPSHOT</zestflow-common.version>
+        <zestflow-executor.version>1.0.0-SNAPSHOT</zestflow-executor.version>
+        <collector-core.version>1.0.0-SNAPSHOT</collector-core.version>
+        <collector-jdbc.version>1.0.0-SNAPSHOT</collector-jdbc.version>
+        <collector-kafka.version>1.0.0-SNAPSHOT</collector-kafka.version>
+        <collector-rabbitmq.version>1.0.0-SNAPSHOT</collector-rabbitmq.version>
+        <zestflow-starter.version>1.0.0-SNAPSHOT</zestflow-starter.version>
+        <zestflow-admin.version>1.0.0-SNAPSHOT</zestflow-admin.version>
+        <zestflow-mcp.version>1.0.0-SNAPSHOT</zestflow-mcp.version>
+        <zestflow-demo.version>1.0.0-SNAPSHOT</zestflow-demo.version>
         <mcp-sdk.version>0.10.0</mcp-sdk.version>
 
         <!-- release profile：本地验证加 -Dgpg.skip=true；正式发布勿跳过 -->
@@ -140,12 +140,12 @@
             <dependency>
                 <groupId>cn.zestflow.www</groupId>
                 <artifactId>zestflow-dev-templates</artifactId>
-                <version>0.2.0</version>
+                <version>1.0.0-SNAPSHOT</version>
             </dependency>
             <dependency>
                 <groupId>cn.zestflow.www</groupId>
                 <artifactId>zestflow-dev-init</artifactId>
-                <version>0.2.0</version>
+                <version>1.0.0-SNAPSHOT</version>
             </dependency>
             <dependency>
                 <groupId>cn.zestflow.www</groupId>
@@ -374,7 +374,7 @@
                             <publishingServerId>central</publishingServerId>
                             <autoPublish>true</autoPublish>
                             <waitUntil>published</waitUntil>
-                            <deploymentName>ZestFlow 0.2.0</deploymentName>
+                            <deploymentName>ZestFlow 1.0.0-SNAPSHOT</deploymentName>
                         </configuration>
                     </plugin>
                 </plugins>

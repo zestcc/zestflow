@@ -7,7 +7,7 @@
     <parent>
         <groupId>cn.zestflow.www</groupId>
         <artifactId>zestflow</artifactId>
-        <version>0.2.0</version>
+        <version>1.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>zestflow-mcp</artifactId>
@@ -15,7 +15,7 @@
     <packaging>jar</packaging>
 
     <name>ZestFlow :: MCP Server</name>
-    <description>开发态 MCP Server — 向 Cursor/Claude 暴露 ZestFlow 规范与项目上下文</description>
+    <description>??? MCP Server ? ? Cursor/Claude ?? ZestFlow ????????</description>
 
     <dependencies>
         <dependency>
@@ -74,7 +74,7 @@
                     <descriptors>
                         <descriptor>src/assembly/standalone.xml</descriptor>
                     </descriptors>
-                    <!-- 主 artifact 保持瘦 jar 供 Admin 嵌入；独立 MCP 用 *-all.jar -->
+                    <!-- �?artifact 保持�?jar �?Admin 嵌入；独�?MCP �?*-all.jar -->
                     <appendAssemblyId>true</appendAssemblyId>
                 </configuration>
                 <executions>

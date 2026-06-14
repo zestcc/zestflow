@@ -185,6 +185,8 @@ public class ChainDefinitionBuilder {
         if (!fallbackCfg.isEmpty()) {
             builder.fallbackComponent(parseStringConfig(fallbackCfg, "component", ""));
             builder.fallbackOn(new HashSet<>(parseStringListConfig(fallbackCfg, "on")));
+            builder.fallbackMode(parseStringConfig(fallbackCfg, "mode", ""));
+            builder.fallbackConstant(parseStringConfig(fallbackCfg, "constant", ""));
         }
 
         // 补偿相关

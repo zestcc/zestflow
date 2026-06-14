@@ -7,7 +7,7 @@
     <parent>
         <groupId>cn.zestflow.www</groupId>
         <artifactId>zestflow</artifactId>
-        <version>0.2.0</version>
+        <version>1.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>zestflow-starter</artifactId>
@@ -15,7 +15,7 @@
     <packaging>jar</packaging>
 
     <name>ZestFlow :: Starter</name>
-    <description>一键引入包 — 聚合 executor + collector-jdbc，业务方零配置引入</description>
+    <description>????? � ?? executor + collector-jdbc?????????</description>
 
     <dependencies>
         <dependency>
@@ -30,7 +30,7 @@
             <groupId>cn.zestflow.www</groupId>
             <artifactId>collector-jdbc</artifactId>
         </dependency>
-        <!-- 保证嵌入方 classpath 含 MP 分页模块（3.5.9+ 不再随 extension 传递） -->
+        <!-- 保话嵌入�?classpath �?MP 分页模块�?.5.9+ 丝冝�?extension 传递） -->
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-jsqlparser</artifactId>
@@ -39,7 +39,7 @@
 
     <build>
         <plugins>
-            <!-- 聚合 starter 无单测；跳过 surefire 避免继承父 POM excludedGroups 却无 JUnit 引擎 -->
+            <!-- 蝚坈 starter 无坕测；跳过 surefire 靿兝继承�?POM excludedGroups 坴无 JUnit 引擎 -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>

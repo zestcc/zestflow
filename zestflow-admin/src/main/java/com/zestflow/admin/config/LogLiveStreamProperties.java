@@ -18,8 +18,8 @@ public class LogLiveStreamProperties {
     /** SSE 连接最长存活时间（毫秒） */
     private long sseTimeoutMs = 600_000L;
 
-    /** 是否启用 WebSocket 传输（默认 false，与 SSE 二选一或并存） */
-    private boolean websocketEnabled = false;
+    /** 是否启用 WebSocket 传输（1.0 默认 true，生产可按需关闭） */
+    private boolean websocketEnabled = true;
 
     /** 后台推送线程池大小 */
     private int poolSize = Math.min(4, Math.max(2, Runtime.getRuntime().availableProcessors()));

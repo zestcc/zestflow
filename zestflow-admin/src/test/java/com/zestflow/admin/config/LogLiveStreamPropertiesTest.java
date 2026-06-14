@@ -12,6 +12,7 @@ class LogLiveStreamPropertiesTest {
 
         assertThat(props.getPollIntervalMs()).isEqualTo(2_000L);
         assertThat(props.getSseTimeoutMs()).isEqualTo(600_000L);
+        assertThat(props.isWebsocketEnabled()).isTrue();
         assertThat(props.getPoolSize()).isGreaterThanOrEqualTo(1);
     }
 }

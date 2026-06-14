@@ -3,6 +3,7 @@ package com.zestflow.admin.system;
 import com.zestflow.admin.config.AdminCacheProperties;
 import com.zestflow.admin.config.AdminRedisConditions;
 import com.zestflow.admin.config.AiPlatformConfig;
+import com.zestflow.admin.config.LogLiveStreamProperties;
 import com.zestflow.admin.config.PlaygroundPlatformConfig;
 import com.zestflow.admin.config.TenantPlatformConfig;
 import com.zestflow.admin.runtime.AdminDeployProperties;
@@ -30,6 +31,7 @@ public class SystemController {
     private final AdminCacheProperties cacheProperties;
     private final AiPlatformConfig aiPlatformConfig;
     private final PlaygroundPlatformConfig playgroundPlatformConfig;
+    private final LogLiveStreamProperties logLiveStreamProperties;
     private final ProductionReadinessService productionReadinessService;
 
     /**
@@ -57,6 +59,9 @@ public class SystemController {
                 "deployMode", deployProperties.getDeployMode(),
                 "cacheType", cacheProperties.getType(),
                 "redisRequired", AdminRedisConditions.isRedisInfrastructureRequired(environment)
+        ));
+        out.put("logLiveStream", Map.of(
+                "websocketEnabled", logLiveStreamProperties.isWebsocketEnabled()
         ));
         return out;
     }

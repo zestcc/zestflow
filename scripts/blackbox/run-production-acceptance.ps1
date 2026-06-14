@@ -13,8 +13,14 @@ param(
     [switch]$AllowSkipRuntime,
     [switch]$IncludeOfflineChecks,
     [switch]$RequireProdProfile,
+    [switch]$StrictV1,
     [int]$SceneTimeoutSec = 300
 )
+
+if ($StrictV1) {
+    $RequirePerf = $true
+    $IncludeOfflineChecks = $true
+}
 
 $ErrorActionPreference = "Continue"
 $Root = Split-Path $PSScriptRoot -Parent | Split-Path -Parent
@@ -42,6 +48,8 @@ function Write-AcceptanceGateReport {
             link = -not $SkipLink
             stress = -not $SkipStress
             perf = [bool]$RequirePerf
+            strictV1 = [bool]$StrictV1
+            offline = [bool]$IncludeOfflineChecks
         }
         phases = $phases
         hint = @{

@@ -7,7 +7,7 @@
     <parent>
         <groupId>cn.zestflow.www</groupId>
         <artifactId>zestflow</artifactId>
-        <version>0.2.0</version>
+        <version>1.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>zestflow-common</artifactId>

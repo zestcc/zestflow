@@ -5,6 +5,7 @@ import com.zestflow.executor.chain.NodeDefinition;
 import com.zestflow.executor.context.ChainContext;
 import com.zestflow.common.model.dto.NodeResultDTO;
 import com.zestflow.executor.event.SyncEventPublisher;
+import com.zestflow.executor.fallback.DefaultFallbackStrategy;
 import com.zestflow.executor.interceptor.InterceptorChain;
 import com.zestflow.executor.lifecycle.LifecycleExecutor;
 import com.zestflow.executor.retry.RetryExecutor;
@@ -41,7 +42,8 @@ class NodeRunnerExtendedTypesTest {
         when(executorProperties.getPort()).thenReturn(9999);
         when(executorProperties.getAppName()).thenReturn("test-app");
         nodeRunner = new NodeRunner(componentScanner, new SyncEventPublisher(eventCollector),
-                interceptorChain, lifecycleExecutor, retryExecutor, chainManager, executorProperties);
+                interceptorChain, lifecycleExecutor, retryExecutor, chainManager, executorProperties,
+                new DefaultFallbackStrategy());
     }
 
     @Test

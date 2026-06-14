@@ -22,6 +22,7 @@ export default defineConfig({
       '/api/zestflow': {
         target: adminProxyTarget,
         changeOrigin: true,
+        ws: true,
       },
       '/uploads': {
         target: adminProxyTarget,

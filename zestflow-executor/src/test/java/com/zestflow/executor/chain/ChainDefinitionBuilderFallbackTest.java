@@ -15,6 +15,20 @@ class ChainDefinitionBuilderFallbackTest {
     private ComponentScanner componentScanner;
 
     @Test
+    void build_parsesFallbackModeAndConstant() {
+        ChainDefinitionBuilder builder = new ChainDefinitionBuilder(componentScanner);
+        String graphData = """
+                {"nodes":[{"id":"n1","label":"Task","type":"NORMAL","component":"demoComp","config":{"fallback":{"mode":"constant","constant":"\\"ok\\""}}}],"edges":[]}
+                """;
+
+        ChainDefinition def = builder.build("CHN_FB", 1, null, graphData);
+
+        NodeDefinition node = def.getNodes().get("n1");
+        assertThat(node.getFallbackMode()).isEqualTo("constant");
+        assertThat(node.getFallbackConstant()).isEqualTo("\"ok\"");
+    }
+
+    @Test
     void build_shouldFallbackToGraphData_whenChainDataHasNoNodes() {
         ChainDefinitionBuilder builder = new ChainDefinitionBuilder(componentScanner);
         String graphData = """

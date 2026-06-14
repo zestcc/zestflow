@@ -7,7 +7,7 @@
     <parent>
         <groupId>cn.zestflow.www</groupId>
         <artifactId>zestflow-collector</artifactId>
-        <version>0.2.0</version>
+        <version>1.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>collector-core</artifactId>
@@ -15,7 +15,7 @@
     <packaging>jar</packaging>
 
     <name>ZestFlow :: Collector :: Core</name>
-    <description>采集器核心 — SPI 接口定义，可自定义实现</description>
+    <description>????? � SPI ???????????</description>
 
     <dependencies>
         <dependency>

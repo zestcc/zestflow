@@ -367,9 +367,10 @@ public class ExecutorAutoConfig {
                                  LifecycleExecutor lifecycleExecutor,
                                  RetryExecutor retryExecutor,
                                  ChainManager chainManager,
-                                 ExecutorProperties properties) {
+                                 ExecutorProperties properties,
+                                 FallbackStrategy fallbackStrategy) {
         return new NodeRunner(componentScanner, eventPublisher,
-                interceptorChain, lifecycleExecutor, retryExecutor, chainManager, properties);
+                interceptorChain, lifecycleExecutor, retryExecutor, chainManager, properties, fallbackStrategy);
     }
 
     @Bean

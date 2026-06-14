@@ -89,6 +89,12 @@ public class NodeDefinition {
     @Builder.Default
     private Set<String> fallbackOn = new HashSet<>();
 
+    /** 无降级元件时的策略：default / constant / propagate */
+    private String fallbackMode;
+
+    /** fallbackMode=constant 时写入上下文的常量值（可为 JSON 字面量） */
+    private String fallbackConstant;
+
     /** 是否启用熔断器 */
     @Builder.Default
     private boolean circuitBreakerEnabled = false;

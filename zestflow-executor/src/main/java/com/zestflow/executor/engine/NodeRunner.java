@@ -27,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 import com.zestflow.executor.expression.AviatorExpressionEvaluator;
 import com.zestflow.executor.expression.ExpressionEvaluationException;
 import com.zestflow.executor.context.ExecuteResultPublisher;
+import com.zestflow.executor.fallback.FallbackStrategy;
 import com.zestflow.executor.http.NativeHttpClient;
 import com.zestflow.executor.http.NodeConfigBridge;
 import com.zestflow.executor.security.SensitiveDataMasker;
@@ -56,6 +57,7 @@ public class NodeRunner {
     private final LifecycleExecutor lifecycleExecutor;
     private final RetryExecutor retryExecutor;
     private final ChainManager chainManager;
+    private final FallbackStrategy fallbackStrategy;
 
     /** 子链执行引擎（setter 注入，避免与 DefaultChainExecutionEngine 循环依赖） */
     private ChainExecutionEngine chainExecutionEngine;
@@ -98,13 +100,15 @@ public class NodeRunner {
     public NodeRunner(ComponentScanner componentScanner, EventPublisher eventPublisher,
                       InterceptorChain interceptorChain, LifecycleExecutor lifecycleExecutor,
                       RetryExecutor retryExecutor, ChainManager chainManager,
-                      com.zestflow.executor.registry.ExecutorProperties properties) {
+                      com.zestflow.executor.registry.ExecutorProperties properties,
+                      FallbackStrategy fallbackStrategy) {
         this.componentScanner = componentScanner;
         this.eventPublisher = eventPublisher != null ? eventPublisher : EventPublisher.noop();
         this.interceptorChain = interceptorChain;
         this.lifecycleExecutor = lifecycleExecutor;
         this.retryExecutor = retryExecutor;
         this.chainManager = chainManager;
+        this.fallbackStrategy = fallbackStrategy != null ? fallbackStrategy : new com.zestflow.executor.fallback.DefaultFallbackStrategy();
         this.executorId = properties.getAppCode() + "@" + properties.getHost() + ":" + properties.getPort();
         this.appCode = properties.getAppCode();
         this.appName = properties.getAppName() != null ? properties.getAppName() : properties.getAppCode();
@@ -228,7 +232,7 @@ public class NodeRunner {
             }
 
             // 触发降级
-            if (nodeDef.getFallbackComponent() != null && !nodeDef.getFallbackComponent().isEmpty()) {
+            if (hasFallbackConfigured(nodeDef)) {
                 return handleFallback(nodeDef, context, stateMachine, startTime, e);
             }
 
@@ -638,7 +642,20 @@ public class NodeRunner {
         }
 
         // 重试耗尽，触发降级
-        NodeResultDTO fallbackResult = handleFallback(nodeDef, context, stateMachine, startTime, null);
+        if (!hasFallbackConfigured(nodeDef)) {
+            stateMachine.transit(ChainConstants.NODE_FAILED);
+            publishNodeEvent(ChainEvent.EventType.NODE_FAILED, nodeDef, context, costMs, 0,
+                    "retry exhausted", null, null);
+            return NodeResultDTO.builder()
+                    .nodeId(nodeDef.getId())
+                    .status(ChainConstants.NODE_FAILED)
+                    .costMs(costMs)
+                    .errorMessage("retry exhausted")
+                    .build();
+        }
+
+        NodeResultDTO fallbackResult = handleFallback(nodeDef, context, stateMachine, startTime,
+                new RuntimeException("retry exhausted"));
 
         if (fallbackResult.getStatus() == null || fallbackResult.getStatus() != ChainConstants.NODE_SUCCESS) {
             recordCircuitBreakerFailure(nodeDef, nodeDef.getId());
@@ -653,25 +670,46 @@ public class NodeRunner {
         long costMs = 0;
 
         try {
-            lifecycleExecutor.executeFallback(nodeDef, context, cause);
+            Object result;
+            if (hasFallbackComponent(nodeDef)) {
+                result = lifecycleExecutor.executeFallback(nodeDef, context, cause);
+            } else {
+                result = fallbackStrategy.fallback(nodeDef, context, cause);
+            }
             costMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
-            // 降级成功后不会回到 try 块的成功路径，此处补发完成事件
-            publishNodeEvent(ChainEvent.EventType.NODE_FALLBACK_SUCCESS, nodeDef, context, costMs, 1, null, null, null);
+            stateMachine.transit(ChainConstants.NODE_SUCCESS);
+            publishNodeEvent(ChainEvent.EventType.NODE_FALLBACK_SUCCESS, nodeDef, context, costMs, 1, null, null,
+                    toJsonString(result));
             return NodeResultDTO.builder()
                     .nodeId(nodeDef.getId())
                     .status(ChainConstants.NODE_SUCCESS)
                     .costMs(costMs)
+                    .returnValue(result)
+                    .outputData(context.snapshot())
                     .build();
         } catch (Exception fallbackError) {
             log.error("降级执行失败 nodeId={}", nodeDef.getId(), fallbackError);
+            costMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
             stateMachine.transit(ChainConstants.NODE_FAILED);
             publishNodeEvent(ChainEvent.EventType.NODE_FALLBACK_FAILED, nodeDef, context, costMs, 0, fallbackError.getMessage(), null, null);
             return NodeResultDTO.builder()
                     .nodeId(nodeDef.getId())
                     .status(ChainConstants.NODE_FAILED)
+                    .costMs(costMs)
                     .errorMessage(fallbackError.getMessage())
                     .build();
         }
+    }
+
+    private static boolean hasFallbackComponent(NodeDefinition nodeDef) {
+        return nodeDef.getFallbackComponent() != null && !nodeDef.getFallbackComponent().isEmpty();
+    }
+
+    private static boolean hasFallbackConfigured(NodeDefinition nodeDef) {
+        if (hasFallbackComponent(nodeDef)) {
+            return true;
+        }
+        return nodeDef.getFallbackMode() != null && !nodeDef.getFallbackMode().isEmpty();
     }
 
     private void recordCircuitBreakerFailure(NodeDefinition nodeDef, String nodeId) {

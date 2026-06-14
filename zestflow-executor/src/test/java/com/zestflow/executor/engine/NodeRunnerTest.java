@@ -10,6 +10,7 @@ import com.zestflow.executor.event.SyncEventPublisher;
 import com.zestflow.executor.chain.ChainManager;
 import com.zestflow.executor.chain.NodeDefinition;
 import com.zestflow.executor.context.ChainContext;
+import com.zestflow.executor.fallback.DefaultFallbackStrategy;
 import com.zestflow.executor.interceptor.InterceptorChain;
 import com.zestflow.executor.lifecycle.LifecycleExecutor;
 import com.zestflow.executor.retry.RetryExecutor;
@@ -59,7 +60,8 @@ class NodeRunnerTest {
         when(executorProperties.getAppName()).thenReturn("test-app");
         executorId = "test-app@127.0.0.1:9999";
         nodeRunner = new NodeRunner(componentScanner, new SyncEventPublisher(eventCollector),
-                interceptorChain, lifecycleExecutor, retryExecutor, chainManager, executorProperties);
+                interceptorChain, lifecycleExecutor, retryExecutor, chainManager, executorProperties,
+                new DefaultFallbackStrategy());
         nodeRunner.setChainExecutionEngine(chainExecutionEngine);
     }
 

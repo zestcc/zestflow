@@ -122,7 +122,8 @@ zestflow:
       poll-interval-ms: 2000
       sse-timeout-ms: 600000
       pool-size: 4
-      websocket-enabled: false
+      # 1.0 默认 true；高并发或网关不支持 WS 时可关
+      websocket-enabled: true
     runtime-state:
       ttl-seconds: 300
     health-probe:

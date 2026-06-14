@@ -292,7 +292,7 @@ import { Graph } from '@antv/x6'
 import { Export } from '@antv/x6-plugin-export'
 import type { EventQueryParams, ExecutionTrace, NodeExecutionDetail } from '@/api/logs'
 import { queryExecutionTraces, getExecutionTrace, getSnapshot, getNodeExecutionDetail } from '@/api/logs'
-import { streamExecutionTrace, isExecutionTerminal } from '@/api/logsStream'
+import { streamExecutionTraceAuto, isExecutionTerminal } from '@/api/logsStream'
 import { aiApi, isCopilotAvailable, type AiDiagnoseResponse, type AiConfigStatusVO } from '@/api/ai'
 import { executorApi, type AppOption } from '@/api/executor'
 import { chainApi, type ChainVO } from '@/api/chain'
@@ -630,7 +630,7 @@ function startLiveStream(detail: ExecutionTrace) {
   streamAbort = new AbortController()
   liveStreaming.value = true
   const appCode = detail.appCode || currentAppCode.value || undefined
-  streamExecutionTrace(detail.executionId, appCode, (ev) => {
+  streamExecutionTraceAuto(detail.executionId, appCode, (ev) => {
     if (ev.type === 'trace') {
       traceDetail.value = ev.trace
       if (cachedGraphDataStr.value) {
