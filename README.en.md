@@ -13,7 +13,7 @@
   <a href="https://github.com/zestcc/zestflow/actions/workflows/ci.yml"><img src="https://github.com/zestcc/zestflow/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
   <img src="https://img.shields.io/badge/Java-17+-orange" alt="Java 17+"/>
   <img src="https://img.shields.io/badge/Spring%20Boot-3.2-brightgreen" alt="Spring Boot"/>
-  <img src="https://img.shields.io/badge/version-0.1.0-blue" alt="version"/>
+  <img src="https://img.shields.io/badge/version-1.0.0-blue" alt="version"/>
   <img src="https://img.shields.io/badge/license-Apache%202.0-green" alt="license"/>
 </p>
 
@@ -27,7 +27,7 @@ ZestFlow is a business process orchestration engine for Spring Boot. It breaks S
 
 Unlike LiteFlow (rule orchestration) or xxl-job (task scheduling), ZestFlow combines **orchestration + visual design + tracing + Cron scheduling** in one embeddable package — no BPMN required.
 
-Personal open-source project, currently **v0.1.0**, published on [Maven Central](https://central.sonatype.com/namespace/cn.zestflow.www).
+Personal open-source project, currently **v1.0.0** (tag [`v1.0.0`](https://gitee.com/zestcc/zestflow/releases/tag/v1.0.0)), published on [Maven Central](https://central.sonatype.com/namespace/cn.zestflow.www).
 
 ## Design editor
 
@@ -99,7 +99,7 @@ Admin does not own your chain data — it governs and proxies. Chain definitions
 <dependency>
     <groupId>cn.zestflow.www</groupId>
     <artifactId>zestflow-starter</artifactId>
-    <version>0.1.0</version>
+    <version>1.0.0</version>
 </dependency>
 ```
 
@@ -155,7 +155,7 @@ mvn spring-boot:run -pl zestflow-demo
 ## FAQ
 
 **Production ready?**  
-v0.1.0 — fine for personal projects and small-team trials. Prod guards and E2E exist, but the community is early; canary critical paths first.
+v1.0.0 — StrictV1 gate passed; suitable for personal projects and small-team trials. Use `prod` profile for production; see [DEPLOY.md](docs/DEPLOY.md).
 
 **Admin down?**  
 Loaded chains still run on Executor; scheduling and log queries are affected. Admin cluster HA not done yet.

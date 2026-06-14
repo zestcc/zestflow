@@ -30,6 +30,19 @@ function Login-AdminToken($BaseAdmin, $username = "admin", $password = "admin123
     try { return (ConvertFrom-Json $login.body).data.token } catch { return $null }
 }
 
+function Ensure-AdminLoginToken(
+    [string]$BaseAdmin,
+    [int]$MaxAttempts = 20,
+    [int]$SleepSec = 3
+) {
+    for ($i = 1; $i -le $MaxAttempts; $i++) {
+        $tok = Login-AdminToken $BaseAdmin
+        if ($tok) { return $tok }
+        Start-Sleep -Seconds $SleepSec
+    }
+    return $null
+}
+
 function Read-SseUntilEvent($url, $token, $eventName, [int]$TimeoutSec = 12) {
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
     $req = [System.Net.HttpWebRequest]::Create($url)

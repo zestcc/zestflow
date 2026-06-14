@@ -1,6 +1,6 @@
 # ZestFlow 架构设计文档
 
-> **版本** 1.0.0-SNAPSHOT · **更新** 2026-06-14 · **状态** 基于代码库全量通读 · [English](ARCHITECTURE.en.md)
+> **版本** 1.0.0 · **更新** 2026-06-14 · **状态** 基于代码库全量通读 · [English](ARCHITECTURE.en.md)
 > **定位** AI 时代的业务流程可观测编排引擎 · **文档索引** [README.md](README.md)
 
 ---

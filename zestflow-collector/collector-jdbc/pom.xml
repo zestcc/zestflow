@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -7,7 +7,7 @@
     <parent>
         <groupId>cn.zestflow.www</groupId>
         <artifactId>zestflow-collector</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.0.0</version>
     </parent>
 
     <artifactId>collector-jdbc</artifactId>
@@ -15,7 +15,7 @@
     <packaging>jar</packaging>
 
     <name>ZestFlow :: Collector :: JDBC</name>
-    <description>采集器默认实�?�?JDBC 落库</description>
+    <description>采集器默认实�?�?JDBC 落库</description>
 
     <dependencies>
         <dependency>
@@ -55,7 +55,7 @@
             <groupId>org.mybatis</groupId>
             <artifactId>mybatis-spring</artifactId>
         </dependency>
-        <!-- Netty HTTP 服务器（独立端口，与 ExecutorServer 模式相同�?-->
+        <!-- Netty HTTP 服务器（独立端口，与 ExecutorServer 模式相同�?-->
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-codec-http</artifactId>
@@ -64,7 +64,7 @@
             <groupId>io.netty</groupId>
             <artifactId>netty-handler</artifactId>
         </dependency>
-        <!-- Phase 2a：Micrometer 指标（可选，配合 Actuator 使用�?-->
+        <!-- Phase 2a：Micrometer 指标（可选，配合 Actuator 使用�?-->
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-core</artifactId>

@@ -1,6 +1,6 @@
 # ZestFlow Architecture Design Document
 
-> **Version** 1.0.0-SNAPSHOT · **Updated** 2026-06-14 · **Language** English · [简体中文](ARCHITECTURE.md)  
+> **Version** 1.0.0 · **Updated** 2026-06-14 · **Language** English · [简体中文](ARCHITECTURE.md)  
 > **Positioning** Observable business process orchestration engine for the AI era · **Doc index** [README.en.md](README.en.md)
 
 ---

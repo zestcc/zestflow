@@ -1,6 +1,6 @@
 # ZestFlow 文档中心
 
-> **版本** 1.0.0-SNAPSHOT · **更新** 2026-06-14 · **语言** 简体中文 · [English](README.en.md) · **完整清单** [CATALOG.md](CATALOG.md) · **维护规范** [DOCUMENTATION_MAINTENANCE.md](DOCUMENTATION_MAINTENANCE.md)
+> **版本** 1.0.0 · **更新** 2026-06-14 · **语言** 简体中文 · [English](README.en.md) · **完整清单** [CATALOG.md](CATALOG.md) · **维护规范** [DOCUMENTATION_MAINTENANCE.md](DOCUMENTATION_MAINTENANCE.md)
 
 欢迎查阅 ZestFlow 官方文档（共 **35** 篇，见 [完整清单](CATALOG.md)）。每篇均提供 [English](README.en.md) 镜像。采用 [Diátaxis](https://diataxis.fr/) 框架组织。
 

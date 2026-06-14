@@ -13,7 +13,7 @@
   <a href="https://github.com/zestcc/zestflow/actions/workflows/ci.yml"><img src="https://github.com/zestcc/zestflow/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
   <img src="https://img.shields.io/badge/Java-17+-orange" alt="Java 17+"/>
   <img src="https://img.shields.io/badge/Spring%20Boot-3.2-brightgreen" alt="Spring Boot"/>
-  <img src="https://img.shields.io/badge/version-1.0.0--SNAPSHOT-blue" alt="version"/>
+  <img src="https://img.shields.io/badge/version-1.0.0-blue" alt="version"/>
   <img src="https://img.shields.io/badge/license-Apache%202.0-green" alt="license"/>
 </p>
 
@@ -27,7 +27,7 @@ ZestFlow 是一个面向 Spring Boot 的业务流程编排引擎，把 Service �
 
 它和 LiteFlow 做规则编排、xxl-job 做任务调度不一样——ZestFlow 想解决的是：**编排 + 可视化 + 链路追踪 + Cron 调度** 放在一块，嵌入现有项目，不用学 BPMN。
 
-这是个人维护的开源项目，当前 **v1.0.0-SNAPSHOT**（目标 tag `v1.0.0`），已发 [Maven Central](https://central.sonatype.com/namespace/cn.zestflow.www)（0.x 线）。
+这是个人维护的开源项目，当前 **v1.0.0**（tag [`v1.0.0`](https://gitee.com/zestcc/zestflow/releases/tag/v1.0.0)），[Maven Central](https://central.sonatype.com/namespace/cn.zestflow.www) 同步发布 1.0.0 线。
 
 ## 设计编辑器
 
@@ -100,7 +100,7 @@ Admin 不存你的业务链数据，只做治理和代理。链定义、设计�
 <dependency>
     <groupId>cn.zestflow.www</groupId>
     <artifactId>zestflow-starter</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
 </dependency>
 ```
 
@@ -156,7 +156,7 @@ mvn spring-boot:run -pl zestflow-demo
 ## 常见问题
 
 **能用于生产吗？**  
-v1.0.0-SNAPSHOT，适合个人项目和小团队试点。有 StrictV1 门禁、prod 配置守卫和 E2E 测试；发版前请跑 `.\scripts\blackbox\run-v1-acceptance.ps1`。
+v1.0.0 已跑通 StrictV1 门禁，适合个人项目和小团队试点。生产部署须 `prod` profile + [DEPLOY.md](docs/DEPLOY.md)；发版前可复跑 `.\scripts\blackbox\run-v1-acceptance.ps1`。
 
 **Admin 挂了怎么办？**
 Executor 本地已加载的链还能跑；**业务 Cron 由 Executor 读业务库自治**（不依赖 Admin 在线）。链发布、控制台改调度、查日志需 Admin 恢复。详见 [docs/adr/SCHEDULING.md](docs/adr/SCHEDULING.md)。

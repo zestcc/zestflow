@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -6,7 +6,7 @@
 
     <groupId>cn.zestflow.www</groupId>
     <artifactId>zestflow</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <packaging>pom</packaging>
 
     <name>ZestFlow</name>
@@ -80,16 +80,16 @@
         <springdoc.version>2.6.0</springdoc.version>
 
         <!-- ============ 模块版本（独立管理，可各自发布） ============ -->
-        <zestflow-common.version>1.0.0-SNAPSHOT</zestflow-common.version>
-        <zestflow-executor.version>1.0.0-SNAPSHOT</zestflow-executor.version>
-        <collector-core.version>1.0.0-SNAPSHOT</collector-core.version>
-        <collector-jdbc.version>1.0.0-SNAPSHOT</collector-jdbc.version>
-        <collector-kafka.version>1.0.0-SNAPSHOT</collector-kafka.version>
-        <collector-rabbitmq.version>1.0.0-SNAPSHOT</collector-rabbitmq.version>
-        <zestflow-starter.version>1.0.0-SNAPSHOT</zestflow-starter.version>
-        <zestflow-admin.version>1.0.0-SNAPSHOT</zestflow-admin.version>
-        <zestflow-mcp.version>1.0.0-SNAPSHOT</zestflow-mcp.version>
-        <zestflow-demo.version>1.0.0-SNAPSHOT</zestflow-demo.version>
+        <zestflow-common.version>1.0.0</zestflow-common.version>
+        <zestflow-executor.version>1.0.0</zestflow-executor.version>
+        <collector-core.version>1.0.0</collector-core.version>
+        <collector-jdbc.version>1.0.0</collector-jdbc.version>
+        <collector-kafka.version>1.0.0</collector-kafka.version>
+        <collector-rabbitmq.version>1.0.0</collector-rabbitmq.version>
+        <zestflow-starter.version>1.0.0</zestflow-starter.version>
+        <zestflow-admin.version>1.0.0</zestflow-admin.version>
+        <zestflow-mcp.version>1.0.0</zestflow-mcp.version>
+        <zestflow-demo.version>1.0.0</zestflow-demo.version>
         <mcp-sdk.version>0.10.0</mcp-sdk.version>
 
         <!-- release profile：本地验证加 -Dgpg.skip=true；正式发布勿跳过 -->
@@ -140,12 +140,12 @@
             <dependency>
                 <groupId>cn.zestflow.www</groupId>
                 <artifactId>zestflow-dev-templates</artifactId>
-                <version>1.0.0-SNAPSHOT</version>
+                <version>1.0.0</version>
             </dependency>
             <dependency>
                 <groupId>cn.zestflow.www</groupId>
                 <artifactId>zestflow-dev-init</artifactId>
-                <version>1.0.0-SNAPSHOT</version>
+                <version>1.0.0</version>
             </dependency>
             <dependency>
                 <groupId>cn.zestflow.www</groupId>
@@ -374,7 +374,7 @@
                             <publishingServerId>central</publishingServerId>
                             <autoPublish>true</autoPublish>
                             <waitUntil>published</waitUntil>
-                            <deploymentName>ZestFlow 1.0.0-SNAPSHOT</deploymentName>
+                            <deploymentName>ZestFlow 1.0.0</deploymentName>
                         </configuration>
                     </plugin>
                 </plugins>

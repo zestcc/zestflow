@@ -44,7 +44,7 @@ StrictV1 脚本**固定**使用以下地址（与 `run-all-profiles-e2e.ps1` 一
 - **Node.js 18/20** + npm（`npm run build` 阶段）
 - 磁盘空闲 ≥ **5 GB**（全量测试 + 多轮 E2E 启停）
 
-首次启栈前脚本会自动执行 `mvn install -pl zestflow-admin,zestflow-demo -am`（见 `_acceptance-stack.ps1`），确保 `1.0.0-SNAPSHOT` 依赖已装入本地仓库。
+首次启栈前脚本会自动执行 `mvn compile -pl zestflow-admin,zestflow-demo -am`（见 `_acceptance-stack.ps1`），确保 `1.0.0` 依赖已编译。
 
 ### 2.3 发版前释放端口（Windows）
 
@@ -138,7 +138,7 @@ Get-ChildItem scripts/blackbox/results/v1-acceptance-*.json |
 
 | # | 动作 | 参考 |
 |---|------|------|
-| 1 | 版本 `1.0.0-SNAPSHOT` → **`1.0.0`**（父 POM properties + README + CHANGELOG） | [V1_0_ROADMAP.md](../V1_0_ROADMAP.md) |
+| 1 | 版本 **`1.0.0`**（父 POM properties + README + CHANGELOG） | [V1_0_ROADMAP.md](../V1_0_ROADMAP.md) |
 | 2 | 更新 `ARCHITECTURE.md` §8.5 与 CHANGELOG 定稿日期 | 已含 API 冻结声明 |
 | 3 | **`git tag v1.0.0`** + Gitee Release（admin tar.gz/zip） | README 下载链接改为 v1.0.0 |
 | 4 | **Maven Central** 发布 `cn.zestflow.www:zestflow-starter:1.0.0` | [PUBLISH_HANDOFF.md](../PUBLISH_HANDOFF.md) |

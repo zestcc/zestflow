@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+ï»¿<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -7,7 +7,7 @@
     <parent>
         <groupId>cn.zestflow.www</groupId>
         <artifactId>zestflow</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.0.0</version>
     </parent>
 
     <artifactId>zestflow-executor</artifactId>
@@ -36,7 +36,7 @@
             <groupId>org.springframework</groupId>
             <artifactId>spring-web</artifactId>
         </dependency>
-        <!-- spring-webmvc ?? RequestMappingHandlerMapping???????MVC ?????? -->
+        <!-- spring-webmvc ?? RequestMappingHandlerMapping??????ï¿½?MVC ?????? -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
@@ -56,7 +56,7 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- Aviator ?????-->
+        <!-- Aviator ????ï¿½?-->
         <dependency>
             <groupId>com.googlecode.aviator</groupId>
             <artifactId>aviator</artifactId>
@@ -84,13 +84,13 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-jdbc</artifactId>
         </dependency>
-        <!-- MockHttpServletRequest?Netty ?????MVC -->
+        <!-- MockHttpServletRequest?Netty ????ï¿½?MVC -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-test</artifactId>
         </dependency>
 
-        <!-- Phase 2a?Micrometer ???????? Actuator ???-->
+        <!-- Phase 2a?Micrometer ???????? Actuator ??ï¿½?-->
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-core</artifactId>
@@ -130,7 +130,7 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- Phase 2c?JMH ???????-->
+        <!-- Phase 2c?JMH ??????ï¿½?-->
         <dependency>
             <groupId>org.openjdk.jmh</groupId>
             <artifactId>jmh-core</artifactId>

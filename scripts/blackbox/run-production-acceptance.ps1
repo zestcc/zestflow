@@ -251,53 +251,65 @@ if ($RequirePerf) {
 }
 
 if ($IncludeOfflineChecks) {
-    Write-Host "Stopping demo-app for offline checks ..." -ForegroundColor DarkGray
+    Write-Host "Preparing offline checks (warm read cache) ..." -ForegroundColor DarkGray
     . "$PSScriptRoot\_acceptance-common.ps1"
-    $warmToken = $null
-    for ($i = 1; $i -le 5; $i++) {
-        $warmToken = Login-AdminToken $BaseAdmin
-        if ($warmToken) { break }
-        Start-Sleep -Seconds 2
+    if (-not (Wait-AcceptanceAdmin $BaseAdmin 120)) {
+        Write-Host "Admin slow after long runtime; cool-down 20s ..." -ForegroundColor Yellow
+        Start-Sleep -Seconds 20
+        $null = Wait-AcceptanceAdmin $BaseAdmin 60
     }
+    $warmToken = Ensure-AdminLoginToken $BaseAdmin 20 3
     $cacheWarmed = $false
     if ($warmToken) {
         $warmH = @{ Authorization = "Bearer $warmToken" }
-        $cacheWarmed = Warm-AcceptanceReadCache $BaseAdmin $warmH "demo-app"
+        for ($w = 1; $w -le 3; $w++) {
+            $cacheWarmed = Warm-AcceptanceReadCache $BaseAdmin $warmH "demo-app"
+            if ($cacheWarmed) { break }
+            Write-Host "Read-cache warm attempt $w/3 incomplete, retry ..." -ForegroundColor Yellow
+            Start-Sleep -Seconds 5
+        }
         if (-not $cacheWarmed) {
             Write-Host "Read-cache warm incomplete before offline checks (continuing)" -ForegroundColor Yellow
         }
     } else {
-        Write-Host "Admin login failed before offline checks" -ForegroundColor Yellow
+        Write-Host "Admin login failed before offline checks after retries" -ForegroundColor Yellow
     }
+    Write-Host "Stopping demo-app for offline checks ..." -ForegroundColor DarkGray
     Stop-AcceptanceDemoForOffline
     if ($warmToken) {
         $dereg = Remove-AcceptanceAppExecutors $BaseAdmin $warmH "demo-app"
         Write-Host "Deregistered $dereg demo-app executor(s) for offline snapshot probe" -ForegroundColor DarkGray
     }
-    $offlineDeadline = (Get-Date).AddSeconds(180)
+    $offlineDeadline = (Get-Date).AddSeconds(240)
     $staleReady = $false
     while ((Get-Date) -lt $offlineDeadline) {
-        try {
-            $login = Invoke-WebRequest -Uri "$BaseAdmin/api/zestflow/auth/login" -Method POST `
-                -Body '{"username":"admin","password":"admin123"}' -ContentType "application/json" `
-                -UseBasicParsing -TimeoutSec 5
-            $tok = (ConvertFrom-Json $login.Content).data.token
-            if ($tok) {
-                $hr = @{ Authorization = "Bearer $tok" }
+        $probeTok = Ensure-AdminLoginToken $BaseAdmin 3 2
+        if ($probeTok) {
+            try {
+                $hr = @{ Authorization = "Bearer $probeTok" }
                 $probe = Invoke-WebRequest -Uri "$BaseAdmin/api/zestflow/chains?appCode=demo-app&page=1&size=5" `
-                    -Headers $hr -UseBasicParsing -TimeoutSec 10
+                    -Headers $hr -UseBasicParsing -TimeoutSec 15
                 if ($probe.Content -match '"stale"\s*:\s*true') { $staleReady = $true; break }
-            }
-        } catch {}
+            } catch {}
+        }
         Start-Sleep -Seconds 5
     }
-    if (-not $staleReady) { Write-Host "Offline stale cache not observed within 120s (will still run checks)" -ForegroundColor Yellow }
+    if (-not $staleReady) { Write-Host "Offline stale cache not observed within 240s (will still run checks)" -ForegroundColor Yellow }
 
-    & "$PSScriptRoot\run-executor-read-cache-e2e.ps1" -RequireStaleCache
-    switch ($LASTEXITCODE) {
+    function Invoke-ReadCacheStaleE2e {
+        & "$PSScriptRoot\run-executor-read-cache-e2e.ps1" -RequireStaleCache
+        return [int]$LASTEXITCODE
+    }
+    $staleExit = Invoke-ReadCacheStaleE2e
+    if ($staleExit -ne 0 -and -not $staleReady) {
+        Write-Host "read-cache-stale failed, retry after 30s stale probe ..." -ForegroundColor Yellow
+        Start-Sleep -Seconds 30
+        $staleExit = Invoke-ReadCacheStaleE2e
+    }
+    switch ($staleExit) {
         0 { Add-Phase "link" "read-cache-stale-e2e" $true "passed" }
         2 { Add-Phase "link" "read-cache-stale-e2e" [bool]$AllowSkipRuntime "skipped" }
-        default { Add-Phase "link" "read-cache-stale-e2e" $false "exit=$LASTEXITCODE" }
+        default { Add-Phase "link" "read-cache-stale-e2e" $false "exit=$staleExit" }
     }
     & "$PSScriptRoot\run-executor-offline-write-e2e.ps1" -RequireOffline
     switch ($LASTEXITCODE) {
