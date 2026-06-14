@@ -1,7 +1,7 @@
 # ZestFlow Back-Channel Logout E2E
 param(
     [string]$SsoUrl = "http://localhost:9000",
-    [string]$ZfUrl = "http://localhost:8080",
+    [string]$ZfUrl = "http://localhost:8089",
     [string]$Username = "admin",
     [string]$Password = "admin123"
 )

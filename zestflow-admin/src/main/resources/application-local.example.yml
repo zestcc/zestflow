@@ -1,7 +1,11 @@
 # ============================================================
 # 本地开发环境配置（模板）
 # 复制本文件为 application-local.yml 并修改实际配置
+# ZestSSO 联调默认端口：Admin :8089，UI :5177（避开 8088 占用）
 # ============================================================
+
+server:
+  port: 8089
 
 spring:
   flyway:
@@ -38,6 +42,14 @@ zestflow:
   jwt:
     # 生产环境 JWT Secret 必须修改，保持 256 位以上
     secret: your-jwt-secret-must-be-at-least-256-bits-long
+  sso:
+    enabled: true
+    issuer: http://localhost:9000
+    client-id: zestflow-admin
+    client-secret: change-me-in-production
+    redirect-uri: http://localhost:5177/login/callback
+    post-logout-redirect-uri: http://localhost:5177/login
+    jwks-uri: http://localhost:9000/oauth2/jwks
   admin:
     default-user:
       email: admin@example.com

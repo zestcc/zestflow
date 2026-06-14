@@ -22,7 +22,7 @@
     </properties>
 
     <dependencies>
-        <!-- 内部模块 -->
+        <!-- ???? -->
         <dependency>
             <groupId>cn.zestflow.www</groupId>
             <artifactId>zestflow-common</artifactId>
@@ -63,7 +63,7 @@
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
 
-        <!-- MyBatis-Plus�?.5.9+ 分页/多租户插件需单独引入 jsqlparser 模块�?-->
+        <!-- MyBatis-Plus�?.5.9+ ??/?????????? jsqlparser ??�?-->
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
@@ -79,7 +79,7 @@
             <artifactId>mysql-connector-j</artifactId>
         </dependency>
 
-        <!-- Flyway 数据库迁�?-->
+        <!-- Flyway ????�?-->
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
@@ -89,7 +89,7 @@
             <artifactId>flyway-mysql</artifactId>
         </dependency>
 
-        <!-- Thymeleaf 模板引擎（邮件模板渲染） -->
+        <!-- Thymeleaf ???????????? -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-thymeleaf</artifactId>
@@ -109,13 +109,13 @@
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
 
-        <!-- Actuator 生产运维端点 -->
+        <!-- Actuator ?????? -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
-        <!-- OpenAPI 3 / Swagger UI（本地文档与导出；生�?profile 关闭 UI �?api-docs�?-->
+        <!-- OpenAPI 3 / Swagger UI??????????�?profile ?? UI �?api-docs�?-->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
@@ -132,11 +132,11 @@
             <version>${jjwt.version}</version>
         </dependency>
 
-        <!-- ZestSSO Back-Channel Logout SDK（与 zestflow.sso SPI 并存，仅�?RP 登出接收�?-->
+        <!-- ZestSSO Back-Channel Logout SDK?? zestflow.sso SPI ????�?RP ????�?-->
         <dependency>
             <groupId>cn.zest.sso</groupId>
             <artifactId>zest-sso-client-sdk</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
+            <version>1.0.1-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -187,7 +187,7 @@
         </plugins>
     </build>
 
-    <!-- �?Admin 集群部署：mvn package -Pcluster，打�?ShedLock + 集群调度入口 -->
+    <!-- �?Admin ?????mvn package -Pcluster??�?ShedLock + ?????? -->
     <profiles>
         <profile>
             <id>cluster</id>
@@ -225,8 +225,8 @@
                 </plugins>
             </build>
         </profile>
-        <!-- 生产部署包：mvn package -pl zestflow-admin -Pdist -DskipTests
-             �?deploy/zestflow_admin_{ver}_linux.tar.gz + _win.zip -->
+        <!-- ??????mvn package -pl zestflow-admin -Pdist -DskipTests
+             �?deploy/zestflow_admin_{ver}_linux.tar.gz + _win.zip -->
         <profile>
             <id>dist</id>
             <build>

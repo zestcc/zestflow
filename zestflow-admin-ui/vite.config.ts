@@ -3,7 +3,7 @@ import vue from '@vitejs/plugin-vue'
 import path from 'path'
 
 const adminProxyTarget =
-  process.env.VITE_ADMIN_PROXY_TARGET ?? 'http://localhost:8082'
+  process.env.VITE_ADMIN_PROXY_TARGET ?? 'http://localhost:8089'
 
 export default defineConfig({
   plugins: [vue()],
@@ -17,7 +17,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    port: 5177,
     proxy: {
       '/api/zestflow': {
         target: adminProxyTarget,
