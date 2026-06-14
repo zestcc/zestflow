@@ -2,6 +2,9 @@ import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
 
+const adminProxyTarget =
+  process.env.VITE_ADMIN_PROXY_TARGET ?? 'http://localhost:8082'
+
 export default defineConfig({
   plugins: [vue()],
   test: {
@@ -17,11 +20,11 @@ export default defineConfig({
     port: 8001,
     proxy: {
       '/api/zestflow': {
-        target: 'http://localhost:8080',
+        target: adminProxyTarget,
         changeOrigin: true,
       },
       '/uploads': {
-        target: 'http://localhost:8080',
+        target: adminProxyTarget,
         changeOrigin: true,
       },
     },
