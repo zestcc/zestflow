@@ -27,9 +27,19 @@ function With-StrictV1Profile([string]$Profiles) {
     return "$Profiles,strictv1-e2e"
 }
 
+function With-StrictV1DemoProfile([string]$Profiles) {
+    $p = With-StrictV1Profile $Profiles
+    if ($p -notlike '*,demo,*' -and $p -notlike 'demo,*' -and $p -notlike '*,demo' -and $p -ne 'demo') {
+        $p = if ([string]::IsNullOrWhiteSpace($p)) { "demo" } else { "$p,demo" }
+    }
+    return $p
+}
+
 function Boot-Stack([string]$AdminProfiles, [string]$DemoProfiles) {
+    $demoArg = if ($DemoProfiles -eq $null) { "" } else { [string]$DemoProfiles }
+    $demoBoot = if ([string]::IsNullOrWhiteSpace($demoArg)) { "" } else { With-StrictV1DemoProfile $demoArg }
     return Boot-AcceptanceProfileStack $Root $JavaHome `
-        (With-StrictV1Profile $AdminProfiles) (With-StrictV1Profile $DemoProfiles)
+        (With-StrictV1Profile $AdminProfiles) $demoBoot
 }
 
 function Stop-Services { Stop-AcceptanceStack }
@@ -110,7 +120,7 @@ if ($ok) {
 }
 
 # --- playground-disabled (Admin only) ---
-$ok = Boot-Stack "local,playground-disabled-e2e" $null
+$ok = Boot-Stack "local,playground-disabled-e2e" ""
 if ($ok) {
     $ec = Run-Script "run-playground-disabled-e2e.ps1" @{}
     Add-Phase "playground-disabled-e2e" ($ec -eq 0) "exit=$ec"

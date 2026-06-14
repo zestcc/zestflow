@@ -152,7 +152,7 @@ function Boot-AcceptanceStack {
         [string]$Root,
         [string]$JavaHome,
         [string]$AdminProfiles = $script:AcceptanceAdminProfiles,
-        [string]$DemoProfiles = $script:AcceptanceDemoProfiles
+        [AllowEmptyString()] [string]$DemoProfiles = $script:AcceptanceDemoProfiles
     )
     if (-not (Ensure-AcceptanceArtifacts $Root $JavaHome)) { return $false }
     Stop-AcceptanceStack
@@ -202,7 +202,7 @@ function Boot-AcceptanceProfileStack {
         [string]$Root,
         [string]$JavaHome,
         [string]$AdminProfiles,
-        [string]$DemoProfiles
+        [AllowEmptyString()] [string]$DemoProfiles
     )
     if (-not (Boot-AcceptanceStack $Root $JavaHome $AdminProfiles $DemoProfiles)) {
         return $false

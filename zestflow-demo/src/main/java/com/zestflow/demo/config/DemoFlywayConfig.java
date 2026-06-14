@@ -8,10 +8,10 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
 /**
- * demo profile：Executor 业务库 Flyway（策略与 Admin 非 prod 一致，见 docs/FLYWAY_POLICY.md）。
+ * demo / strictv1-e2e profile：Executor 业务库 Flyway（策略与 Admin 非 prod 一致，见 docs/FLYWAY_POLICY.md）。
  */
 @Configuration
-@Profile("demo")
+@Profile({"demo", "strictv1-e2e"})
 public class DemoFlywayConfig {
 
     @Bean
