@@ -17,7 +17,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 8001,
+    port: 5173,
     proxy: {
       '/api/zestflow': {
         target: adminProxyTarget,
