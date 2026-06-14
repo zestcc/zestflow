@@ -69,7 +69,8 @@ SLA 阈值：`scripts/blackbox/production-acceptance-policy.json`
 | SSO 回调 | `AbstractOidcSsoProviderTest.handleCallback_*`、`SsoAuthServiceTest` |
 | **生产 checklist** | `ProductionReadinessService` + `run-production-profile-checklist.ps1` |
 | **Playwright** | `zestflow-admin-ui/e2e/*.spec.ts` + `run-playwright-e2e.ps1` |
-| **WebSocket 日志流** | `LogLiveStreamWebSocketConfig`（`websocket-enabled=true` 时启用，仍轮询 Collector） |
+| **WebSocket 日志流** | `LogLiveStreamWebSocketConfig` + `run-log-live-stream-ws-e2e.ps1` |
+| **SSE 日志流** | `run-log-live-stream-e2e.ps1` |
 | 401 未登录 | `JwtUnauthorizedEntryPointTest`、`AdminApiSecurityMvcTest` |
 | 读快照 | `ExecutorProxyServiceReadCacheTest`、`RedisExecutorReadCacheTest` |
 | 生产守卫 | `AdminProductionGuardTest`、`ProductionSecretGuardTest` |

@@ -7,13 +7,12 @@ param(
 
 $ErrorActionPreference = "Continue"
 $Root = Split-Path $PSScriptRoot -Parent | Split-Path -Parent
+. "$PSScriptRoot\_acceptance-stack.ps1"
 $OutDir = Join-Path $PSScriptRoot "results"
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $ReportJson = Join-Path $OutDir ("all-profiles-e2e-{0}.json" -f (Get-Date -Format "yyyyMMdd-HHmmss"))
 $phases = New-Object System.Collections.Generic.List[object]
 $script:exitCode = 0
-$script:adminJob = $null
-$script:demoJob = $null
 
 function Add-Phase($name, $ok, $note) {
     $script:phases.Add([pscustomobject]@{ phase = $name; ok = $ok; note = $note }) | Out-Null
@@ -22,105 +21,20 @@ function Add-Phase($name, $ok, $note) {
     Write-Host ("[{0}] {1} — {2}" -f $(if ($ok) { 'PASS' } else { 'FAIL' }), $name, $note) -ForegroundColor $color
 }
 
-function Stop-ListenPort([int]$Port) {
-    Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
-        Select-Object -ExpandProperty OwningProcess -Unique |
-        ForEach-Object { if ($_ -and $_ -ne 0) { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue } }
-}
-
-function Stop-Services {
-    Write-Host "Stopping services on 8080/8081/20550/20650 ..." -ForegroundColor DarkGray
-    foreach ($p in @(8081, 20550, 20650, 8080)) { Stop-ListenPort $p }
-    if ($script:adminJob) { Stop-Job $script:adminJob -ErrorAction SilentlyContinue; Remove-Job $script:adminJob -Force -ErrorAction SilentlyContinue; $script:adminJob = $null }
-    if ($script:demoJob) { Stop-Job $script:demoJob -ErrorAction SilentlyContinue; Remove-Job $script:demoJob -Force -ErrorAction SilentlyContinue; $script:demoJob = $null }
-    Start-Sleep -Seconds 4
-}
-
-function Wait-Admin([int]$TimeoutSec = 180) {
-    $deadline = (Get-Date).AddSeconds($TimeoutSec)
-    while ((Get-Date) -lt $deadline) {
-        try {
-            $r = Invoke-WebRequest -Uri "http://127.0.0.1:8080/api/zestflow/auth/login" -Method POST `
-                -Body '{"username":"admin","password":"admin123"}' -ContentType "application/json" `
-                -UseBasicParsing -TimeoutSec 5
-            if ($r.StatusCode -eq 200) { return $true }
-        } catch {}
-        Start-Sleep -Seconds 2
-    }
-    return $false
-}
-
-function Wait-Netty([int]$TimeoutSec = 180) {
-    $deadline = (Get-Date).AddSeconds($TimeoutSec)
-    while ((Get-Date) -lt $deadline) {
-        try {
-            $r = Invoke-WebRequest -Uri "http://127.0.0.1:20550/health" -UseBasicParsing -TimeoutSec 5
-            if ($r.StatusCode -eq 200) { return $true }
-        } catch {}
-        Start-Sleep -Seconds 2
-    }
-    return $false
-}
-
-function Start-Admin([string]$Profiles) {
-    $script:adminJob = Start-Job -Name "zestflow-admin" -ScriptBlock {
-        param($Root, $JavaHome, $Profiles)
-        $env:JAVA_HOME = $JavaHome
-        $env:Path = "$JavaHome\bin;" + $env:Path
-        Set-Location $Root
-        & mvn -q spring-boot:run -pl zestflow-admin -DskipTests "-Dspring-boot.run.profiles=$Profiles"
-    } -ArgumentList $Root, $JavaHome, $Profiles
-}
-
-function Start-Demo([string]$Profiles) {
-    $script:demoJob = Start-Job -Name "zestflow-demo" -ScriptBlock {
-        param($Root, $JavaHome, $Profiles)
-        $env:JAVA_HOME = $JavaHome
-        $env:Path = "$JavaHome\bin;" + $env:Path
-        Set-Location $Root
-        & mvn -q spring-boot:run -pl zestflow-demo -DskipTests "-Dspring-boot.run.profiles=$Profiles"
-    } -ArgumentList $Root, $JavaHome, $Profiles
-}
-
-function Wait-SecurityReady([int]$TimeoutSec = 240) {
-    $deadline = (Get-Date).AddSeconds($TimeoutSec)
-    while ((Get-Date) -lt $deadline) {
-        try {
-            $login = Invoke-WebRequest -Uri "http://127.0.0.1:8080/api/zestflow/auth/login" -Method POST `
-                -Body '{"username":"admin","password":"admin123"}' -ContentType "application/json" `
-                -UseBasicParsing -TimeoutSec 5
-            $token = (ConvertFrom-Json $login.Content).data.token
-            if (-not $token) { Start-Sleep -Seconds 3; continue }
-            $h = @{ Authorization = "Bearer $token" }
-            $feat = Invoke-WebRequest -Uri "http://127.0.0.1:8080/api/zestflow/system/features" -Headers $h -UseBasicParsing -TimeoutSec 5
-            $json = ConvertFrom-Json $feat.Content
-            if ($json.security.registryTokenConfigured) { return $true }
-        } catch {}
-        Start-Sleep -Seconds 3
-    }
-    return $false
+function With-StrictV1Profile([string]$Profiles) {
+    if ($Profiles -like '*strictv1-e2e*') { return $Profiles }
+    if ([string]::IsNullOrWhiteSpace($Profiles)) { return "local,strictv1-e2e" }
+    return "$Profiles,strictv1-e2e"
 }
 
 function Boot-Stack([string]$AdminProfiles, [string]$DemoProfiles) {
-    Stop-Services
-    Write-Host "Boot Admin profiles=$AdminProfiles Demo profiles=$DemoProfiles" -ForegroundColor Cyan
-    Start-Admin $AdminProfiles
-    if ($DemoProfiles) {
-        Start-Demo $DemoProfiles
-        if (-not (Wait-Admin -TimeoutSec 240)) { return $false }
-        if (-not (Wait-Netty -TimeoutSec 240)) { return $false }
-    } else {
-        if (-not (Wait-Admin -TimeoutSec 240)) { return $false }
-    }
-    if ($AdminProfiles -like '*security-e2e*') {
-        if (-not (Wait-SecurityReady)) {
-            Write-Host "security-e2e profile not active on Admin" -ForegroundColor Red
-            return $false
-        }
-    }
-    Start-Sleep -Seconds 5
-    return $true
+    return Boot-AcceptanceProfileStack $Root $JavaHome `
+        (With-StrictV1Profile $AdminProfiles) (With-StrictV1Profile $DemoProfiles)
 }
+
+function Stop-Services { Stop-AcceptanceStack }
+
+function Wait-Admin([int]$TimeoutSec = 180) { return Wait-AcceptanceAdmin "http://127.0.0.1:8080" $TimeoutSec }
 
 function Run-Script($name, [hashtable]$NamedArgs = @{}) {
     $path = Join-Path $PSScriptRoot $name

@@ -1,0 +1,7 @@
+# 2026-06-14：StrictV1 / 黑盒 E2E 固定 Admin :8080（覆盖 application-local.yml 的 8082）
+server:
+  port: 8080
+
+zestflow:
+  sso:
+    enabled: false

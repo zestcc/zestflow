@@ -24,11 +24,13 @@ if ($StrictV1) {
 
 $ErrorActionPreference = "Continue"
 $Root = Split-Path $PSScriptRoot -Parent | Split-Path -Parent
+. "$PSScriptRoot\_acceptance-stack.ps1"
 $OutDir = Join-Path $PSScriptRoot "results"
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $ReportJson = Join-Path $OutDir ("production-acceptance-{0}.json" -f (Get-Date -Format "yyyyMMdd-HHmmss"))
 $phases = New-Object System.Collections.Generic.List[object]
 $script:exitCode = 0
+$script:acceptanceStackBooted = $false
 
 function Add-Phase($layer, $name, $ok, $note) {
     $script:phases.Add([pscustomobject]@{ layer=$layer; phase=$name; ok=$ok; note=$note }) | Out-Null
@@ -38,6 +40,10 @@ function Add-Phase($layer, $name, $ok, $note) {
 }
 
 function Write-AcceptanceGateReport {
+    if ($script:acceptanceStackBooted) {
+        Stop-AcceptanceStack
+        $script:acceptanceStackBooted = $false
+    }
     $report = @{
         timestamp = (Get-Date).ToString("o")
         exitCode = $script:exitCode
@@ -65,6 +71,8 @@ function Write-AcceptanceGateReport {
 }
 
 Write-Host "========== ZestFlow Production Acceptance ==========" -ForegroundColor Cyan
+$env:JAVA_HOME = $JavaHome
+$env:Path = "$JavaHome\bin;" + $env:Path
 
 # --- Layer A: Whitebox (mvn test) ---
 if (-not $SkipMavenTest) {
@@ -95,6 +103,20 @@ try {
         -UseBasicParsing -TimeoutSec 5
     $adminUp = ($ping.StatusCode -eq 200)
 } catch {}
+
+if (-not $adminUp -and $StrictV1) {
+    Write-Host "StrictV1: booting acceptance stack on :8080 ..." -ForegroundColor Cyan
+    $script:acceptanceStackBooted = Boot-AcceptanceStack $Root $JavaHome
+    if ($script:acceptanceStackBooted) {
+        try {
+            $ping = Invoke-WebRequest -Uri "$BaseAdmin/api/zestflow/auth/login" -Method POST `
+                -Body '{"username":"admin","password":"admin123"}' -ContentType "application/json" `
+                -UseBasicParsing -TimeoutSec 5
+            $adminUp = ($ping.StatusCode -eq 200)
+        } catch {}
+    }
+    Add-Phase "blackbox" "strictv1-boot-stack" ($script:acceptanceStackBooted -and $adminUp) $(if ($adminUp) { "admin:8080 ready" } else { "boot failed" })
+}
 
 if (-not $adminUp) {
     $runtimeOk = [bool]$AllowSkipRuntime
@@ -132,6 +154,13 @@ if (-not $SkipRuntimeBlackbox) {
         0 { Add-Phase "blackbox" "log-live-stream-e2e" $true "passed" }
         2 { Add-Phase "blackbox" "log-live-stream-e2e" [bool]$AllowSkipRuntime $(if ($AllowSkipRuntime) { "skipped" } else { "required-fail" }) }
         default { Add-Phase "blackbox" "log-live-stream-e2e" $false "exit=$LASTEXITCODE" }
+    }
+
+    & "$PSScriptRoot\run-log-live-stream-ws-e2e.ps1" -AllowSkip:$AllowSkipRuntime
+    switch ($LASTEXITCODE) {
+        0 { Add-Phase "blackbox" "log-live-stream-ws-e2e" $true "passed" }
+        2 { Add-Phase "blackbox" "log-live-stream-ws-e2e" [bool]$AllowSkipRuntime $(if ($AllowSkipRuntime) { "skipped" } else { "required-fail" }) }
+        default { Add-Phase "blackbox" "log-live-stream-ws-e2e" $false "exit=$LASTEXITCODE" }
     }
 
     & "$PSScriptRoot\run-executor-read-cache-e2e.ps1" -AllowSkip:$AllowSkipRuntime

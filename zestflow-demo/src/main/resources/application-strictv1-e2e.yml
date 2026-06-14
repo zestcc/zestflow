@@ -1,0 +1,7 @@
+# 2026-06-14：StrictV1 E2E — Executor/Collector 注册到 Admin :8080
+zestflow:
+  executor:
+    admin-addresses: http://127.0.0.1:8080
+  collector:
+    registry:
+      admin-addresses: http://127.0.0.1:8080

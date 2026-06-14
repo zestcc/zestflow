@@ -69,6 +69,40 @@ function Read-SseUntilEvent($url, $token, $eventName, [int]$TimeoutSec = 12) {
     }
 }
 
+function Read-WebSocketUntilEvent($wsUrl, $eventName, [int]$TimeoutSec = 15) {
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    $ws = New-Object System.Net.WebSockets.ClientWebSocket
+    $cts = New-Object System.Threading.CancellationTokenSource
+    $cts.CancelAfter($TimeoutSec * 1000)
+    try {
+        $ws.ConnectAsync([Uri]$wsUrl, $cts.Token).GetAwaiter().GetResult() | Out-Null
+        $buffer = New-Object byte[] 65536
+        $deadline = (Get-Date).AddSeconds($TimeoutSec)
+        while ((Get-Date) -lt $deadline) {
+            $seg = [ArraySegment[byte]]::new($buffer)
+            $result = $ws.ReceiveAsync($seg, $cts.Token).GetAwaiter().GetResult()
+            if ($result.MessageType -eq [System.Net.WebSockets.WebSocketMessageType]::Close) { break }
+            $text = [Text.Encoding]::UTF8.GetString($buffer, 0, $result.Count)
+            try {
+                $json = ConvertFrom-Json $text
+                if ($json.event -eq $eventName) {
+                    $sw.Stop()
+                    return @{ ok = $true; ms = $sw.ElapsedMilliseconds; payload = $json.data }
+                }
+            } catch {}
+        }
+        $sw.Stop()
+        return @{ ok = $false; ms = $sw.ElapsedMilliseconds }
+    } catch {
+        $sw.Stop()
+        return @{ ok = $false; ms = $sw.ElapsedMilliseconds; snippet = $_.Exception.Message }
+    } finally {
+        try { if ($ws.State -eq 'Open') { $ws.CloseAsync([System.Net.WebSockets.WebSocketCloseStatus]::NormalClosure, 'done', $cts.Token).GetAwaiter().GetResult() | Out-Null } } catch {}
+        try { $ws.Dispose() } catch {}
+        $cts.Dispose()
+    }
+}
+
 function Invoke-PlaygroundScene($BaseAdmin, $token, $sceneCode, $bodyJson, [int]$TimeoutSec = 120) {
     $h = @{ Authorization = "Bearer $token" }
     return Invoke-AcceptanceApi POST "$BaseAdmin/api/zestflow/playground/execute/$sceneCode" $bodyJson $h $TimeoutSec

@@ -31,7 +31,9 @@ StrictV1 脚本**固定**使用以下地址（与 `run-all-profiles-e2e.ps1` 一
 | Executor Netty | **20550** | 链执行 |
 | Collector Netty | **20650** | 事件查询 |
 
-> **注意**：本地调试若把 Admin 改到 `8082`（`application-local.yml`），**不能**直接跑 StrictV1。发版验收前请暂时改回 **8080**，或释放 8080 后使用默认配置启动。
+**8082 本地调试**：若存在 `application-local.yml` 把 Admin 改到 8082，E2E 会自动叠加 **`strictv1-e2e`** profile 强制回到 **8080**（见 `application-strictv1-e2e.yml`），**无需**手动改回 local 配置。
+
+> production-acceptance 在 `-StrictV1` 且 Admin 不可达时会**自动启栈**（`local,strictv1-e2e`）。
 
 ### 2.2 软件与数据
 
@@ -41,6 +43,8 @@ StrictV1 脚本**固定**使用以下地址（与 `run-all-profiles-e2e.ps1` 一
   - `zestflow_app_bussiness` / `zestflow_app_log` — demo `init.sql` + `initData.sql`
 - **Node.js 18/20** + npm（`npm run build` 阶段）
 - 磁盘空闲 ≥ **5 GB**（全量测试 + 多轮 E2E 启停）
+
+首次启栈前脚本会自动执行 `mvn install -pl zestflow-admin,zestflow-demo -am`（见 `_acceptance-stack.ps1`），确保 `1.0.0-SNAPSHOT` 依赖已装入本地仓库。
 
 ### 2.3 发版前释放端口（Windows）
 
