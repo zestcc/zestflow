@@ -37,5 +37,20 @@ ZestFlow **1.0.0** 是首个正式 API 稳定版本：嵌入式业务流程编�
 
 ## 后续
 
-- Maven Central `1.0.0` 构件发布（`scripts/maven/publish-central.ps1`）
-- Gitee / GitHub Release 二进制包（Admin 单 jar）
+- Maven Central `1.0.0`：`scripts/maven/verify-release.ps1` 已通过 → 密钥就绪后 `scripts/maven/publish-central.ps1`
+- Gitee Release 包：
+  ```powershell
+  mvn install -pl zestflow-admin -am -DskipTests
+  cd zestflow-admin-ui; npm run build; cd ..
+  mvn package -pl zestflow-admin -DskipTests
+  powershell -File scripts/deploy/package-admin.ps1 -SkipBuild
+  $env:GITEE_TOKEN = "<私人令牌>"
+  powershell -File scripts/deploy/publish-gitee-release.ps1
+  ```
+
+## 下载（Release 附件）
+
+| 平台 | 文件 |
+|------|------|
+| Linux | [zestflow_admin_1.0.0_linux.tar.gz](https://gitee.com/zestcc/zestflow/releases/download/v1.0.0/zestflow_admin_1.0.0_linux.tar.gz) |
+| Windows | [zestflow_admin_1.0.0_win.zip](https://gitee.com/zestcc/zestflow/releases/download/v1.0.0/zestflow_admin_1.0.0_win.zip) |
